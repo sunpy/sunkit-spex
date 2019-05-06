@@ -6,11 +6,13 @@ from collections import OrderedDict
 import numpy as np
 import astropy.units as u
 import scipy.io
-from sunpy.io.special.genx import read_genx
 from scipy.sparse import csr_matrix
+from sunpy.io.special.genx import read_genx
+import sunpy.coordinates
 
 SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("~", "ssw", "packages",
                                                      "xray", "dbase", "chianti"))
+FILE_IN = "/Users/dnryan/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav"
 
 class ChiantiKevLines():
     """
@@ -18,6 +20,7 @@ class ChiantiKevLines():
 
     """
     def __init__(self):
+        pass
 
 #@u.quantity_input(energy_edges=u.keV, temperature=u.K, emission_measure=1/(u.cm**3),
 #                  observer_distance='length')
@@ -111,9 +114,9 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
             observer_distance = 1
         else:
             if date is None:
-                distance = 1 * u.AU
+                observer_distance = 1 * u.AU
             else:
-                distance = sunpy.coordinates.get_sunearth_distance(time=date)
+                observer_distance = sunpy.coordinates.get_sunearth_distance(time=date)
     
     # For ease of calculation, convert inputs to standard units and
     # scale to manageable numbers.
@@ -125,17 +128,18 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     mgtemp = temp * 1e6
     uu = np.log10(mgtemp)
 
-    zindex, out, totcont, totcont_lo, edge_str, ctemp, chianti_doc = chianti_kev_common_load(linefile=file_in)
+    zindex, out, totcont, totcont_lo, edge_str, ctemp, chianti_doc = chianti_kev_common_load(linefile=FILE_IN)
     # Location of file giving intensity as a function of temperatures at all line energies:
     # https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav
-    line_energies, log10_temp_K_range, line_intensities, line_element_indices, element_indices, \
-      line_iz = _extract_from_chianti_lines_sav()
-    energy = (np.linspace(3, 9, 1001) * u.keV).value
+    #line_energies, log10_temp_K_range, line_intensities, line_element_indices, element_indices, \
+    #  line_iz = _extract_from_chianti_lines_sav()
+    #energy = (np.linspace(3, 9, 1001) * u.keV).value
 
     # Load abundances
     abundance = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
                                 xr_ab_file=kwargs.get("xr_ab_file", None))
     len_abundances = len(abundance)
+    ######## Define Relative abundance here!!! ###########
     
     # Find energies within energy range of interest.
     line_indices = np.logical_and(line_energies >= energy.min(),
@@ -160,38 +164,41 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     if n_line_indices > 0:
         eline = eline[sline]
 
-        p = chianti_kev_getp(out, sline, logt, temp*1e6, nsline)
-        # Tested to here
-
+        p = chianti_kev_getp(line_intensities, sline, logt, temp*1e6, nsline)
+ 
         abundance_ratio = np.ones(len_abundances)
         if rel_abun is not None:
-            abundance_ratio[rel_abun[0,*]-1] = rel_abun[1,*]
+            abundance_ratio[rel_abun[0, :]-1] = rel_abun[1, :]
 
         # We include default_abundance because it will have zeroes for elements not included
         # and ones for those included
-        default_abundance = np.zeros(len_abundance)
+        default_abundance = np.zeros(len_abundances)
         default_abundance[zindex] = 1.0
         abund = (default_abundance * abundance * abundance_ratio)[out_lines_iz[sline]-1]
         emiss = p * abund
+        # Tested to here without rel_abund
 
         # energy products
         wedg = energy[1:] - energy[:-1]
         energm = energy[:-1] + wedg/2
         
-        iline = np.digitize(energy, eline) - 1
+        iline = np.digitize(eline, energy) - 1
 
-        hhh = np.histogram(eline - energm[iline], bins=10, range=(-10., 10.))[0]
+        # Get reverse indices for each bin.
         rr = get_reverse_indices(eline - energm[iline], nbins=10, min_range=-10., max_range=10.)[1]
-
+        # Extract bins with >0 counts.
+        rr = tuple(np.array(rr)[np.where(np.array([len(ri) for ri in rr]) > 0)[0]])
         ###### Ask Richard how wghtline works. I got None for line below. ######
         wghtline = True
         # look for wide bins next to line bins, if too wide x 2 eline bin width
         # then don't spread out lines
+        """
         wedg0 = wedg[iline]
         wedg0a = wedg[iline-1>0]
         wedg0b = wedg[iline+1<(n_elements(wedg)-1)]
         wghtline = wghtline and np.max([(wedg0a/wedg0).max(), (wedg0b/wedg0).max()]) < 2.) \
           and (wedg0.max() < 1.5)
+        """
 
         if wghtline:
             if hhh[0] >= 1:
@@ -226,14 +233,14 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                     emiss = np.concatenate((emiss, temp*wght))
                     iline = np.concatenate((iline, iline[etst]+1))
 
-            ordd   = np.sort(iline)
+            ordd = np.argsort(iline)
             iline = iline[ordd]
             for i in range(mtemp):
                 emiss[i, :] = emiss[i, ordd]
 
         ##########################################################################
 
-        fline = np.histogram(iline, min=0, max=nenrg-1)[0]
+        fline = np.histogram(iline, bins=nenrg, range=(0, nenrg-1))[0]
         r = get_reverse_indices(iline, nbins=nenrg, min_range=0, max_range=nenrg-1)[1]
 
         select = np.where(fline > 0)[0]
@@ -241,11 +248,11 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         if nselect > 0:
             for j in range(mtemp):
                 for i in select:
-                    rr = r[r[i]]
-                    spectrum[j, i] = sum( emiss[j, rr:rr + fline[i]-1])
+                    spectrum[j, i] = sum( emiss[j, r[i]])
 
             # Put spectrum into correct units. This line is equivalent to chianti_kev_units.pro
-            spectrum = spectrum * 1e44 / observer_distance / wedg
+            #spectrum = spectrum * 1e44 / observer_distance / wedg
+            spectrum = spectrum * em_factor
 
     return spectrum
 
@@ -267,7 +274,7 @@ def chianti_kev_common_load(linefile=None, contfile=None, _extra=None):
 
     
     """
-    zindex, out = chianti_kev_line_common_load(linefile, _extra=_extra))
+    zindex, out = chianti_kev_line_common_load(linefile, _extra=_extra)
     zindex, totcont, totcont_lo, edge_str, ctemp, chianti_doc = chianti_kev_cont_common_load(
             contfile, _extra=_extra)
     return zindex, out, totcont, totcont_lo, edge_str, ctemp, chianti_doc
@@ -283,7 +290,7 @@ def chianti_kev_line_common_load(file_in=None, _extra=None):
         if file_check == []:
             file_in = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines.geny")
             file_check = glob.glob(file_in)
-            if file_check = []:
+            if file_check == []:
                 raise ValueError("line files not found: {0} or {1}".format(
                     os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav"), file_in))
             
@@ -298,8 +305,10 @@ def chianti_kev_line_common_load(file_in=None, _extra=None):
     else:
         raise ValueError("unrecognized file type: .{0}. Must be .sav or .geny") 
 
-    # Sort lines in ascending energy. Stored in file in ascending wavelength.
-    out["lines"][0]["WVL"] = out["lines"][0]["WVL"][np.argsort(out["lines"][0]["WVL"])[::-1]]
+    # Sort lines in ascending energy.
+    ordd = np.argsort(out["lines"][0]["WVL"])[::-1]
+    for name in out["lines"][0].dtype.names:
+        out["lines"][0][name][:] = out["lines"][0][name][ordd]
     
     return zindex, out
     
@@ -316,7 +325,7 @@ def chianti_kev_cont_common_load(file_in, _extra=None):
         if file_check == []:
             file_in = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont.geny")
             file_check = glob.glob(file_in)
-            if file_check = []:
+            if file_check == []:
                 raise ValueError("line files not found: {0}; {1}".format(
                     os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont_1_250_v71.sav"), file_in))
     # Read file
@@ -337,7 +346,7 @@ def chianti_kev_cont_common_load(file_in, _extra=None):
     return zindex, totcont, totcont_lo, edge_str, ctemp, chianti_doc
 
 
-def xr_rd_abundance(ab_type=None, xr_ab_file=None):
+def xr_rd_abundance(abundance_type=None, xr_ab_file=None):
     """
     This returns the abundances written in the xray_abun_file.genx
     The abundances are taken from CHIANTI and MEWE.  The source filenames are:
@@ -349,7 +358,7 @@ def xr_rd_abundance(ab_type=None, xr_ab_file=None):
 
     Parameters
     ----------
-    ab_type: `str`
+    abundance_type: `str`
         Type of abundance to be read from file.  Option are (From Chianti)
         1. cosmic
         2. sun_coronal - default abundance
@@ -371,15 +380,15 @@ def xr_rd_abundance(ab_type=None, xr_ab_file=None):
 
     """
     # If kwargs not set, set defaults
-    if ab_type is None:
-        ab_type = "sun_coronal"
+    if abundance_type is None:
+        abundance_type = "sun_coronal"
     if xr_ab_file is None:
         xr_ab_file = os.path.expanduser(os.path.join(SSWDB_XRAY_CHIANTI,
                                                      "xray_abun_file.genx"))
     # Read file
     ab_sav = read_abundance_genx(xr_ab_file)
     # Return relevant abundance.
-    return ab_sav[ab_type]
+    return ab_sav[abundance_type]
 
 
 def read_abundance_genx(filename):
@@ -405,19 +414,22 @@ def _extract_from_chianti_lines_sav():
 
     """
     # Read file.
-    struct = scipy.io.readsav("chianti_lines_1_10_v71.sav")
+    struct = scipy.io.readsav(FILE_IN)
     lines = struct["out"]["lines"][0]
+    # Get indices that would sort lines by ascending energy.
+    ordd = np.argsort(lines["WVL"])[::-1]
     # Extract energy grid for line information.
-    line_energies = (lines["wvl"] * u.angstrom).to(u.keV, equivalencies=u.spectral())
+    line_energies = (lines["wvl"][ordd] * u.angstrom).to(u.keV, equivalencies=u.spectral())
     # Extract log10 of temperature grid for line info.
     log10_temp_K_range = struct["out"]["logt_isothermal"][0]
     # Extract line intensities.
-    line_intensities = np.empty((lines["int"].shape[0], lines["int"][0].shape[0]), dtype=float)
+    lines_int_sorted = lines["int"][ordd]
+    line_intensities = np.empty((lines_int_sorted.shape[0], lines_int_sorted[0].shape[0]), dtype=float)
     for i in range(line_intensities.shape[0]):
-        line_intensities[i, :] = struct["out"]["lines"][0]["int"][i]
+        line_intensities[i, :] = lines_int_sorted[i]
     # line_intensities =* u.
     # Extract line IZs.
-    line_element_indices = lines["iz"]
+    line_element_indices = lines["iz"][ordd]
     # Extract the zindex
     element_indices = struct["zindex"]
     
@@ -427,15 +439,15 @@ def _extract_from_chianti_lines_sav():
 
 
 def chianti_kev_getp(line_intensities, sline, logt, mgtemp, nsline):
+    """Currently only supports single mgtemp input.  IDL supports array."""
     nltemp = len(logt)
     selt = np.digitize( np.log10(mgtemp), logt)-1
-    p = np.zeros((mtemp, nsline))
-    for i in range(mtemp):
-        indx = selt[i]-1+np.arange(3)
-        indx = indx[np.logical_and(indx > 0, indx < (nltemp-1))]
-        tband = 
-        p[i, :] = scipy.interpolate.interp1d(
-            logt[indx], line_intensities[sline][:, indx], kind="quadratic")(uu).squeeze()[:]
+    p = np.zeros(nsline)
+    indx = selt-1+np.arange(3)
+    indx = indx[np.logical_and(indx > 0, indx < (nltemp-1))]
+    uu = np.log10(mgtemp)
+    p[:] = scipy.interpolate.interp1d(
+        logt[indx], line_intensities[sline][:, indx], kind="quadratic")(uu).squeeze()[:]
 
     return p
 
