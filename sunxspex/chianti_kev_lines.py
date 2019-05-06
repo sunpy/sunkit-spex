@@ -19,9 +19,12 @@ class ChiantiKevLines():
     """
     def __init__(self):
 
-
+#@u.quantity_input(energy_edges=u.keV, temperature=u.K, emission_measure=1/(u.cm**3),
+#                  observer_distance='length')
 def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
-                      relative_abundances=None, line_file=None, **kwargs):
+                      relative_abundances=None, line_file=None,
+                      observer_distance=None, earth=False, date=None,
+                      **kwargs):
     """
     Returns a thermal spectrum (line + continuum) given temperature and emission measure.
 
@@ -44,12 +47,74 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         of the element and the second gives its relative abundance
         to its nominal value given by ABUN.
 
+    observer_distance: `astropy.units.Quantity` (Optional)
+        The distance between the source and the observer. Scales output to observer distance
+        and unit by 1/length. If not set, output represents value at source and 
+        unit will have an extra length component.
+        Default=None
+
+    earth: `bool` (Optional)
+        Sets distance to Sun-Earth distance if not already set by user.
+        If distance is set, earth is ignored. 
+        If date kwarg is set (see below), Sun-Earth distance at that time is calculated.
+        If date kwarg is not set, Sun_earth distance is set to 1 AU.
+        Default=False
+
+    date: `astropy.time.Time` for parseable by `sunpy.time.parse_time` (Optional)
+        The date for which the Sun-Earth distance is to be calculated.
+        Ignored if earth kwarg not set.
+        Default=None.
+
     Returns
     -------
     Flux: `astropy.units.Quantity`
-        
+
+    Notes
+    -----
+    Explanation of Chianti units & emission measure (Ken Phillips, June 17, 2004):
+
+    Output of Chianti ch_ss units are in photons (or ergs) cm-2 s-1 A-1 sr-1, i.e.
+    the output is a specific intensity (not a flux as it is per solid angle).
+    Suppose specific intensity at some wavelength is F_lam for a
+    *surface* emission measure = 10^27 cm^-5 (this is the ch_ss default).
+
+    Let a flare on the sun have area A (cm^2). Its solid angle at earth is A/(au)^2.
+
+    Therefore flux_lam = F_lam * A / (au)^2
+
+    The flare *volume* emission measure corresponding to the 10^27 surface EM is A * 10^27 cm^-3.
+
+    So flux per unit volume EM (Ne^2 V = 1) is
+
+    F_lam * A/(au)^2 * 1/(10^27 A) = F_lam / (10^27 [au]^2) = 4.44e-54 * F_lam
+    (log(4.44e-54) = -53.35)
+
+    Note the A's cancel out.
+
+    So if you want to generate a *volume* EM = 10^49 cm^-3 from ch_ss,
+    put in a value of log(*surface* EM) = 27.0 + 49.0 -  53.35 = 22.648
+
+    The units of the spectrum will then be standard flux units, i.e. photons cm^2 s^-1 A^-1,
+    without any steradian units.
+
+    You can then convert fluxes to ph. Cm^2 s^-1 keV-1 by just multiplying
+    by (lambda in A)^2 / 12.399 [or 12.399/(energy in keV)^2] and
+    wavelength to energy by wavelength = 12.399/energy in keV.
 
     """
+    # Set kwarg values from user inputs.
+    if observer_distance is not None:
+        if earth is not False:
+            warning.warn("distance and earth kwargs set. Ignoring earth and using distance.")
+    else:
+        if earth is False:
+            observer_distance = 1
+        else:
+            if date is None:
+                distance = 1 * u.AU
+            else:
+                distance = sunpy.coordinates.get_sunearth_distance(time=date)
+    
     # For ease of calculation, convert inputs to standard units and
     # scale to manageable numbers.
     em_factor = 1e44
@@ -65,14 +130,13 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     # https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav
     line_energies, log10_temp_K_range, line_intensities, line_element_indices, element_indices, \
       line_iz = _extract_from_chianti_lines_sav()
-    energy = np.linspace(3, 9, 1001) * u.keV
+    energy = (np.linspace(3, 9, 1001) * u.keV).value
 
     # Load abundances
     abundance = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
                                 xr_ab_file=kwargs.get("xr_ab_file", None))
     len_abundances = len(abundance)
     
-
     # Find energies within energy range of interest.
     line_indices = np.logical_and(line_energies >= energy.min(),
                                   line_energies <= energy.max())
@@ -116,41 +180,74 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         
         iline = np.digitize(energy, eline) - 1
 
-        rr = get_reverse_indices(eline - energm[iline], min=-10., max=10., nbins=10)[1]
+        hhh = np.histogram(eline - energm[iline], bins=10, range=(-10., 10.))[0]
+        rr = get_reverse_indices(eline - energm[iline], nbins=10, min_range=-10., max_range=10.)[0]
 
         ###### Ask Richard how wghtline works. I got None for line below. ######
-        wghtlineenv = getenv('wghtline')
-        wghtline = wghtlineenv eq 'T' or not (max(wedg) lt .01) ;(keV)
-        wghtline = wghtlineenv eq 'F' ? 0 : wghtline
+        wghtline = True
         # look for wide bins next to line bins, if too wide x 2 eline bin width
         # then don't spread out lines
         wedg0 = wedg[iline]
-        wedg0a= wedg[iline-1>0]
-        wedg0b= wedg[iline+1<(n_elements(wedg)-1)]
-        wghtline =wghtline and np.max([(wedg0a/wedg0).max(), (wedg0b/wedg0).max()]) < 2.) \
+        wedg0a = wedg[iline-1>0]
+        wedg0b = wedg[iline+1<(n_elements(wedg)-1)]
+        wghtline = wghtline and np.max([(wedg0a/wedg0).max(), (wedg0b/wedg0).max()]) < 2.) \
           and (wedg0.max() < 1.5)
 
         if wghtline:
-            pass # See IDL version for what's to be added here.
+            if hhh[0] >= 1:
+                etst = rr[rr[0]:rr[1]]
+                itst = np.where(iline[etst] > 0)[0]
+
+                if len(itst) >= 1:
+                    etst = etst[itst]
+
+                    wght = (energm[iline[etst]]-eline[etst]) / (energm[iline[etst]]-energm[iline[etst]-1])
+                    wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+
+                    temp = emiss[etst, :]
+                    emiss[etst, :] = temp * (1-wght)
+                    emiss = np.concatenate((emiss, temp*wght))
+
+                    iline = np.concatenate((iline, iline[etst]-1))
+
+            if hhh[1] >= 1:
+
+                etst = rr[rr[1]:rr[2]-1]
+                itst = np.where( iline[etst] <= (nenrg-2))[0]
+
+                if len(itst) >= 1:
+                    etst = etst[itst]
+
+                    wght = (eline[etst] - energm[iline[etst]]) / (energm[iline[etst]+1]-energm[iline[etst]])
+                    wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+
+                    temp = emiss[etst, :]
+                    emiss[etst, :] = temp * (1-wght)
+                    emiss = np.concatenate((emiss, temp*wght))
+                    iline = np.concatenate((iline, iline[etst]+1))
+
+            ordd   = np.sort(iline)
+            iline = iline[ordd]
+            for i in range(mtemp):
+                emiss[i, :] = emiss[i, ordd]
 
         ##########################################################################
 
         fline = np.histogram(iline, min=0, max=nenrg-1)[0]
-        r = get_reverse_indices(iline, min=0, max=nenrg-1)[1]
+        r = get_reverse_indices(iline, nbins=nenrg, min_range=0, max_range=nenrg-1)[1]
 
         select = np.where(fline > 0)[0]
         nselect = len(select)
         if nselect > 0:
             for j in range(mtemp):
-                for i in range(nselect):
-                    rr = r[r[select[i]]]
-                    spectrum[j, select[i]] = sum( emiss[j, rr:rr + fline[select[i]]-1])
-             # ras 13-apr-94
-             funits =  1.      #default units
+                for i in select:
+                    rr = r[r[i]]
+                    spectrum[j, i] = sum( emiss[j, rr:rr + fline[i]-1])
 
-            spectrum = chianti_kev_units(spectrum, wedg=wedg, earth=earth, date=date)
+            # Put spectrum into correct units. This line is equivalent to chianti_kev_units.pro
+            spectrum = spectrum * 1e44 / observer_distance / wedg
 
-
+    return spectrum
 
 def chianti_kev_common_load(linefile=None, contfile=None, _extra=None):
     """
@@ -247,8 +344,8 @@ def xr_rd_abundance(ab_type=None, xr_ab_file=None):
     cosmic sun_coronal sun_coronal_ext sun_hybrid sun_hybrid_ext sun_photospheric mewe_cosmic mewe_solar
     The first six come fron Chianti, the last two from Mewe.  They are:
     cosmic sun_coronal sun_coronal_ext sun_hybrid sun_hybrid_ext sun_photospheric mewe_cosmic mewe_solar
- 	These abundances are used with CHIANTI_KEV.  MEWE_KEV can only use the two mewe sourced
- 	abundance distributions unless using a heavily modified rel_abun structure for all of the elements.
+    These abundances are used with CHIANTI_KEV.  MEWE_KEV can only use the two mewe sourced
+    abundance distributions unless using a heavily modified rel_abun structure for all of the elements.
 
     Parameters
     ----------
@@ -333,7 +430,7 @@ def chianti_kev_getp(line_intensities, sline, logt, mgtemp, nsline):
     nltemp = len(logt)
     selt = np.digitize( np.log10(mgtemp), logt)-1
     p = np.zeros((mtemp, nsline))
-	for i in range(mtemp):
+    for i in range(mtemp):
         indx = selt[i]-1+np.arange(3)
         indx = indx[np.logical_and(indx > 0, indx < (nltemp-1))]
         tband = 
@@ -342,7 +439,7 @@ def chianti_kev_getp(line_intensities, sline, logt, mgtemp, nsline):
 
     return p
 
-def get_reverse_indices(x, min_range, max_range, nbins):
+def get_reverse_indices(x, nbins, min_range=None, max_range=None):
     """
     Generates 1D bin edges and index of lower edge of bin in which each element of x belongs.
     
@@ -351,14 +448,14 @@ def get_reverse_indices(x, min_range, max_range, nbins):
     x: array-like
         Values to be binned.
 
-    min_range: `float` or `int`
-        Lower limit of range of bins.
-
-    max_range: `float` or `int`
-        Upper limit of range of bins.
-
     nbins: `int`
         Number of bins to divide range into.
+    
+    min_range: `float` or `int` (Optional)
+        Lower limit of range of bins. Default=min(x)
+
+    max_range: `float` or `int` (Optional)
+        Upper limit of range of bins. Default=max(x)
 
     Returns
     -------
@@ -369,66 +466,10 @@ def get_reverse_indices(x, min_range, max_range, nbins):
         Index of lower edge of bin into which each element of x goes. Length same as x.
 
     """
+    if min_range is None:
+        min_range = min(x)
+    if max_range is None:
+        max_range = max(x)
     bin_edges = np.linspace(min_range, max_range, nbins+1)
     reverse_indices = (float(nbins)/(max_range - min_range)*(x - min_range)).astype(int)
-    return bin_edges, reverse_indices
-
-
-def chianti_kev_units(spectrum, wedg=None, earth=False, date=None):
-    """
-    Converts output of chianti_kev_lines(_cont) to physical units.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-
-    Notes
-    -----
-    Explanation of Chianti units & emission measure (Ken Phillips, June 17, 2004):
-
-    Output of Chianti ch_ss units are in photons (or ergs) cm-2 s-1 A-1 sr-1, i.e. 
-    the output is a specific intensity (not a flux as it is per solid angle).
-    Suppose specific intensity at some wavelength is F_lam for a
-    *surface* emission measure = 10^27 cm^-5 (this is the ch_ss default).
-
-    Let a flare on the sun have area A (cm^2). Its solid angle at earth is A/(au)^2.
-
-    Therefore flux_lam = F_lam * A / (au)^2
-
-    The flare *volume* emission measure corresponding to the 10^27 surface EM is A * 10^27 cm^-3.
-
-    So flux per unit volume EM (Ne^2 V = 1) is
-
-    F_lam * A/(au)^2 * 1/(10^27 A) = F_lam / (10^27 [au]^2) = 4.44e-54 * F_lam
-    (log(4.44e-54) = -53.35)
-
-    Note the A's cancel out.
-
-    So if you want to generate a *volume* EM = 10^49 cm^-3 from ch_ss, 
-    put in a value of log(*surface* EM) = 27.0 + 49.0 -  53.35 = 22.648
-
-    The units of the spectrum will then be standard flux units, i.e. photons cm^2 s^-1 A^-1,
-    without any steradian units.
-
-    You can then convert fluxes to ph. Cm^2 s^-1 keV-1 by just multiplying 
-    by (lambda in A)^2 / 12.399 [or 12.399/(energy in keV)^2] and 
-    wavelength to energy by wavelength = 12.399/energy in keV.
-
-    """
-    if earth: 
-        thisdist = 1.49627e13
-        if date is not None:
-            radius = 6.9598e10
-            arcsec = 180./!pi*3600. # Number of arcsec in a rad.
-            #### Ask Richard why the radius is divided by the solar pole position angle ####
-            thisdist = radius/sin((get_rb0p(date,/quiet))[0]/arcsec) # radius / position angle of the pole.
-            #####################
-
-        funits = thisdist^2 #unlike mewe_kev  don't use 4pi, chianti is per steradian
-
-    funits = 1d44/funits / wedg
-    # Nominally 1d44/funits is 4.4666308e17 and alog10(4.4666e17) is 17.64998
-    # That's for emisson measure of 1d44cm-3, so for em of 1d49cm-3 we have a factor whos log10 is 22.649, just like kjp
-        spectrum = spectrum * funits.reshape(spectrum.shape)
+    return reverse_indices, bin_edges
