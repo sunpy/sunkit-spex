@@ -181,7 +181,7 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         iline = np.digitize(energy, eline) - 1
 
         hhh = np.histogram(eline - energm[iline], bins=10, range=(-10., 10.))[0]
-        rr = get_reverse_indices(eline - energm[iline], nbins=10, min_range=-10., max_range=10.)[0]
+        rr = get_reverse_indices(eline - energm[iline], nbins=10, min_range=-10., max_range=10.)[1]
 
         ###### Ask Richard how wghtline works. I got None for line below. ######
         wghtline = True
@@ -195,7 +195,7 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
 
         if wghtline:
             if hhh[0] >= 1:
-                etst = rr[rr[0]:rr[1]]
+                etst = rr[0]
                 itst = np.where(iline[etst] > 0)[0]
 
                 if len(itst) >= 1:
@@ -212,7 +212,7 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
 
             if hhh[1] >= 1:
 
-                etst = rr[rr[1]:rr[2]-1]
+                etst = rr[1]
                 itst = np.where( iline[etst] <= (nenrg-2))[0]
 
                 if len(itst) >= 1:
@@ -441,7 +441,7 @@ def chianti_kev_getp(line_intensities, sline, logt, mgtemp, nsline):
 
 def get_reverse_indices(x, nbins, min_range=None, max_range=None):
     """
-    Generates 1D bin edges and index of lower edge of bin in which each element of x belongs.
+    For a set of contiguous equal sized 1D bins, generates index of lower edge of bin in which each element of x belongs and the indices of x in each bin.
     
     Parameters
     ----------
@@ -459,11 +459,14 @@ def get_reverse_indices(x, nbins, min_range=None, max_range=None):
 
     Returns
     -------
+    arrays_bin_indices: `np.ndarray`
+        Index of lower edge of bin into which each element of x goes. Same length as x.
+    
+    bins_array_indices: `tuple` of `np.ndarray`s
+        Indices of elements of x in each bin. One set of indices for each bin.
+
     bin_edges: `np.ndarray`
         Edges of bins. Length is nbins+1.
-
-    reverse_indices: `np.ndarray`
-        Index of lower edge of bin into which each element of x goes. Length same as x.
 
     """
     if min_range is None:
@@ -471,5 +474,6 @@ def get_reverse_indices(x, nbins, min_range=None, max_range=None):
     if max_range is None:
         max_range = max(x)
     bin_edges = np.linspace(min_range, max_range, nbins+1)
-    reverse_indices = (float(nbins)/(max_range - min_range)*(x - min_range)).astype(int)
-    return reverse_indices, bin_edges
+    arrays_bin_indices = (float(nbins)/(max_range - min_range)*(x - min_range)).astype(int)
+    bins_array_indices = tuple([np.where(arrays_bin_indices == i)[0] for i in range(nbins)])
+    return arrays_bin_indices, bins_array_indices, bin_edges
