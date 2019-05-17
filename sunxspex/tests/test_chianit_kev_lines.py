@@ -1,6 +1,7 @@
 
 import pytest
 import numpy as np
+import astropy.units as u
 
 from sunxspex import chianti_kev_lines
 
@@ -24,7 +25,7 @@ expected_spectrum_E032805_6MK_EM1e44_NoRelAbund_NotObserverScaled = np.array([
 @pytest.mark.parametrize(
     "energy_edges,temperature,em,relative_abundances,observer_distance,earth,date,expected_spectrum",
     [
-        (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, em=1e44/(u.cm**3), None, None, None, None,
+        (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, None, None, None, None,
         expected_spectrum_E032805_6MK_EM1e44_NoRelAbund_NotObserverScaled)
     ])
 def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances, 
@@ -33,4 +34,4 @@ def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances,
             energy_edges, temperature, em,
             relative_abundances=relative_abundances, observer_distance=observer_distance,
             earth=earth, date=date)
-    np.testing.assert_allclose(output_spectrum*2, expected_spectrum, rtol=0.005) # A factor of 2 is currently missing from output spectrum compared to SSW version.
+    np.testing.assert_allclose(output_spectrum[0]*2, expected_spectrum, rtol=0.005, atol=1e-4) # A factor of 2 is currently missing from output spectrum compared to SSW version.
