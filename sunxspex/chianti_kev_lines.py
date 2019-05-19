@@ -124,23 +124,26 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     temp = temperature.to(u.MK).value
     emission_measure = emission_measure.to(u.cm**(-3)).value / em_factor
     energy_edges = energy_edges.to(u.keV).value
+    energy = energy_edges
 
     mgtemp = temp * 1e6
     uu = np.log10(mgtemp)
 
-    zindex, out, totcont, totcont_lo, edge_str, ctemp, chianti_doc = chianti_kev_common_load(linefile=FILE_IN)
+    #zindex, out, totcont, totcont_lo, edge_str, ctemp, chianti_doc = chianti_kev_common_load(linefile=FILE_IN)
     # Location of file giving intensity as a function of temperatures at all line energies:
     # https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav
-    #line_energies, log10_temp_K_range, line_intensities, line_element_indices, element_indices, \
-    #  line_iz = _extract_from_chianti_lines_sav()
+    line_energies, log10_temp_K_range, line_intensities, line_element_indices, element_indices, \
+      line_iz = _extract_from_chianti_lines_sav()
     #energy = (np.linspace(3, 9, 1001) * u.keV).value
+    line_energies = line_energies.value
 
     # Load abundances
     abundance = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
                                 xr_ab_file=kwargs.get("xr_ab_file", None))
     len_abundances = len(abundance)
     ######## Define Relative abundance here!!! ###########
-    
+    rel_abun = None # For now, define as None.
+
     # Find energies within energy range of interest.
     line_indices = np.logical_and(line_energies >= energy.min(),
                                   line_energies <= energy.max())
@@ -188,6 +191,7 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         rr = get_reverse_indices(eline - energm[iline], nbins=10, min_range=-10., max_range=10.)[1]
         # Extract bins with >0 counts.
         rr = tuple(np.array(rr)[np.where(np.array([len(ri) for ri in rr]) > 0)[0]])
+        hhh = [len(rrr) for rrr in rr]
         ###### Ask Richard how wghtline works. I got None for line below. ######
         wghtline = True
         # look for wide bins next to line bins, if too wide x 2 eline bin width
@@ -209,10 +213,12 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                     etst = etst[itst]
 
                     wght = (energm[iline[etst]]-eline[etst]) / (energm[iline[etst]]-energm[iline[etst]-1])
-                    wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+                    #wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
 
-                    temp = emiss[etst, :]
-                    emiss[etst, :] = temp * (1-wght)
+                    #temp = emiss[etst, :]
+                    #emiss[etst, :] = temp * (1-wght)
+                    temp = emiss[etst]
+                    emiss[etst] = temp * (1-wght)
                     emiss = np.concatenate((emiss, temp*wght))
 
                     iline = np.concatenate((iline, iline[etst]-1))
@@ -226,17 +232,20 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                     etst = etst[itst]
 
                     wght = (eline[etst] - energm[iline[etst]]) / (energm[iline[etst]+1]-energm[iline[etst]])
-                    wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+                    #wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
 
-                    temp = emiss[etst, :]
-                    emiss[etst, :] = temp * (1-wght)
+                    #temp = emiss[etst, :]
+                    #emiss[etst, :] = temp * (1-wght)
+                    temp = emiss[etst]
+                    emiss[etst] = temp * (1-wght)
                     emiss = np.concatenate((emiss, temp*wght))
                     iline = np.concatenate((iline, iline[etst]+1))
 
             ordd = np.argsort(iline)
             iline = iline[ordd]
-            for i in range(mtemp):
-                emiss[i, :] = emiss[i, ordd]
+            #for i in range(mtemp):
+            #    emiss[i, :] = emiss[i, ordd]
+            emiss = emiss[ordd]
 
         ##########################################################################
 
@@ -246,13 +255,14 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         select = np.where(fline > 0)[0]
         nselect = len(select)
         if nselect > 0:
-            for j in range(mtemp):
-                for i in select:
-                    spectrum[j, i] = sum( emiss[j, r[i]])
-
+            #for j in range(mtemp):
+            j = 0
+            for i in select:
+                    #spectrum[j, i] = sum( emiss[j, r[i]])
+                    spectrum[j, i] = sum( emiss[r[i]])
             # Put spectrum into correct units. This line is equivalent to chianti_kev_units.pro
             #spectrum = spectrum * 1e44 / observer_distance / wedg
-            spectrum = spectrum * em_factor
+            spectrum = spectrum / wedg * em_factor
 
     return spectrum
 
