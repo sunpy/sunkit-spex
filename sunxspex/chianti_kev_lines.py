@@ -262,7 +262,7 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                     spectrum[j, i] = sum( emiss[r[i]])
             # Put spectrum into correct units. This line is equivalent to chianti_kev_units.pro
             #spectrum = spectrum * 1e44 / observer_distance / wedg
-            spectrum = spectrum * em_factor
+            spectrum = spectrum / wedg * em_factor
 
     return spectrum
 

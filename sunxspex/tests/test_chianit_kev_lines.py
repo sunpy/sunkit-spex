@@ -34,4 +34,4 @@ def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances,
             energy_edges, temperature, em,
             relative_abundances=relative_abundances, observer_distance=observer_distance,
             earth=earth, date=date)
-    np.testing.assert_allclose(output_spectrum[0]*2, expected_spectrum, rtol=0.005, atol=1e-4) # A factor of 2 is currently missing from output spectrum compared to SSW version.
+    np.testing.assert_allclose(output_spectrum[0], expected_spectrum, rtol=0.005, atol=1e-4) # A factor of 2 is currently missing from output spectrum compared to SSW version.
