@@ -140,7 +140,7 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     mgtemp = temp * 1e6
     uu = np.log10(mgtemp)
 
-    zindex, line_meta, line_properties, line_intensities, continuum_properties = chianti_kev_common_load(linefile=FILE_IN)
+    zindex, line_meta, line_properties, line_intensities = chianti_kev_line_common_load(linefile=FILE_IN)
     line_energies = line_properties["ENERGY"].quantity.to(u.keV)
     log10_temp_K_range = line_meta["LOGT_ISOTHERMAL"]
     line_element_indices = line_iz = line_properties["IZ"].data
@@ -299,12 +299,12 @@ def chianti_kev_common_load(linefile=None, contfile=None):
     return zindex_line, line_meta, line_properties, line_intensities, continuum_properties
 
 
-def chianti_kev_line_common_load(file_in=None):
+def chianti_kev_line_common_load(linefile=None):
     """
     Read X-ray emission line info needed for the chianti_kev_... functions.
     Parameters
     ----------
-    file_in: `str`
+    linefile: `str`
         Name of IDL save file containing line info.  If not given it is derived.
     Returns
     -------
@@ -320,22 +320,22 @@ def chianti_kev_line_common_load(file_in=None):
     """
 
     # Define defaults
-    if file_in is None:
-        file_in = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav")
-        file_check = glob.glob(file_in)
+    if linefile is None:
+        linefile = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav")
+        file_check = glob.glob(linefile)
         if file_check == []:
-            file_in = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines.geny")
-            file_check = glob.glob(file_in)
+            linefile = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines.geny")
+            file_check = glob.glob(linefile)
             if file_check == []:
                 raise ValueError("line files not found: {0} or {1}".format(
-                    os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav"), file_in))
+                    os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav"), linefile))
             
-    if file_in.split(".")[-1] == "sav":
+    if linefile.split(".")[-1] == "sav":
         # Read file
-        contents = scipy.io.readsav(file_in)
+        contents = scipy.io.readsav(linefile)
         zindex = contents["zindex"]
         out = contents["out"]
-    elif file_in.split(".")[-1] == "geny":
+    elif linefile.split(".")[-1] == "geny":
         # Read file...
         raise NotImplementedError("Reading .geny file not yet implemented.")
     else:
@@ -413,12 +413,12 @@ def chianti_kev_line_common_load(file_in=None):
     return zindex, line_meta, line_properties, line_intensities
     
 
-def chianti_kev_cont_common_load(file_in, _extra=None):
+def chianti_kev_cont_common_load(contfile, _extra=None):
     """
     Read X-ray continuum emission info needed for the chianti_kev_... functions.
     Parameters
     ----------
-    file_in: `str`
+    contfile: `str`
         Name of IDL save file containing continuum info.  If not given it is derived.
     Returns
     -------
@@ -428,18 +428,18 @@ def chianti_kev_cont_common_load(file_in, _extra=None):
         Properties of continuum emission.
     """
     # Define defaults
-    if file_in is None:
-        file_in = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont_1_250_v71.sav")
-        file_check = glob.glob(file_in)
+    if contfile is None:
+        contfile = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont_1_250_v71.sav")
+        file_check = glob.glob(contfile)
         if file_check == []:
-            file_in = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont.geny")
-            file_check = glob.glob(file_in)
+            contfile = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont.geny")
+            file_check = glob.glob(contfile)
             if file_check == []:
                 raise ValueError("line files not found: {0}; {1}".format(
-                    os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont_1_250_v71.sav"), file_in))
+                    os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont_1_250_v71.sav"), contfile))
     # Read file
-    if file_in.split(".")[-1] == "sav":
-        contents = scipy.io.readsav(file_in)
+    if contfile.split(".")[-1] == "sav":
+        contents = scipy.io.readsav(contfile)
         zindex = contents["zindex"]
         edge_str = {
                 "CONVERSION": _clean_array_dims(contents["edge_str"]["CONVERSION"]),
@@ -453,7 +453,7 @@ def chianti_kev_cont_common_load(file_in, _extra=None):
                 "ctemp": contents["ctemp"],
                 "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
                                }
-    elif file_in.split(".")[-1] == "geny":
+    elif contfile.split(".")[-1] == "geny":
         # Read file...
         raise NotImplementedError("Reading .geny file not yet implemented.")
     else:
