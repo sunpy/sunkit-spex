@@ -141,15 +141,9 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     uu = np.log10(mgtemp)
 
     zindex, line_meta, line_properties, line_intensities = chianti_kev_line_common_load(linefile=FILE_IN)
-    line_energies = line_properties["ENERGY"].quantity.to(u.keV)
+    line_energies = line_properties["ENERGY"].quantity.to(u.keV).value
     log10_temp_K_range = line_meta["LOGT_ISOTHERMAL"]
     line_element_indices = line_iz = line_properties["IZ"].data
-    # Location of file giving intensity as a function of temperatures at all line energies:
-    # https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav
-    #line_energies, log10_temp_K_range, line_intensities, line_element_indices, element_indices, \
-    #  line_iz = _extract_from_chianti_lines_sav()
-    #energy = (np.linspace(3, 9, 1001) * u.keV).value
-    line_energies = line_energies.value
 
     # Load abundances
     abundance = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
@@ -174,7 +168,6 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     out_lines_iz = copy.copy(line_iz)
     sline = copy.copy(line_indices)
     nsline = copy.copy(n_line_indices)
-    #zindex = copy.copy(element_indices)
 
     if n_line_indices > 0:
         eline = eline[sline]
