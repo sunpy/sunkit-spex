@@ -47,10 +47,12 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         The emission measure of the emitting plasma.
         Default= 1e44 cm**-3
 
-    relative_abundances: `numpy.ndarray`
-        A 2XN array, where the first index gives the atomic number
-        of the element and the second gives its relative abundance
-        to its nominal value given by ABUN.
+    relative_abundances: `list` of length 2 `tuple`s
+        The relative abundances of different elements as a fraction of their
+        nominal abundances which are read in by xr_rd_abundance().
+        Each tuple represents an element.
+        The first item in the tuple gives the atomic number of the element.
+        The second item gives the factor by which to scale the element's abundance.
 
     observer_distance: `astropy.units.Quantity` (Optional)
         The distance between the source and the observer. Scales output to observer distance
@@ -119,6 +121,13 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                 observer_distance = 1 * u.AU
             else:
                 observer_distance = sunpy.coordinates.get_sunearth_distance(time=date)
+    # Format relative abundances.
+    if relative_abundances is not None:
+        #relative_abundances = [(26, 1.), (28, 1.)]
+        relative_abundances = Table(rows=relative_abundances,
+                                    names=("atomic number", "relative abundance"),
+                                    meta={"description": "relative abundances"},
+                                    dtype=(int, float))
     
     # For ease of calculation, convert inputs to standard units and
     # scale to manageable numbers.
@@ -146,8 +155,6 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     abundance = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
                                 xr_ab_file=kwargs.get("xr_ab_file", None))
     len_abundances = len(abundance)
-    ######## Define Relative abundance here!!! ###########
-    rel_abun = None # For now, define as None.
 
     # Find energies within energy range of interest.
     line_indices = np.logical_and(line_energies >= energy.min(),
@@ -175,8 +182,8 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         p = chianti_kev_getp(line_intensities, sline, logt, temp*1e6, nsline)
  
         abundance_ratio = np.ones(len_abundances)
-        if rel_abun is not None:
-            abundance_ratio[rel_abun[0, :]-1] = rel_abun[1, :]
+        if relative_abundances is not None:
+            abundance_ratio[relative_abundances["atomic number"]-1] = relative_abundances["relative abundance"]
 
         # We include default_abundance because it will have zeroes for elements not included
         # and ones for those included
