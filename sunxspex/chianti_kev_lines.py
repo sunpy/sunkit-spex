@@ -516,15 +516,22 @@ def read_abundance_genx(filename):
 
 def chianti_kev_getp(line_intensities, sline, logt, mgtemp, nsline):
     """Currently only supports single mgtemp input.  IDL supports array."""
+    try:
+        mtemp = len(mgtemp)
+    except TypeError:
+        mgtemp = np.array([mgtemp])
+        mtemp = 1
     nltemp = len(logt)
     selt = np.digitize( np.log10(mgtemp), logt)-1
-    p = np.zeros(nsline)
-    indx = selt-1+np.arange(3)
-    indx = indx[np.logical_and(indx > 0, indx < (nltemp-1))]
-    uu = np.log10(mgtemp)
-    p[:] = scipy.interpolate.interp1d(
-        logt[indx], line_intensities[sline][:, indx], kind="quadratic")(uu).squeeze()[:]
-
+    p = np.zeros((mtemp, nsline))
+    for i in range(mtemp):
+        indx = selt[i]-1+np.arange(3)
+        indx = indx[np.logical_and(indx > 0, indx < (nltemp-1))]
+        uu = np.log10(mgtemp[i])
+        p[i, :] = scipy.interpolate.interp1d(
+            logt[indx], line_intensities[sline][:, indx], kind="quadratic")(uu).squeeze()[:]
+    if mtemp == 1:
+        p = p.squeeze()
     return p
 
 def get_reverse_indices(x, nbins, min_range=None, max_range=None):
