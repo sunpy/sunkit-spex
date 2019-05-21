@@ -38,7 +38,9 @@ expected_spectrum_E032805_6MK_EM1e44_RelAbunFe2_NotObserverScaled = np.array([
         (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, None, None, None, None,
         expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled),
         (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, [(26, 2.0)], None, None, None,
-        expected_spectrum_E032805_6MK_EM1e44_RelAbunFe2_NotObserverScaled)
+        expected_spectrum_E032805_6MK_EM1e44_RelAbunFe2_NotObserverScaled),
+        (np.arange(3, 28.5, 0.5)*u.keV, [6, 6]*u.MK, default_EM, None, None, None, None,
+        np.repeat(expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled[np.newaxis, :], 2, axis=0))
     ])
 def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances, 
                            observer_distance, earth, date, expected_spectrum):
@@ -46,4 +48,4 @@ def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances,
             energy_edges, temperature, em,
             relative_abundances=relative_abundances, observer_distance=observer_distance,
             earth=earth, date=date)
-    np.testing.assert_allclose(output_spectrum[0], expected_spectrum, rtol=0.005, atol=1e-4)
+    np.testing.assert_allclose(output_spectrum, expected_spectrum, rtol=0.005, atol=1e-4)
