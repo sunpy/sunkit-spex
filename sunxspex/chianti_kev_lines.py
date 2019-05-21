@@ -197,55 +197,10 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         # Extract bins with >0 counts.
         rr = tuple(np.array(rr)[np.where(np.array([len(ri) for ri in rr]) > 0)[0]])
         hhh = [len(rrr) for rrr in rr]
-        ###### Ask Richard how wghtline works. I got None for line below. ######
-        wghtline = True
-        # look for wide bins next to line bins, if too wide x 2 eline bin width
-        # then don't spread out lines
-        """
-        wedg0 = wedg[iline]
-        wedg0a = wedg[iline-1>0]
-        wedg0b = wedg[iline+1<(n_elements(wedg)-1)]
-        wghtline = wghtline and np.max([(wedg0a/wedg0).max(), (wedg0b/wedg0).max()]) < 2.) \
-          and (wedg0.max() < 1.5)
-        """
 
-        if wghtline:
-            if hhh[0] >= 1:
-                etst = rr[0]
-                itst = np.where(iline[etst] > 0)[0]
-
-                if len(itst) >= 1:
-                    etst = etst[itst]
-
-                    wght = (energm[iline[etst]]-eline[etst]) / (energm[iline[etst]]-energm[iline[etst]-1])
-                    wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
-
-                    temp = emiss[:, etst]
-                    emiss[:, etst] = temp * (1-wght)
-                    emiss = np.concatenate((emiss, temp*wght), axis=-1)
-
-                    iline = np.concatenate((iline, iline[etst]-1))
-
-            if hhh[1] >= 1:
-
-                etst = rr[1]
-                itst = np.where( iline[etst] <= (nenrg-2))[0]
-
-                if len(itst) >= 1:
-                    etst = etst[itst]
-
-                    wght = (eline[etst] - energm[iline[etst]]) / (energm[iline[etst]+1]-energm[iline[etst]])
-                    wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
-
-                    temp = emiss[:, etst]
-                    emiss[:, etst] = temp * (1-wght)
-                    emiss = np.concatenate((emiss, temp*wght), axis=-1)
-                    iline = np.concatenate((iline, iline[etst]+1))
-
-            ordd = np.argsort(iline)
-            iline = iline[ordd]
-            for i in range(mtemp):
-                emiss[i, :] = emiss[i, ordd]
+        # Reweight the emission in bins around the line centroids
+        # so they appear at the correct energy, despite the binning.
+        emiss, iline = _weight_emission_bins_to_line_centroid(hhh, rr, iline, eline, energm, mtemp, emiss, nenrg)
 
         fline = np.histogram(iline, bins=nenrg, range=(0, nenrg-1))[0]
         r = get_reverse_indices(iline, nbins=nenrg, min_range=0, max_range=nenrg-1)[1]
@@ -259,6 +214,48 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
             spectrum = spectrum / wedg * em_factor
 
     return spectrum.squeeze()
+
+
+def _weight_emission_bins_to_line_centroid(hhh, rr, iline, eline, energm, mtemp, emiss, nenrg):
+    """Weights emission in neighboring spectral bins to make centroid have correct spectral value."""
+    if hhh[0] >= 1:
+        etst = rr[0]
+        itst = np.where(iline[etst] > 0)[0]
+
+        if len(itst) >= 1:
+            etst = etst[itst]
+
+            wght = (energm[iline[etst]]-eline[etst]) / (energm[iline[etst]]-energm[iline[etst]-1])
+            wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+
+            temp = emiss[:, etst]
+            emiss[:, etst] = temp * (1-wght)
+            emiss = np.concatenate((emiss, temp*wght), axis=-1)
+
+            iline = np.concatenate((iline, iline[etst]-1))
+
+    if hhh[1] >= 1:
+
+        etst = rr[1]
+        itst = np.where( iline[etst] <= (nenrg-2))[0]
+
+        if len(itst) >= 1:
+            etst = etst[itst]
+
+            wght = (eline[etst] - energm[iline[etst]]) / (energm[iline[etst]+1]-energm[iline[etst]])
+            wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+
+            temp = emiss[:, etst]
+            emiss[:, etst] = temp * (1-wght)
+            emiss = np.concatenate((emiss, temp*wght), axis=-1)
+            iline = np.concatenate((iline, iline[etst]+1))
+
+    ordd = np.argsort(iline)
+    iline = iline[ordd]
+    for i in range(mtemp):
+        emiss[i, :] = emiss[i, ordd]
+
+    return emiss, iline
 
 
 def chianti_kev_common_load(linefile=None, contfile=None):
