@@ -128,7 +128,7 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                                     names=("atomic number", "relative abundance"),
                                     meta={"description": "relative abundances"},
                                     dtype=(int, float))
-    
+
     # For ease of calculation, convert inputs to standard units and
     # scale to manageable numbers.
     em_factor = 1e44
@@ -218,13 +218,11 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                     etst = etst[itst]
 
                     wght = (energm[iline[etst]]-eline[etst]) / (energm[iline[etst]]-energm[iline[etst]-1])
-                    #wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+                    wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
 
-                    #temp = emiss[etst, :]
-                    #emiss[etst, :] = temp * (1-wght)
-                    temp = emiss[etst]
-                    emiss[etst] = temp * (1-wght)
-                    emiss = np.concatenate((emiss, temp*wght))
+                    temp = emiss[:, etst]
+                    emiss[:, etst] = temp * (1-wght)
+                    emiss = np.concatenate((emiss, temp*wght), axis=-1)
 
                     iline = np.concatenate((iline, iline[etst]-1))
 
@@ -237,39 +235,30 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                     etst = etst[itst]
 
                     wght = (eline[etst] - energm[iline[etst]]) / (energm[iline[etst]+1]-energm[iline[etst]])
-                    #wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+                    wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
 
-                    #temp = emiss[etst, :]
-                    #emiss[etst, :] = temp * (1-wght)
-                    temp = emiss[etst]
-                    emiss[etst] = temp * (1-wght)
-                    emiss = np.concatenate((emiss, temp*wght))
+                    temp = emiss[:, etst]
+                    emiss[:, etst] = temp * (1-wght)
+                    emiss = np.concatenate((emiss, temp*wght), axis=-1)
                     iline = np.concatenate((iline, iline[etst]+1))
 
             ordd = np.argsort(iline)
             iline = iline[ordd]
-            #for i in range(mtemp):
-            #    emiss[i, :] = emiss[i, ordd]
-            emiss = emiss[ordd]
-
-        ##########################################################################
+            for i in range(mtemp):
+                emiss[i, :] = emiss[i, ordd]
 
         fline = np.histogram(iline, bins=nenrg, range=(0, nenrg-1))[0]
         r = get_reverse_indices(iline, nbins=nenrg, min_range=0, max_range=nenrg-1)[1]
 
         select = np.where(fline > 0)[0]
-        nselect = len(select)
-        if nselect > 0:
-            #for j in range(mtemp):
-            j = 0
-            for i in select:
-                    #spectrum[j, i] = sum( emiss[j, r[i]])
-                    spectrum[j, i] = sum( emiss[r[i]])
+        if len(select) > 0:
+            for j in range(mtemp):
+                for i in select:
+                    spectrum[j, i] = sum(emiss[j, r[i]]) # Can this be vectorized with tuples of indices like np.where?
             # Put spectrum into correct units. This line is equivalent to chianti_kev_units.pro
-            #spectrum = spectrum * 1e44 / observer_distance / wedg
             spectrum = spectrum / wedg * em_factor
 
-    return spectrum
+    return spectrum.squeeze()
 
 
 def chianti_kev_common_load(linefile=None, contfile=None):
@@ -516,15 +505,20 @@ def read_abundance_genx(filename):
 
 def chianti_kev_getp(line_intensities, sline, logt, mgtemp, nsline):
     """Currently only supports single mgtemp input.  IDL supports array."""
+    try:
+        mtemp = len(mgtemp)
+    except TypeError:
+        mgtemp = np.array([mgtemp])
+        mtemp = 1
     nltemp = len(logt)
     selt = np.digitize( np.log10(mgtemp), logt)-1
-    p = np.zeros(nsline)
-    indx = selt-1+np.arange(3)
-    indx = indx[np.logical_and(indx > 0, indx < (nltemp-1))]
-    uu = np.log10(mgtemp)
-    p[:] = scipy.interpolate.interp1d(
-        logt[indx], line_intensities[sline][:, indx], kind="quadratic")(uu).squeeze()[:]
-
+    p = np.zeros((mtemp, nsline))
+    for i in range(mtemp):
+        indx = selt[i]-1+np.arange(3)
+        indx = indx[np.logical_and(indx > 0, indx < (nltemp-1))]
+        uu = np.log10(mgtemp[i])
+        p[i, :] = scipy.interpolate.interp1d(
+            logt[indx], line_intensities[sline][:, indx], kind="quadratic")(uu).squeeze()[:]
     return p
 
 def get_reverse_indices(x, nbins, min_range=None, max_range=None):
