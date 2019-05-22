@@ -111,16 +111,17 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     """
     # Set kwarg values from user inputs.
     if observer_distance is not None:
-        if earth is not False:
-            warning.warn("distance and earth kwargs set. Ignoring earth and using distance.")
+        if earth:
+            raise ValueError(
+                    "Conflicting inputs. Both distance and earth kwargs set. Can only set one.")
     else:
-        if earth is False:
+        if not earth:
             observer_distance = 1
         else:
             if date is None:
-                observer_distance = 1 * u.AU
+                observer_distance = (1 * u.AU).to(u.cm).value
             else:
-                observer_distance = sunpy.coordinates.get_sunearth_distance(time=date)
+                observer_distance = sunpy.coordinates.get_sunearth_distance(time=date).to(u.cm).value
     # Format relative abundances.
     if relative_abundances is not None:
         #relative_abundances = [(26, 1.), (28, 1.)]
@@ -213,7 +214,12 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
             # Put spectrum into correct units. This line is equivalent to chianti_kev_units.pro
             spectrum = spectrum / wedg * em_factor
 
-    return spectrum.squeeze()
+    # Eliminate redundant axes and Scale units to observer distance.
+    # Unlike Mewe, don't divide by 4 pi. Chianti is in units of steradian.
+    print(observer_distance)
+    spectrum = spectrum.squeeze() / observer_distance**2
+
+    return spectrum
 
 
 def _weight_emission_bins_to_line_centroid(hhh, rr, iline, eline, energm, mtemp, emiss, nenrg):

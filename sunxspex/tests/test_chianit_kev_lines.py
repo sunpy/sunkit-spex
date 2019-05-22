@@ -32,20 +32,45 @@ expected_spectrum_E032805_6MK_EM1e44_RelAbunFe2_NotObserverScaled = np.array([
     0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,
     0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,
     0.0000000,       0.0000000])
+
+expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled_earth_20190522 = np.array([
+    0.073248975,     0.014247916,     0.0044440511,    0.00067793718,   2.3333176e-05,   2.5751346e-10,
+    3.4042361e-05,   2.1403499e-05,   5.0370664e-07,   8.3715751e-12,   2.7737142e-12,   1.5496721e-13,
+    1.9522280e-17,   1.3281716e-20,   1.0493879e-21,   0.0000000,       0.0000000,       0.0000000,
+    0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,
+    0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,
+    0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,
+    0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,
+    0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,       0.0000000,
+    0.0000000,       0.0000000])
+
+
 @pytest.mark.parametrize(
     "energy_edges,temperature,em,relative_abundances,observer_distance,earth,date,expected_spectrum",
     [
         (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, None, None, None, None,
         expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled),
+        #
         (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, [(26, 2.0)], None, None, None,
         expected_spectrum_E032805_6MK_EM1e44_RelAbunFe2_NotObserverScaled),
+        #
         (np.arange(3, 28.5, 0.5)*u.keV, [6, 6]*u.MK, default_EM, None, None, None, None,
-        np.repeat(expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled[np.newaxis, :], 2, axis=0))
+        np.repeat(expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled[np.newaxis, :],
+                  2, axis=0)),
+        #
+        (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, None, None, True, "2019-05-22",
+        expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled_earth_20190522)
     ])
 def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances, 
                            observer_distance, earth, date, expected_spectrum):
+    if earth is True:
+        rtol = 0.03 
+        atol = 1e-30
+    else:
+        rtol = 0.005
+        atol = 1e-4
     output_spectrum = chianti_kev_lines.chianti_kev_lines(
             energy_edges, temperature, em,
             relative_abundances=relative_abundances, observer_distance=observer_distance,
             earth=earth, date=date)
-    np.testing.assert_allclose(output_spectrum, expected_spectrum, rtol=0.005, atol=1e-4)
+    np.testing.assert_allclose(output_spectrum, expected_spectrum, rtol=rtol, atol=atol)
