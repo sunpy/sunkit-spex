@@ -123,158 +123,157 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                 observer_distance = sunpy.coordinates.get_sunearth_distance(time=date).to(u.cm).value
     # Format relative abundances.
     if relative_abundances is not None:
-        #relative_abundances = [(26, 1.), (28, 1.)]
         relative_abundances = Table(rows=relative_abundances,
                                     names=("atomic number", "relative abundance"),
                                     meta={"description": "relative abundances"},
                                     dtype=(int, float))
 
-    # For ease of calculation, convert inputs to standard units and
+    # For ease of calculation, convert inputs to known units and
     # scale to manageable numbers.
-    em_factor = 1e44
-    temp = temperature.to(u.MK).value
-    emission_measure = emission_measure.to(u.cm**(-3)).value / em_factor
-    energy_edges = energy_edges.to(u.keV).value
-    energy = energy_edges
-
-    mgtemp = temp * 1e6
-    uu = np.log10(mgtemp)
-
-    zindex, line_meta, line_properties, line_intensities = chianti_kev_line_common_load(linefile=FILE_IN)
-    line_energies = line_properties["ENERGY"].quantity.to(u.keV).value
-    log10_temp_K_range = line_meta["LOGT_ISOTHERMAL"]
-    line_element_indices = line_iz = line_properties["IZ"].data
-
-    # Load abundances
-    abundance = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
-                                xr_ab_file=kwargs.get("xr_ab_file", None))
-    len_abundances = len(abundance)
-
-    # Find energies within energy range of interest.
-    line_indices = np.logical_and(line_energies >= energy.min(),
-                                  line_energies <= energy.max())
-    n_line_indices = line_indices.sum()
-    line_indices = np.arange(len(line_energies))[line_indices]
+    energy_edges_keV = energy_edges.to(u.keV).value
+    temperature_K = temperature.to(u.K).value
+    log_T = np.log10(temperature_K)
+    energy_edges_keV = energy_edges.to(u.keV).value
+    emission_measure_cm = emission_measure.to(1/u.cm**3).value
     try:
-        mtemp = len(temp)
+        n_temperatures = len(temperature_K)
     except TypeError:
-        mtemp = 1
-    nenrg = len(energy[:-1])
-    spectrum = np.zeros((mtemp, nenrg))
+        n_temperatures = 1
+    n_energy_bins = len(energy_edges_keV)-1
 
-    # Rename variables to IDL names for ease of comparison.
-    eline = copy.copy(line_energies)
-    logt = copy.copy(log10_temp_K_range)
-    out_lines_iz = copy.copy(line_iz)
-    sline = copy.copy(line_indices)
-    nsline = copy.copy(n_line_indices)
+    # Define array to hold emission at each energy and temperature.
+    spectrum = np.zeros((n_temperatures, n_energy_bins))
 
-    if n_line_indices > 0:
-        eline = eline[sline]
+    # Loadt emission line data from CHIANTI file. 
+    zindex, line_meta, line_properties, line_intensities = chianti_kev_line_common_load(linefile=FILE_IN)
+    line_energy_bins = line_properties["ENERGY"].quantity.to(u.keV).value
+    line_logT_bins = line_meta["LOGT_ISOTHERMAL"]
+    line_element_indices = line_properties["IZ"].data
 
-        p = chianti_kev_getp(line_intensities, sline, logt, temp*1e6, nsline)
+    # Load abundances.
+    default_abundances = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
+                                 xr_ab_file=kwargs.get("xr_ab_file", None))
+    len_abundances = len(default_abundances)
+
+    # Find indices of line energy bins within user input energy range.
+    energy_roi_indices = np.logical_and(line_energy_bins >= energy_edges_keV.min(),
+                                        line_energy_bins <= energy_edges_keV.max())
+    n_energy_roi_indices = energy_roi_indices.sum()
+    energy_roi_indices = np.arange(len(line_energy_bins))[energy_roi_indices]
+
+    # If there are line within energy range of interest, compile spectrum. 
+    if n_energy_roi_indices > 0:
+        line_energy_bins = line_energy_bins[energy_roi_indices]
+
+        # Calculate emissivity from each element as a function of energy and temperature.
+        element_emissivities = chianti_kev_getp(line_intensities, energy_roi_indices, line_logT_bins, temperature_K, n_energy_roi_indices)
  
-        abundance_ratio = np.ones(len_abundances)
+        # Calculate abundance of each desired element.
+        # First, create mask to select only desired elements
+        # that produce line emission as defined by zindex.
+        abundances_mask = np.zeros(len_abundances)[zindex] = 1.0
+        # Second, define abundance ratios which account for relative_abundances.
+        abundance_ratios = np.ones(len_abundances)
         if relative_abundances is not None:
-            abundance_ratio[relative_abundances["atomic number"]-1] = relative_abundances["relative abundance"]
+            abundance_ratios[relative_abundances["atomic number"]-1] = relative_abundances["relative abundance"]
+        # Third, multiply default abundances by abundance ratios and mask to get abundances.
+        abundances = default_abundances * abundance_ratios * abundances_mask
+        # Finally, extract only elements that contribute to lines within energy range of interest.
+        abundances = abundances[line_element_indices[energy_roi_indices]-1]
 
-        # We include default_abundance because it will have zeroes for elements not included
-        # and ones for those included
-        default_abundance = np.zeros(len_abundances)
-        default_abundance[zindex] = 1.0
-        abund = (default_abundance * abundance * abundance_ratio)[out_lines_iz[sline]-1]
-        emiss = p * abund
-        # Tested to here without rel_abund
-
-        # energy products
-        wedg = energy[1:] - energy[:-1]
-        energm = energy[:-1] + wedg/2
-        
-        iline = np.digitize(eline, energy) - 1
-
-        # Get reverse indices for each bin.
-        rr = get_reverse_indices(eline - energm[iline], nbins=10, min_range=-10., max_range=10.)[1]
-        # Extract bins with >0 counts.
-        rr = tuple(np.array(rr)[np.where(np.array([len(ri) for ri in rr]) > 0)[0]])
-        hhh = [len(rrr) for rrr in rr]
+        # Calculate emissivities.
+        emissivities = element_emissivities * abundances
 
         # Reweight the emission in bins around the line centroids
         # so they appear at the correct energy, despite the binning.
-        emiss, iline = _weight_emission_bins_to_line_centroid(hhh, rr, iline, eline, energm, mtemp, emiss, nenrg)
+        emissivities, iline = _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n_temperatures, emissivities)
 
-        fline = np.histogram(iline, bins=nenrg, range=(0, nenrg-1))[0]
-        r = get_reverse_indices(iline, nbins=nenrg, min_range=0, max_range=nenrg-1)[1]
+        # Determine which spectrum energy bins contain components of line emission.
+        # Sum over those line components to get total emission in each spectrum energy bin.
+        spectrum_bins_line_energy_indices = get_reverse_indices(iline, nbins=n_energy_bins, min_range=0, max_range=n_energy_bins-1)[1]
+        emitting_energy_bin_indices = np.where(np.histogram(iline, bins=n_energy_bins, range=(0, n_energy_bins-1))[0] > 0)[0]
+        if len(emitting_energy_bin_indices) > 0:
+            for j in range(n_temperatures):
+                for i in emitting_energy_bin_indices:
+                    spectrum[j, i] = sum(emissivities[j, spectrum_bins_line_energy_indices[i]])
 
-        select = np.where(fline > 0)[0]
-        if len(select) > 0:
-            for j in range(mtemp):
-                for i in select:
-                    spectrum[j, i] = sum(emiss[j, r[i]]) # Can this be vectorized with tuples of indices like np.where?
-            # Put spectrum into correct units. This line is equivalent to chianti_kev_units.pro
-            spectrum = spectrum / wedg * em_factor
-
-    # Eliminate redundant axes and Scale units to observer distance.
-    # Unlike Mewe, don't divide by 4 pi. Chianti is in units of steradian.
-    spectrum = spectrum.squeeze() / observer_distance**2
+    # Eliminate redundant axes, scale units to observer distance and put into correct units.
+    # When scaling to observer distance, don't divide by 4 pi. Unlike Mewe, CHIANTI is in units of steradian.
+    energy_bin_widths = energy_edges_keV[1:] - energy_edges_keV[:-1]
+    spectrum = spectrum.squeeze() / energy_bin_widths * emission_measure_cm / observer_distance**2
 
     return spectrum
 
 
-def chianti_kev_getp(line_intensities, sline, logt, mgtemp, nsline):
+def chianti_kev_getp(line_intensities, energy_roi_indices, line_logT_bins, temperature_K, n_energy_roi_indices):
     try:
-        mtemp = len(mgtemp)
+        n_temperatures = len(temperature_K)
     except TypeError:
-        mgtemp = np.array([mgtemp])
-        mtemp = 1
-    nltemp = len(logt)
-    selt = np.digitize( np.log10(mgtemp), logt)-1
-    p = np.zeros((mtemp, nsline))
-    for i in range(mtemp):
+        temperature_K = np.array([temperature_K])
+        n_temperatures = 1
+    nltemp = len(line_logT_bins)
+    selt = np.digitize( np.log10(temperature_K), line_logT_bins)-1
+    p = np.zeros((n_temperatures, n_energy_roi_indices))
+    for i in range(n_temperatures):
         indx = selt[i]-1+np.arange(3)
         indx = indx[np.logical_and(indx > 0, indx < (nltemp-1))]
-        uu = np.log10(mgtemp[i])
+        log_T = np.log10(temperature_K[i])
         p[i, :] = scipy.interpolate.interp1d(
-            logt[indx], line_intensities[sline][:, indx], kind="quadratic")(uu).squeeze()[:]
+            line_logT_bins[indx], line_intensities[energy_roi_indices][:, indx], kind="quadratic")(log_T).squeeze()[:]
     return p
 
 
-def _weight_emission_bins_to_line_centroid(hhh, rr, iline, eline, energm, mtemp, emiss, nenrg):
+def _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n_temperatures, emissivities):
     """Weights emission in neighboring spectral bins to make centroid have correct spectral value."""
-    if hhh[0] >= 1:
+    n_energy_bins = len(energy_edges_keV)-1
+
+    # Get widths and centers of energy bins. 
+    energy_bin_widths = energy_edges_keV[1:] - energy_edges_keV[:-1]
+    energy_centers = energy_edges_keV[:-1] + energy_bin_widths/2
+    
+    # For each line energy bin, find the index of the input energy bin to which it corresponds.
+    iline = np.digitize(line_energy_bins, energy_edges_keV) - 1
+
+    # Get reverse indices for each bin.
+    rr = get_reverse_indices(line_energy_bins - energy_centers[iline], nbins=10, min_range=-10., max_range=10.)[1]
+    # Extract bins with >0 counts.
+    rr = tuple(np.array(rr)[np.where(np.array([len(ri) for ri in rr]) > 0)[0]])
+    
+    if len(rr[0]) >= 1:
         etst = rr[0]
         itst = np.where(iline[etst] > 0)[0]
 
         if len(itst) >= 1:
             etst = etst[itst]
 
-            wght = (energm[iline[etst]]-eline[etst]) / (energm[iline[etst]]-energm[iline[etst]-1])
-            wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+            wght = (energy_centers[iline[etst]]-line_energy_bins[etst]) / (energy_centers[iline[etst]]-energy_centers[iline[etst]-1])
+            wght = np.tile(wght, tuple([n_temperatures] + [1] * wght.ndim))
 
-            temp = emiss[:, etst]
-            emiss[:, etst] = temp * (1-wght)
-            emiss = np.concatenate((emiss, temp*wght), axis=-1)
+            temp = emissivities[:, etst]
+            emissivities[:, etst] = temp * (1-wght)
+            emissivities = np.concatenate((emissivities, temp*wght), axis=-1)
 
             iline = np.concatenate((iline, iline[etst]-1))
 
-    if hhh[1] >= 1:
+    if len(rr[1]) >= 1:
 
         etst = rr[1]
-        itst = np.where( iline[etst] <= (nenrg-2))[0]
+        itst = np.where( iline[etst] <= (n_energy_bins-2))[0]
 
         if len(itst) >= 1:
             etst = etst[itst]
 
-            wght = (eline[etst] - energm[iline[etst]]) / (energm[iline[etst]+1]-energm[iline[etst]])
-            wght = np.tile(wght, tuple([mtemp] + [1] * wght.ndim))
+            wght = (line_energy_bins[etst] - energy_centers[iline[etst]]) / (energy_centers[iline[etst]+1]-energy_centers[iline[etst]])
+            wght = np.tile(wght, tuple([n_temperatures] + [1] * wght.ndim))
 
-            temp = emiss[:, etst]
-            emiss[:, etst] = temp * (1-wght)
-            emiss = np.concatenate((emiss, temp*wght), axis=-1)
+            temp = emissivities[:, etst]
+            emissivities[:, etst] = temp * (1-wght)
+            emissivities = np.concatenate((emissivities, temp*wght), axis=-1)
             iline = np.concatenate((iline, iline[etst]+1))
 
     ordd = np.argsort(iline)
     iline = iline[ordd]
-    for i in range(mtemp):
-        emiss[i, :] = emiss[i, ordd]
+    for i in range(n_temperatures):
+        emissivities[i, :] = emissivities[i, ordd]
 
-    return emiss, iline
+    return emissivities, iline
