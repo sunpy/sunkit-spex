@@ -11,7 +11,6 @@ from sunpy.time import parse_time
 
 SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("~", "ssw", "packages",
                                                      "xray", "dbase", "chianti"))
-FILE_IN = "/Users/dnryan/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav"
 
 
 def chianti_kev_line_common_load(linefile=None):
@@ -177,7 +176,7 @@ def chianti_kev_cont_common_load(contfile, _extra=None):
     return zindex, continuum_properties
 
 
-def xr_rd_abundance(abundance_type=None, xr_ab_file=None):
+def load_xray_abundances(abundance_type=None, xray_abundance_file=None):
     """
     This returns the abundances written in the xray_abun_file.genx
     The abundances are taken from CHIANTI and MEWE.  The source filenames are:
@@ -200,7 +199,7 @@ def xr_rd_abundance(abundance_type=None, xr_ab_file=None):
         7. mewe_cosmic
         8. mewe_solar - default for mewe_kev
 
-    xr_ab_file: `str`
+    xray_abundance_file: `str`
         Name and path to abundance file.
         Default= ~/ssw/packages/xray/dbase/chianti/xray_abun_file.genx
 
@@ -213,13 +212,15 @@ def xr_rd_abundance(abundance_type=None, xr_ab_file=None):
     # If kwargs not set, set defaults
     if abundance_type is None:
         abundance_type = "sun_coronal"
-    if xr_ab_file is None:
-        xr_ab_file = os.path.expanduser(os.path.join(SSWDB_XRAY_CHIANTI,
+    if xray_abundance_file is None:
+        xray_abundance_file = os.path.expanduser(os.path.join(SSWDB_XRAY_CHIANTI,
                                                      "xray_abun_file.genx"))
     # Read file
-    ab_sav = read_abundance_genx(xr_ab_file)
-    # Return relevant abundance.
-    return ab_sav[abundance_type]
+    contents = read_abundance_genx(xray_abundance_file)
+    # Extract relevant abundance type
+    abundances = contents[abundance_type]
+
+    return abundances
 
 
 def read_abundance_genx(filename):

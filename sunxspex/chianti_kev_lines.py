@@ -7,7 +7,7 @@ from astropy.table import Table, Column
 import scipy.interpolate
 import sunpy.coordinates
 
-from sunxspex.io import chianti_kev_line_common_load, xr_rd_abundance
+from sunxspex.io import chianti_kev_line_common_load, load_xray_abundances
 from sunxspex.utils import get_reverse_indices
 
 SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("~", "ssw", "packages",
@@ -162,8 +162,8 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
 
         # Calculate abundance of each desired element.
         # First, load default abundances.
-        default_abundances = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
-                                             xr_ab_file=kwargs.get("xr_ab_file", None))
+        default_abundances = load_xray_abundances(abundance_type=kwargs.get("abundance_type", None),
+                                                  xray_abundance_file=kwargs.get("xray_abundance_file", None))
         len_abundances = len(default_abundances)
         # Second, define define ratios by which to scale relative abundances
         # which account for relative_abundances.
