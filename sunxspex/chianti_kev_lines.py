@@ -23,8 +23,8 @@ class ChiantiKevLines():
     def __init__(self):
         pass
 
-#@u.quantity_input(energy_edges=u.keV, temperature=u.K, emission_measure=1/(u.cm**3),
-#                  observer_distance='length')
+@u.quantity_input(energy_edges=u.keV, temperature=u.K, emission_measure=1/u.cm**3,
+                  observer_distance='length')
 def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
                       relative_abundances=None, line_file=None,
                       observer_distance=None, earth=False, date=None,
@@ -133,7 +133,6 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     energy_edges_keV = energy_edges.to(u.keV).value
     temperature_K = temperature.to(u.K).value
     log_T = np.log10(temperature_K)
-    energy_edges_keV = energy_edges.to(u.keV).value
     emission_measure_cm = emission_measure.to(1/u.cm**3).value
     try:
         n_temperatures = len(temperature_K)
