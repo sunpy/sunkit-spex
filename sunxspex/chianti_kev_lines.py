@@ -144,16 +144,11 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     # Define array to hold emission at each energy and temperature.
     spectrum = np.zeros((n_temperatures, n_energy_bins))
 
-    # Loadt emission line data from CHIANTI file. 
-    zindex, line_meta, line_properties, line_intensities = chianti_kev_line_common_load(linefile=FILE_IN)
+    # Load emission line data from CHIANTI file.
+    zindex, line_meta, line_properties, line_intensities_grid = chianti_kev_line_common_load(linefile=FILE_IN)
     line_energy_bins = line_properties["ENERGY"].quantity.to(u.keV).value
     line_logT_bins = line_meta["LOGT_ISOTHERMAL"]
     line_element_indices = line_properties["IZ"].data
-
-    # Load abundances.
-    default_abundances = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
-                                 xr_ab_file=kwargs.get("xr_ab_file", None))
-    len_abundances = len(default_abundances)
 
     # Find indices of line energy bins within user input energy range.
     energy_roi_indices = np.logical_and(line_energy_bins >= energy_edges_keV.min(),
@@ -163,30 +158,36 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
 
     # If there are line within energy range of interest, compile spectrum. 
     if n_energy_roi_indices > 0:
+        # Restrict energy bins of lines to energy range of interest.
         line_energy_bins = line_energy_bins[energy_roi_indices]
 
-        # Calculate emissivity from each element as a function of energy and temperature.
-        element_emissivities = chianti_kev_getp(line_intensities, energy_roi_indices, line_logT_bins, temperature_K, n_energy_roi_indices)
- 
         # Calculate abundance of each desired element.
-        # First, create mask to select only desired elements
-        # that produce line emission as defined by zindex.
-        abundances_mask = np.zeros(len_abundances)[zindex] = 1.0
-        # Second, define abundance ratios which account for relative_abundances.
+        # First, load default abundances.
+        default_abundances = xr_rd_abundance(abundance_type=kwargs.get("abundance_type", None),
+                                             xr_ab_file=kwargs.get("xr_ab_file", None))
+        len_abundances = len(default_abundances)
+        # Second, define define ratios by which to scale relative abundances
+        # which account for relative_abundances.
         abundance_ratios = np.ones(len_abundances)
         if relative_abundances is not None:
             abundance_ratios[relative_abundances["atomic number"]-1] = relative_abundances["relative abundance"]
-        # Third, multiply default abundances by abundance ratios and mask to get abundances.
+        # Third, create mask to select only desired elements
+        # that produce line emission as defined by zindex.
+        abundances_mask = np.zeros(len_abundances)[zindex] = 1.0
+        # Fourth, multiply default abundances by abundance ratios and mask to get true abundances.
         abundances = default_abundances * abundance_ratios * abundances_mask
-        # Finally, extract only elements that contribute to lines within energy range of interest.
+        # Finally, extract only lines within energy range of interest.
         abundances = abundances[line_element_indices[energy_roi_indices]-1]
 
-        # Calculate emissivities.
-        emissivities = element_emissivities * abundances
+        # Calculate normalized emissivity of each line in energy range of interest
+        # as a function of energy and temperature.
+        line_intensities = _chianti_kev_getp(np.log10(temperature_K), line_intensities_grid[energy_roi_indices], line_logT_bins)
+        # Scale line_intensities by abundances to get true line_intensities.
+        line_intensities = line_intensities * abundances
 
         # Reweight the emission in bins around the line centroids
         # so they appear at the correct energy, despite the binning.
-        emissivities, iline = _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n_temperatures, emissivities)
+        line_intensities, iline = _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n_temperatures, line_intensities)
 
         # Determine which spectrum energy bins contain components of line emission.
         # Sum over those line components to get total emission in each spectrum energy bin.
@@ -195,7 +196,7 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         if len(emitting_energy_bin_indices) > 0:
             for j in range(n_temperatures):
                 for i in emitting_energy_bin_indices:
-                    spectrum[j, i] = sum(emissivities[j, spectrum_bins_line_energy_indices[i]])
+                    spectrum[j, i] = sum(line_intensities[j, spectrum_bins_line_energy_indices[i]])
 
     # Eliminate redundant axes, scale units to observer distance and put into correct units.
     # When scaling to observer distance, don't divide by 4 pi. Unlike Mewe, CHIANTI is in units of steradian.
@@ -205,25 +206,77 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     return spectrum
 
 
-def chianti_kev_getp(line_intensities, energy_roi_indices, line_logT_bins, temperature_K, n_energy_roi_indices):
+def _chianti_kev_getp(logT, data_grid, line_logT_bins):
+    """
+    Calculates normalized line intensities at a given temperature using interpolation.
+
+    Given a 2D array, say of line intensities, as a function of two parameters,
+    say energy and log10(temperature), and a log10(temperature) value,
+    interpolate the line intensities over the temperature axis and
+    extract the intensities as a function of energy at the input temperature.
+
+    Note that strictly speaking the code is agnostic to the physical properties
+    of the axes and values in the array. All the matters is that data_grid
+    is interpolated over the 2nd axis and the input value also corresponds to
+    somewhere along that same axis. That value does not have exactly correspond to
+    the value of a column in the grid. This is accounted for by the interpolation.
+
+    Parameters
+    ----------
+    logT: `float` or 1D `numpy.ndarray` of `float`.
+        The input value along the 2nd axis at which the line intensities are desired.
+        If multiple values given, the calculation is done for each and the
+        output array has an extra dimension.
+
+    data_grid: 2D `numpy.ndarray`
+        Some property, e.g. line intensity, as function two parameters,
+        e.g. energy (0th dimension) and log10(temperature in kelvin) (1st dimension).
+
+    line_logT_bins: 1D `numpy.ndarray`
+        The value along the 2nd axis at which the data are required,
+        say a value of log10(temperature in kelvin).
+
+    Returns
+    -------
+    interpolated_data: 1D or 2D `numpy.ndarray`
+        The line intensities as a function of energy (1st dimension) at
+        each of the input temperatures (0th dimension).
+        Note that unlike the input line intensity table, energy here is the 0th axis.
+        If there is only one input temperature, interpolated_data is 1D.
+
+    """
+    # Ensure input temperatures are in an array to consistent manipulation.
     try:
-        n_temperatures = len(temperature_K)
+        n_temperatures = len(logT)
     except TypeError:
-        temperature_K = np.array([temperature_K])
+        logT = np.array([logT])
         n_temperatures = 1
-    nltemp = len(line_logT_bins)
-    selt = np.digitize( np.log10(temperature_K), line_logT_bins)-1
-    p = np.zeros((n_temperatures, n_energy_roi_indices))
+
+    # Get bins in which input temperatures belong.
+    temperature_bins = np.digitize(logT, line_logT_bins)-1
+
+    # For each input "temperature", interpolate the grid over the 2nd axis
+    # using the bins corresponding to the input "temperature" and the two neighboring bins.
+    # This will result in a function giving the data as a function of the 1st axis,
+    # say energy, at the input temperature to sub-temperature bin resolution.
+    interpolated_data = np.zeros((n_temperatures, data_grid.shape[0]))
     for i in range(n_temperatures):
-        indx = selt[i]-1+np.arange(3)
-        indx = indx[np.logical_and(indx > 0, indx < (nltemp-1))]
-        log_T = np.log10(temperature_K[i])
-        p[i, :] = scipy.interpolate.interp1d(
-            line_logT_bins[indx], line_intensities[energy_roi_indices][:, indx], kind="quadratic")(log_T).squeeze()[:]
-    return p
+        # Indentify the "temperature" bin to which the input "temperature"
+        # corresponds and its two nearest neighbors.
+        indx = temperature_bins[i]-1+np.arange(3)
+        # Interpolate the 2nd axis to produce a function that gives the data
+        # as a function of 1st axis, say energy, at a given value along the 2nd axis,
+        # say "temperature".
+        get_intensities_at_logT = scipy.interpolate.interp1d(line_logT_bins[indx], data_grid[:, indx], kind="quadratic")
+        # Use function to get interpolated_data as a function of the first axis at
+        # the input value along the 2nd axis,
+        # e.g. line intensities as a function of energy at a given temperature.
+        interpolated_data[i, :] = get_intensities_at_logT(logT[i]).squeeze()[:]
+
+    return interpolated_data
 
 
-def _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n_temperatures, emissivities):
+def _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n_temperatures, line_intensities):
     """Weights emission in neighboring spectral bins to make centroid have correct spectral value."""
     n_energy_bins = len(energy_edges_keV)-1
 
@@ -249,9 +302,9 @@ def _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n
             wght = (energy_centers[iline[etst]]-line_energy_bins[etst]) / (energy_centers[iline[etst]]-energy_centers[iline[etst]-1])
             wght = np.tile(wght, tuple([n_temperatures] + [1] * wght.ndim))
 
-            temp = emissivities[:, etst]
-            emissivities[:, etst] = temp * (1-wght)
-            emissivities = np.concatenate((emissivities, temp*wght), axis=-1)
+            temp = line_intensities[:, etst]
+            line_intensities[:, etst] = temp * (1-wght)
+            line_intensities = np.concatenate((line_intensities, temp*wght), axis=-1)
 
             iline = np.concatenate((iline, iline[etst]-1))
 
@@ -266,14 +319,14 @@ def _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n
             wght = (line_energy_bins[etst] - energy_centers[iline[etst]]) / (energy_centers[iline[etst]+1]-energy_centers[iline[etst]])
             wght = np.tile(wght, tuple([n_temperatures] + [1] * wght.ndim))
 
-            temp = emissivities[:, etst]
-            emissivities[:, etst] = temp * (1-wght)
-            emissivities = np.concatenate((emissivities, temp*wght), axis=-1)
+            temp = line_intensities[:, etst]
+            line_intensities[:, etst] = temp * (1-wght)
+            line_intensities = np.concatenate((line_intensities, temp*wght), axis=-1)
             iline = np.concatenate((iline, iline[etst]+1))
 
     ordd = np.argsort(iline)
     iline = iline[ordd]
     for i in range(n_temperatures):
-        emissivities[i, :] = emissivities[i, ordd]
+        line_intensities[i, :] = line_intensities[i, ordd]
 
-    return emissivities, iline
+    return line_intensities, iline
