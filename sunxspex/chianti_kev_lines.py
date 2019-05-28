@@ -145,20 +145,20 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
 
     # Load emission line data from CHIANTI file.
     zindex, line_meta, line_properties, line_intensities_grid = chianti_kev_line_common_load(linefile=FILE_IN)
-    line_energy_bins = line_properties["ENERGY"].quantity.to(u.keV).value
+    line_peaks_keV = line_properties["ENERGY"].quantity.to(u.keV).value
     line_logT_bins = line_meta["LOGT_ISOTHERMAL"]
     line_element_indices = line_properties["IZ"].data
 
     # Find indices of line energy bins within user input energy range.
-    energy_roi_indices = np.logical_and(line_energy_bins >= energy_edges_keV.min(),
-                                        line_energy_bins <= energy_edges_keV.max())
+    energy_roi_indices = np.logical_and(line_peaks_keV >= energy_edges_keV.min(),
+                                        line_peaks_keV <= energy_edges_keV.max())
     n_energy_roi_indices = energy_roi_indices.sum()
-    energy_roi_indices = np.arange(len(line_energy_bins))[energy_roi_indices]
+    energy_roi_indices = np.arange(len(line_peaks_keV))[energy_roi_indices]
 
     # If there are line within energy range of interest, compile spectrum. 
     if n_energy_roi_indices > 0:
         # Restrict energy bins of lines to energy range of interest.
-        line_energy_bins = line_energy_bins[energy_roi_indices]
+        line_peaks_keV = line_peaks_keV[energy_roi_indices]
 
         # Calculate abundance of each desired element.
         # First, load default abundances.
@@ -186,7 +186,7 @@ def chianti_kev_lines(energy_edges, temperature, emission_measure=1e44/u.cm**3,
 
         # Reweight the emission in bins around the line centroids
         # so they appear at the correct energy, despite the binning.
-        line_intensities, iline = _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n_temperatures, line_intensities)
+        line_intensities, iline = _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, line_intensities)
 
         # Determine which spectrum energy bins contain components of line emission.
         # Sum over those line components to get total emission in each spectrum energy bin.
@@ -275,57 +275,140 @@ def _chianti_kev_getp(logT, data_grid, line_logT_bins):
     return interpolated_data
 
 
-def _weight_emission_bins_to_line_centroid(line_energy_bins, energy_edges_keV, n_temperatures, line_intensities):
-    """Weights emission in neighboring spectral bins to make centroid have correct spectral value."""
-    n_energy_bins = len(energy_edges_keV)-1
+def _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, line_intensities):
+    """
+    Split emission between neighboring energy bins such that averaged energy is the line peak.
+    
+    Given line peak energies and a set of the energy bin edges:
+    1. Find the bins into which each of the lines belong.
+    2. Calculate distance between the line peak energy and the 
+    center of the bin to which it corresponds as a fraction of the distance between
+    the bin center the center of the next closest bin to the line peak energy.
+    3. Assign the above fraction of the line intensity to the neighboring bin and 
+    the rest of the energy to the original bin.
+    4. Add the neighboring bins to the array of bins containing positive emission.
 
-    # Get widths and centers of energy bins. 
+    Parameters
+    ----------
+    line_peaks_keV: 1D `numpy.ndarray`
+        The energy of the line peaks in keV.
+
+    energy_peak_keV: 1D `numpy.ndarray`
+        The edges of adjacent energy bins.
+        Length must be n+1 where n is the number of energy bins.
+        These energy bins may be referred to as 'spectrum energy bins' in comments.
+
+    line_intensities: 2D `numpy.ndarray`
+        The amplitude of the line peaks.
+        The last dimension represents intensities of each line in line_peaks_keV while
+        the first dimension represents the intensities as a function of another parameter,
+        e.g. temperature.
+        These intensities are the ones divided between neighboring bins as described above.
+
+    Returns
+    -------
+    new_line_intensities: 2D `numpy.ndarray`
+        The weighted line intensities including neigboring component for each line weighted
+        such that total emission is the same, but the energy of each line averaged over the
+        energy_edge_keV bins is the same as the actual line energy. 
+
+    new_iline: `numpy.ndarray`
+        Indices of the spectrum energy bins to which emission from each line corresponds.
+        This includes indices of the neighboring bin emission components. 
+
+    """
+    # Get widths and centers of the spectrum energy bins. 
     energy_bin_widths = energy_edges_keV[1:] - energy_edges_keV[:-1]
     energy_centers = energy_edges_keV[:-1] + energy_bin_widths/2
-    
-    # For each line energy bin, find the index of the input energy bin to which it corresponds.
-    iline = np.digitize(line_energy_bins, energy_edges_keV) - 1
+    energy_center_diffs = energy_centers[1:] - energy_centers[:-1]
 
-    # Get reverse indices for each bin.
-    rr = get_reverse_indices(line_energy_bins - energy_centers[iline], nbins=10, min_range=-10., max_range=10.)[1]
-    # Extract bins with >0 counts.
-    rr = tuple(np.array(rr)[np.where(np.array([len(ri) for ri in rr]) > 0)[0]])
-    
-    if len(rr[0]) >= 1:
-        etst = rr[0]
-        itst = np.where(iline[etst] > 0)[0]
+    # For each line, find the index of the spectrum energy bin to which it corresponds.
+    iline = np.digitize(line_peaks_keV, energy_edges_keV) - 1
 
-        if len(itst) >= 1:
-            etst = etst[itst]
+    # Get the difference between each line energy and
+    # the center of the spectrum energy bin to which is corresponds.
+    line_deviations_keV = line_peaks_keV - energy_centers[iline]
+    # Get the indices of the lines which are above and below their bin center.
+    line_deviation_bin_indices = get_reverse_indices(line_deviations_keV, nbins=10, 
+                                                     min_range=-10., max_range=10.)[1]
+    neg_deviation_indices, pos_deviation_indices = tuple(np.array(line_deviation_bin_indices)[
+        np.where(np.array([len(ri) for ri in line_deviation_bin_indices]) > 0)[0]])
+    neg_deviation_indices = neg_deviation_indices[np.where(iline[neg_deviation_indices] > 0)[0]]
+    pos_deviation_indices = pos_deviation_indices[
+        np.where(iline[pos_deviation_indices] <= (len(energy_edges_keV)-2))[0]]
 
-            wght = (energy_centers[iline[etst]]-line_energy_bins[etst]) / (energy_centers[iline[etst]]-energy_centers[iline[etst]-1])
-            wght = np.tile(wght, tuple([n_temperatures] + [1] * wght.ndim))
+    # Split line emission between the spectrum energy bin containing the line peak and
+    # the nearest neighboring bin based on the proximity of the line energy to
+    # the center of the spectrum bin.
+    # Treat lines which are above and below the bin center separately as slightly
+    # different indexing is required.
+    new_line_intensities = copy.deepcopy(line_intensities)
+    new_iline = copy.deepcopy(iline)
+    if len(neg_deviation_indices) > 0:
+        neg_line_intensities, neg_neighbor_intensities, neg_neighbor_iline = _weight_emission_bins(
+            line_deviations_keV, neg_deviation_indices,
+            energy_center_diffs, line_intensities, iline, negative_deviations=True)
+        # Combine new line and neighboring bin intensities and indices into common arrays.
+        new_line_intensities[:, neg_deviation_indices] = neg_line_intensities
+        new_line_intensities = np.concatenate((new_line_intensities, neg_neighbor_intensities), axis=-1)
+        new_iline = np.concatenate((new_iline, neg_neighbor_iline))
 
-            temp = line_intensities[:, etst]
-            line_intensities[:, etst] = temp * (1-wght)
-            line_intensities = np.concatenate((line_intensities, temp*wght), axis=-1)
+    if len(pos_deviation_indices) > 0:
+        pos_line_intensities, pos_neighbor_intensities, pos_neighbor_iline = _weight_emission_bins(
+            line_deviations_keV, pos_deviation_indices,
+            energy_center_diffs, line_intensities, iline, negative_deviations=False)
+        # Combine new line and neighboring bin intensities and indices into common arrays.
+        new_line_intensities[:, pos_deviation_indices] = pos_line_intensities
+        new_line_intensities = np.concatenate(
+            (new_line_intensities, pos_neighbor_intensities), axis=-1)
+        new_iline = np.concatenate((new_iline, pos_neighbor_iline))
 
-            iline = np.concatenate((iline, iline[etst]-1))
+    # Order new_line_intensities so neighboring intensities are next
+    # to those containing the line peaks.
+    ordd = np.argsort(new_iline)
+    new_iline = new_iline[ordd]
+    for i in range(new_line_intensities.shape[0]):
+        new_line_intensities[i, :] = new_line_intensities[i, ordd]
 
-    if len(rr[1]) >= 1:
+    return new_line_intensities, new_iline
 
-        etst = rr[1]
-        itst = np.where( iline[etst] <= (n_energy_bins-2))[0]
 
-        if len(itst) >= 1:
-            etst = etst[itst]
+def _weight_emission_bins(line_deviations_keV, deviation_indices,
+                          energy_center_diffs, line_intensities, iline,
+                          negative_deviations=True):
+    if negative_deviations is True:
+        if not np.all(line_deviations_keV[deviation_indices] < 0):
+            raise ValueError(
+                "As negative_deviations is True, can only handle "
+                "lines whose energy < energy bin center, "
+                "i.e. all line_deviations_keV must be negative.")
+        a = -1
+        b = -1
+    else:
+        if not np.all(line_deviations_keV[deviation_indices] >= 0):
+            raise ValueError(
+                "As negative_deviations is not True, can only handle "
+                "lines whose energy >= energy bin center, "
+                "i.e. all line_deviations_keV must be positive.")
+        a = 0
+        b = 1
 
-            wght = (line_energy_bins[etst] - energy_centers[iline[etst]]) / (energy_centers[iline[etst]+1]-energy_centers[iline[etst]])
-            wght = np.tile(wght, tuple([n_temperatures] + [1] * wght.ndim))
+    # Calculate difference between line energy and the spectrum bin center as a
+    # fraction of the distance between the spectrum bin center and the
+    # center of the nearest neighboring bin.
+    wghts = np.absolute(line_deviations_keV[deviation_indices]) / energy_center_diffs[iline[deviation_indices+a]]
+    # Tile/replicate wghts through the other dimension of line_intensities.
+    wghts = np.tile(wghts, tuple([line_intensities.shape[0]] + [1] * wghts.ndim))
 
-            temp = line_intensities[:, etst]
-            line_intensities[:, etst] = temp * (1-wght)
-            line_intensities = np.concatenate((line_intensities, temp*wght), axis=-1)
-            iline = np.concatenate((iline, iline[etst]+1))
+    # Weight line intensitites.
+    # Weight emission in the bin containing the line intensity by 1-wght,
+    # since by definition wght < 0.5 and
+    # add the line intensity weighted by wght to the nearest neighbor bin.
+    # This will mean the intensity integrated over the two bins is the
+    # same as the original intensity, but the intensity-weighted peak energy
+    # is the same as the original line peak energy even with different spectrum energy binning.
+    new_line_intensities = line_intensities[:, deviation_indices] * (1-wghts)
+    neighbor_intensities = line_intensities[:, deviation_indices] * wghts
+    neighbor_iline = iline[deviation_indices]+b
 
-    ordd = np.argsort(iline)
-    iline = iline[ordd]
-    for i in range(n_temperatures):
-        line_intensities[i, :] = line_intensities[i, ordd]
-
-    return line_intensities, iline
+    return new_line_intensities, neighbor_intensities, neighbor_iline
