@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import astropy.units as u
 
-from sunxspex import chianti_kev_lines
+from sunxspex.chianti_kev_lines import ChiantiKevLines
 
 # Define some default input parameters.
 default_EM = 1e44/(u.cm**3)
@@ -48,13 +48,13 @@ expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled_earth_20190522 
 @pytest.mark.parametrize(
     "energy_edges,temperature,em,relative_abundances,observer_distance,earth,date,expected_spectrum",
     [
-        (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, None, None, None, None,
+        (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, None, None, False, None,
         expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled),
         #
-        (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, [(26, 2.0)], None, None, None,
+        (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, [(26, 2.0)], None, False, None,
         expected_spectrum_E032805_6MK_EM1e44_RelAbunFe2_NotObserverScaled),
         #
-        (np.arange(3, 28.5, 0.5)*u.keV, [6, 6]*u.MK, default_EM, None, None, None, None,
+        (np.arange(3, 28.5, 0.5)*u.keV, [6, 6]*u.MK, default_EM, None, None, False, None,
         np.repeat(expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled[np.newaxis, :],
                   2, axis=0)),
         #
@@ -69,8 +69,9 @@ def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances,
     else:
         rtol = 0.005
         atol = 1e-4
-    output_spectrum = chianti_kev_lines.chianti_kev_lines(
-            energy_edges, temperature, em,
-            relative_abundances=relative_abundances, observer_distance=observer_distance,
-            earth=earth, date=date)
+    ckl = ChiantiKevLines()
+    print(relative_abundances, em)
+    output_spectrum = ckl.chianti_kev_lines(energy_edges, temperature, emission_measure=em,
+                                            relative_abundances=relative_abundances,
+                                            observer_distance=observer_distance, earth=earth, date=date)
     np.testing.assert_allclose(output_spectrum, expected_spectrum, rtol=rtol, atol=atol)
