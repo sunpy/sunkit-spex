@@ -124,7 +124,7 @@ def chianti_kev_line_common_load(linefile=None):
         line_properties = line_properties[0]
         line_intensities = line_intensities[0]
 
-    return zindex, line_meta, line_properties, line_intensities
+    return zindex, line_meta, line_properties, line_intensities * line_meta["INT_UNITS"]
 
 
 def chianti_kev_cont_common_load(contfile, _extra=None):
@@ -287,7 +287,7 @@ def _clean_units(arr):
     if len(result) == 1:
         result = result[0]
 
-    return result
+    return u.Unit(result)
 
 
 def _clean_chianti_doc(arr):

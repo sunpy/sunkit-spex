@@ -47,11 +47,12 @@ class ChiantiKevLines():
         """
 
         # Load emission line data from CHIANTI file.
-        zindex, line_meta, line_properties, line_intensities_grid = chianti_kev_line_common_load(linefile=linefile)
+        zindex, line_meta, line_properties, line_intensities_per_solid_angle_grid = chianti_kev_line_common_load(linefile=linefile)
         self.zindex = zindex
-        self.line_intensities_grid = line_intensities_grid
+        self.line_intensities_per_solid_angle_grid = line_intensities_per_solid_angle_grid
         self.line_peaks_keV = line_properties["ENERGY"].quantity.to(u.keV).value
         self.line_logT_bins = line_meta["LOGT_ISOTHERMAL"]
+        self.line_colEMs = 10.**line_meta["LOGEM_ISOTHERMAL"] / u.cm**5
         self.line_element_indices = line_properties["IZ"].data
 
         # Load default abundances.
@@ -143,19 +144,47 @@ class ChiantiKevLines():
         wavelength to energy by wavelength = 12.399/energy in keV.
 
         """
-        # Set kwarg values from user inputs.
+        # If observer_distance or earth is set, derive the observer_distance.
         if observer_distance is not None:
             if earth:
                 raise ValueError(
                         "Conflicting inputs. Both distance and earth kwargs set. Can only set one.")
+            observer_distance = observer_distance.to(u.cm)
         else:
             if not earth:
                 observer_distance = 1
             else:
                 if date is None:
-                    observer_distance = (1 * u.AU).to(u.cm).value
+                    observer_distance = (1 * u.AU).to(u.cm)
                 else:
-                    observer_distance = sunpy.coordinates.get_sunearth_distance(time=date).to(u.cm).value
+                    observer_distance = sunpy.coordinates.get_sunearth_distance(time=date).to(u.cm)
+
+        # Calculate line intensities accounting for observer_distance.
+        # The line intensities read from file are in units of ph / cm**2 / s / sr.
+        # Therefore they are specific intensities, i.e. per steradian, or solid angle.
+        # Here, let us call these intensities, intensity_per_solid_angle.
+        # The solid angle is given by flare_area / observer_distance**2.
+        # Total integrated intensity can be rewritten in terms of volume EM and solid angle:
+        # intensity == intensity_per_solid_angle_per_volEM * volEM * solid_angle ==
+        # == intensity_per_solid_angle / (colEM * flare_area) * (flare_area / observer_dist**2) * volEM ==
+        # == intensity_per_solid_angle / colEM / observer_dist**2 * volEM
+        # i.e. flare area cancels. Therefore:
+        # intensity = intensity_per_solid_angle / colEM / observer_dist**2 * volEM,
+        # or, dividing both sides by volEM,
+        # intensity_per_volEM = intensity_per_solid_angle / colEM / observer_dist**2
+        # Here, let us calculate intensity_per_volEM and
+        # scale by the flare volume EM supplied by the user later.
+        # Note that the column emission measure used by CHIANTI in calculating the intensities
+        # is available from the file as self.line_colEMs.
+        # Also noote that as part of this calculation, the steradian unit must be canceled manually.
+        if isinstance(observer_distance, u.Quantity):
+            line_intensities_per_volEM_grid = \
+                self.line_intensities_per_solid_angle_grid / self.line_colEMs / \
+                observer_distance**2 * u.sr
+        else:
+            line_intensities_per_volEM_grid = \
+                self.line_intensities_per_solid_angle_grid / self.line_colEMs
+
         # Format relative abundances.
         if relative_abundances is not None:
             relative_abundances = Table(rows=relative_abundances,
@@ -168,7 +197,10 @@ class ChiantiKevLines():
         energy_edges_keV = energy_edges.to(u.keV).value
         temperature_K = temperature.to(u.K).value
         log_T = np.log10(temperature_K)
-        emission_measure_cm = emission_measure.to(1/u.cm**3).value
+        em_unit = (1/u.cm**3).unit
+        emission_measure_cm = emission_measure.to(em_unit).value
+        line_intensities_per_volEM_unit = line_intensities_per_volEM_grid.unit
+        line_intensities_per_volEM_grid = line_intensities_per_volEM_grid.value
         try:
             n_temperatures = len(temperature_K)
         except TypeError:
@@ -206,7 +238,7 @@ class ChiantiKevLines():
 
             # Calculate normalized emissivity of each line in energy range of interest
             # as a function of energy and temperature.
-            line_intensities = _chianti_kev_getp(np.log10(temperature_K), self.line_intensities_grid[energy_roi_indices], self.line_logT_bins)
+            line_intensities = _chianti_kev_getp(np.log10(temperature_K), line_intensities_per_volEM_grid[energy_roi_indices], self.line_logT_bins)
             # Scale line_intensities by abundances to get true line_intensities.
             line_intensities = line_intensities * abundances
 
@@ -224,9 +256,9 @@ class ChiantiKevLines():
                         spectrum[j, i] = sum(line_intensities[j, spectrum_bins_line_energy_indices[i]])
 
         # Eliminate redundant axes, scale units to observer distance and put into correct units.
-        # When scaling to observer distance, don't divide by 4 pi. Unlike Mewe, CHIANTI is in units of steradian.
         energy_bin_widths = energy_edges_keV[1:] - energy_edges_keV[:-1]
-        spectrum = spectrum.squeeze() / energy_bin_widths * emission_measure_cm / observer_distance**2
+        spectrum = (spectrum.squeeze() * line_intensities_per_volEM_unit) / \
+            (energy_bin_widths * u.keV) * (emission_measure_cm * em_unit)
 
         return spectrum
 
