@@ -7,7 +7,7 @@ from astropy.table import Table, Column
 import scipy.interpolate
 import sunpy.coordinates
 
-from sunxspex.io import chianti_kev_line_common_load, load_xray_abundances
+from sunxspex.io import chianti_kev_line_common_load_light, load_xray_abundances
 from sunxspex.utils import get_reverse_indices
 
 SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("~", "ssw", "packages",
@@ -45,15 +45,11 @@ class ChiantiKevLines():
             8. mewe_solar - default for mewe_kev
 
         """
-
         # Load emission line data from CHIANTI file.
-        zindex, line_meta, line_properties, line_intensities_per_solid_angle_grid = chianti_kev_line_common_load(linefile=linefile)
-        self.zindex = zindex
-        self.line_intensities_per_solid_angle_grid = line_intensities_per_solid_angle_grid
-        self.line_peaks_keV = line_properties["ENERGY"].quantity.to(u.keV).value
-        self.line_logT_bins = line_meta["LOGT_ISOTHERMAL"]
-        self.line_colEMs = 10.**line_meta["LOGEM_ISOTHERMAL"] / u.cm**5
-        self.line_element_indices = line_properties["IZ"].data
+        self.zindex, line_peak_energies, self.line_logT_bins, self.line_colEMs, \
+            self.line_element_indices, self.line_intensities_per_solid_angle_grid = \
+            chianti_kev_line_common_load_light(linefile=linefile)
+        self.line_peaks_keV = line_peak_energies.to(u.keV).value
 
         # Load default abundances.
         self.default_abundances = load_xray_abundances(abundance_type=abundance_type,
@@ -236,7 +232,7 @@ class ChiantiKevLines():
             # Finally, extract only lines within energy range of interest.
             abundances = abundances[self.line_element_indices[energy_roi_indices]-1]
 
-            # Calculate normalized emissivity of each line in energy range of interest
+            # Calculate abundance-normalized intensity of each line in energy range of interest
             # as a function of energy and temperature.
             line_intensities = _chianti_kev_getp(np.log10(temperature_K), line_intensities_per_volEM_grid[energy_roi_indices], self.line_logT_bins)
             # Scale line_intensities by abundances to get true line_intensities.
