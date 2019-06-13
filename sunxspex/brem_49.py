@@ -16,7 +16,7 @@ def brem_49(energy, temperature):
 	energy : `~astropy.Quantity`
 		energy array in keV
 	temperature : `~astropy.Quantity` 
-		 plasma temperature in keV
+		 scaler plasma temperature in keV
 
 	Returns
 	-------
@@ -28,9 +28,11 @@ def brem_49(energy, temperature):
 
 	Notes
 	-----
-	Calls acgaunt.py
+	This is currently implemented following the IDL version
 
 	"""
+	if not isinstance(temperature.value, (int, float)):
+		raise ValueError('Only one temperature value is allowed - must be a float or int')
 
 	acgaunt = Acgaunt(energy.to(u.angstrom, equivalencies=u.spectral()), temperature.to(u.Kelvin, equivalencies=u.temperature_energy()))
 	exponential_values = (energy/temperature)[energy/temperature < 50]
@@ -38,4 +40,4 @@ def brem_49(energy, temperature):
 	result = (1.e8/9.26) * acgaunt.acgaunt() * np.exp(-exponential_values) / energy / temperature ** 0.5
 
 
-	return result.T
+	return np.ravel(result)
