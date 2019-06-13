@@ -24,7 +24,7 @@ class Acgaunt():
 
         Notes
         -----
-        The local variables are also initialized here
+        The local variables are also initialized here. 
 
         '''
 
@@ -167,7 +167,7 @@ class Acgaunt():
         '''
         Function to return the calculated continuum gaunt factor such as returned from acgaunt.pro
         '''
-        return self.gaunt_ff() + self.gaunt_2p() + self.gaunt_fb()
+        return (self.gaunt_ff() + self.gaunt_2p() + self.gaunt_fb())
 
 
 

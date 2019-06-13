@@ -1,7 +1,9 @@
 import numpy as np 
-import acgaunt
+from acgaunt import Acgaunt
+from astropy import units as u
 
-def brem_49(kt, E):
+@u.quantity_input(energy=u.keV, temperature=u.keV)
+def brem_49(energy, temperature):
 	"""
 	The function calculates the optically thin continuum thermal bremmstrahlung
 	photon flux incident on the Earth from an isothermal plasma on the Sun.
@@ -11,8 +13,10 @@ def brem_49(kt, E):
 	
 	Parameters
 	----------
-	Energy : energy vector in keV
-	kt 	   : plasma temperature in keV
+	energy : `~astropy.Quantity`
+		energy array in keV
+	temperature : `~astropy.Quantity` 
+		 plasma temperature in keV
 
 	Returns
 	-------
@@ -28,7 +32,10 @@ def brem_49(kt, E):
 
 	"""
 
-	kt0 = (kt[0] > 0.1)
-	result  = (1.e8/9.26) * float(acgaunt(12.3985/E, kt0/0.08617)) * np.exp(-(E/kt0 < 50)) / E / kt0**0.5
+	acgaunt = Acgaunt(energy.to(u.angstrom, equivalencies=u.spectral()), temperature.to(u.Kelvin, equivalencies=u.temperature_energy()))
+	exponential_values = (energy/temperature)[energy/temperature < 50]
 
-	return result
+	result = (1.e8/9.26) * acgaunt.acgaunt() * np.exp(-exponential_values) / energy / temperature ** 0.5
+
+
+	return result.T
