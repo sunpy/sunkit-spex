@@ -12,7 +12,7 @@ from sunxspex.utils import get_reverse_indices
 
 SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("~", "ssw", "packages",
                                                      "xray", "dbase", "chianti"))
-FILE_IN = "/Users/dnryan/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav"
+FILE_IN = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav")
 
 
 class ThermalSpectrum():
