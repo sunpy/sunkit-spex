@@ -60,7 +60,7 @@ class ChiantiThermalSpectrum():
                       observer_distance='length')
     def chianti_kev_lines(self, energy_edges, temperature, emission_measure=1e44/u.cm**3,
                           relative_abundances=None,
-                          observer_distance=None, earth=False, date=None, **kwargs):
+                          observer_distance=1*u.AU, date=None, **kwargs):
         """
         Returns a thermal spectrum (line + continuum) given temperature and emission measure.
 
@@ -87,20 +87,13 @@ class ChiantiThermalSpectrum():
 
         observer_distance: `astropy.units.Quantity` (Optional)
             The distance between the source and the observer. Scales output to observer distance
-            and unit by 1/length. If not set, output represents value at source and
-            unit will have an extra length component.
-            Default=None
-
-        earth: `bool` (Optional)
-            Sets distance to Sun-Earth distance if not already set by user.
-            If distance is set, earth is ignored.
-            If date kwarg is set (see below), Sun-Earth distance at that time is calculated.
-            If date kwarg is not set, Sun_earth distance is set to 1 AU.
-            Default=False
+            and unit by 1/length.
+            If None, output represents value at source and unit will have an extra length component.
+            Default=1 AU
 
         date: `astropy.time.Time` for parseable by `sunpy.time.parse_time` (Optional)
             The date for which the Sun-Earth distance is to be calculated.
-            Ignored if earth kwarg not set.
+            Cannot be set is observer_distance kwarg also set.
             Default=None.
 
         Returns
@@ -141,19 +134,16 @@ class ChiantiThermalSpectrum():
 
         """
         # If observer_distance or earth is set, derive the observer_distance.
-        if observer_distance is not None:
-            if earth:
-                raise ValueError(
-                        "Conflicting inputs. Both distance and earth kwargs set. Can only set one.")
-            observer_distance = observer_distance.to(u.cm)
-        else:
-            if not earth:
+        if observer_distance is None:
+            if date is None:
                 observer_distance = 1
             else:
-                if date is None:
-                    observer_distance = (1 * u.AU).to(u.cm)
-                else:
-                    observer_distance = sunpy.coordinates.get_sunearth_distance(time=date).to(u.cm)
+                observer_distance = sunpy.coordinates.get_sunearth_distance(time=date).to(u.cm)
+        else:
+            if date is not None:
+                raise ValueError("Conflicting inputs. "
+                                 "observer_distance and data kwargs cannot both be set.")
+            observer_distance = observer_distance.to(u.cm)
 
         # Calculate line intensities accounting for observer_distance.
         # The line intensities read from file are in units of ph / cm**2 / s / sr.
