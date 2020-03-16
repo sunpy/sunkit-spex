@@ -15,9 +15,9 @@ SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("~", "ssw", "packages",
 FILE_IN = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav")
 
 
-class ThermalSpectrum():
+class ChiantiThermalSpectrum():
     """
-    Class for evaluating solar X-ray thermal spectrum while keeping certain variables common between methods.
+    Class for evaluating solar X-ray thermal spectrum using CHIANTI data.
     """
     def __init__(self, linefile=FILE_IN, xray_abundance_file=None, abundance_type=None):
         """
