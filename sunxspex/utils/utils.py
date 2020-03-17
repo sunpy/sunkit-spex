@@ -1,7 +1,7 @@
 
 import numpy as np
 
-def get_reverse_indices(x, nbins, min_range=None, max_range=None):
+def get_reverse_indices(x, nbins, min_range, max_range):
     """
     For a set of contiguous equal sized 1D bins, generates index of lower edge of bin in which each element of x belongs and the indices of x in each bin.
 
@@ -13,10 +13,10 @@ def get_reverse_indices(x, nbins, min_range=None, max_range=None):
     nbins: `int`
         Number of bins to divide range into.
 
-    min_range: `float` or `int` (Optional)
+    min_range: `float` or `int`
         Lower limit of range of bins. Default=min(x)
 
-    max_range: `float` or `int` (Optional)
+    max_range: `float` or `int`
         Upper limit of range of bins. Default=max(x)
 
     Returns
@@ -31,10 +31,6 @@ def get_reverse_indices(x, nbins, min_range=None, max_range=None):
         Edges of bins. Length is nbins+1.
 
     """
-    if min_range is None:
-        min_range = min(x)
-    if max_range is None:
-        max_range = max(x)
     bin_edges = np.linspace(min_range, max_range, nbins+1)
     arrays_bin_indices = (float(nbins)/(max_range - min_range)*(x - min_range)).astype(int)
     bins_array_indices = tuple([np.where(arrays_bin_indices == i)[0] for i in range(nbins)])
