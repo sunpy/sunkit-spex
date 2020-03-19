@@ -19,7 +19,7 @@ class ChiantiThermalSpectrum():
     """
     Class for evaluating solar X-ray thermal spectrum using CHIANTI data.
     """
-    @u.quantity_input(energy_edges=u.keV, observer_distance='length')
+    @u.quantity_input(energy_edges=u.keV)
     def __init__(self, energy_edges, linefile=FILE_IN,
                  xray_abundance_file=None, abundance_type=None,
                  observer_distance=1*u.AU, date=None):
