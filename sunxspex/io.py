@@ -8,22 +8,15 @@ from astropy.table import Table, Column
 import scipy.io
 from sunpy.io.special.genx import read_genx
 from sunpy.time import parse_time
-
-SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("~", "ssw", "packages",
-                                                     "xray", "dbase", "chianti"))
+from sunpy.data import manager
 
 
-def chianti_kev_line_common_load_light(linefile=None):
+def chianti_kev_line_common_load_light():
     """
     Read only X-ray emission line info needed for the chianti_kev_... functions.
 
     Unlike chianti_kev_line_common_load which formats and returns all in the file,
     this function only returns the data required by the ChiantiKevLines class.
-
-    Parameters
-    ----------
-    linefile: `str`
-        Name of IDL save file containing line info.  If not given it is derived.
 
     Returns
     -------
@@ -46,12 +39,8 @@ def chianti_kev_line_common_load_light(linefile=None):
         Intensities of each of the lines in line_properties over a temperature axis.
         The array is 2D with axes of (line, temperature axis)
     """
-    # Define default filename.
-    if linefile is None:
-        linefile = _define_chianti_kev_lines_common_filename()
-
     # Read linefile
-    contents = _read_linefile(linefile)
+    contents = _read_linefile()
     out = contents["out"]
 
     zindex = contents["zindex"]
@@ -85,14 +74,9 @@ def chianti_kev_line_common_load_light(linefile=None):
         line_intensities
 
 
-def chianti_kev_line_common_load(linefile=None):
+def chianti_kev_line_common_load():
     """
     Read file containing X-ray emission line info needed for the chianti_kev_... functions.
-
-    Parameters
-    ----------
-    linefile: `str`
-        Name of IDL save file containing line info.  If not given it is derived.
 
     Returns
     -------
@@ -109,12 +93,8 @@ def chianti_kev_line_common_load(linefile=None):
         Intensities of each of the lines in line_properties over a temperature axis.
         The array is 2D with axes of (line, temperature axis)
     """
-    # Define default filename.
-    if linefile is None:
-        linefile = _define_chianti_kev_lines_common_filename()
-
     # Read linefile.
-    contents = _read_linefile(linefile)
+    contents = _read_linefile()
     zindex = contents["zindex"]
     out = contents["out"]
 
@@ -187,13 +167,13 @@ def chianti_kev_line_common_load(linefile=None):
     return zindex, line_meta, line_properties, line_intensities * line_meta["INT_UNITS"]
 
 
-def chianti_kev_cont_common_load(contfile, _extra=None):
+@manager.require('chianti_cont_1_250',
+                 ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav'],
+                 'aadf4355931b4c241ac2cd5669e89928615dc1b55c9fce49a155b70915a454dd')
+def chianti_kev_cont_common_load(_extra=None):
     """
     Read X-ray continuum emission info needed for the chianti_kev_... functions.
-    Parameters
-    ----------
-    contfile: `str`
-        Name of IDL save file containing continuum info.  If not given it is derived.
+
     Returns
     -------
     zindex: `numpy.ndarray`
@@ -201,44 +181,33 @@ def chianti_kev_cont_common_load(contfile, _extra=None):
     continuum_properties: `dict`
         Properties of continuum emission.
     """
-    # Define defaults
-    if contfile is None:
-        contfile = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont_1_250_v71.sav")
-        file_check = glob.glob(contfile)
-        if file_check == []:
-            contfile = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont.geny")
-            file_check = glob.glob(contfile)
-            if file_check == []:
-                raise ValueError("line files not found: {0}; {1}".format(
-                    os.path.join(SSWDB_XRAY_CHIANTI, "chianti_cont_1_250_v71.sav"), contfile))
+    contfile = manager.get("chianti_cont_1_250")
     # Read file
-    if contfile.split(".")[-1] == "sav":
-        contents = scipy.io.readsav(contfile)
-        zindex = contents["zindex"]
-        edge_str = {
-                "CONVERSION": _clean_array_dims(contents["edge_str"]["CONVERSION"]),
-                "WVL": _clean_array_dims(contents["edge_str"]["WVL"]),
-                "WVLEDGE": _clean_array_dims(contents["edge_str"]["WVLEDGE"])
-                   }
-        continuum_properties = {
-                "totcont": contents["totcont"],
-                "totcont_lo": contents["totcont_lo"],
-                "edge_str": edge_str,
-                "ctemp": contents["ctemp"],
-                "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
-                               }
-    elif contfile.split(".")[-1] == "geny":
-        # Read file...
-        raise NotImplementedError("Reading .geny file not yet implemented.")
-    else:
-        raise ValueError("unrecognized file type: .{0}. Must be .sav or .geny")
+    contents = scipy.io.readsav(contfile)
+    zindex = contents["zindex"]
+    edge_str = {
+            "CONVERSION": _clean_array_dims(contents["edge_str"]["CONVERSION"]),
+            "WVL": _clean_array_dims(contents["edge_str"]["WVL"]),
+            "WVLEDGE": _clean_array_dims(contents["edge_str"]["WVLEDGE"])
+                }
+    continuum_properties = {
+            "totcont": contents["totcont"],
+            "totcont_lo": contents["totcont_lo"],
+            "edge_str": edge_str,
+            "ctemp": contents["ctemp"],
+            "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
+                            }
 
     return zindex, continuum_properties
 
 
-def load_xray_abundances(abundance_type=None, xray_abundance_file=None):
+@manager.require('xray_abun',
+                 ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/xray_abun_file.genx'],
+                 '92c0e1f9a83da393cc38840752fda5a5b44c5b18a4946e5bf12c208771fe0fd3')
+def load_xray_abundances(abundance_type=None):
     """
-    This returns the abundances written in the xray_abun_file.genx
+    Returns the abundances written in the xray_abun_file.genx
+
     The abundances are taken from CHIANTI and MEWE.  The source filenames are:
     cosmic sun_coronal sun_coronal_ext sun_hybrid sun_hybrid_ext sun_photospheric mewe_cosmic mewe_solar
     The first six come fron Chianti, the last two from Mewe.  They are:
@@ -259,10 +228,6 @@ def load_xray_abundances(abundance_type=None, xray_abundance_file=None):
         7. mewe_cosmic
         8. mewe_solar - default for mewe_kev
 
-    xray_abundance_file: `str`
-        Name and path to abundance file.
-        Default= ~/ssw/packages/xray/dbase/chianti/xray_abun_file.genx
-
     Returns
     -------
     out:
@@ -272,9 +237,7 @@ def load_xray_abundances(abundance_type=None, xray_abundance_file=None):
     # If kwargs not set, set defaults
     if abundance_type is None:
         abundance_type = "sun_coronal"
-    if xray_abundance_file is None:
-        xray_abundance_file = os.path.expanduser(os.path.join(SSWDB_XRAY_CHIANTI,
-                                                     "xray_abun_file.genx"))
+    xray_abundance_file = manager.get("xray_abun")
     # Read file
     contents = read_abundance_genx(xray_abundance_file)
     # Extract relevant abundance type
@@ -297,30 +260,15 @@ def read_abundance_genx(filename):
     return output
 
 
-def _define_default_linefile():
-    linefile = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav")
-    file_check = glob.glob(linefile)
-    if file_check == []:
-        linefile = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines.geny")
-        file_check = glob.glob(linefile)
-        if file_check == []:
-            raise ValueError("line files not found: {0} or {1}".format(
-                os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav"), linefile))
-
-    return linefile
-
-
-def _read_linefile(linefile):
-    if linefile.split(".")[-1] == "sav":
-        # Read file
-        contents = scipy.io.readsav(linefile)
-        zindex = contents["zindex"]
-        out = contents["out"]
-    elif linefile.split(".")[-1] == "geny":
-        # Read file...
-        raise NotImplementedError("Reading .geny file not yet implemented.")
-    else:
-        raise ValueError("unrecognized file type: .{0}. Must be .sav or .geny")
+@manager.require('chianti_lines_1_10',
+                 ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav'],
+                  '2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677')
+def _read_linefile():
+    linefile = manager.get('chianti_lines_1_10')
+    # Read file
+    contents = scipy.io.readsav(linefile)
+    zindex = contents["zindex"]
+    out = contents["out"]
 
     return contents
 
