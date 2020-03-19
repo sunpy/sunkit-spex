@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import astropy.units as u
 
-from sunxspex.chianti_kev_lines import ChiantiKevLines
+from sunxspex.thermal_spectrum import ChiantiThermalSpectrum
 
 # Define some default input parameters.
 default_EM = 1e44/(u.cm**3)
@@ -72,9 +72,8 @@ def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances,
     else:
         rtol = 0.005
         atol = 1e-4
-    ckl = ChiantiKevLines()
-    output_spectrum = ckl.chianti_kev_lines(energy_edges, temperature, emission_measure=em,
-                                            relative_abundances=relative_abundances,
-                                            observer_distance=observer_distance, earth=earth, date=date)
+    ckl = ChiantiThermalSpectrum(energy_edges, observer_distance=observer_distance, date=date)
+    output_spectrum = ckl.chianti_kev_lines(temperature, emission_measure=em,
+                                            relative_abundances=relative_abundances)
     output_spectrum = output_spectrum.to(expected_spectrum.unit)
     np.testing.assert_allclose(output_spectrum.value, expected_spectrum.value, rtol=rtol, atol=atol)
