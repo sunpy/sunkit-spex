@@ -34,14 +34,19 @@ jobs:
     submodules: false
     coverage: codecov
     envs:
+<<<<<<< HEAD
       - macos: py38
         name: py38_test_macos
+=======
+      - macos: py37
+        name: py37_mac
+>>>>>>> 642c0a6... Remove python36 from azuer pipelines
 
       - windows: py37
-        name: py37_test
+        name: py37_win
 
       - linux: py38
-        name: py38_test
+        name: py38_lin
 
       - linux: codestyle
         name: codestyle
@@ -63,6 +68,10 @@ jobs:
         - wheels_macos
         - sdist
       dependsOn:
+<<<<<<< HEAD
         - py38_test_macos
+=======
+        - py37_mac
+>>>>>>> 642c0a6... Remove python36 from azuer pipelines
         - py37_test
         - py38_test
