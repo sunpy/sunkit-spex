@@ -53,8 +53,8 @@ class ChiantiThermalSpectrum:
         -----
         The default CHIANTI data used here is contained within the `sunpy.data.manager` and is collected
         from `https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav`.
-        If the user would like to use a different file, the default can be overwritten using the context 
-        manager `sunpy.data.manager`. 
+        If the user would like to use a different file, the default can be overwritten using the context
+        manager `sunpy.data.manager`.
         For example:
         >>> import numpy as np
         >>> from astropy import units as u
@@ -62,8 +62,8 @@ class ChiantiThermalSpectrum:
         >>> from sunpy.data import manager
         >>> energy_bins = np.arange(3, 100, 0.5)*u.keV
         >>> my_file = "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v70.sav"
-        >>> with manager.override_file("chianti_lines_1_10", uri=my_file):
-        ...     spec_vals = thermal_spectrum.ChiantiThermalSpectrum(energy_bins)
+        >>> with manager.override_file("chianti_lines_1_10", uri=my_file): # doctest: +SKIP
+        ...     spec_vals = thermal_spectrum.ChiantiThermalSpectrum(energy_bins) # doctest: +SKIP
         """
         # Define energy bins on which spectrum will be calculated.
         self.energy_edges_keV = energy_edges.to(u.keV).value
