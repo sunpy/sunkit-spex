@@ -17,7 +17,8 @@ from sunxspex.constants import Constants
 # Central constant management
 const = Constants()
 
-np.seterr(all='raise')
+# np.seterr(all='raise')
+
 
 def broken_powerlaw(x, p, q, eelow, eebrk, eehigh):
     """
@@ -76,6 +77,7 @@ def broken_powerlaw(x, p, q, eelow, eebrk, eehigh):
 
     return res
 
+
 def broken_powerlaw_f(x, p, q, eelow, eebrk, eehigh):
     """
     Return power law of x with a break and low and high cutoffs
@@ -123,13 +125,15 @@ def broken_powerlaw_f(x, p, q, eelow, eebrk, eehigh):
 
     index = np.where((x < eebrk) & (x >= eelow))
     if index[0].size > 0:
-        res[index] = norm * (n0 * eelow ** (p - 1) * x[index] ** (1.0 - p) - (q - 1.0) / (p - 1.0) + n2)
+        res[index] = norm * (n0 * eelow ** (p - 1) *
+                             x[index] ** (1.0 - p) - (q - 1.0) / (p - 1.0) + n2)
 
     index = np.where((x <= eehigh) & (x >= eebrk))
     if index[0].size > 0:
         res[index] = norm * (eebrk ** (q - 1) * x[index] ** (1.0 - q) - (1.0 - n2))
 
     return res
+
 
 def powerlaw(x, low_energy_cutoff=10, high_energy_cutoff=100, index=3):
     """
@@ -275,7 +279,8 @@ def brm2_fthin(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2
     Parameters
     ----------
     electron_energy : np.array
-        Electron energies in keV. Two-dimensional array of abscissas calculated in brm_gauss_legendre()
+        Electron energies in keV. Two-dimensional array of abscissas calculated in
+        brm_gauss_legendre
     photon_energy : np.array
         Photon energies in keV
     eelow : float
@@ -310,7 +315,6 @@ def brm2_fthin(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2
     clight = const.get_constant('clight')
     gamma = (electron_energy / mc2) + 1.0
     pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
-    #pdb.set_trace()
     brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
     electron_dist = broken_powerlaw(electron_energy, p, q, eelow, eebrk, eehigh)
     if efd:
@@ -440,14 +444,12 @@ def brm_gauss_legendre(x1, x2, npoints):
 def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True, verbose=False):
     """
     This is used for thin-target calculation from a double power-law electron density distribution
-    To integrate a function via the method of Gaussian quadrature.  Repeatedly
-    doubles the number of points evaluated until convergence, specified by the
-    input rerr, is obtained, or the maximum number of points, specified by the
-    input maxfcn, is reached.  If integral convergence is not achieved, this
-    function returns the error code ier = 1 when either the maximum number of
-    function evaluations is performed or the number of Gaussian points to be
-    evaluated exceeds maxfcn.  Maxfcn should be less than or equal to 2^nlim,
-    or 4096 with nlim = 12.
+    To integrate a function via the method of Gaussian quadrature. Repeatedly doubles the number of
+    points evaluated until convergence, specified by the input rerr, is obtained, or the maximum
+    number of points, specified by the input maxfcn, is reached. If integral convergence is not
+    achieved, this function raises a ValueError when either the maximum number of function
+    evaluations is performed or the number of Gaussian points to be evaluated exceeds maxfcn.
+    Maxfcn should be less than or equal to 2^nlim, or 4096 with nlim = 12.
 
     This function splits the numerical integration into up to three parts and returns the sum of
     the parts. This avoids numerical problems with discontinuities in the electron distribution
@@ -532,7 +534,7 @@ def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True,
 
         for ires in range(2, nlim+1):
             npoint = 2 ** ires
-            if (npoint > maxfcn):
+            if npoint > maxfcn:
                 ier1[l] = 1
             eph1 = eph[l]
 
@@ -542,8 +544,9 @@ def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True,
             lastsum1 = np.copy(intsum1)
 
             # Perform integration sum w_i * f(x_i)  i=1 to npoints
-            intsum1[l] = np.sum((10.0 ** xi * np.log(10.0) * wi
-                                 * brm2_fthin(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z, efd)), axis=1)
+            intsum1[l] = np.sum((10.0 ** xi * np.log(10.0) * wi *
+                                 brm2_fthin(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z, efd)),
+                                axis=1)
 
             # Convergence criterion
             l1 = np.abs(intsum1 - lastsum1)
@@ -584,8 +587,9 @@ def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True,
             lastsum2 = np.copy(intsum2)
 
             # Perform integration sum w_i * f(x_i)  i=1 to npoints
-            intsum2[l] = np.sum((10.0 ** xi * np.log(10.0) * wi
-                                 * brm2_fthin(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z, efd)), axis=1)
+            intsum2[l] = np.sum((10.0 ** xi * np.log(10.0) * wi *
+                                 brm2_fthin(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z, efd)),
+                                axis=1)
 
             # Convergence criterion
             l1 = np.abs(intsum2 - lastsum2)
@@ -843,13 +847,15 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
             (unit electrons cm^-2 s^-1 keV^-1),
         False - input electron distribution is electron density distribution.
             (unit electrons cm^-3 keV^-1),
-         This input is not used in the main routine, but is passed to brm2_dmlin() (and Brm2_Fthin())
+        This input is not used in the main routine, but is passed to brm2_dmlin() (and Brm2_Fthin())
 
     Returns
     -------
     flux: np.array
         Multiplying the output of Brm2_ThinTarget by a0 gives an array of
-        photon fluxes in photons s^-1 keV^-1 cm^-2, corresponding to the photon energies in the input array eph.
+        photon fluxes in photons s^-1 keV^-1 cm^-2, corresponding to the photon energies in the
+        input array eph.
+
         The detector is assumed to be 1 AU rom the source.
         The coefficient a0 is calculated as a0 = nth * V * nnth, where
             nth: plasma density; cm^-3)
@@ -889,11 +895,9 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
 
     if eelow >= eehigh:
         raise ValueError('eehigh must be larger than eelow!')
-        return flux
 
     l, = np.where((eph < eehigh) & (eph > 0))
     if l.size > 0:
-        #pdb.set_trace()
         flux[l], iergq[l] = brm2_dmlin(eph[l], np.full_like(l, eehigh), maxfcn, rerr,
                                        eph[l], eelow,
                                        eebrk, eehigh, p, q, z, efd)
@@ -902,7 +906,9 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
 
         return flux
     else:
-        raise Warning('The photon energies are higher than the highest electron energy or not greater than zero')
+        raise Warning('The photon energies are higher than the highest electron energy or not '
+                      'greater than zero')
+
 
 def bremsstrahlung_thick_target(eph, p, eebrk, q, eelow, eehigh):
     """
@@ -984,4 +990,5 @@ def bremsstrahlung_thick_target(eph, p, eebrk, q, eelow, eehigh):
 
         return flux
     else:
-        raise Warning('The photon energies are higher than the highest electron energy or not greater than zero')
+        raise Warning('The photon energies are higher than the highest electron energy or not '
+                      'greater than zero')

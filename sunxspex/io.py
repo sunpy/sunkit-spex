@@ -10,10 +10,6 @@ from sunpy.io.special.genx import read_genx
 from sunpy.time import parse_time
 from sunpy.data import manager
 
-<<<<<<< HEAD
-=======
-SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("/usr", "local", "ssw", "packages", "xray", "dbase", "chianti"))
->>>>>>> a93e006... Add thick traget X-ray baremsstrahlung model
 
 def chianti_kev_line_common_load_light():
     """

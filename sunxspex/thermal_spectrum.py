@@ -10,12 +10,6 @@ import sunpy.coordinates
 from sunxspex.io import chianti_kev_line_common_load_light, load_xray_abundances
 from sunxspex.utils import get_reverse_indices
 
-<<<<<<< HEAD
-=======
-SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("/usr", "local" "ssw", "packages",
-                                                     "xray", "dbase", "chianti"))
-FILE_IN = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav")
->>>>>>> a93e006... Add thick traget X-ray baremsstrahlung model
 
 class ChiantiThermalSpectrum:
     """
