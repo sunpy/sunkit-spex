@@ -201,7 +201,7 @@ def chianti_kev_cont_common_load(_extra=None):
     return zindex, continuum_properties
 
 
-@manager.require('xray_abun',
+@manager.require('xray_abundances',
                  ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/xray_abun_file.genx'],
                  '92c0e1f9a83da393cc38840752fda5a5b44c5b18a4946e5bf12c208771fe0fd3')
 def load_xray_abundances(abundance_type=None):
@@ -237,7 +237,7 @@ def load_xray_abundances(abundance_type=None):
     # If kwargs not set, set defaults
     if abundance_type is None:
         abundance_type = "sun_coronal"
-    xray_abundance_file = manager.get("xray_abun")
+    xray_abundance_file = manager.get("xray_abundances")
     # Read file
     contents = read_abundance_genx(xray_abundance_file)
     # Extract relevant abundance type
