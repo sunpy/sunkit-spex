@@ -10,18 +10,14 @@ import sunpy.coordinates
 from sunxspex.io import chianti_kev_line_common_load_light, load_xray_abundances
 from sunxspex.utils import get_reverse_indices
 
-SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("~", "ssw", "packages",
-                                                     "xray", "dbase", "chianti"))
-FILE_IN = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav")
 
-
-class ChiantiThermalSpectrum():
+class ChiantiThermalSpectrum:
     """
     Class for evaluating solar X-ray thermal spectrum using CHIANTI data.
     """
     @u.quantity_input(energy_edges=u.keV)
-    def __init__(self, energy_edges, linefile=FILE_IN,
-                 xray_abundance_file=None, abundance_type=None,
+    def __init__(self, energy_edges,
+                 abundance_type=None,
                  observer_distance=1*u.AU, date=None):
         """
         Read in data required by methods of this class.
@@ -30,14 +26,6 @@ class ChiantiThermalSpectrum():
         ----------
         energy_edges: `astropy.units.Quantity`
             The edges of the energy bins in a 1D N+1 quantity.
-
-        linefile: `str`
-            File containing emission line info derived from CHIANTI.
-            Must be same format as ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav
-
-        xray_abundance_file: `str`
-            Name and path to abundance file.
-            Default= /ssw/packages/xray/dbase/chianti/xray_abun_file.genx
 
         abundance_type: `str`
             Type of abundance to be read from file.  Option are (From Chianti)
@@ -80,12 +68,11 @@ class ChiantiThermalSpectrum():
         # Load emission line data from CHIANTI file.
         self.zindex, line_peak_energies, self.line_logT_bins, self.line_colEMs, \
             self.line_element_indices, self.line_intensities_per_solid_angle_grid = \
-            chianti_kev_line_common_load_light(linefile=linefile)
+            chianti_kev_line_common_load_light()
         self.line_peaks_keV = line_peak_energies.to(u.keV).value
 
         # Load default abundances.
-        self.default_abundances = load_xray_abundances(abundance_type=abundance_type,
-                                                       xray_abundance_file=xray_abundance_file)
+        self.default_abundances = load_xray_abundances(abundance_type=abundance_type)
         # Create mask to select only elements that produce line emission as defined by zindex.
         self.n_default_abundances = len(self.default_abundances)
         self.abundances_mask = np.zeros(self.n_default_abundances)[self.zindex] = 1.0

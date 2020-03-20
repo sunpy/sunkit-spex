@@ -34,8 +34,8 @@ jobs:
     submodules: false
     coverage: codecov
     envs:
-      - macos: py36
-        name: py36_test
+      - macos: py38
+        name: py38_test_macos
 
       - windows: py37
         name: py37_test
@@ -63,6 +63,6 @@ jobs:
         - wheels_macos
         - sdist
       dependsOn:
-        - py36_test
+        - py38_test_macos
         - py37_test
         - py38_test
