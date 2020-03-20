@@ -79,7 +79,7 @@ intersphinx_mapping = {
 try:
     from sunpy_sphinx_theme.conf import *
 except ImportError:
-  html_theme = 'default'
+    html_theme = 'default'
 
 
 # Add any paths that contain custom static files (such as style sheets) here,
