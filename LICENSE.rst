@@ -1,1 +1,1 @@
-/home/stuart/Git/sunxspex/licenses/LICENSE.rst
+./licenses/LICENSE.rst
