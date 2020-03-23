@@ -26,21 +26,22 @@ def broken_powerlaw(x, p, q, eelow, eebrk, eehigh):
 
     Parameters
     ----------
-    x : np.array
+    x : `numpy.array`
         electron energy in keV
-    p : float
+    p : `float`
         Slope below the break (x < eebrk)
-    q : float
+    q : `float`
         Slope above the break (x > eebrk)
-    eelow : float
+    eelow : `float`
         Low cutoff
-    eebrk : float
+    eebrk : `float`
         Break
-    eehigh : float
+    eehigh : `float`
         High cutoff
+
     Returns
     -------
-    np.array
+    `numpy.array`
         Power law of x
 
     Notes
@@ -49,11 +50,10 @@ def broken_powerlaw(x, p, q, eelow, eebrk, eehigh):
     p is the lower power-law index, between eelow and eebrk, and q is the
     upper power-law index, between eebrk and eehigh.
 
-    Adapted from SSW Brm2_Distrn.pro:
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_distrn.pro
-
+    Adapted from SSW
+    `Brm2_Distrn.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_distrn.pro>`_
     """
-    # Obtain normalization coefficient, norm.
+    # Obtain normalisation coefficient, norm.
     n0 = (q - 1.0) / (p - 1.0) * eebrk ** (p - 1) * eelow ** (1 - p)
     n1 = n0 - (q - 1.0) / (p - 1.0)
     n2 = (1.0 - eebrk ** (q - 1) * eehigh ** (1 - q))
@@ -83,21 +83,22 @@ def broken_powerlaw_f(x, p, q, eelow, eebrk, eehigh):
 
     Parameters
     ----------
-    x : np.array
+    x : `numpy.array`
 
-    p : float
+    p : `float`
         Slope below the break (x < eebrk)
-    q : float
+    q : `float`
         Slope above the break (x > eebrk)
-    eelow : float
+    eelow : `float`
         Low cutoff
-    eebrk : float
+    eebrk : `float`
         Break
-    eehigh : float
+    eehigh : `float`
         High cutoff
+
     Returns
     -------
-    np.array
+    `numpy.array`
         Power law of x
 
     Notes
@@ -106,8 +107,8 @@ def broken_powerlaw_f(x, p, q, eelow, eebrk, eehigh):
     p is the lower power-law index, between eelow and eebrk, and q is the
     upper power-law index, between eebrk and eehigh.
 
-    Adapted from SSW Brm2_F_Distrn.pro:
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_f_distrn.pro
+    Adapted from SSW
+    `Brm2_F_Distrn.pro: <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_f_distrn.pro>`_
     """
     # Obtain normalization coefficient, norm.
     n0 = (q - 1.0) / (p - 1.0) * eebrk ** (p - 1) * eelow ** (1 - p)
@@ -173,8 +174,8 @@ def collisional_loss(electron_energy):
 
     Notes
     -----
-    Initial version modified from SSW Brm_ELoss.pro:
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_eloss.pro
+    Initial version modified from SSW
+    `Brm_ELoss <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_eloss.pro>`_
     """
     electron_rest_mass = const.get_constant('mc2')  # * u.keV #c.m_e * c.c**2
 
@@ -278,7 +279,8 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     return cross_section
 
 
-def thin_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2, efd=True):
+def thin_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2,
+                          efd=True):
     """
     Returns the integrand for the thin-target bremsstrahlung integration.
 
@@ -388,22 +390,22 @@ def gauss_legendre(x1, x2, npoints):
 
     Parameters
     ----------
-    x1 : np.array
+    x1 : `numpy.array`
 
-    x2 : np.array
+    x2 : `numpy.array`
 
-    npoints : int
+    npoints : `int`
         Degree or number of point evalute fuction at
     Returns
     -------
-    tuple : (x, w)
-        The positions and weights for the integration.
+    `tuple` :
+        (x, w) The positions and weights for the integration.
 
     Notes
     -----
 
-    Adapted from SSW Brm_GauLeg54.pro:
-            https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_gauleg54.pro
+    Adapted from SSW
+    `Brm_GauLeg54.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_gauleg54.pro>`_
     """
     eps = 3e-14
     m = (npoints + 1) // 2
@@ -423,7 +425,7 @@ def gauss_legendre(x1, x2, npoints):
 
         # Some kind of integration/update loop
         # TODO put back as while condition loop
-        while True:
+        while np.abs(z - z1) > eps:
             # Evaluate Legendre polynomial of degree npoints at z points P_m^l(z) m=0, l=npoints
             p1 = lpmv(0, npoints, z)
             p2 = lpmv(0, npoints - 1, z)
@@ -432,8 +434,6 @@ def gauss_legendre(x1, x2, npoints):
 
             z1 = np.copy(z)
             z = z1 - p1 / pp
-            if np.abs(z - z1) <= eps:
-                break
 
         # Update ith components
         x[:, i - 1] = xm - xl * z
@@ -461,39 +461,39 @@ def thin_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
 
     Parameters
     ----------
-    a : np.array
+    a : `numpy.array`
         Array containing lower integration limits
-    maxfcn : int
+    maxfcn : `int`
         Maximum number of points used in Gaussian quadrature integration
-    rerr : float
+    rerr : `float`
         Desired relative error for integral evaluation. For example, rerr = 0.01 indicates that
         the estimate of the integral is to be correct to one digit, whereas rerr = 0.001
         alls for two digits to be correct.
-    eph : np.array
+    eph : `numpy.array`
         Array of photon energies at which to calculate fluxes
-    eelow : float
+    eelow : `float`
         Low energy cut off of electron energy distribution, see broken_powerlaw()
-    eebrk : float
+    eebrk : `float`
         Break energy of electron energy distribution, see broken_powerlaw()
-    eehigh : float
+    eehigh : `float`
         High energy cut off of electron energy distribution, see broken_powerlaw()
-    p : float
+    p : `float`
         Slope below the break energy
-    q : flaot
+    q : `float`
         Slope above the break energy
-    z : float
+    z : `float`
         Mean atomic number of plasma
-    efd: True (default) - electron flux density distribution, False - electron density distribution.
-         This input is not used in the main routine, but is passed to Brm_Fthin()
-    verbose: bool. Default False
-         If True, Print extra information in command line
+    efd : `boolean`
+        True - electron flux density distribution, False - electron density distribution. This
+        input is not used in the main routine, but is passed to Brm_Fthin()
+    verbose: `boolean`
+        If True, Print extra information in command line
 
     Returns
     -------
-    tuple : (Dmlin, irer)
-
-        Array of integral evaluation (Dmlin) and array of error flags
-        (ier, 0 for converged and 1 for nonconverge)
+    `tuple` : (Dmlin, irer)
+        Array of integral evaluation (Dmlin) and array of error flags (ier, 0 for converged and 1
+        for nonconverge)
 
     Notes
     -------
@@ -568,29 +568,31 @@ def thin_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
 
 def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg, ll, efd):
     """
-    Perform the integration over the thin target electron distribution function.
+    Perform numerical Gaussian-Legendre Quadrature integration for thick target model.
+
+    Double the number of points until convergence criterion is reached then return.
 
     Parameters
     ----------
-    maxfcn : int
+    maxfcn : `int`
         Maximum number of points used in Gaussian quadrature integration
-    rerr : float
+    rerr : `float`
         Desired relative error for integral evaluation. For example, rerr = 0.01 indicates that
         the estimate of the integral is to be correct to one digit, whereas rerr = 0.001
         alls for two digits to be correct.
-    eph : np.array
+    eph : `numpp.array`
         Array of photon energies at which to calculate fluxes
-    eelow : float
+    eelow : `float`
         Low energy cut off of electron energy distribution, see broken_powerlaw()
-    eebrk : float
+    eebrk : `float`
         Break energy of electron energy distribution, see broken_powerlaw()
-    eehigh : float
+    eehigh : `float`
         High energy cut off of electron energy distribution, see broken_powerlaw()
-    p : float
+    p : `float`
         Slope below the break energy
-    q : flaot
+    q : `float`
         Slope above the break energy
-    z : float
+    z : `float`
         Mean atomic number of plasma
     a_lg : `numpy.array`
         Array of logarithm of lower integration limit
@@ -598,14 +600,14 @@ def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_
         Array of logarithm of upper integration limit
     ll : `numpy.array`
         Indices for which to carry out integration
-    efd: `boolean` (optional) -
+    efd: `boolean`
         `True` (default) electron flux density distribution, `False` electron density distribution.
-        This input is not used in the main routine, but is passed to Brm_Fthin()
+        This input is not used in the main routine, but is passed to thin_target_integrand
 
     Returns
     -------
     `tuple`
-        Two `numpy.arrays` contating the ingtreated flux and per value integration criterion
+        Two `numpy.arrays` containing the integrated flux and per value integration criterion.
 
     """
     nlim = 12  # Maximum possible order of the Gaussian quadrature integration is 2^nlim
@@ -630,9 +632,9 @@ def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_
 
         # Perform integration sum w_i * f(x_i)  i=1 to npoints
         intsum[i] = np.sum((10.0 ** xi * np.log(10.0) * wi *
-                             thin_target_integrand(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z,
-                                                   efd)),
-                            axis=1)
+                            thin_target_integrand(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z,
+                                                  efd)),
+                           axis=1)
 
         # Convergence criterion
         l1 = np.abs(intsum - lastsum)
@@ -651,22 +653,23 @@ def thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a
 
     Parameters
     ----------
-    maxfcn : int
+    maxfcn : `int`
         Max number of point for Gaussian-Legendre Quadrature integration
-    rerr : float
+    rerr : `float`
         Desired relative error level (0.01 correct to one digit, 0.001 correct to two digits)
-    eph :
-        Array of photon energies for which the flux is caculated
-    eelow : float
-        Low energy electron cut off
-    eebrk : float
-        Break energy
+    eph : `numpy.array`
+        Array of photon energies at which to calculate fluxes
+    eelow : `float`
+        Low energy cut off of electron energy distribution, see broken_powerlaw()
+    eebrk : `float`
+        Break energy of electron energy distribution, see broken_powerlaw()
     eehigh :
-    p : float
+        High energy cut off of electron energy distribution, see broken_powerlaw()
+    p : `float`
         Slope below the break energy
-    q : flaot
+    q : `float`
         Slope above the break energy
-    z : float
+    z : `float`
         Mean atomic number of plasma
     a_lg : `numpy.array`
         Array of logarithm of lower integration limit
@@ -677,13 +680,14 @@ def thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a
 
     Returns
     -------
-    tuple : (intsum, ier)
+    `tuple`
         Array of results and array of error flags
 
     Notes
     -----
-    Initial version modified from SSW Brm2_DmlinO_int.pro
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlino_int.pro
+    Initial version modified from SSW
+    `Brm2_DmlinO_int.pro
+    <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlino_int.pro>`_
     """
     nlim = 12  # 4096 points
 
@@ -732,35 +736,36 @@ def thick_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
 
     Parameters
     ----------
-    a : np.array
+    a : `numpy.array`
         Array containing lower integration limits
-    maxfcn : int
+    maxfcn : `int`
         Maximum number of points used in Guassian quadrature integration
-    rerr : float
+    rerr : `float`
         Desired relative error for integral evaluation
-    eph : np.array
+    eph : `numpy.array`
         Array of photon energies at which to calculate fluxes
-    eelow : float
+    eelow : `float`
         Low energy electron cut off
-    eebrk : float
+    eebrk : `float`
         Break energy
-    eehigh :
-    p : float
+    eehigh : `float`
+
+    p : `float`
         Slope below the break energy
-    q : flaot
+    q : `float`
         Slope above the break energy
-    z : float
+    z : `float`
         Mean atomic number of plasma
 
     Returns
     -------
-    tuple : (DmlinO, irer)
+    `tuple`
+        (DmlinO, irer) Array of integral evaluation and array of error flags
 
-        Array of integral evaluation and array of error flags
     Notes
     -----
-    Initial version modified from SSW Brm2_DmlinO.pro:
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlino.pro
+    Initial version modified from SSW
+    `Brm2_DmlinO <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlino.pro>`_
 
     """
     mc2 = const.get_constant('mc2')
@@ -865,19 +870,19 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
 
     Parameters
     ----------
-    eph : np.array
+    eph : `numpy.array`
         Array of photon energies to evaluate flux at
-    p   : float
+    p : `float`
         Slope below the break energy
-    eebrk : float
+    eebrk : `float`
         Break energy
-    q   : float
+    q : `float`
         Slope above the break energy
-    eelow : float
+    eelow : `float`
         Low energy electron cut off
-    eehigh : float
+    eehigh : `float`
         High energy electron cut off
-    efd : bool
+    efd : `bool`
         True (default) - input electron distribution is electron flux density distribution
         (unit electrons cm^-2 s^-1 keV^-1),
         False - input electron distribution is electron density distribution.
@@ -886,15 +891,13 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
 
     Returns
     -------
-    flux: np.array
+    flux: `numpy.array`
         Multiplying the output of Brm2_ThinTarget by a0 gives an array of
         photon fluxes in photons s^-1 keV^-1 cm^-2, corresponding to the photon energies in the
-        input array eph.
-
-        The detector is assumed to be 1 AU rom the source. The coefficient a0 is calculated as a0 =
-        nth * V * nnth, where nth: plasma density; cm^-3) V: volume of source; cm^3) nnth:
-        Integrated nonthermal electron flux density (cm^-2 s^-1), if efd = True, or Integrated
-        electron number density (cm^-3), if efd = False
+        input array eph. The detector is assumed to be 1 AU rom the source. The coefficient a0 is
+        calculated as a0 = nth * V * nnth, where nth: plasma density; cm^-3) V:
+        volume of source; cm^3) nnth: Integrated nonthermal electron flux density (cm^-2 s^-1), if
+        efd = True, or Integrated electron number density (cm^-3), if efd = False
 
     Notes
     -----
@@ -902,8 +905,8 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
     a function of photon energy, you should set RERR to 1.d-6, because it is more sensitive to RERR
     than the flux.
 
-    Adapted from SSW Brm2_ThinTarget.pro:
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thintarget.pro
+    Adapted from SSW `Brm2_ThinTarget
+    <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thintarget.pro>`_
     """
     mc2 = const.get_constant('mc2')
     clight = const.get_constant('clight')
@@ -952,23 +955,23 @@ def bremsstrahlung_thick_target(eph, p, eebrk, q, eelow, eehigh):
 
     Parameters
     ----------
-    eph : np.array
+    eph : `numpy.array`
         Array of photon energies to evaluate flux at
-    p   : float
+    p : `float`
         Slope below the break energy
-    eebrk : float
+    eebrk : `float`
         Break energy
-    q   : float
+    q : `float`
         Slope above the break energy
-    eelow : float
+    eelow : `float`
         Low energy electron cut off
-    eehigh : float
+    eehigh : `float`
         High energy electron cut off
 
     Returns
     -------
-    np.array : flux
-        The computed bremsstrahlung photon flux at the given photon energies.
+    `numpy.array`
+        flux The computed bremsstrahlung photon flux at the given photon energies.
         Array of photon fluxes (in photons s^-1 keV^-1 cm^-2), when multiplied by a0 * 1.0d+35,
         corresponding to the photon energies in the input array eph.
         The detector is assumed to be 1 AU from the source.
@@ -980,8 +983,8 @@ def bremsstrahlung_thick_target(eph, p, eebrk, q, eelow, eehigh):
     a function of photon energy, you should set RERR to 1.d-6, because it is more sensitive to RERR
     than the flux.
 
-    Adapted from SSW Brm2_ThickTarget.pro:
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro
+    Adapted from SSW `Brm2_ThickTarget
+    <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro>`_
     """
     # Constants
     mc2 = const.get_constant('mc2')
