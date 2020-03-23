@@ -340,45 +340,39 @@ def thick_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh,
 
     Parameters
     ----------
-    electron_energy : np.array
+    electron_energy : `numpy.array`
         Electron energies
-    photon_energy : np.array
+    photon_energy : `numpy.array`
         Photon energies
-    eelow : float
+    eelow : `float`
         Low energy electron cut off
-    eebrk : float
+    eebrk : `float`
         Break energy
-    eehigh :
+    eehigh : `float
         High energy cutoff
-    p : float
+    p : `float`
         Slope below the break energy
-    q : flaot
+    q : `flaot`
         Slope above the break energy
-    z : float
+    z : `float`
         Mean atomic number of plasma
 
     Returns
     -------
-    np.array
+    `np.array`
         Bremsstrahlung photon flux at given photon energies
 
     Notes
     -----
-    Initial version modified from SSW Brm2_Fouter.pro
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fouter.pro
+    Initial version modified from SSW `Brm2_Fouter.pro
+    <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fouter.pro>`_
     """
     mc2 = const.get_constant('mc2')
-
     gamma = (electron_energy / mc2) + 1.0
-
     brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
-
     collision_loss = collisional_loss(electron_energy)
-
     pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
-
     electron_flux = broken_powerlaw_f(electron_energy, p, q, eelow, eebrk, eehigh)
-
     photon_flux = electron_flux * brem_cross * pc / collision_loss / gamma
 
     return photon_flux
@@ -424,7 +418,6 @@ def gauss_legendre(x1, x2, npoints):
         z1 = np.inf
 
         # Some kind of integration/update loop
-        # TODO put back as while condition loop
         while np.abs(z - z1) > eps:
             # Evaluate Legendre polynomial of degree npoints at z points P_m^l(z) m=0, l=npoints
             p1 = lpmv(0, npoints, z)
@@ -537,8 +530,8 @@ def thin_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
             raise ValueError('Part 1 integral did not converge for some photon energies.')
 
     # Part 2, between enval[1] and en_val[2](usually eebrk and eehigh)
-    intsum2 = np.zeros_like(a, dtype=np.float64)
-    ier2 = np.zeros_like(a, dtype=np.float64)
+    intsum3 = np.zeros_like(a, dtype=np.float64)
+    ier3 = np.zeros_like(a, dtype=np.float64)
     aa = np.copy(a)
     P3 = np.where(a <= en_vals[2])[0]
 
@@ -560,15 +553,15 @@ def thin_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
             raise ValueError('Part 2 integral did not converge for some photon energies.')
 
     # Combine 2 parts and return
-    Dmlin = (intsum1 + intsum2)
-    ier = ier1 + ier2
+    Dmlin = (intsum2 + intsum3)
+    ier = ier2 + ier3
 
     return Dmlin, ier
 
 
 def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg, ll, efd):
     """
-    Perform numerical Gaussian-Legendre Quadrature integration for thick target model.
+    Perform numerical Gaussian-Legendre Quadrature integration for thin target model.
 
     Double the number of points until convergence criterion is reached then return.
 
@@ -727,7 +720,7 @@ def thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a
 
 def thick_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
     """
-    Integrates and broken power law electron distribution ot obtain photon fluxes at the given
+    Integrates and broken power law electron distribution to obtain photon fluxes at the given
     photon energies and electron limits.
 
     This function splits the numerical integration into up to three parts and returns the sum of
