@@ -13,149 +13,101 @@ References
 import numpy as np
 from scipy.special import lpmv
 
-from sunxspex.constants import Constants
+from sunxspex import constants as const
 
 # Central constant management
-const = Constants()
+const = const.Constants()
 
 
-def broken_powerlaw(x, p, q, eelow, eebrk, eehigh):
+class BrokenPowerLawElectronDistribution:
     """
-    This routine calculates the value of the electron distribution function at electron energy x.
-    The distribution function is normalized so that the integral from eelow to eehigh is 1.
-
-    Parameters
-    ----------
-    x : `numpy.array`
-        electron energy in keV
-    p : `float`
-        Slope below the break (x < eebrk)
-    q : `float`
-        Slope above the break (x > eebrk)
-    eelow : `float`
-        Low cutoff
-    eebrk : `float`
-        Break
-    eehigh : `float`
-        High cutoff
-
-    Returns
-    -------
-    `numpy.array`
-        Power law of x
-
-    Notes
-    -----
-    A normalized, double power law electron distribution function is computed.
-    p is the lower power-law index, between eelow and eebrk, and q is the
-    upper power-law index, between eebrk and eehigh.
-
-    Adapted from SSW
-    `Brm2_Distrn.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_distrn.pro>`_
+    A broken power law.
     """
-    # Obtain normalisation coefficient, norm.
-    n0 = (q - 1.0) / (p - 1.0) * eebrk ** (p - 1) * eelow ** (1 - p)
-    n1 = n0 - (q - 1.0) / (p - 1.0)
-    n2 = (1.0 - eebrk ** (q - 1) * eehigh ** (1 - q))
+    def __init__(self, *, p, q, eelow, eebrk, eehigh, norm=True):
+        self.p = p
+        self.q = q
+        self.eelow = eelow
+        self.eebrk = eebrk
+        self.eehigh = eehigh
+        self.norm = norm
+        if self.norm:
+            n0 = (q - 1.0) / (p - 1.0) * eebrk ** (p - 1) * eelow ** (1 - p)
+            n1 = n0 - (q - 1.0) / (p - 1.0)
+            n2 = (1.0 - eebrk ** (q - 1) * eehigh ** (1 - q))
+            norm_factor = 1.0 / (n1 + n2)
+            self.n0 = n0
+            self.n2 = n2
+        else:
+            norm_factor = 1.0
+            self.n0 = 1.0
+            self.n2 = 1.0
 
-    norm = 1.0 / (n1 + n2)
+        self.norm_factor = norm_factor
 
-    res = np.zeros_like(x)
+    def flux(self, electron_energy):
+        """
+        Calculate the electron spectrum at the given energies.
 
-    index = np.where(x < eelow)
-    if index[0].size > 0:
-        res[index] = 0.
+        Parameters
+        ----------
+        electron_energy : `numpy.array`
+            Electron energies
 
-    index = np.where((x < eebrk) & (x >= eelow))
-    if index[0].size > 0:
-        res[index] = norm * n0 * (p - 1.) * x[index] ** (-p) * eelow ** (p - 1.)
+        Returns
+        -------
+        `numpy.array`
+            The electron spectrum as a function of electron energy
+        """
+        res = np.zeros_like(electron_energy)
 
-    index = np.where((x <= eehigh) & (x >= eebrk))
-    if index[0].size > 0:
-        res[index] = norm * (q - 1.) * x[index] ** (-q) * eebrk ** (q - 1.)
+        index = np.where(electron_energy < self.eelow)
+        if index[0].size > 0:
+            res[index] = 0.
 
-    return res
+        index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
+        if index[0].size > 0:
+            res[index] = self.norm_factor * self.n0 * (self.p - 1.) \
+                         * electron_energy[index] ** (-self.p) * self.eelow ** (self.p - 1.)
 
+        index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
+        if index[0].size > 0:
+            res[index] = self.norm_factor * (self.q - 1.) \
+                         * electron_energy[index] ** (-self.q) * self.eebrk ** (self.q - 1.)
 
-def broken_powerlaw_f(x, p, q, eelow, eebrk, eehigh):
-    """
-    Return power law of x with a break and low and high cutoffs
+        return res
 
-    Parameters
-    ----------
-    x : `numpy.array`
+    def density(self, electron_energy):
+        """
+        Calculate the electron flux at the given energies.
 
-    p : `float`
-        Slope below the break (x < eebrk)
-    q : `float`
-        Slope above the break (x > eebrk)
-    eelow : `float`
-        Low cutoff
-    eebrk : `float`
-        Break
-    eehigh : `float`
-        High cutoff
+        Parameters
+        ----------
+        electron_energy : `numpy.array`
+            Eelectron energies
 
-    Returns
-    -------
-    `numpy.array`
-        Power law of x
+        Returns
+        -------
+        `numpy.array`
+            The electron flux as a function of electron energy
+        """
+        res = np.zeros_like(electron_energy)
 
-    Notes
-    -----
-    The *integral* of a normalized, double power law electron distribution function is computed.
-    p is the lower power-law index, between eelow and eebrk, and q is the
-    upper power-law index, between eebrk and eehigh.
+        index = np.where(electron_energy < self.eelow)
+        if index[0].size > 0:
+            res[index] = 1.0
 
-    Adapted from SSW
-    `Brm2_F_Distrn.pro: <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_f_distrn.pro>`_
-    """
-    # Obtain normalization coefficient, norm.
-    n0 = (q - 1.0) / (p - 1.0) * eebrk ** (p - 1) * eelow ** (1 - p)
-    n1 = n0 - (q - 1.0) / (p - 1.0)
-    n2 = (1.0 - eebrk ** (q - 1) * eehigh ** (1 - q))
+        index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
+        if index[0].size > 0:
+            res[index] = self.norm_factor * (self.n0 * self.eelow ** (self.p - 1) *
+                                             electron_energy[index] ** (1.0 - self.p) -
+                                             (self.q - 1.0) / (self.p - 1.0) + self.n2)
 
-    norm = 1.0 / (n1 + n2)
-
-    res = np.zeros_like(x)
-
-    index = np.where(x < eelow)
-    if index[0].size > 0:
-        res[index] = 1.0
-
-    index = np.where((x < eebrk) & (x >= eelow))
-    if index[0].size > 0:
-        res[index] = norm * (n0 * eelow ** (p - 1) *
-                             x[index] ** (1.0 - p) - (q - 1.0) / (p - 1.0) + n2)
-
-    index = np.where((x <= eehigh) & (x >= eebrk))
-    if index[0].size > 0:
-        res[index] = norm * (eebrk ** (q - 1) * x[index] ** (1.0 - q) - (1.0 - n2))
-
-    return res
-
-
-# def powerlaw(x, low_energy_cutoff=10, high_energy_cutoff=100, index=3):
-#     """
-#
-#     Parameters
-#     ----------
-#     x
-#     low_energy_cutoff
-#     high_energy_cutoff
-#     index
-#
-#     Returns
-#     -------
-#
-#     """
-#     # normalisation = (high_energy_cutoff**(index-1)/(index-1) +
-#     #     (low_energy_cutoff**(index-1)/(index-1)))
-#
-#     normalisation = 1 / (((high_energy_cutoff ** (2 - 2 * index)) / ((1 - index) ** 2)) - (
-#             (low_energy_cutoff ** (2 - 2 * index)) / ((1 - index) ** 2)))
-#
-#     return normalisation * x ** (1 - index)
+        index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
+        if index[0].size > 0:
+            res[index] = self.norm_factor * (self.eebrk ** (self.q - 1)
+                                             * electron_energy[index] ** (1.0 - self.q)
+                                             - (1.0 - self.n2))
+        return res
 
 
 def collisional_loss(electron_energy):
@@ -323,13 +275,15 @@ def thin_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh, 
     gamma = (electron_energy / mc2) + 1.0
     pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
     brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
-    electron_dist = broken_powerlaw(electron_energy, p, q, eelow, eebrk, eehigh)
+    electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,
+                                                       eehigh=eehigh)
     if efd:
         # if electron flux distribution is assumed (default)
-        photon_flux = electron_dist * brem_cross * (mc2 / clight)
+        photon_flux = electron_dist.flux(electron_energy) * brem_cross * (mc2 / clight)
     else:
         # if electron density distribution is assumed
-        photon_flux = electron_dist * brem_cross * pc / gamma  # that is n_e * sigma * mc2 * (v / c)
+        # n_e * sigma * mc2 * (v / c)
+        photon_flux = electron_dist.density(electron_energy) * brem_cross * pc / gamma
 
     return photon_flux
 
@@ -372,8 +326,9 @@ def thick_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh,
     brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
     collision_loss = collisional_loss(electron_energy)
     pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
-    electron_flux = broken_powerlaw_f(electron_energy, p, q, eelow, eebrk, eehigh)
-    photon_flux = electron_flux * brem_cross * pc / collision_loss / gamma
+    electron_flux = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,
+                                                       eehigh=eehigh)
+    photon_flux = electron_flux.density(electron_energy) * brem_cross * pc / collision_loss / gamma
 
     return photon_flux
 
