@@ -348,7 +348,7 @@ def thick_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh,
         Low energy electron cut off
     eebrk : `float`
         Break energy
-    eehigh : `float
+    eehigh : `float`
         High energy cutoff
     p : `float`
         Slope below the break energy
@@ -359,7 +359,7 @@ def thick_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh,
 
     Returns
     -------
-    `np.array`
+    `numpy.array`
         Bremsstrahlung photon flux at given photon energies
 
     Notes
