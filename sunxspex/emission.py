@@ -1,6 +1,7 @@
 """
 Functions for computing the photon flux due to bremsstrahlung radiation from energetic electrons
-impacting a dense plasma.
+impacting a dense plasma. See [1]_ and [2]_.
+
 
 References
 ----------
@@ -16,8 +17,6 @@ from sunxspex.constants import Constants
 
 # Central constant management
 const = Constants()
-
-# np.seterr(all='raise')
 
 
 def broken_powerlaw(x, p, q, eelow, eebrk, eehigh):
@@ -63,17 +62,17 @@ def broken_powerlaw(x, p, q, eelow, eebrk, eehigh):
 
     res = np.zeros_like(x)
 
-    ind0 = np.where(x < eelow)
-    if ind0[0].size > 0:
-        res[ind0] = 0.
+    index = np.where(x < eelow)
+    if index[0].size > 0:
+        res[index] = 0.
 
-    ind1 = np.where((x < eebrk) & (x >= eelow))
-    if ind1[0].size > 0:
-        res[ind1] = norm * n0 * (p - 1.) * x[ind1] ** (-p) * eelow ** (p - 1.)
+    index = np.where((x < eebrk) & (x >= eelow))
+    if index[0].size > 0:
+        res[index] = norm * n0 * (p - 1.) * x[index] ** (-p) * eelow ** (p - 1.)
 
-    ind2 = np.where((x <= eehigh) & (x >= eebrk))
-    if ind2[0].size > 0:
-        res[ind2] = norm * (q - 1.) * x[ind2] ** (-q) * eebrk ** (q - 1.)
+    index = np.where((x <= eehigh) & (x >= eebrk))
+    if index[0].size > 0:
+        res[index] = norm * (q - 1.) * x[index] ** (-q) * eebrk ** (q - 1.)
 
     return res
 
@@ -135,27 +134,27 @@ def broken_powerlaw_f(x, p, q, eelow, eebrk, eehigh):
     return res
 
 
-def powerlaw(x, low_energy_cutoff=10, high_energy_cutoff=100, index=3):
-    """
-
-    Parameters
-    ----------
-    x
-    low_energy_cutoff
-    high_energy_cutoff
-    index
-
-    Returns
-    -------
-
-    """
-    # normalisation = (high_energy_cutoff**(index-1)/(index-1) +
-    #     (low_energy_cutoff**(index-1)/(index-1)))
-
-    normalisation = 1 / (((high_energy_cutoff ** (2 - 2 * index)) / ((1 - index) ** 2)) - (
-            (low_energy_cutoff ** (2 - 2 * index)) / ((1 - index) ** 2)))
-
-    return normalisation * x ** (1 - index)
+# def powerlaw(x, low_energy_cutoff=10, high_energy_cutoff=100, index=3):
+#     """
+#
+#     Parameters
+#     ----------
+#     x
+#     low_energy_cutoff
+#     high_energy_cutoff
+#     index
+#
+#     Returns
+#     -------
+#
+#     """
+#     # normalisation = (high_energy_cutoff**(index-1)/(index-1) +
+#     #     (low_energy_cutoff**(index-1)/(index-1)))
+#
+#     normalisation = 1 / (((high_energy_cutoff ** (2 - 2 * index)) / ((1 - index) ** 2)) - (
+#             (low_energy_cutoff ** (2 - 2 * index)) / ((1 - index) ** 2)))
+#
+#     return normalisation * x ** (1 - index)
 
 
 def collisional_loss(electron_energy):
@@ -164,12 +163,12 @@ def collisional_loss(electron_energy):
 
     Parameters
     ----------
-    electron_energy : np.array
+    electron_energy : `numpy.array`
         Array of electron energies at which to evaluate loss
 
     Returns
     -------
-    np.array
+    `numpy.array`
         Energy loss rate
 
     Notes
@@ -192,32 +191,39 @@ def collisional_loss(electron_energy):
 def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     """
     Compute the relativistic electron-ion bremsstrahlung cross section
-    differential in energy (unit: cm^2 per mc2 or 511 keV).
+    differential in energy (cm^2/mc^2 or 511 keV).
 
     Parameters
     ----------
-    electron_energy : np.array
+    electron_energy : `numpy.array`
         Electron energies
-    photon_energy : np.arry
+    photon_energy : `numpy.array`
         Photon energies corresponding to electron_energy
-    z : float
+    z : `float`
         Mean atomic number of target plasma
 
     Returns
     -------
-    np.array
-        Bremsstrahlung cross sections.
+    `np.array`
+        The bremsstrahlung cross sections as a function of energy.
 
     Notes
     -----
-    The cross section is from Equation (4) of E. Haug (Astron. Astrophys. 326,
-    417, 1997).  This closely follows Formula 3BN of H. W. Koch & J. W. Motz
-    (Rev. Mod. Phys. 31, 920, 1959), but requires fewer computational steps.
-    The multiplicative factor introduced by G. Elwert (Ann. Physik 34, 178,
-    1939) is included.
+    The cross section is from Equation (4) of [Haug]_. This closely follows Formula 3BN of [Koch]_,
+    but requires fewer computational steps. The multiplicative factor introduced by [Elwert]_ is
+    included.
 
-    Initial version modified from SSW Brm_BremCross.pro
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_bremcross.pro
+    The initial version was heavily based of on [Brm_BremCross]_ from SSW IDL
+
+    References
+    ----------
+    .. [Brm_BremCross] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_bremcross.pro
+    .. [Haug] Haug, E., 1997, Astronomy and Astrophysics, 326, 417,
+       `ADS <https://ui.adsabs.harvard.edu/abs/1997A%26A...326..417H/abstract>`__
+    .. [Koch] Koch, H. W., & Motz, J. W., 1959, Reviews of Modern Physics, 31, 920,
+       `ADS <https://ui.adsabs.harvard.edu/abs/1959RvMP...31..920K/abstract>`__
+    .. [Elwert] Elwert, G. 1939, Annalen der Physik, 426, 178,
+       `ADS <https://ui.adsabs.harvard.edu/abs/1939AnP...426..178E/abstract>`__
     """
 
     mc2 = const.get_constant('mc2')
@@ -232,14 +238,14 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     c22 = 9.0 / 28.0
     c23 = 263.0 / 210.0
 
-    # Calculate normalized photon and total electron energies.
+    # Calculate normalised photon and total electron energies.
     if electron_energy.ndim == 2:
         k = np.expand_dims(photon_energy / mc2, axis=1)
     else:
         k = photon_energy / mc2
     e1 = (electron_energy / mc2) + 1.0
 
-    # Calculate energies of scatter electrons and normalized momenta.
+    # Calculate energies of scattered electrons and normalized momenta.
     e2 = e1 - k
     p1 = np.sqrt(e1 ** 2 - 1.0)
     p2 = np.sqrt(e2 ** 2 - 1.0)
@@ -272,7 +278,7 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     return cross_section
 
 
-def brm2_fthin(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2, efd=True):
+def thin_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2, efd=True):
     """
     Returns the integrand for the thin-target bremsstrahlung integration.
 
@@ -297,9 +303,8 @@ def brm2_fthin(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2
         Mean atomic number of plasma
     efd: bool
         If set to True (default), the electron flux distribution (electrons cm^-2 s^-1 keV^-1)
-            is calculated from broken_powerlaw().
-        If set to False, the electron density distribution (electrons cm^-3 keV^-1)
-            is calculated from broken_powerlaw().
+        is calculated from broken_powerlaw(). If set to False, the electron density distribution
+        (electrons cm^-3 keV^-1) is calculated from broken_powerlaw().
 
     Returns
     -------
@@ -327,7 +332,7 @@ def brm2_fthin(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2
     return photon_flux
 
 
-def brem_outer(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2):
+def thick_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2):
     """
     Calculate the outer integration over electron energies.
 
@@ -377,7 +382,7 @@ def brem_outer(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2
     return photon_flux
 
 
-def brm_gauss_legendre(x1, x2, npoints):
+def gauss_legendre(x1, x2, npoints):
     """
     Calculate the positions and weights for a Gauss-Legendre integration scheme.
 
@@ -397,8 +402,6 @@ def brm_gauss_legendre(x1, x2, npoints):
     Notes
     -----
 
-    History
-    ------
     Adapted from SSW Brm_GauLeg54.pro:
             https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_gauleg54.pro
     """
@@ -441,7 +444,8 @@ def brm_gauss_legendre(x1, x2, npoints):
     return x, w
 
 
-def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True, verbose=False):
+def thin_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
+                        efd=True, verbose=False):
     """
     This is used for thin-target calculation from a double power-law electron density distribution
     To integrate a function via the method of Gaussian quadrature. Repeatedly doubles the number of
@@ -459,8 +463,6 @@ def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True,
     ----------
     a : np.array
         Array containing lower integration limits
-    b : np.array
-        Array containing upper integration limits
     maxfcn : int
         Maximum number of points used in Gaussian quadrature integration
     rerr : float
@@ -499,9 +501,6 @@ def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True,
         https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlin.pro
 
     """
-    mc2 = const.get_constant('mc2')
-    clight = const.get_constant('clight')
-
     if eebrk < eelow:
         eebrk = eelow
 
@@ -529,32 +528,12 @@ def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True,
         a_lg = np.log10(aa[P2])
         b_lg = np.log10(np.full_like(a_lg, en_vals[1]))
 
-        l = np.copy(P2)
-        nlim = 12  # Maximum possible order of the Gaussian quadrature integration is 2^nlim
-
-        for ires in range(2, nlim+1):
-            npoint = 2 ** ires
-            if npoint > maxfcn:
-                ier1[l] = 1
-            eph1 = eph[l]
-
-            # generate positions and weights
-            xi, wi, = brm_gauss_legendre(a_lg[l], b_lg[l], npoint)
-
-            lastsum1 = np.copy(intsum1)
-
-            # Perform integration sum w_i * f(x_i)  i=1 to npoints
-            intsum1[l] = np.sum((10.0 ** xi * np.log(10.0) * wi *
-                                 brm2_fthin(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z, efd)),
-                                axis=1)
-
-            # Convergence criterion
-            l1 = np.abs(intsum1 - lastsum1)
-            l2 = rerr * np.abs(intsum1)
-            l = np.where(l1 > l2)[0]
+        ll = np.copy(P2)
+        intsum2, ier2 = thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
+                                                a_lg, b_lg, ll, efd)
 
         # ier = 1 indicates no convergence.
-        if sum(ier1) > 0:
+        if sum(ier2) > 0:
             raise ValueError('Part 1 integral did not converge for some photon energies.')
 
     # Part 2, between enval[1] and en_val[2](usually eebrk and eehigh)
@@ -572,32 +551,12 @@ def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True,
         a_lg = np.log10(aa[P3])
         b_lg = np.log10(np.full_like(a_lg, en_vals[2]))
 
-        l = np.copy(P3)
-        nlim = 12  # Maximum possible order of the Gaussian quadrature integration is 2^nlim
-
-        for ires in range(2, nlim+1):
-            npoint = 2 ** ires
-            if (npoint > maxfcn):
-                ier2[l] = 1
-            eph1 = eph[l]
-
-            # generate positions and weights
-            xi, wi, = brm_gauss_legendre(a_lg[l], b_lg[l], npoint)
-
-            lastsum2 = np.copy(intsum2)
-
-            # Perform integration sum w_i * f(x_i)  i=1 to npoints
-            intsum2[l] = np.sum((10.0 ** xi * np.log(10.0) * wi *
-                                 brm2_fthin(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z, efd)),
-                                axis=1)
-
-            # Convergence criterion
-            l1 = np.abs(intsum2 - lastsum2)
-            l2 = rerr * np.abs(intsum2)
-            l = np.where(l1 > l2)[0]
+        ll = np.copy(P3)
+        intsum3, ier3 = thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
+                                                a_lg, b_lg, ll, efd)
 
         # ier = 1 indicates no convergence.
-        if sum(ier2) > 0:
+        if sum(ier3) > 0:
             raise ValueError('Part 2 integral did not converge for some photon energies.')
 
     # Combine 2 parts and return
@@ -607,11 +566,88 @@ def brm2_dmlin(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, efd=True,
     return Dmlin, ier
 
 
-def brm2_dmlino_int(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg, ll):
+def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg, ll, efd):
+    """
+    Perform the integration over the thin target electron distribution function.
+
+    Parameters
+    ----------
+    maxfcn : int
+        Maximum number of points used in Gaussian quadrature integration
+    rerr : float
+        Desired relative error for integral evaluation. For example, rerr = 0.01 indicates that
+        the estimate of the integral is to be correct to one digit, whereas rerr = 0.001
+        alls for two digits to be correct.
+    eph : np.array
+        Array of photon energies at which to calculate fluxes
+    eelow : float
+        Low energy cut off of electron energy distribution, see broken_powerlaw()
+    eebrk : float
+        Break energy of electron energy distribution, see broken_powerlaw()
+    eehigh : float
+        High energy cut off of electron energy distribution, see broken_powerlaw()
+    p : float
+        Slope below the break energy
+    q : flaot
+        Slope above the break energy
+    z : float
+        Mean atomic number of plasma
+    a_lg : `numpy.array`
+        Array of logarithm of lower integration limit
+    b_lg : `numpy.array`
+        Array of logarithm of upper integration limit
+    ll : `numpy.array`
+        Indices for which to carry out integration
+    efd: `boolean` (optional) -
+        `True` (default) electron flux density distribution, `False` electron density distribution.
+        This input is not used in the main routine, but is passed to Brm_Fthin()
+
+    Returns
+    -------
+    `tuple`
+        Two `numpy.arrays` contating the ingtreated flux and per value integration criterion
+
+    """
+    nlim = 12  # Maximum possible order of the Gaussian quadrature integration is 2^nlim
+
+    intsum = np.zeros_like(eph, dtype=np.float64)
+
+    ier = np.zeros_like(eph)
+
+    i = ll[:]
+
+    for ires in range(2, nlim + 1):
+        npoint = 2 ** ires
+        if npoint > maxfcn:
+            ier[i] = 1
+            return intsum, ier
+
+        eph1 = eph[i]
+
+        # generate positions and weights
+        xi, wi, = gauss_legendre(a_lg[i], b_lg[i], npoint)
+        lastsum = np.copy(intsum)
+
+        # Perform integration sum w_i * f(x_i)  i=1 to npoints
+        intsum[i] = np.sum((10.0 ** xi * np.log(10.0) * wi *
+                             thin_target_integrand(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z,
+                                                   efd)),
+                            axis=1)
+
+        # Convergence criterion
+        l1 = np.abs(intsum - lastsum)
+        l2 = rerr * np.abs(intsum)
+        i = np.where(l1 > l2)[0]
+
+        if i.size == 0:
+            return intsum, ier
+
+
+def thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg, ll):
     """
     Perform numerical Gaussian-Legendre Quadrature integration for thick target model.
 
-    Double the number of points until convergence criterion is reached then return
+    Double the number of points until convergence criterion is reached then return.
 
     Parameters
     ----------
@@ -632,11 +668,11 @@ def brm2_dmlino_int(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg
         Slope above the break energy
     z : float
         Mean atomic number of plasma
-    a_lg : np.array:
+    a_lg : `numpy.array`
         Array of logarithm of lower integration limit
-    b_lg :
+    b_lg : `numpy.array`
         Array of logarithm of upper integration limit
-    ll : np.array
+    ll : `numpy.array`
         Indices for which to carry out integration
 
     Returns
@@ -657,34 +693,35 @@ def brm2_dmlino_int(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg
     ier = np.zeros_like(eph)
 
     # TODO Probably not need test and remove
-    l = ll[:]
+    i = ll[:]
 
     for ires in range(2, nlim + 1):
         npoint = 2 ** ires
         if npoint > maxfcn:
-            ier[l] = 1
+            ier[i] = 1
             return intsum, ier
 
-        eph1 = eph[l]
+        eph1 = eph[i]
 
         # generate positions and weights
-        xi, wi, = brm_gauss_legendre(a_lg[l], b_lg[l], npoint)
+        xi, wi, = gauss_legendre(a_lg[i], b_lg[i], npoint)
         lastsum = np.copy(intsum)
 
         # Perform integration sum w_i * f(x_i)  i=1 to npoints
-        intsum[l] = np.sum((10.0 ** xi * np.log(10.0) * wi
-                            * brem_outer(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z)), axis=1)
+        intsum[i] = np.sum((10.0 ** xi * np.log(10.0) * wi *
+                            thick_target_integrand(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z)
+                            ), axis=1)
         # Convergence criterion
         l1 = np.abs(intsum - lastsum)
         l2 = rerr * np.abs(intsum)
-        l = np.where(l1 > l2)[0]
+        i = np.where(l1 > l2)[0]
 
         # If all point have reached criterion return value and flags
-        if l.size == 0:
+        if i.size == 0:
             return intsum, ier
 
 
-def brm2_dmlino(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
+def thick_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
     """
     Integrates and broken power law electron distribution ot obtain photon fluxes at the given
     photon energies and electron limits.
@@ -697,8 +734,6 @@ def brm2_dmlino(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
     ----------
     a : np.array
         Array containing lower integration limits
-    b : np.array
-        Array containing upper integration limits
     maxfcn : int
         Maximum number of points used in Guassian quadrature integration
     rerr : float
@@ -755,10 +790,10 @@ def brm2_dmlino(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
         a_lg = np.log10(a[P1])
         b_lg = np.log10(np.full_like(a_lg, en_vals[0]))
 
-        l = np.copy(P1)
+        i = np.copy(P1)
 
-        intsum1, ier1 = brm2_dmlino_int(maxfcn, rerr, eph, eelow, eebrk, eehigh,
-                                        p, q, z, a_lg, b_lg, l)
+        intsum1, ier1 = thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh,
+                                                 p, q, z, a_lg, b_lg, i)
 
     # ier = 1 indicates no convergence.
     if sum(ier1) > 0:
@@ -779,10 +814,10 @@ def brm2_dmlino(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
         a_lg = np.log10(aa[P2])
         b_lg = np.log10(np.full_like(a_lg, en_vals[1]))
 
-        l = np.copy(P2)
+        i = np.copy(P2)
 
-        intsum2, ier2 = brm2_dmlino_int(maxfcn, rerr, eph, eelow, eebrk, eehigh,
-                                        p, q, z, a_lg, b_lg, l)
+        intsum2, ier2 = thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh,
+                                                 p, q, z, a_lg, b_lg, i)
 
         if sum(ier2) > 0:
             raise ValueError('Part 2 integral did not converge for some photon energies.')
@@ -803,10 +838,10 @@ def brm2_dmlino(a, b, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
         a_lg = np.log10(aa[P3])
         b_lg = np.log10(np.full_like(a_lg, en_vals[2]))
 
-        l = np.copy(P3)
+        i = np.copy(P3)
 
-        intsum3, ier3 = brm2_dmlino_int(maxfcn, rerr, eph, eelow, eebrk, eehigh,
-                                        p, q, z, a_lg, b_lg, l)
+        intsum3, ier3 = thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh,
+                                                 p, q, z, a_lg, b_lg, i)
 
         if sum(ier3) > 0:
             raise ValueError('Part 3 integral did not converge for some photon energies.')
@@ -842,12 +877,12 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
         Low energy electron cut off
     eehigh : float
         High energy electron cut off
-    efd: bool.
+    efd : bool
         True (default) - input electron distribution is electron flux density distribution
-            (unit electrons cm^-2 s^-1 keV^-1),
+        (unit electrons cm^-2 s^-1 keV^-1),
         False - input electron distribution is electron density distribution.
-            (unit electrons cm^-3 keV^-1),
-        This input is not used in the main routine, but is passed to brm2_dmlin() (and Brm2_Fthin())
+        (unit electrons cm^-3 keV^-1),
+        This input is not used in the main routine, but is passed to brm2_dmlin and Brm2_Fthin
 
     Returns
     -------
@@ -856,12 +891,10 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
         photon fluxes in photons s^-1 keV^-1 cm^-2, corresponding to the photon energies in the
         input array eph.
 
-        The detector is assumed to be 1 AU rom the source.
-        The coefficient a0 is calculated as a0 = nth * V * nnth, where
-            nth: plasma density; cm^-3)
-            V: volume of source; cm^3)
-            nnth: Integrated nonthermal electron flux density (cm^-2 s^-1), if efd = True, or
-                  Integrated electron number density (cm^-3), if efd = False
+        The detector is assumed to be 1 AU rom the source. The coefficient a0 is calculated as a0 =
+        nth * V * nnth, where nth: plasma density; cm^-3) V: volume of source; cm^3) nnth:
+        Integrated nonthermal electron flux density (cm^-2 s^-1), if efd = True, or Integrated
+        electron number density (cm^-3), if efd = False
 
     Notes
     -----
@@ -875,7 +908,6 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
     mc2 = const.get_constant('mc2')
     clight = const.get_constant('clight')
     au = const.get_constant('au')
-    r0 = const.get_constant('r0')
 
     # Max number of points
     maxfcn = 2048
@@ -898,9 +930,8 @@ def bremsstrahlung_thin_target(eph, p, eebrk, q, eelow, eehigh, efd=True):
 
     l, = np.where((eph < eehigh) & (eph > 0))
     if l.size > 0:
-        flux[l], iergq[l] = brm2_dmlin(eph[l], np.full_like(l, eehigh), maxfcn, rerr,
-                                       eph[l], eelow,
-                                       eebrk, eehigh, p, q, z, efd)
+        flux[l], iergq[l] = thin_target_combine(eph[l], maxfcn, rerr, eph[l], eelow, eebrk,
+                                                eehigh, p, q, z, efd)
 
         flux *= fcoeff
 
@@ -979,12 +1010,11 @@ def bremsstrahlung_thick_target(eph, p, eebrk, q, eelow, eehigh):
     if eelow >= eehigh:
         return flux
 
-    l = np.where((eph < eehigh) & (eph > 0))
+    i = np.where((eph < eehigh) & (eph > 0))
 
-    if l[0].size > 0:
-        flux[l[0]], iergq[l[0]] = brm2_dmlino(eph[l[0]], np.full_like(l[0], eehigh), maxfcn, rerr,
-                                              eph[l[0]], eelow,
-                                              eebrk, eehigh, p, q, z)
+    if i[0].size > 0:
+        flux[i[0]], iergq[i[0]] = thick_target_combine(eph[i[0]], maxfcn, rerr, eph[i[0]],
+                                                       eelow, eebrk, eehigh, p, q, z)
 
         flux = (fcoeff / decoeff) * flux
 
