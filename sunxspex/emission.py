@@ -21,9 +21,54 @@ const = const.Constants()
 
 class BrokenPowerLawElectronDistribution:
     """
-    A broken power law.
+    A broken or double power law electron flux distribution and integral.
+
+    This class is intended to be use with `sunpy.emission.bremsstrahlung_thin_target` and
+    `bremsstrahlung_thick_target`.
+
+    Parameters
+    ----------
+    p : `float`
+        Power law index below the break energy `ebrk`
+    q : `float`
+        Power law index below the break energy `ebrk`
+    eelow : `float`
+        Low energy cutoff
+    eebrk : `float`
+        Break energy
+    eehigh : `float`
+        High energy cutoff
+    norm : `bool` (optional)
+        True (default) distribution function is normalized so that the integral from `eelow` to
+        `eehigh` is 1.
+
+    References
+    ----------
+    See SSW IDl functions
+    `brm2_distrn <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_distrn.pro>`_ and
+    `brm2_f_distrn <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_f_distrn.pro>`_.
+
+    Examples
+    --------
+
+        >>> import numpy as np
+        >>> from sunxspex.emission import BrokenPowerLawElectronDistribution
+        >>> electron_dist = BrokenPowerLawElectronDistribution(p=5,q=7, eelow=10, eebrk=150,
+        ...                                                    eehigh=500)
+        >>> electron_dist
+        BrokenPowerLawElectronDistribution(p=5, q=7, eelow=10, eebrk=150, eehigh=500, norm=True)
+        >>> electron_dist.flux(np.array([15.0, 50.0, 100.0, 200.0, 500.0, 1000.0]))
+        array([5.26752445e-02, 1.28000844e-04, 4.00002638e-06, 7.03129636e-08,
+               1.15200760e-10, 0.00000000e+00])
+        >>> electron_dist.density(np.array([15.0, 50.0, 100.0, 200.0, 500.0, 1000.0]))
+        array([1.97525573e-01, 1.59341654e-03, 9.34066538e-05, 2.33416539e-06,
+               2.68419888e-22, 0.00000000e+00])
+
     """
     def __init__(self, *, p, q, eelow, eebrk, eehigh, norm=True):
+        """
+
+        """
         self.p = p
         self.q = q
         self.eelow = eelow
@@ -34,15 +79,19 @@ class BrokenPowerLawElectronDistribution:
             n0 = (q - 1.0) / (p - 1.0) * eebrk ** (p - 1) * eelow ** (1 - p)
             n1 = n0 - (q - 1.0) / (p - 1.0)
             n2 = (1.0 - eebrk ** (q - 1) * eehigh ** (1 - q))
-            norm_factor = 1.0 / (n1 + n2)
-            self.n0 = n0
-            self.n2 = n2
+            self._norm_factor = 1.0 / (n1 + n2)
+            self._n0 = n0
+            self._n2 = n2
         else:
-            norm_factor = 1.0
-            self.n0 = 1.0
-            self.n2 = 1.0
+            self._norm_factor = 1.0
+            self._n0 = 1.0
+            self._n2 = 1.0
 
-        self.norm_factor = norm_factor
+    def __eq__(self, other):
+        if all([getattr(self, name) == getattr(other, name)
+                for name in ['p', 'q', 'eelow', 'eebrk', 'eehigh']]) and isinstance(other,
+                                                                                    self.__class__):
+            return True
 
     def flux(self, electron_energy):
         """
@@ -66,24 +115,24 @@ class BrokenPowerLawElectronDistribution:
 
         index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
         if index[0].size > 0:
-            res[index] = self.norm_factor * self.n0 * (self.p - 1.) \
+            res[index] = self._norm_factor * self._n0 * (self.p - 1.) \
                          * electron_energy[index] ** (-self.p) * self.eelow ** (self.p - 1.)
 
         index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
         if index[0].size > 0:
-            res[index] = self.norm_factor * (self.q - 1.) \
+            res[index] = self._norm_factor * (self.q - 1.) \
                          * electron_energy[index] ** (-self.q) * self.eebrk ** (self.q - 1.)
 
         return res
 
     def density(self, electron_energy):
         """
-        Calculate the electron flux at the given energies.
+        Return the electron flux at the given electron energies.
 
         Parameters
         ----------
         electron_energy : `numpy.array`
-            Eelectron energies
+            Electron energies
 
         Returns
         -------
@@ -98,21 +147,25 @@ class BrokenPowerLawElectronDistribution:
 
         index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
         if index[0].size > 0:
-            res[index] = self.norm_factor * (self.n0 * self.eelow ** (self.p - 1) *
-                                             electron_energy[index] ** (1.0 - self.p) -
-                                             (self.q - 1.0) / (self.p - 1.0) + self.n2)
+            res[index] = self._norm_factor * (self._n0 * self.eelow ** (self.p - 1) *
+                                              electron_energy[index] ** (1.0 - self.p) -
+                                              (self.q - 1.0) / (self.p - 1.0) + self._n2)
 
         index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
         if index[0].size > 0:
-            res[index] = self.norm_factor * (self.eebrk ** (self.q - 1)
-                                             * electron_energy[index] ** (1.0 - self.q)
-                                             - (1.0 - self.n2))
+            res[index] = self._norm_factor * (self.eebrk ** (self.q - 1)
+                                              * electron_energy[index] ** (1.0 - self.q)
+                                              - (1.0 - self._n2))
         return res
+
+    def __repr__(self):
+        return f'{self.__class__.__name__}(p={self.p}, q={self.q}, eelow={self.eelow}, ' \
+               f'eebrk={self.eebrk}, eehigh={self.eehigh}, norm={self.norm})'
 
 
 def collisional_loss(electron_energy):
     """
-    Compute the energy dependant terms of the collisional energy loss rate for energetic electrons
+    Compute the energy dependant terms of the collisional energy loss rate for energetic electrons.
 
     Parameters
     ----------
@@ -231,69 +284,15 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     return cross_section
 
 
-def thin_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2,
-                          efd=True):
+def get_integrand(*, model, electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2,
+                  efd=True):
     """
-    Returns the integrand for the thin-target bremsstrahlung integration.
+    Return the value of the integrand for the thick- or thin-target bremsstrahlung models.
 
     Parameters
     ----------
-    electron_energy : np.array
-        Electron energies in keV. Two-dimensional array of abscissas calculated in
-        brm_gauss_legendre
-    photon_energy : np.array
-        Photon energies in keV
-    eelow : float
-        Low energy electron cut off
-    eebrk : float
-        Break energy
-    eehigh :
-        High energy cutoff
-    p : float
-        Slope below the break energy
-    q : float
-        Slope above the break energy
-    z : float
-        Mean atomic number of plasma
-    efd: bool
-        If set to True (default), the electron flux distribution (electrons cm^-2 s^-1 keV^-1)
-        is calculated from broken_powerlaw(). If set to False, the electron density distribution
-        (electrons cm^-3 keV^-1) is calculated from broken_powerlaw().
-
-    Returns
-    -------
-    np.array
-        Bremsstrahlung photon flux at given photon energies
-
-    Notes
-    -----
-    Adapted from SSW Brm2_FThin.pro:
-        https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fthin.pro
-    """
-    mc2 = const.get_constant('mc2')
-    clight = const.get_constant('clight')
-    gamma = (electron_energy / mc2) + 1.0
-    pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
-    brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
-    electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,
-                                                       eehigh=eehigh)
-    if efd:
-        # if electron flux distribution is assumed (default)
-        photon_flux = electron_dist.flux(electron_energy) * brem_cross * (mc2 / clight)
-    else:
-        # if electron density distribution is assumed
-        # n_e * sigma * mc2 * (v / c)
-        photon_flux = electron_dist.density(electron_energy) * brem_cross * pc / gamma
-
-    return photon_flux
-
-
-def thick_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2):
-    """
-    Calculate the outer integration over electron energies.
-
-    Parameters
-    ----------
+    model : `str`
+        Either `thick-target` or `thin-target`
     electron_energy : `numpy.array`
         Electron energies
     photon_energy : `numpy.array`
@@ -310,27 +309,48 @@ def thick_target_integrand(electron_energy, photon_energy, eelow, eebrk, eehigh,
         Slope above the break energy
     z : `float`
         Mean atomic number of plasma
+    efd: `bool` (optional)
+        True (default) the electron flux distribution (electrons cm^-2 s^-1 keV^-1) is calculated
+        with `~sunxspex.emission.BrokenPowerLawElectronDistribution.flux`. False, the electron
+        density distribution (electrons cm^-3 keV^-1) is calculated with
+        `~sunxspex.emission.BrokenPowerLawElectronDistribution.density`.
 
     Returns
     -------
     `numpy.array`
-        Bremsstrahlung photon flux at given photon energies
+        The values of the integrand at the given electron_energies
 
-    Notes
-    -----
-    Initial version modified from SSW `Brm2_Fouter.pro
-    <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fouter.pro>`_
+    References
+    ----------
+    See SSW
+    `brm2_fthin.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fthin.pro>`_ and
+    `brm2_fouter.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fouter.pro>`_.
+
     """
+
     mc2 = const.get_constant('mc2')
+    clight = const.get_constant('clight')
     gamma = (electron_energy / mc2) + 1.0
     brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
     collision_loss = collisional_loss(electron_energy)
     pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
-    electron_flux = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,
+    electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,
                                                        eehigh=eehigh)
-    photon_flux = electron_flux.density(electron_energy) * brem_cross * pc / collision_loss / gamma
 
-    return photon_flux
+    if model == 'thick-target':
+        return electron_dist.density(electron_energy) * brem_cross * pc / collision_loss / gamma
+    elif model == 'thin-target':
+        if efd:
+            # if electron flux distribution is assumed (default)
+            return electron_dist.flux(electron_energy) * brem_cross * (mc2 / clight)
+        else:
+            # if electron density distribution is assumed
+            # n_e * sigma * mc2 * (v / c)
+            #TODO this is the same as IDL version but doesn't make sense as units are different?
+            return electron_dist.flux(electron_energy) * brem_cross * pc / gamma
+    else:
+        raise ValueError(f"Given model: {model} is not one of supported values"
+                         f"'thick-target', 'thin-target'")
 
 
 def gauss_legendre(x1, x2, npoints):
@@ -580,9 +600,9 @@ def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_
 
         # Perform integration sum w_i * f(x_i)  i=1 to npoints
         intsum[i] = np.sum((10.0 ** xi * np.log(10.0) * wi *
-                            thin_target_integrand(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z,
-                                                  efd)),
-                           axis=1)
+                            get_integrand(model='thin-target', electron_energy=10.0 ** xi,
+                                          photon_energy=eph1, eelow=eelow, eebrk=eebrk,
+                                          eehigh=eehigh, p=p, q=q, z=z, efd=efd)), axis=1)
 
         # Convergence criterion
         l1 = np.abs(intsum - lastsum)
@@ -661,8 +681,9 @@ def thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a
 
         # Perform integration sum w_i * f(x_i)  i=1 to npoints
         intsum[i] = np.sum((10.0 ** xi * np.log(10.0) * wi *
-                            thick_target_integrand(10.0 ** xi, eph1, eelow, eebrk, eehigh, p, q, z)
-                            ), axis=1)
+                            get_integrand(model='thick-target', electron_energy=10.0 ** xi,
+                                          photon_energy=eph1, eelow=eelow, eebrk=eebrk,
+                                          eehigh=eehigh, p=p, q=q, z=z)), axis=1)
         # Convergence criterion
         l1 = np.abs(intsum - lastsum)
         l2 = rerr * np.abs(intsum)

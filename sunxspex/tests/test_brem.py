@@ -46,6 +46,38 @@ def test_brem_cross_section():
     assert np.array_equal(res, res_idl)
 
 
+def test_get_integrand():
+    photon_energies = np.array([1.0, 10.0, 100.0, 1000.0])
+    electron_energies = photon_energies + 1
+    params = {'electron_energy': electron_energies,
+              'photon_energy': photon_energies,
+              'eelow': 1.0,
+              'eebrk': 150.0,
+              'eehigh': 1000.0,
+              'p': 5.0,
+              'q': 7.0,
+              'z': 1.2}
+
+    res_thick = emission.get_integrand(model='thick-target', **params)
+    res_thin_efd = emission.get_integrand(model='thin-target', **params)
+    res_thin_noefd = emission.get_integrand(model='thin-target', **params, efd=False)
+    # IDL code to generate values
+    # Brm2_Fouter([1.0, 10.0, 100.0, 1000.0] + 1, [1.0, 10.0, 100.0, 1000.0], 10.0d,  150.0d, 1000.0d, 5.0d, 7.0d, 1.2d)  # NOQA
+    res_idl_thick = [6.1083381554006209e-24, 2.5108068464643281e-28, 8.1522892779571421e-34,
+                     0.0000000000000000]
+    assert np.array_equal(res_thick, res_idl_thick)
+    # IDL code to generate values
+    # Brm2_FThin([1.0, 10.0, 100.0, 1000.0]+1.0d, [1.0, 10.0, 100.0, 1000.0], 1.0d,  150.0d, 1000.0d, 5.0d, 7.0d, 1.2d, 1)  # NOQA
+    res_idl_thin_efd = [1.2229040135854787e-30, 1.8300600988388983e-36, 1.0413631578198003e-43,
+                        0.0000000000000000]
+    assert np.array_equal(res_thin_efd, res_idl_thin_efd)
+    # IDL code to generate values
+    # Brm2_FThin([1.0, 10.0, 100.0, 1000.0]+1.0d, [1.0, 10.0, 100.0, 1000.0], 1.0d,  150.0d, 1000.0d, 5.0d, 7.0d, 1.2d, 0)  # NOQA
+    res_idl_thin_noefd = [3.2341903200820362e-21, 1.1203835558833694e-26, 1.7180070908135551e-33,
+                          0.0000000000000000]
+    assert np.array_equal(res_thin_noefd, res_idl_thin_noefd)
+
+
 def test_brem_thicktarget1():
     photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
     res = emission.bremsstrahlung_thick_target(photon_energies, 5, 1000, 5, 10, 10000)
