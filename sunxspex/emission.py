@@ -346,7 +346,7 @@ def get_integrand(*, model, electron_energy, photon_energy, eelow, eebrk, eehigh
         else:
             # if electron density distribution is assumed
             # n_e * sigma * mc2 * (v / c)
-            #TODO this is the same as IDL version but doesn't make sense as units are different?
+            # TODO this is the same as IDL version but doesn't make sense as units are different?
             return electron_dist.flux(electron_energy) * brem_cross * pc / gamma
     else:
         raise ValueError(f"Given model: {model} is not one of supported values"
@@ -497,8 +497,9 @@ def thin_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
         b_lg = np.log10(np.full_like(a_lg, en_vals[1]))
 
         ll = np.copy(P2)
-        intsum2, ier2 = thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
-                                                a_lg, b_lg, ll, efd)
+        intsum2, ier2 = integrate_part(model='thin-target', maxfcn=maxfcn, rerr=rerr, eph=eph,
+                                       eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
+                                       a_lg=a_lg, b_lg=b_lg, ll=ll, efd=efd)
 
         # ier = 1 indicates no convergence.
         if sum(ier2) > 0:
@@ -520,8 +521,9 @@ def thin_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
         b_lg = np.log10(np.full_like(a_lg, en_vals[2]))
 
         ll = np.copy(P3)
-        intsum3, ier3 = thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
-                                                a_lg, b_lg, ll, efd)
+        intsum3, ier3 = integrate_part(model='thin-target', maxfcn=maxfcn, rerr=rerr, eph=eph,
+                                       eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
+                                       a_lg=a_lg, b_lg=b_lg, ll=ll, efd=efd)
 
         # ier = 1 indicates no convergence.
         if sum(ier3) > 0:
@@ -534,14 +536,17 @@ def thin_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z,
     return Dmlin, ier
 
 
-def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg, ll, efd):
+def integrate_part(*, model, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg, ll, efd):
     """
-    Perform numerical Gaussian-Legendre Quadrature integration for thin target model.
+    Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
 
-    Double the number of points until convergence criterion is reached then return.
+    This integration is intended to be performed over continuous portions of the electron
+    distribution.
 
     Parameters
     ----------
+    model : `str`
+        Either `thick-target` or `thin-target`
     maxfcn : `int`
         Maximum number of points used in Gaussian quadrature integration
     rerr : `float`
@@ -549,13 +554,13 @@ def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_
         the estimate of the integral is to be correct to one digit, whereas rerr = 0.001
         alls for two digits to be correct.
     eph : `numpp.array`
-        Array of photon energies at which to calculate fluxes
+        Photon energies
     eelow : `float`
-        Low energy cut off of electron energy distribution, see broken_powerlaw()
+        Low energy electron cut off
     eebrk : `float`
-        Break energy of electron energy distribution, see broken_powerlaw()
+        Break energy
     eehigh : `float`
-        High energy cut off of electron energy distribution, see broken_powerlaw()
+        High energy cutoff
     p : `float`
         Slope below the break energy
     q : `float`
@@ -563,27 +568,34 @@ def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_
     z : `float`
         Mean atomic number of plasma
     a_lg : `numpy.array`
-        Array of logarithm of lower integration limit
+        Logarithm of lower integration limits
     b_lg : `numpy.array`
-        Array of logarithm of upper integration limit
+        Logarithm of upper integration limit
     ll : `numpy.array`
         Indices for which to carry out integration
     efd: `boolean`
-        `True` (default) electron flux density distribution, `False` electron density distribution.
+         `True` (default) electron flux density distribution, `False` electron density distribution.
         This input is not used in the main routine, but is passed to thin_target_integrand
 
     Returns
     -------
     `tuple`
-        Two `numpy.arrays` containing the integrated flux and per value integration criterion.
+        Array of integrated photon fluxes evaluation and array of integration status (0 converged,
+        1 not converged)
 
+    References
+    ----------
+    See SSW `Brm2_DmlinO_int.pro
+    <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlino_int.pro>`_
+    and
+    `brm2_dmlin.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlin.pro>`_.
     """
-    nlim = 12  # Maximum possible order of the Gaussian quadrature integration is 2^nlim
+    nlim = 12
 
     intsum = np.zeros_like(eph, dtype=np.float64)
-
     ier = np.zeros_like(eph)
 
+    # Copy indices over which to carry out the integration
     i = ll[:]
 
     for ires in range(2, nlim + 1):
@@ -600,90 +612,9 @@ def thin_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_
 
         # Perform integration sum w_i * f(x_i)  i=1 to npoints
         intsum[i] = np.sum((10.0 ** xi * np.log(10.0) * wi *
-                            get_integrand(model='thin-target', electron_energy=10.0 ** xi,
+                            get_integrand(model=model, electron_energy=10.0 ** xi,
                                           photon_energy=eph1, eelow=eelow, eebrk=eebrk,
                                           eehigh=eehigh, p=p, q=q, z=z, efd=efd)), axis=1)
-
-        # Convergence criterion
-        l1 = np.abs(intsum - lastsum)
-        l2 = rerr * np.abs(intsum)
-        i = np.where(l1 > l2)[0]
-
-        if i.size == 0:
-            return intsum, ier
-
-
-def thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg, ll):
-    """
-    Perform numerical Gaussian-Legendre Quadrature integration for thick target model.
-
-    Double the number of points until convergence criterion is reached then return.
-
-    Parameters
-    ----------
-    maxfcn : `int`
-        Max number of point for Gaussian-Legendre Quadrature integration
-    rerr : `float`
-        Desired relative error level (0.01 correct to one digit, 0.001 correct to two digits)
-    eph : `numpy.array`
-        Array of photon energies at which to calculate fluxes
-    eelow : `float`
-        Low energy cut off of electron energy distribution, see broken_powerlaw()
-    eebrk : `float`
-        Break energy of electron energy distribution, see broken_powerlaw()
-    eehigh :
-        High energy cut off of electron energy distribution, see broken_powerlaw()
-    p : `float`
-        Slope below the break energy
-    q : `float`
-        Slope above the break energy
-    z : `float`
-        Mean atomic number of plasma
-    a_lg : `numpy.array`
-        Array of logarithm of lower integration limit
-    b_lg : `numpy.array`
-        Array of logarithm of upper integration limit
-    ll : `numpy.array`
-        Indices for which to carry out integration
-
-    Returns
-    -------
-    `tuple`
-        Array of results and array of error flags
-
-    Notes
-    -----
-    Initial version modified from SSW
-    `Brm2_DmlinO_int.pro
-    <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlino_int.pro>`_
-    """
-    nlim = 12  # 4096 points
-
-    # Output arrays
-    intsum = np.zeros_like(eph, dtype=np.float64)
-
-    ier = np.zeros_like(eph)
-
-    # TODO Probably not need test and remove
-    i = ll[:]
-
-    for ires in range(2, nlim + 1):
-        npoint = 2 ** ires
-        if npoint > maxfcn:
-            ier[i] = 1
-            return intsum, ier
-
-        eph1 = eph[i]
-
-        # generate positions and weights
-        xi, wi, = gauss_legendre(a_lg[i], b_lg[i], npoint)
-        lastsum = np.copy(intsum)
-
-        # Perform integration sum w_i * f(x_i)  i=1 to npoints
-        intsum[i] = np.sum((10.0 ** xi * np.log(10.0) * wi *
-                            get_integrand(model='thick-target', electron_energy=10.0 ** xi,
-                                          photon_energy=eph1, eelow=eelow, eebrk=eebrk,
-                                          eehigh=eehigh, p=p, q=q, z=z)), axis=1)
         # Convergence criterion
         l1 = np.abs(intsum - lastsum)
         l2 = rerr * np.abs(intsum)
@@ -696,7 +627,7 @@ def thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z, a
 
 def thick_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
     """
-    Integrates and broken power law electron distribution to obtain photon fluxes at the given
+    Integrates a broken power law electron distribution to obtain photon fluxes at the given
     photon energies and electron limits.
 
     This function splits the numerical integration into up to three parts and returns the sum of
@@ -766,8 +697,9 @@ def thick_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
 
         i = np.copy(P1)
 
-        intsum1, ier1 = thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh,
-                                                 p, q, z, a_lg, b_lg, i)
+        intsum1, ier1 = integrate_part(model='thick-target', maxfcn=maxfcn, rerr=rerr, eph=eph,
+                                       eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
+                                       a_lg=a_lg, b_lg=b_lg, ll=i, efd=None)
 
     # ier = 1 indicates no convergence.
     if sum(ier1) > 0:
@@ -790,8 +722,9 @@ def thick_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
 
         i = np.copy(P2)
 
-        intsum2, ier2 = thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh,
-                                                 p, q, z, a_lg, b_lg, i)
+        intsum2, ier2 = integrate_part(model='thick-target', maxfcn=maxfcn, rerr=rerr, eph=eph,
+                                       eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
+                                       a_lg=a_lg, b_lg=b_lg, ll=i, efd=None)
 
         if sum(ier2) > 0:
             raise ValueError('Part 2 integral did not converge for some photon energies.')
@@ -814,9 +747,9 @@ def thick_target_combine(a, maxfcn, rerr, eph, eelow, eebrk, eehigh, p, q, z):
 
         i = np.copy(P3)
 
-        intsum3, ier3 = thick_target_integration(maxfcn, rerr, eph, eelow, eebrk, eehigh,
-                                                 p, q, z, a_lg, b_lg, i)
-
+        intsum3, ier3 = integrate_part(model='thick-target', maxfcn=maxfcn, rerr=rerr, eph=eph,
+                                       eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
+                                       a_lg=a_lg, b_lg=b_lg, ll=i, efd=None)
         if sum(ier3) > 0:
             raise ValueError('Part 3 integral did not converge for some photon energies.')
 

@@ -62,20 +62,63 @@ def test_get_integrand():
     res_thin_efd = emission.get_integrand(model='thin-target', **params)
     res_thin_noefd = emission.get_integrand(model='thin-target', **params, efd=False)
     # IDL code to generate values
-    # Brm2_Fouter([1.0, 10.0, 100.0, 1000.0] + 1, [1.0, 10.0, 100.0, 1000.0], 10.0d,  150.0d, 1000.0d, 5.0d, 7.0d, 1.2d)  # NOQA
+    # Brm2_Fouter([1.0, 10.0, 100.0, 1000.0] + 1, [1.0, 10.0, 100.0, 1000.0], 10.0d,  150.0d,
+    # 1000.0d, 5.0d, 7.0d, 1.2d)
     res_idl_thick = [6.1083381554006209e-24, 2.5108068464643281e-28, 8.1522892779571421e-34,
                      0.0000000000000000]
     assert np.array_equal(res_thick, res_idl_thick)
     # IDL code to generate values
-    # Brm2_FThin([1.0, 10.0, 100.0, 1000.0]+1.0d, [1.0, 10.0, 100.0, 1000.0], 1.0d,  150.0d, 1000.0d, 5.0d, 7.0d, 1.2d, 1)  # NOQA
+    # Brm2_FThin([1.0, 10.0, 100.0, 1000.0]+1.0d, [1.0, 10.0, 100.0, 1000.0], 1.0d,  150.0d,
+    # 1000.0d, 5.0d, 7.0d, 1.2d, 1)
     res_idl_thin_efd = [1.2229040135854787e-30, 1.8300600988388983e-36, 1.0413631578198003e-43,
                         0.0000000000000000]
     assert np.array_equal(res_thin_efd, res_idl_thin_efd)
     # IDL code to generate values
-    # Brm2_FThin([1.0, 10.0, 100.0, 1000.0]+1.0d, [1.0, 10.0, 100.0, 1000.0], 1.0d,  150.0d, 1000.0d, 5.0d, 7.0d, 1.2d, 0)  # NOQA
+    # Brm2_FThin([1.0, 10.0, 100.0, 1000.0]+1.0d, [1.0, 10.0, 100.0, 1000.0], 1.0d,  150.0d,
+    # 1000.0d, 5.0d, 7.0d, 1.2d, 0)
     res_idl_thin_noefd = [3.2341903200820362e-21, 1.1203835558833694e-26, 1.7180070908135551e-33,
                           0.0000000000000000]
     assert np.array_equal(res_thin_noefd, res_idl_thin_noefd)
+
+
+def test_integrate_part():
+    eph = np.array([10.0, 20.0, 40.0, 80.0, 150.0])
+    params = {'model': 'thin-target',
+              'maxfcn': 2048,
+              'rerr': 1e-4,
+              'z': 1.2,
+              'p': 5.0,
+              'q': 7.0,
+              'eebrk': 200,
+              'eelow': 1.0,
+              'eehigh': 200.0,
+              'eph': eph,
+              'a_lg': np.log10(eph),
+              'b_lg': np.full_like(eph, np.log10(200)),
+              'll': [0, 1, 2, 3, 4],
+              'efd': True}
+
+    res_thin, _ = emission.integrate_part(**params)
+    # IDL code to generate values - constructed so it only cover a singe continuous part
+    # brm2_dmlin([10.0d, 20.0d, 40.0d, 80.0d, 150.0], [200.0d, 200.0d, 200.0d, 200.0d, 200.0d],
+    # 2048, 1e-4, [10.0d, 20.0d, 40.0d, 80.0d, 150.0], 1.0, 200.0d, 200.0d, 5.0d, 7.0d, 1.2d, 1)
+    # Brm2_ThinTarget([10.0d, 20.0d, 40.0d, 80.0d, 150.0], [1.0d, 5.0d, 200.0d, 7.0d, 1.0d, 200.0d])
+    res_idl_thin = [7.9163611801477292e-36, 1.1718303039579161e-37, 1.7710210625358297e-39,
+                    2.6699438088131420e-41, 3.6688281208262375e-43]
+    assert np.allclose(res_thin, res_idl_thin, atol=0, rtol=1e-10)
+
+    params['model'] = 'thick-target'
+    res_thick, _ = emission.integrate_part(**params)
+    # IDL code to generate values - constructed so it only cover a singe continuous part
+    # out = dblarr(5)
+    # IDL> ier = dblarr(5)
+    # IDL> brm2_dmlino_int, 2048, 1e-4, [10.0d, 20.0d, 40.0d, 80.0d, 150.0], 1.0, 200.0d, 200.0d,
+    # 5.0d, 7.0d, 1.2d, alog10([10.0d, 20.0d, 40.0d, 80.0d, 150.0]), alog10([200.0d, 200.0d,
+    # 200.0d, 200.0d, 200.0d]), [0, 1, 2, 3, 4], out, ier
+    # print, out
+    res_idl_thick = [1.7838076641732560e-27, 9.9894296899783751e-29, 5.2825655485310581e-30,
+                     2.1347233135651843e-31, 2.9606798379782830e-33]
+    assert np.allclose(res_thick, res_idl_thick, atol=0, rtol=1e-10)
 
 
 def test_brem_thicktarget1():
