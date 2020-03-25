@@ -4,7 +4,7 @@ import numpy as np
 from sunxspex import emission
 
 
-def test_broken_powerlaw_dist():
+def test_broken_power_law_electron_distribution():
     electron_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000])
     electron_distribution = emission.BrokenPowerLawElectronDistribution(p=3.0, q=5.0, eelow=3.0,
                                                                         eebrk=150.0, eehigh=10000.0)
@@ -92,7 +92,7 @@ def test_integrate_part():
               'eebrk': 200,
               'eelow': 1.0,
               'eehigh': 200.0,
-              'eph': eph,
+              'photon_energies': eph,
               'a_lg': np.log10(eph),
               'b_lg': np.full_like(eph, np.log10(200)),
               'll': [0, 1, 2, 3, 4],
@@ -119,6 +119,44 @@ def test_integrate_part():
     res_idl_thick = [1.7838076641732560e-27, 9.9894296899783751e-29, 5.2825655485310581e-30,
                      2.1347233135651843e-31, 2.9606798379782830e-33]
     assert np.allclose(res_thick, res_idl_thick, atol=0, rtol=1e-10)
+
+
+def test_split_and_integrate():
+    photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
+    params = {
+        'model': 'thick-target',
+        'photon_energies': photon_energies,
+        'maxfcn': 2048,
+        'rerr': 1e-4,
+        'eelow': 10.0,
+        'eebrk': 500.0,
+        'eehigh': 1000.0,
+        'p': 5.0,
+        'q': 7.0,
+        'z': 1.2,
+        'efd': True
+    }
+
+    res_thick = emission.split_and_integrate(**params)
+    params['model'] = 'thin-target'
+    res_thin = emission.split_and_integrate(**params)
+    # IDL code to generate values
+    # Brm2_DmlinO, [5.0d, 10.0d, 50.0d, 150.0d, 300.0d, 500.0d, 750.0d, 1000.0d], $
+    # [10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.000], 2048, $
+    # 1e-4, [5.0d, 10.0d, 50.0d, 150.0d, 300.0d, 500.0d, 750.0d, 1000.0d], $
+    # 10.0d, 500.0d, 10000.000, 5.0d, 7.0d, 1.2d
+    res_idl_thick = [2.2515963597937766e-30, 3.0443768835060635e-31, 3.7297617183535930e-34,
+                     3.3249346002544473e-36, 1.2639820076797306e-37, 6.9618972578770903e-39,
+                     6.2232553253478841e-40, 1.1626170413561901e-40]
+    np.allclose(res_thick, res_idl_thick, atol=0, rtol=1e-10)
+    # Brm2_Dmlin( [5.0d, 10.0d, 50.0d, 150.0d, 300.0d, 500.0d, 750.0d, 1000.0d], $
+    # [10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.000], 2048, $
+    # 1e-4, [5.0d, 10.0d, 50.0d, 150.0d, 300.0d, 500.0d, 750.0d, 1000.0d], $
+    # 10.0d, 500.0d, 10000.000, 5.0d, 7.0d, 1.2d, 1, ier2)
+    res_idl_thin = [3.3783188543550312e-31, 7.9163900936296962e-32, 4.6308051717377875e-36,
+                    6.7446378797836118e-39, 1.1835467661486555e-40, 4.3612071662677236e-42,
+                    2.3851948333528724e-43, 3.2244753187594343e-44]
+    np.allclose(res_thin, res_idl_thin, atol=0, rtol=1e-10)
 
 
 def test_brem_thicktarget1():
