@@ -587,7 +587,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
                                            a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd)
 
             # ier = 1 indicates no convergence.
-            if sum(ier1) > 0:
+            if sum(ier1):
                 raise ValueError('Part 1 integral did not converge for some photon energies.')
 
     # Part 2, between enval[0] and en_val[1](usually eelow and eebrk)
