@@ -88,10 +88,9 @@ class BrokenPowerLawElectronDistribution:
             self._n2 = 1.0
 
     def __eq__(self, other):
-        if all([getattr(self, name) == getattr(other, name)
+        return all([getattr(self, name) == getattr(other, name)
                 for name in ['p', 'q', 'eelow', 'eebrk', 'eehigh']]) and isinstance(other,
-                                                                                    self.__class__):
-            return True
+                                                                                    self.__class__)
 
     def flux(self, electron_energy):
         """
