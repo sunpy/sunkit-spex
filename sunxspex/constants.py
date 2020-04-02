@@ -5,6 +5,8 @@ comparision.
 
 from astropy import constants as const
 
+__all__ = ['Constants']
+
 CONSTANTS = {
     'idl': {
             'mc2': 510.98,  # electron rest mass keV
