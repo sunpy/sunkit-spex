@@ -3,13 +3,14 @@ import copy
 
 import numpy as np
 import astropy.units as u
-from astropy.table import Table, Column
+from astropy.table import Table
 import scipy.interpolate
 import sunpy.coordinates
 
 from sunxspex.io import chianti_kev_line_common_load_light, load_xray_abundances
 from sunxspex.utils import get_reverse_indices
 
+__all__ = ['ChiantiThermalSpectrum']
 
 class ChiantiThermalSpectrum:
     """
@@ -49,6 +50,21 @@ class ChiantiThermalSpectrum:
             Cannot be set is observer_distance kwarg also set.
             Default=None.
 
+        Notes
+        -----
+        The default CHIANTI data used here is contained within the `sunpy.data.manager` and is collected
+        from `https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav`.
+        If the user would like to use a different file, the default can be overwritten using the context
+        manager `sunpy.data.manager`.
+        For example:
+        >>> import numpy as np
+        >>> from astropy import units as u
+        >>> from sunxspex import thermal_spectrum
+        >>> from sunpy.data import manager
+        >>> energy_bins = np.arange(3, 100, 0.5)*u.keV
+        >>> my_file = "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v70.sav"
+        >>> with manager.override_file("chianti_lines_1_10", uri=my_file): # doctest: +SKIP
+        ...     spec_vals = thermal_spectrum.ChiantiThermalSpectrum(energy_bins) # doctest: +SKIP
         """
         # Define energy bins on which spectrum will be calculated.
         self.energy_edges_keV = energy_edges.to(u.keV).value
@@ -121,7 +137,7 @@ class ChiantiThermalSpectrum:
             The emission measure of the emitting plasma.
             Default= 1e44 cm**-3
 
-        relative_abundances: `list` of length 2 `tuple`s
+        relative_abundances: `list` of length 2 `tuple`
             The relative abundances of different elements as a fraction of their
             nominal abundances which are read in by xr_rd_abundance().
             Each tuple represents an element.
