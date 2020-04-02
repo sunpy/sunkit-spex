@@ -12,10 +12,6 @@ import sunpy.coordinates
 from sunxspex.io import chianti_kev_line_common_load_light, load_xray_abundances
 from sunxspex.utils import get_reverse_indices
 
-SSWDB_XRAY_CHIANTI = os.path.expanduser(os.path.join("~", "ssw", "packages",
-                                                     "xray", "dbase", "chianti"))
-FILE_IN = os.path.join(SSWDB_XRAY_CHIANTI, "chianti_lines_1_10_v71.sav")
-
 # Define standard units.
 LENGTH_UNIT = u.cm
 EM_UNIT = LENGTH_UNIT**(-3)
@@ -53,14 +49,6 @@ class ChiantiThermalSpectrum(Fittable1DModel):
             Each tuple represents an element.
             The first item in the tuple gives the atomic number of the element.
             The second item gives the factor by which to scale the element's abundance.
-
-        linefile: `str`
-            File containing emission line info derived from CHIANTI.
-            Must be same format as ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav
-
-        xray_abundance_file: `str`
-            Name and path to abundance file.
-            Default= /ssw/packages/xray/dbase/chianti/xray_abun_file.genx
 
         abundance_type: `str`
             Type of abundance to be read from file.  Option are (From Chianti)
@@ -269,7 +257,7 @@ class ChiantiThermalSpectrum(Fittable1DModel):
             # Sum over those line components to get total emission in each spectrum energy bin.
             spectrum_bins_line_energy_indices = get_reverse_indices(iline, nbins=n_energy_bins, min_range=0, max_range=n_energy_bins-1)[1]
             emitting_energy_bin_indices = np.where(np.histogram(iline, bins=n_energy_bins, range=(0, n_energy_bins-1))[0] > 0)[0]
- 
+
             if len(emitting_energy_bin_indices) > 0:
                 for i in emitting_energy_bin_indices:
                     spectrum[:, i] = np.sum(line_intensities[:, spectrum_bins_line_energy_indices[i]], axis=1)
@@ -357,13 +345,13 @@ def _chianti_kev_getp(logT, data_grid, line_logT_bins):
 def _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, line_intensities):
     """
     Split emission between neighboring energy bins such that averaged energy is the line peak.
-    
+
     Given line peak energies and a set of the energy bin edges:
     1. Find the bins into which each of the lines belong.
-    2. Calculate distance between the line peak energy and the 
+    2. Calculate distance between the line peak energy and the
     center of the bin to which it corresponds as a fraction of the distance between
     the bin center the center of the next closest bin to the line peak energy.
-    3. Assign the above fraction of the line intensity to the neighboring bin and 
+    3. Assign the above fraction of the line intensity to the neighboring bin and
     the rest of the energy to the original bin.
     4. Add the neighboring bins to the array of bins containing positive emission.
 
@@ -389,14 +377,14 @@ def _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, lin
     new_line_intensities: 2D `numpy.ndarray`
         The weighted line intensities including neigboring component for each line weighted
         such that total emission is the same, but the energy of each line averaged over the
-        energy_edge_keV bins is the same as the actual line energy. 
+        energy_edge_keV bins is the same as the actual line energy.
 
     new_iline: `numpy.ndarray`
         Indices of the spectrum energy bins to which emission from each line corresponds.
-        This includes indices of the neighboring bin emission components. 
+        This includes indices of the neighboring bin emission components.
 
     """
-    # Get widths and centers of the spectrum energy bins. 
+    # Get widths and centers of the spectrum energy bins.
     energy_bin_widths = energy_edges_keV[1:] - energy_edges_keV[:-1]
     energy_centers = energy_edges_keV[:-1] + energy_bin_widths/2
     energy_center_diffs = energy_centers[1:] - energy_centers[:-1]

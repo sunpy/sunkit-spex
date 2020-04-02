@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 import astropy.units as u
 
-from sunxspex.chianti_kev_lines import ChiantiKevLines
+from sunxspex.thermal_spectrum import ChiantiThermalSpectrum
 
 # Define some default input parameters.
 default_EM = 1e44/(u.cm**3)
@@ -12,7 +12,7 @@ energy_edges = np.arange(3, 28.5, 0.5)*u.keV
 dist_scaled_spectrum_unit = u.ph / u.cm**2 / u.s / u.keV
 dist_unscaled_scpectrum_unit = u.ph / u.s / u.keV / u.sr
 
-# Output spectrum from SSW given energy edges from 3 - 28.5 keV in 0.5keV bins with 
+# Output spectrum from SSW given energy edges from 3 - 28.5 keV in 0.5keV bins with
 # no relative abundances and not scaled to the observer distance.
 expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_NotObserverScaled = np.array([
     1.6399155e+25, 3.1898577e+24, 9.9494481e+23, 1.5177821e+23, 5.2238873e+21, 5.7652733e+16,
@@ -64,17 +64,16 @@ expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_earth_20190522 = np.array([
         (np.arange(3, 28.5, 0.5)*u.keV, 6*u.MK, default_EM, None, None, True, "2019-05-22",
         expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_earth_20190522)
     ])
-def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances, 
+def test_chianti_kev_lines(energy_edges, temperature, em, relative_abundances,
                            observer_distance, earth, date, expected_spectrum):
     if earth is True:
-        rtol = 0.03 
+        rtol = 0.03
         atol = 1e-30
     else:
         rtol = 0.005
         atol = 1e-4
-    ckl = ChiantiKevLines()
-    output_spectrum = ckl.chianti_kev_lines(energy_edges, temperature, emission_measure=em,
-                                            relative_abundances=relative_abundances,
-                                            observer_distance=observer_distance, earth=earth, date=date)
+    ckl = ChiantiThermalSpectrum(energy_edges, observer_distance=observer_distance, date=date)
+    output_spectrum = ckl.chianti_kev_lines(temperature, emission_measure=em,
+                                            relative_abundances=relative_abundances)
     output_spectrum = output_spectrum.to(expected_spectrum.unit)
     np.testing.assert_allclose(output_spectrum.value, expected_spectrum.value, rtol=rtol, atol=atol)
