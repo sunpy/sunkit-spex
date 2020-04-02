@@ -18,6 +18,8 @@ EM_UNIT = LENGTH_UNIT**(-3)
 TEMPERATURE_UNIT = u.K
 ENERGY_UNIT = u.keV
 
+__all__ = ['ChiantiThermalSpectrum']
+
 
 class ChiantiThermalSpectrum(Fittable1DModel):
     """
@@ -72,6 +74,21 @@ class ChiantiThermalSpectrum(Fittable1DModel):
             Cannot be set is observer_distance kwarg also set.
             Default=None.
 
+        Notes
+        -----
+        The default CHIANTI data used here is contained within the `sunpy.data.manager` and is collected
+        from `https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav`.
+        If the user would like to use a different file, the default can be overwritten using the context
+        manager `sunpy.data.manager`.
+        For example:
+        >>> import numpy as np
+        >>> from astropy import units as u
+        >>> from sunxspex import thermal_spectrum
+        >>> from sunpy.data import manager
+        >>> energy_bins = np.arange(3, 100, 0.5)*u.keV
+        >>> my_file = "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v70.sav"
+        >>> with manager.override_file("chianti_lines_1_10", uri=my_file): # doctest: +SKIP
+        ...     spec_vals = thermal_spectrum.ChiantiThermalSpectrum(energy_bins) # doctest: +SKIP
         """
         # Load emission line data from CHIANTI file.
         zindex, line_peak_energies, self.line_logT_bins, line_colEMs, \
@@ -165,6 +182,13 @@ class ChiantiThermalSpectrum(Fittable1DModel):
         emission_measure: `astropy.units.Quantity`
             The emission measure of the emitting plasma.
             Default= 1e44 cm**-3
+
+        relative_abundances: `list` of length 2 `tuple`
+            The relative abundances of different elements as a fraction of their
+            nominal abundances which are read in by xr_rd_abundance().
+            Each tuple represents an element.
+            The first item in the tuple gives the atomic number of the element.
+            The second item gives the factor by which to scale the element's abundance.
 
         Returns
         -------
