@@ -10,10 +10,12 @@ from sunpy.io.special.genx import read_genx
 from sunpy.time import parse_time
 from sunpy.data import manager
 
+__all__  = ['chianti_kev_line_common_load_light', 'chianti_kev_line_common_load',
+            'chianti_kev_cont_common_load', 'read_abundance_genx', 'load_xray_abundances']
 
 def chianti_kev_line_common_load_light():
     """
-    Read only X-ray emission line info needed for the chianti_kev_... functions.
+    Read only X-ray emission line info needed for the chianti_kev functions.
 
     Unlike chianti_kev_line_common_load which formats and returns all in the file,
     this function only returns the data required by the ChiantiKevLines class.
@@ -76,7 +78,7 @@ def chianti_kev_line_common_load_light():
 
 def chianti_kev_line_common_load():
     """
-    Read file containing X-ray emission line info needed for the chianti_kev_... functions.
+    Read file containing X-ray emission line info needed for the chianti_kev functions.
 
     Returns
     -------
@@ -172,7 +174,7 @@ def chianti_kev_line_common_load():
                  'aadf4355931b4c241ac2cd5669e89928615dc1b55c9fce49a155b70915a454dd')
 def chianti_kev_cont_common_load(_extra=None):
     """
-    Read X-ray continuum emission info needed for the chianti_kev_... functions.
+    Read X-ray continuum emission info needed for the chianti_kev functions.
 
     Returns
     -------
