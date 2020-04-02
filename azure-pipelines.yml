@@ -38,10 +38,10 @@ jobs:
         name: py38_test_macos
 
       - windows: py37
-        name: py37_test
+        name: py37_win
 
       - linux: py38
-        name: py38_test
+        name: py38_lin
 
       - linux: codestyle
         name: codestyle
