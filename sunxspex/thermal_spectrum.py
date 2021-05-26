@@ -10,21 +10,19 @@ import sunpy.coordinates
 import xarray
 from astropy.table import Table
 
-from sunxspex.io import load_chianti_lines_lite, load_chianti_continuum, load_xray_abundances, chianti_kev_line_common_load_light
-from sunxspex.utils import get_reverse_indices, digitize
+from sunxspex.io import load_chianti_lines_lite, load_chianti_continuum, load_xray_abundances
 
 __all__ = ['ChiantiThermalSpectrum']
 
 
-def define_line_info(filename=None):
-    """
-    Define line intensities as a function of temperature.
+def define_line_parameters(filename=None):
+    """Define line intensities as a function of temperature for calculating line emission.
 
-    Line intensities are set as global variables and used in
+    Line intensities are set as global variables and used in the
     calculation of spectra by other functions in this module. They are in
-    units of per volume emission measure at source, i.e. they must be
-    divided by R**2 to be converted to physical values,
-    where R is the observer distance.
+    units of per unit emission measure at source, i.e. they must be
+    divided by 4 pi R**2 (where R is the observer distance) and
+    multiplied by emission measure to be converted to physical values at the observer.
 
     Line intensities are derived from output from the CHIANTI atomic
     physics database. The default CHIANTI data used here is collected from
@@ -52,14 +50,15 @@ def define_line_info(filename=None):
     _LINE_ATOMIC_NUMBERS = line_info.atomic_number.data
 
 
-def define_continuum_info(filename=None):
+def define_continuum_parameters(filename=None):
     """
     Define continuum intensities as a function of temperature.
 
     Intensities are set as global variables and used in
     calculation of spectra by other functions in this module. They are in
     units of per volume emission measure at source, i.e. they must be
-    divided by observer distance**2 to be converted to physical values.
+    divided by 4 * pi R**2 to be converted to physical values where
+    R**2 is observer distance.
 
     Intensities are derived from output from the CHIANTI atomic physics database.
     The default CHIANTI data used here is collected from
@@ -82,7 +81,7 @@ def define_continuum_info(filename=None):
         CONTINUUM_INTENSITY_PER_EM_AT_SOURCE = load_chianti_continuum()
 
 
-def define_default_abundances():
+def define_default_abundances(filename=None):
     """
     Read default abundance values into global variable.
 
@@ -90,40 +89,66 @@ def define_default_abundances():
     https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/xray_abun_file.genx
     To load data from a different file, see Notes section.
 
-    Notes
-    -----
-    To load abundance data from a specific file, do:
-    >>> from sunpy.data import manager
-    >>> with manager.override_file("xray_abundance", uri=my_file)
-    ...     define_default_abundances()
-
-    where my_file is the location of the file in question.
-    The file must have the same format and structure as the default file.
+    Parameters
+    ----------
+    filename: `str` (optional)
+        URL or file location of the .genx abundance file to be used.
     """
     global DEFAULT_ABUNDANCES
-    DEFAULT_ABUNDANCES = load_xray_abundances()
+    if filename:
+        with manager.override_file("xray_abundance", uri=filename):
+            DEFAULT_ABUNDANCES = load_xray_abundances()
+    else:
+        DEFAULT_ABUNDANCES = load_xray_abundances()
 
 
 # Read line, continuum and abundance data into global variables.
-define_line_info()
-define_continuum_info()
+define_line_parameters()
+define_continuum_parameters()
 define_default_abundances()
 
 
-def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
+def line(energy_edges, temperature, emission_measure,
          abundance_type="sun_coronal", relative_abundances=None,
          observer_distance=(1*u.AU).to(u.cm)):
     """
-    Read in data required by methods of this class.
+    Calculate thermal line emission from the solar corona.
+
+    The emission is calculated as a function of temperature and emission measure.
 
     Parameters
     ----------
     energy_edges: `astropy.units.Quantity`
         The edges of the energy bins in a 1D N+1 quantity.
 
+    temperature: `astropy.units.Quantity`
+        The temperature of the plasma.
+        Can be scalar or 1D of any length. If not scalar, the flux for each temperature
+        will be calculated. The first dimension of the output flux will correspond
+        to temperature.
+
+    emission_measure: `astropy.units.Quantity`
+        The emission measure of the plasma at each temperature.
+        Must be same length as temperature or scalar.
+
+    abundance_type: `str` (optional)
+        Abundance type to use.  Options are:
+            1. cosmic
+            2. sun_coronal - default abundance
+            3. sun_coronal_ext
+            4. sun_hybrid
+            5. sun_hybrid_ext
+            6. sun_photospheric
+            7. mewe_cosmic
+            8. mewe_solar
+        The values for each abundance type is stored in the global
+        variable DEFAULT_ABUNDANCES which is generated by `define_default_abundances`
+        function. To load different default values for each abundance type,
+        see the docstring of that function.
+
     relative_abundances: 2xN array-like
         The relative abundances of different elements as a fraction of their
-        nominal abundances which are read in by xr_rd_abundance().
+        default abundances defined by abundance_type.
         The first axis represents the atomic number of the element.
         The second axis gives the factor by which to scale the element's abundance.
 
@@ -132,23 +157,10 @@ def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         and unit by 1/length.
         Default=1 AU.
 
-    Notes
-    -----
-    CHIANTI File
-
-    The default CHIANTI data used here is contained within the `sunpy.data.manager` and is collected
-    from `https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav`.
-    If the user would like to use a different file, the default can be overwritten using the context
-    manager `sunpy.data.manager`.
-    For example:
-    >>> import numpy as np
-    >>> from astropy import units as u
-    >>> from sunxspex import thermal_spectrum
-    >>> from sunpy.data import manager
-    >>> energy_bins = np.arange(3, 100, 0.5)*u.keV
-    >>> my_file = "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v70.sav"
-    >>> with manager.override_file("chianti_lines_1_10", uri=my_file): # doctest: +SKIP
-    ...     spec_vals = thermal_spectrum.ChiantiThermalSpectrum(energy_bins) # doctest: +SKIP
+    Returns
+    -------
+    flux: `astropy.units.Quantity`
+        The photon flux as a function of temperature and energy.
 
     Intensity Units
 
@@ -174,52 +186,49 @@ def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     n_temperatures = len(temperature_K)
 
     # Find indices of lines within user input energy range.
-    energy_roi_indices = np.logical_and(_LINE_PEAKS_KEV >= energy_edges_keV.min(), _LINE_PEAKS_KEV <= energy_edges_keV.max())
+    energy_roi_indices = np.logical_and(_LINE_PEAKS_KEV >= energy_edges_keV.min(),
+                                        _LINE_PEAKS_KEV <= energy_edges_keV.max())
     n_energy_roi_indices = energy_roi_indices.sum()
     # If there are line within energy range of interest, compile spectrum.
     if n_energy_roi_indices > 0:
-        #energy_roi_indices = np.arange(len(_LINE_PEAKS_KEV))[energy_roi_indices]
-        # Restrict energy bins of lines to energy range of interest.
-        line_peaks_keV = _LINE_PEAKS_KEV[energy_roi_indices]
-
+        #####  Calculate Abundances #####
         # Calculate abundance of each desired element.
-        n_abundances = len(DEFAULT_ABUNDANCES)
-        abundance_mask = np.zeros(n_abundances, dtype=bool)
-        abundance_mask[_LINE_ELEMENT_IDX] = True
+        default_abundances = DEFAULT_ABUNDANCES[abundance_type].data
+        n_abundances = len(default_abundances)
         rel_abund_values = np.ones(n_abundances)
         if relative_abundances:
             # First axis of relative_abundances is atomic number, i.e == index + 1
             # Second axis is relative abundance value.
             rel_abund_values[relative_abundances[0]-1] = relative_abundances[1]
-        abundances = DEFAULT_ABUNDANCES[abundance_type].data * rel_abund_values * abundance_mask
+        abundance_mask = np.zeros(n_abundances, dtype=bool)
+        abundance_mask[_LINE_ELEMENT_IDX] = True
+        abundances = default_abundances * rel_abund_values * abundance_mask
         # Extract only lines within energy range of interest.
         line_abundances = abundances[_LINE_ATOMIC_NUMBERS[energy_roi_indices] - 2]
         # Above magic number of of -2 is comprised of:
         # a -1 to account for the fact that index is atomic number -1, and
         # another -1 because abundance index is offset from element index by 1.
 
-        #return temperature_K, energy_roi_indices
-
-        # Calculate abundance-normalized intensity of each line in energy range of interest
-        # as a function of energy and temperature.
-        #logT = np.log10(temperature_K)
-        #data_grid = _LINE_INTENSITY_PER_EM_AT_SOURCE[energy_roi_indices]
-        #line_logT_bins = _LINE_LOGT
-        #line_intensities = _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_bins)
-        line_intensities = _calculate_abundance_normalized_line_intensities(np.log10(temperature_K), _LINE_INTENSITY_PER_EM_AT_SOURCE[energy_roi_indices], _LINE_LOGT)
-        #line_intensities = _calculate_abundance_normalized_line_intensities(
-        #    np.log10(temperature_K),
-        #    LINE_INTENSITY_PER_EM_AT_SOURCE.data[energy_roi_indices],
-        #    LINE_INTENSITY_PER_EM_AT_SOURCE.logT.data)
+        ##### Calculate Line Intensities in Input Energy Range #####
+        # Calculate abundance-normalized intensity of each line in energy range of
+        # interest as a function of energy and temperature.
+        line_intensity_grid = _LINE_INTENSITY_PER_EM_AT_SOURCE[energy_roi_indices]
+        line_intensities = _calculate_abundance_normalized_line_intensities(
+            np.log10(temperature_K), line_intensity_grid, _LINE_LOGT)
         # Scale line intensities by abundances to get true line intensities.
-        line_intensities = line_intensities * line_abundances
+        line_intensities *= line_abundances
 
-        # Split emission of each line between nearest neighboring spectral bins in proportion
-        # such that the line centroids appear at the correct energy, despite the binning.
-        # This has the effect of "doubling" the number of lines as regards the dimensionality
-        # of the line_intensities array.
-        split_line_intensities, line_spectrum_bins = _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, line_intensities)
+        ##### Weight Line Emission So Peak Energies Maintained Within Input Energy Binning #####
+        # Split emission of each line between nearest neighboring spectral bins in
+        # proportion such that the line centroids appear at the correct energy
+        # when average over neighboring bins.
+        # This has the effect of appearing to double the number of lines as regards
+        # the dimensionality of the line_intensities array.
+        line_peaks_keV = _LINE_PEAKS_KEV[energy_roi_indices]
+        split_line_intensities, line_spectrum_bins = _weight_emission_bins_to_line_centroid(
+            line_peaks_keV, energy_edges_keV, line_intensities)
    
+        #### Calculate Flux #####
         # Use binned_statistic to determine which spectral bins contain
         # components of line emission and sum over those line components
         # to get the total emission is each spectral bin.
@@ -227,260 +236,14 @@ def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     else:
         flux = np.zeros((n_temperatures, n_energy_bins))
     
-    # Scale flux by observer distance and emission measure and put into correct units.
+    # Scale flux by observer distance, emission measure and spectral bin width
+    # and put into correct units.
     energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) * u.keV
     flux = (flux * _LINE_INTENSITY_UNIT * emission_measure / (energy_bin_widths * 4 * np.pi * observer_distance**2))
-    if temperature.isscalar:
+    if temperature.isscalar and emission_measure.isscalar:
         flux = flux[0]
 
     return flux
-
-
-class ChiantiThermalSpectrum:
-    """
-    Class for evaluating solar X-ray thermal spectrum using CHIANTI data.
-    """
-    @u.quantity_input(energy_edges=u.keV)
-    def __init__(self, energy_edges,
-                 abundance_type=None,
-                 observer_distance=1*u.AU, date=None):
-        """
-        Read in data required by methods of this class.
-
-        Parameters
-        ----------
-        energy_edges: `astropy.units.Quantity`
-            The edges of the energy bins in a 1D N+1 quantity.
-
-        abundance_type: `str`
-            Type of abundance to be read from file.  Option are (From Chianti)
-            1. cosmic
-            2. sun_coronal - default abundance
-            3. sun_coronal_ext
-            4. sun_hybrid
-            5. sun_hybrid_ext
-            6. sun_photospheric
-            7. mewe_cosmic
-            8. mewe_solar - default for mewe_kev
-
-        observer_distance: `astropy.units.Quantity` (Optional)
-            The distance between the source and the observer. Scales output to observer distance
-            and unit by 1/length.
-            If None, output represents value at source and unit will have an extra length component.
-            Default=1 AU
-
-        date: `astropy.time.Time` for parseable by `sunpy.time.parse_time` (Optional)
-            The date for which the Sun-Earth distance is to be calculated.
-            Cannot be set is observer_distance kwarg also set.
-            Default=None.
-
-        Notes
-        -----
-        The default CHIANTI data used here is contained within the `sunpy.data.manager` and is collected
-        from `https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav`.
-        If the user would like to use a different file, the default can be overwritten using the context
-        manager `sunpy.data.manager`.
-        For example:
-        >>> import numpy as np
-        >>> from astropy import units as u
-        >>> from sunxspex import thermal_spectrum
-        >>> from sunpy.data import manager
-        >>> energy_bins = np.arange(3, 100, 0.5)*u.keV
-        >>> my_file = "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v70.sav"
-        >>> with manager.override_file("chianti_lines_1_10", uri=my_file): # doctest: +SKIP
-        ...     spec_vals = thermal_spectrum.ChiantiThermalSpectrum(energy_bins) # doctest: +SKIP
-        """
-        # Define energy bins on which spectrum will be calculated.
-        self.energy_edges_keV = energy_edges.to(u.keV).value
-
-        # Set observer_distance.
-        if observer_distance is None:
-            if date is None:
-                self.observer_distance = 1
-            else:
-                self.observer_distance = sunpy.coordinates.get_sunearth_distance(time=date).to(u.cm)
-        else:
-            if date is not None:
-                raise ValueError("Conflicting inputs. "
-                                 "observer_distance and data kwargs cannot both be set.")
-            self.observer_distance = observer_distance.to(u.cm)
-
-        # Load emission line data from CHIANTI file.
-        self.zindex, line_peak_energies, self.line_logT_bins, self.line_colEMs, \
-            self.line_element_indices, self.line_intensities_per_solid_angle_grid = \
-            chianti_kev_line_common_load_light()
-        self.line_peaks_keV = line_peak_energies.to(u.keV).value
-
-        # Load default abundances.
-        self.default_abundances = load_xray_abundances(abundance_type=abundance_type)
-        # Create mask to select only elements that produce line emission as defined by zindex.
-        self.n_default_abundances = len(self.default_abundances)
-        self.abundances_mask = np.zeros(self.n_default_abundances)[self.zindex] = 1.0
-
-        # Calculate line intensities accounting for observer_distance.
-        # The line intensities read from file are in units of ph / cm**2 / s / sr.
-        # Therefore they are specific intensities, i.e. per steradian, or solid angle.
-        # Here, let us call these intensities, intensity_per_solid_angle.
-        # The solid angle is given by flare_area / observer_distance**2.
-        # Total integrated intensity can be rewritten in terms of volume EM and solid angle:
-        # intensity == intensity_per_solid_angle_per_volEM * volEM * solid_angle ==
-        # == intensity_per_solid_angle / (colEM * flare_area) * (flare_area / observer_dist**2) * volEM ==
-        # == intensity_per_solid_angle / colEM / observer_dist**2 * volEM
-        # i.e. flare area cancels. Therefore:
-        # intensity = intensity_per_solid_angle / colEM / observer_dist**2 * volEM,
-        # or, dividing both sides by volEM,
-        # intensity_per_volEM = intensity_per_solid_angle / colEM / observer_dist**2
-        # Here, let us calculate intensity_per_volEM and
-        # scale by the flare volume EM supplied by the user later.
-        # Note that the column emission measure used by CHIANTI in calculating the intensities
-        # is available from the file as self.line_colEMs.
-        # Also noote that as part of this calculation, the steradian unit must be canceled manually.
-        if isinstance(self.observer_distance, u.Quantity):
-            self.line_intensities_per_volEM_grid = \
-                self.line_intensities_per_solid_angle_grid / self.line_colEMs / \
-                self.observer_distance**2 * u.sr
-        else:
-            self.line_intensities_per_volEM_grid = \
-                self.line_intensities_per_solid_angle_grid / self.line_colEMs
-        self.line_intensities_per_volEM_unit = self.line_intensities_per_volEM_grid.unit
-        self.line_intensities_per_volEM_grid_values = self.line_intensities_per_volEM_grid.value
-
-    @u.quantity_input(temperature=u.K, emission_measure=1/u.cm**3)
-    def chianti_kev_lines(self, temperature, emission_measure=1e44/u.cm**3, relative_abundances=None, **kwargs):
-        """
-        Returns a thermal spectrum (line + continuum) given temperature and emission measure.
-
-        Uses a database of line and continua spectra obtained from the CHIANTI distribution
-
-        Parameters
-        ----------
-        temperature: `astropy.units.Quantity`
-            The electron temperature of the plasma.
-
-        emission_measure: `astropy.units.Quantity`
-            The emission measure of the emitting plasma.
-            Default= 1e44 cm**-3
-
-        relative_abundances: `list` of length 2 `tuple`
-            The relative abundances of different elements as a fraction of their
-            nominal abundances which are read in by xr_rd_abundance().
-            Each tuple represents an element.
-            The first item in the tuple gives the atomic number of the element.
-            The second item gives the factor by which to scale the element's abundance.
-
-        Returns
-        -------
-        Flux: `astropy.units.Quantity`
-
-        Notes
-        -----
-        Explanation of Chianti units & emission measure (Ken Phillips, June 17, 2004):
-
-        Output of Chianti ch_ss units are in photons (or ergs) cm-2 s-1 A-1 sr-1, i.e.
-        the output is a specific intensity (not a flux as it is per solid angle).
-        Suppose specific intensity at some wavelength is F_lam for a
-        *surface* emission measure = 10^27 cm^-5 (this is the ch_ss default).
-
-        Let a flare on the sun have area A (cm^2). Its solid angle at earth is A/(au)^2.
-
-        Therefore flux_lam = F_lam * A / (au)^2
-
-        The flare *volume* emission measure corresponding to the 10^27 surface EM is A * 10^27 cm^-3.
-
-        So flux per unit volume EM (Ne^2 V = 1) is
-
-        F_lam * A/(au)^2 * 1/(10^27 A) = F_lam / (10^27 [au]^2) = 4.44e-54 * F_lam
-        (log(4.44e-54) = -53.35)
-
-        Note the A's cancel out.
-
-        So if you want to generate a *volume* EM = 10^49 cm^-3 from ch_ss,
-        put in a value of log(*surface* EM) = 27.0 + 49.0 -  53.35 = 22.648
-
-        The units of the spectrum will then be standard flux units, i.e. photons cm^2 s^-1 A^-1,
-        without any steradian units.
-
-        You can then convert fluxes to ph. Cm^2 s^-1 keV-1 by just multiplying
-        by (lambda in A)^2 / 12.399 [or 12.399/(energy in keV)^2] and
-        wavelength to energy by wavelength = 12.399/energy in keV.
-
-        """
-        # Format relative abundances.
-        if relative_abundances is not None:
-            relative_abundances = Table(rows=relative_abundances,
-                                        names=("atomic number", "relative abundance"),
-                                        meta={"description": "relative abundances"},
-                                        dtype=(int, float)) # There should be a way to not initiate a Table here or should be a version of this method that doesn't
-
-        # For ease of calculation, convert inputs to known units and
-        # scale to manageable numbers.
-        temperature_K = temperature.to(u.K).value
-        em_unit = (1/u.cm**3).unit
-        emission_measure_cm = emission_measure.to(em_unit).value
-
-        try:
-            n_temperatures = len(temperature_K)
-        except TypeError:
-            n_temperatures = 1
-        n_energy_bins = len(self.energy_edges_keV)-1
-
-        # Define array to hold emission at each energy and temperature.
-        spectrum = np.zeros((n_temperatures, n_energy_bins))
-
-        # Find indices of line energy bins within user input energy range.
-        energy_roi_indices = np.logical_and(self.line_peaks_keV >= self.energy_edges_keV.min(),
-                                            self.line_peaks_keV <= self.energy_edges_keV.max())
-        n_energy_roi_indices = energy_roi_indices.sum()
-        energy_roi_indices = np.arange(len(self.line_peaks_keV))[energy_roi_indices]
-
-        # If there are line within energy range of interest, compile spectrum.
-        if n_energy_roi_indices > 0:
-            # Restrict energy bins of lines to energy range of interest.
-            line_peaks_keV = self.line_peaks_keV[energy_roi_indices]
-
-            # Calculate abundance of each desired element.
-            # First, define ratios by which to scale relative abundances
-            # which account for relative_abundances.
-            abundance_ratios = np.ones(self.n_default_abundances)
-            if relative_abundances is not None:
-                abundance_ratios[relative_abundances["atomic number"]-1] = relative_abundances["relative abundance"]
-            # Third, multiply default abundances by abundance ratios and mask to get true abundances.
-            abundances = self.default_abundances * abundance_ratios * self.abundances_mask
-            # Finally, extract only lines within energy range of interest.
-            abundances = abundances[self.line_element_indices[energy_roi_indices]-1]
-
-            # Calculate abundance-normalized intensity of each line in energy range of interest
-            # as a function of energy and temperature.
-            line_intensities = _chianti_kev_getp(
-                    np.log10(temperature_K),
-                    self.line_intensities_per_volEM_grid_values[energy_roi_indices],
-                    self.line_logT_bins)
-            # Scale line_intensities by abundances to get true line_intensities.
-            line_intensities = line_intensities * abundances
-
-            # Reweight the emission in bins around the line centroids
-            # so they appear at the correct energy, despite the binning.
-            line_intensities, iline = _weight_emission_bins_to_line_centroid(line_peaks_keV, self.energy_edges_keV, line_intensities)
-
-            # Determine which spectrum energy bins contain components of line emission.
-            # Sum over those line components to get total emission in each spectrum energy bin.
-            spectrum_bins_line_energy_indices = get_reverse_indices(iline, nbins=n_energy_bins, min_range=0, max_range=n_energy_bins-1)[1]
-            emitting_energy_bin_indices = np.where(np.histogram(iline, bins=n_energy_bins, range=(0, n_energy_bins-1))[0] > 0)[0]
-
-            if len(emitting_energy_bin_indices) > 0:
-                for i in emitting_energy_bin_indices:
-                    spectrum[:, i] = np.sum(line_intensities[:, spectrum_bins_line_energy_indices[i]], axis=1)
-
-        # Eliminate redundant axes, scale units to observer distance and put into correct units.
-        energy_bin_widths = self.energy_edges_keV[1:] - self.energy_edges_keV[:-1]
-        spectrum = (spectrum.squeeze() * self.line_intensities_per_volEM_unit) / \
-            (energy_bin_widths * u.keV) * (emission_measure_cm * em_unit)
-
-        return spectrum
-
-    def chianti_kev_cont():
-        raise NotImplementedError()
-
 
 def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_bins):
     """
@@ -546,8 +309,6 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
         interpolated_data[i, :] = get_intensities_at_logT(logT[i]).squeeze()[:]
 
     return interpolated_data
-
-_chianti_kev_getp = _calculate_abundance_normalized_line_intensities
 
 
 def _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, line_intensities):
