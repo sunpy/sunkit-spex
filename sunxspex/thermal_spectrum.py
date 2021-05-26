@@ -11,7 +11,7 @@ import xarray
 from astropy.table import Table
 
 from sunxspex.io import load_chianti_lines_lite, load_chianti_continuum, load_xray_abundances, chianti_kev_line_common_load_light
-from sunxspex.utils import get_reverse_indices, binned_sum
+from sunxspex.utils import get_reverse_indices, digitize
 
 __all__ = ['ChiantiThermalSpectrum']
 
@@ -160,10 +160,11 @@ def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     # For ease of calculation, convert inputs to known units and structures.
     energy_edges_keV = energy_edges.to_value(u.keV)
     n_energy_bins = len(energy_edges_keV)-1
-    line_peaks_keV = u.Quantity(
-        LINE_INTENSITY_PER_EM_AT_SOURCE.peak_energy.data,
-        unit=LINE_INTENSITY_PER_EM_AT_SOURCE.attrs["units"]["peak_energy"])
-    line_peaks_keV = line_peaks_keV.to_value(u.keV, equivalencies=u.spectral())
+    #line_peaks_keV = u.Quantity(
+    #    LINE_INTENSITY_PER_EM_AT_SOURCE.peak_energy.data,
+    #    unit=LINE_INTENSITY_PER_EM_AT_SOURCE.attrs["units"]["peak_energy"])
+    #line_peaks_keV = line_peaks_keV.to_value(u.keV, equivalencies=u.spectral())
+    line_peaks_keV = LINE_INTENSITY_PER_EM_AT_SOURCE.peak_energy.data
     temperature_K = temperature.to_value(u.K)
     if temperature.isscalar:
         temperature_K = np.array([temperature_K])
@@ -195,12 +196,18 @@ def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         # a -1 to account for the fact that element index is atomic number -1, and
         # another -1 because abundance index is offset from element index by 1.
 
+        #return temperature_K, energy_roi_indices
+
         # Calculate abundance-normalized intensity of each line in energy range of interest
         # as a function of energy and temperature.
-        line_intensities = _calculate_abundance_normalized_line_intensities(
-            np.log10(temperature_K),
-            LINE_INTENSITY_PER_EM_AT_SOURCE.data[energy_roi_indices],
-            LINE_INTENSITY_PER_EM_AT_SOURCE.logT.data)
+        logT = np.log10(temperature_K)
+        data_grid = LINE_INTENSITY_PER_EM_AT_SOURCE.data[energy_roi_indices]
+        line_logT_bins = LINE_INTENSITY_PER_EM_AT_SOURCE.logT.data
+        line_intensities = _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_bins)
+        #line_intensities = _calculate_abundance_normalized_line_intensities(
+        #    np.log10(temperature_K),
+        #    LINE_INTENSITY_PER_EM_AT_SOURCE.data[energy_roi_indices],
+        #    LINE_INTENSITY_PER_EM_AT_SOURCE.logT.data)
         # Scale line intensities by abundances to get true line intensities.
         line_intensities = line_intensities * line_abundances
 
@@ -224,8 +231,8 @@ def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     flux = (flux * LINE_INTENSITY_PER_EM_AT_SOURCE.attrs["units"]["data"]
             / (energy_bin_widths * 4 * np.pi * observer_distance**2) 
             * emission_measure)
-    #if temperature.isscalar:
-    #    flux = flux[0]
+    if temperature.isscalar:
+        flux = flux[0]
 
     return flux
 
@@ -493,7 +500,7 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
 
     Parameters
     ----------
-    logT: `float` or 1D `numpy.ndarray` of `float`.
+    logT: 1D `numpy.ndarray` of `float`.
         The input value along the 2nd axis at which the line intensities are desired.
         If multiple values given, the calculation is done for each and the
         output array has an extra dimension.
@@ -516,11 +523,7 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
 
     """
     # Ensure input temperatures are in an array to consistent manipulation.
-    try:
-        n_temperatures = len(logT)
-    except TypeError:
-        logT = np.array([logT])
-        n_temperatures = 1
+    n_temperatures = len(logT)
 
     # Get bins in which input temperatures belong.
     temperature_bins = np.digitize(logT, line_logT_bins)-1
@@ -602,11 +605,10 @@ def _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, lin
     # the center of the spectrum energy bin to which is corresponds.
     line_deviations_keV = line_peaks_keV - energy_centers[iline]
     # Get the indices of the lines which are above and below their bin center.
-    line_deviation_bin_indices = get_reverse_indices(line_deviations_keV, nbins=10,
-                                                     min_range=-10., max_range=10.)[1]
-    neg_deviation_indices, pos_deviation_indices = tuple(
-        np.array(line_deviation_bin_indices, dtype=object)[
-            np.where(np.array([len(ri) for ri in line_deviation_bin_indices]) > 0)[0]])
+    neg_deviation_indices, = np.where(line_deviations_keV < 0)
+    pos_deviation_indices, = np.where(line_deviations_keV >= 0)
+    # Discard bin indices at the edge of the spectral range if they should
+    # be shared with a bin outside the energy range.
     neg_deviation_indices = neg_deviation_indices[np.where(iline[neg_deviation_indices] > 0)[0]]
     pos_deviation_indices = pos_deviation_indices[
         np.where(iline[pos_deviation_indices] <= (len(energy_edges_keV)-2))[0]]
