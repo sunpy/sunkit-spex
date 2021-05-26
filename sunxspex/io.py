@@ -2,41 +2,119 @@ import os.path
 import glob
 from collections import OrderedDict
 
-import numpy as np
 import astropy.units as u
-from astropy.table import Table, Column
+import numpy as np
 import scipy.io
+import xarray
+from astropy.table import Table, Column
 from sunpy.io.special.genx import read_genx
 from sunpy.time import parse_time
 from sunpy.data import manager
 
-__all__  = ['chianti_kev_line_common_load_light', 'chianti_kev_line_common_load',
-            'chianti_kev_cont_common_load', 'read_abundance_genx', 'load_xray_abundances']
+__all__  = ['load_chianti_lines_lite', 'chianti_kev_line_common_load_light', 'chianti_kev_cont_common_load',
+            'read_abundance_genx', 'load_xray_abundances']
+
+
+@manager.require('chianti_lines',
+                 ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav'],
+                  '2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677')
+def load_chianti_lines_lite():
+    """
+    Read X-ray emission line info from an IDL sav file produced by CHIANTI.
+
+    This function does not read all data in the file, but only that required to calculate the
+    observed X-ray spectrum.
+
+    Returns
+    -------
+    line_intensities_at_source: `xarray.DataArray`
+        Intensities of each of each line as a function of temperature and
+        associated metadata and coordinates.
+
+    Notes
+    -----
+    By default, this function uses reads the file located at
+    https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav.
+    To read a different file call this function in the following way:
+    >>> from sunpy.data import manager
+    >>> with manager.override_file("chianti_lines", uri=filename):
+            line_info = load_chianti_lines_light()
+
+    where filename is the location of the file to be read.
+    """
+    # Read linefile
+    linefile = manager.get('chianti_lines')
+    contents = scipy.io.readsav(linefile)
+    out = contents["out"]
+
+    # Define units
+    wvl_units = _clean_units(out["WVL_UNITS"])
+    int_units = _clean_units(out["INT_UNITS"])
+    energy_unit = u.keV
+
+    # Extract line info and convert from wavelength to energy.
+    line_intensities = []
+    line_elements = []
+    line_peak_energies = []
+    for j, lines in enumerate(out["lines"]):
+        # Extract line element index and peak energy.
+        line_elements.append(lines["IZ"] + 1)  #TODO: Confirm lines["IZ"] is indeed atomic number - 1
+        line_peak_energies.append(u.Quantity(lines["WVL"], unit=wvl_units).to(
+            energy_unit, equivalencies=u.spectral()))
+        # Sort line info in ascending energy.
+        ordd = np.argsort(np.array(line_peak_energies[j]))
+        line_elements[j] = line_elements[j][ordd]
+        line_peak_energies[j] = line_peak_energies[j][ordd]
+        # Extract line intensities.
+        line_intensities.append(_extract_line_intensities(lines["INT"][ordd]) * int_units)
+
+    # If there is only one element in the line properties, unpack values.
+    if len(out["lines"]) == 1:
+        line_elements = line_elements[0]
+        line_peak_energies = line_peak_energies[0]
+        line_intensities = line_intensities[0]
+
+    # Normalize line intensities by EM and integrate over whole sky to get intensity at source.
+    # This means that physical intensities can be calculated by dividing by
+    # 4 * pi * R**2 where R is the observer distance.
+    line_colEMs = 10.**_clean_array_dims(out["LOGEM_ISOTHERMAL"]) / u.cm**5
+    line_intensities /= line_colEMs
+    line_intensities *= 4 * np.pi * u.sr
+
+    # Put data into intuitive structure and return it.
+    line_intensities_at_source = xarray.DataArray(
+        line_intensities.value,
+        dims=["lines", "temperature"],
+        coords={"logT": ("temperature", _clean_array_dims(out["LOGT_ISOTHERMAL"])),
+                "peak_energy": ("lines", line_peak_energies),
+                "atomic_number": ("lines", line_elements)},
+        attrs={"units": {"data": line_intensities.unit,
+                         "peak_energy": line_peak_energies.unit},
+               "file": linefile,
+               "element_index": contents["zindex"],
+               "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])})
+
+    return line_intensities_at_source
+
+
 
 def chianti_kev_line_common_load_light():
     """
     Read only X-ray emission line info needed for the chianti_kev functions.
-
     Unlike chianti_kev_line_common_load which formats and returns all in the file,
     this function only returns the data required by the ChiantiKevLines class.
-
     Returns
     -------
     zindex: `numpy.ndarray`
         Indicies of elements as they appear in periodic table.
-
     line_peak_energies: `astropy.units.Quantity` of `list` of `astropy.units.Quantity`
         The energies of the line peaks.
-
     line_logT_bins: `numpy.ndarray` or `list` of `numpy.ndarray`
         The log10 temperature bins over which the line intensities are known.
-
     line_colEMs: `astropy.units.Quantity` of `list` of `astropy.units.Quantity`
         The column emission measures used to calculate the intensities for each line.
-
     line_element_indices: `numpy.ndarray` or `list` of `numpy.ndarray`
         The atomic number of each line minus 1.
-
     line_intensities: `astropy.units.Quantity`
         Intensities of each of the lines in line_properties over a temperature axis.
         The array is 2D with axes of (line, temperature axis)
@@ -76,7 +154,7 @@ def chianti_kev_line_common_load_light():
         line_intensities
 
 
-def chianti_kev_line_common_load():
+def load_chianti_lines():
     """
     Read file containing X-ray emission line info needed for the chianti_kev functions.
 
@@ -169,38 +247,54 @@ def chianti_kev_line_common_load():
     return zindex, line_meta, line_properties, line_intensities * line_meta["INT_UNITS"]
 
 
-@manager.require('chianti_cont_1_250',
+@manager.require('chianti_continuum',
                  ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav'],
                  'aadf4355931b4c241ac2cd5669e89928615dc1b55c9fce49a155b70915a454dd')
-def chianti_kev_cont_common_load(_extra=None):
+def load_chianti_continuum():
     """
-    Read X-ray continuum emission info needed for the chianti_kev functions.
+    Read X-ray continuum emission info from an IDL sav file produced by CHIANTI
 
     Returns
     -------
-    zindex: `numpy.ndarray`
-        Indicies of elements as they appear in periodic table.
-    continuum_properties: `dict`
-        Properties of continuum emission.
-    """
-    contfile = manager.get("chianti_cont_1_250")
-    # Read file
-    contents = scipy.io.readsav(contfile)
-    zindex = contents["zindex"]
-    edge_str = {
-            "CONVERSION": _clean_array_dims(contents["edge_str"]["CONVERSION"]),
-            "WVL": _clean_array_dims(contents["edge_str"]["WVL"]),
-            "WVLEDGE": _clean_array_dims(contents["edge_str"]["WVLEDGE"])
-                }
-    continuum_properties = {
-            "totcont": contents["totcont"],
-            "totcont_lo": contents["totcont_lo"],
-            "edge_str": edge_str,
-            "ctemp": contents["ctemp"],
-            "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
-                            }
+    continuum_intensities: `xarray.DataArray`
+        Continuum intensity as a function of element, temperature and energy/wavelength
+        and associated metadata and coordinates.
 
-    return zindex, continuum_properties
+    Notes
+    -----
+    By default, this function uses reads the file located at
+    https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav
+    To read a different file call this function in the following way:
+    >>> from sunpy.data import manager
+    >>> with manager.override_file("chianti_continuum", uri=filename):
+            line_info = load_chianti_lines_light()
+    
+    where filename is the location of the file to be read.
+    """
+    # Define units
+    intensity_unit = u.ph / (u.cm**2 * u.s * u.sr)
+    temperature_unit = u.K
+    wave_unit = u.AA
+    # Read file
+    contfile = manager.get("chianti_continuum")
+    contents = scipy.io.readsav(contfile)
+    # Concatenate low and high wavelength intensity arrays.
+    intensities = np.concatenate((contents["totcont"], contents["totcont_lo"]), axis=-1)
+    # Put file data into intuitive structure and return data.
+    continuum_intensities = xarray.DataArray(
+        intensities,
+        dims=["element_index", "temperature", "wavelength"],
+        coords={"element_index": contents["zindex"],
+                "temperature": contents["ctemp"],
+                "wavelength": _clean_array_dims(contents["edge_str"]["WVL"])},
+        attrs={"units": {"data": intensity_unit,
+                         "temperature": temperature_unit,
+                         "wavelength": wave_unit},
+               "file": contfile,
+               "wavelength_edges": _clean_array_dims(contents["edge_str"]["WVLEDGE"]) * wave_unit,
+               "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
+               })
+    return continuum_intensities
 
 
 @manager.require('xray_abundances',
@@ -242,8 +336,15 @@ def load_xray_abundances(abundance_type=None):
     xray_abundance_file = manager.get("xray_abundances")
     # Read file
     contents = read_abundance_genx(xray_abundance_file)
-    # Extract relevant abundance type
-    abundances = contents[abundance_type]
+    # Restructure data into an easier form.
+    try:
+        header = contents.pop("header")
+    except KeyError:
+        header = None
+    n_elements = len(contents[list(contents.keys())[0]])
+    columns = [np.arange(1, n_elements+1)] + list(contents.values())
+    names = ["atomic number"] + list(contents.keys())
+    abundances = Table(columns, names=names)
 
     return abundances
 
@@ -262,16 +363,13 @@ def read_abundance_genx(filename):
     return output
 
 
-@manager.require('chianti_lines_1_10',
+@manager.require('chianti_lines',
                  ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav'],
                   '2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677')
 def _read_linefile():
-    linefile = manager.get('chianti_lines_1_10')
+    linefile = manager.get('chianti_lines')
     # Read file
     contents = scipy.io.readsav(linefile)
-    zindex = contents["zindex"]
-    out = contents["out"]
-
     return contents
 
 
