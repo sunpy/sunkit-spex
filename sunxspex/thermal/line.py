@@ -1,18 +1,13 @@
-import os.path
 import copy
 
 import numpy as np
 import astropy.units as u
 import scipy.interpolate
 import scipy.stats
-import sunpy.coordinates
 
-import xarray
-from astropy.table import Table
+from sunxspex.io import load_chianti_lines_lite, load_xray_abundances
 
-from sunxspex.io import load_chianti_lines_lite, load_chianti_continuum, load_xray_abundances
-
-__all__ = ['ChiantiThermalSpectrum']
+__all__ = ['line_emission']
 
 
 def define_line_parameters(filename=None):
@@ -50,37 +45,6 @@ def define_line_parameters(filename=None):
     _LINE_ATOMIC_NUMBERS = line_info.atomic_number.data
 
 
-def define_continuum_parameters(filename=None):
-    """
-    Define continuum intensities as a function of temperature.
-
-    Intensities are set as global variables and used in
-    calculation of spectra by other functions in this module. They are in
-    units of per volume emission measure at source, i.e. they must be
-    divided by 4 * pi R**2 to be converted to physical values where
-    R**2 is observer distance.
-
-    Intensities are derived from output from the CHIANTI atomic physics database.
-    The default CHIANTI data used here is collected from
-    `https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav`.
-    This includes contributions from thermal bremsstrahlung and tw-photon interactions.
-    To use a different file, provide the URL/file location via the filename kwarg,
-    e.g. to include only thermal bremsstrahlung, set the filename kwarg to 
-    'https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v70_no2photon.sav'
-
-    Parameters
-    ----------
-    filename: `str` (optional)
-        URL or file location of the CHIANTI IDL save file to be used.
-    """
-    global CONTINUUM_INTENSITY_PER_EM_AT_SOURCE
-    if filename:
-        with manager.override_file("chianti_continuum", uri=filename):
-            CONTINUUM_INTENSITY_PER_EM_AT_SOURCE = load_chianti_continuum()
-    else:
-        CONTINUUM_INTENSITY_PER_EM_AT_SOURCE = load_chianti_continuum()
-
-
 def define_default_abundances(filename=None):
     """
     Read default abundance values into global variable.
@@ -104,13 +68,19 @@ def define_default_abundances(filename=None):
 
 # Read line, continuum and abundance data into global variables.
 define_line_parameters()
-define_continuum_parameters()
 define_default_abundances()
 
 
-def line(energy_edges, temperature, emission_measure,
-         abundance_type="sun_coronal", relative_abundances=None,
-         observer_distance=(1*u.AU).to(u.cm)):
+@u.quantity_input(energy_edges=u.keV,
+                  temperature=u.K,
+                  emission_measure=(u.cm**(-3), u.cm**(-5)),
+                  observer_distance=u.cm)
+def line_emission(energy_edges,
+                  temperature,
+                  emission_measure,
+                  abundance_type="sun_coronal",
+                  relative_abundances=None,
+                  observer_distance=(1*u.AU).to(u.cm)):
     """
     Calculate thermal line emission from the solar corona.
 
@@ -161,21 +131,6 @@ def line(energy_edges, temperature, emission_measure,
     -------
     flux: `astropy.units.Quantity`
         The photon flux as a function of temperature and energy.
-
-    Intensity Units
-
-    The line intensities read from the CHIANTI file are in units of ph / cm**2 / s / sr.
-    Therefore they are specific intensities, i.e. per steradian, or solid angle.
-    Here, let us call these intensities, intensity_per_solid_angle.
-    The solid angle is given by flare_area / observer_distance**2.
-    Total integrated intensity can be rewritten in terms of volume EM and solid angle:
-    intensity = intensity_per_solid_angle_per_volEM * volEM * solid_angle
-              = intensity_per_solid_angle / (colEM * flare_area) * (flare_area / observer_dist**2) * volEM
-              = intensity_per_solid_angle / colEM / observer_dist**2 * volEM
-    i.e. flare area cancels. Therefore:
-    intensity = intensity_per_solid_angle / colEM / observer_dist**2 * volEM,
-    or, dividing both sides by volEM,
-    intensity_per_volEM = intensity_per_solid_angle / colEM / observer_dist**2
     """
     # For ease of calculation, convert inputs to known units and structures.
     energy_edges_keV = energy_edges.to_value(u.keV)
@@ -232,18 +187,21 @@ def line(energy_edges, temperature, emission_measure,
         # Use binned_statistic to determine which spectral bins contain
         # components of line emission and sum over those line components
         # to get the total emission is each spectral bin.
-        flux = scipy.stats.binned_statistic(line_spectrum_bins, split_line_intensities, "sum", n_energy_bins, (0, n_energy_bins-1)).statistic
+        flux = scipy.stats.binned_statistic(line_spectrum_bins, split_line_intensities,
+                                            "sum", n_energy_bins, (0, n_energy_bins-1)).statistic
     else:
         flux = np.zeros((n_temperatures, n_energy_bins))
     
     # Scale flux by observer distance, emission measure and spectral bin width
     # and put into correct units.
     energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) * u.keV
-    flux = (flux * _LINE_INTENSITY_UNIT * emission_measure / (energy_bin_widths * 4 * np.pi * observer_distance**2))
+    flux = (flux * _LINE_INTENSITY_UNIT * emission_measure /
+            (energy_bin_widths * 4 * np.pi * observer_distance**2))
     if temperature.isscalar and emission_measure.isscalar:
         flux = flux[0]
 
     return flux
+
 
 def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_bins):
     """

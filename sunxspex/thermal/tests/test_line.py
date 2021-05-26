@@ -3,7 +3,7 @@ import astropy.units as u
 import numpy as np
 import pytest
 
-from sunxspex.thermal_spectrum import line
+from sunxspex.thermal.line import line_emission
 
 energy_edges = np.arange(3, 28.5, 0.5) * u.keV
 default_T = 6 * u.MK
@@ -37,7 +37,7 @@ expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_earth_20190522 = np.array([
     0.0000000,       0.0000000]) * dist_scaled_spectrum_unit
 
 def test_line_NoRelAbun():
-   output = line(energy_edges, default_T, default_EM)
+   output = line_emission(energy_edges, default_T, default_EM)
    expected = expected_spectrum_E032805_6MK_EM1e44_NoRelAbun_earth_20190522.to_value(output.unit)
    np.testing.assert_allclose(output.value,
                               expected,

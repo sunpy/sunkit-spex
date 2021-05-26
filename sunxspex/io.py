@@ -11,7 +11,7 @@ from sunpy.io.special.genx import read_genx
 from sunpy.time import parse_time
 from sunpy.data import manager
 
-__all__  = ['load_chianti_lines_lite', 'chianti_kev_line_common_load_light', 'chianti_kev_cont_common_load',
+__all__  = ['load_chianti_lines_lite', 'load_chianti_continuum',
             'read_abundance_genx', 'load_xray_abundances']
 
 
