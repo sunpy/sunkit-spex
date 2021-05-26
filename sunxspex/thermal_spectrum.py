@@ -16,7 +16,7 @@ from sunxspex.utils import get_reverse_indices, digitize
 __all__ = ['ChiantiThermalSpectrum']
 
 
-def define_line_intensities(filename=None):
+def define_line_info(filename=None):
     """
     Define line intensities as a function of temperature.
 
@@ -36,15 +36,23 @@ def define_line_intensities(filename=None):
     filename: `str` (optional)
         URL or file location of the CHIANTI IDL save file to be used.
     """
-    global LINE_INTENSITY_PER_EM_AT_SOURCE
+    global _LINE_INTENSITY_PER_EM_AT_SOURCE, _LINE_INTENSITY_UNIT, _LINE_PEAKS_KEV, _LINE_LOGT, \
+            _LINE_ELEMENT_IDX, _LINE_ATOMIC_NUMBERS
     if filename:
         with manager.override_file("chianti_lines", uri=filename):
-            LINE_INTENSITY_PER_EM_AT_SOURCE = load_chianti_lines_lite()
+            line_info = load_chianti_lines_lite()
     else:
-        LINE_INTENSITY_PER_EM_AT_SOURCE = load_chianti_lines_lite()
+        line_info = load_chianti_lines_lite()
+    _LINE_INTENSITY_PER_EM_AT_SOURCE = np.array(line_info.data)
+    _LINE_INTENSITY_UNIT = line_info.attrs["units"]["data"]
+    _LINE_PEAKS_KEV = (line_info.peak_energy.data * line_info.attrs["units"]["peak_energy"]).to_value(
+        u.keV, equivalencies=u.spectral())
+    _LINE_LOGT = line_info.logT.data
+    _LINE_ELEMENT_IDX = line_info.attrs["element_index"]
+    _LINE_ATOMIC_NUMBERS = line_info.atomic_number.data
 
 
-def define_continuum_intensities(filename=None):
+def define_continuum_info(filename=None):
     """
     Define continuum intensities as a function of temperature.
 
@@ -97,8 +105,8 @@ def define_default_abundances():
 
 
 # Read line, continuum and abundance data into global variables.
-define_line_intensities()
-define_continuum_intensities()
+define_line_info()
+define_continuum_info()
 define_default_abundances()
 
 
@@ -160,30 +168,24 @@ def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
     # For ease of calculation, convert inputs to known units and structures.
     energy_edges_keV = energy_edges.to_value(u.keV)
     n_energy_bins = len(energy_edges_keV)-1
-    #line_peaks_keV = u.Quantity(
-    #    LINE_INTENSITY_PER_EM_AT_SOURCE.peak_energy.data,
-    #    unit=LINE_INTENSITY_PER_EM_AT_SOURCE.attrs["units"]["peak_energy"])
-    #line_peaks_keV = line_peaks_keV.to_value(u.keV, equivalencies=u.spectral())
-    line_peaks_keV = LINE_INTENSITY_PER_EM_AT_SOURCE.peak_energy.data
     temperature_K = temperature.to_value(u.K)
     if temperature.isscalar:
         temperature_K = np.array([temperature_K])
     n_temperatures = len(temperature_K)
 
     # Find indices of lines within user input energy range.
-    energy_roi_indices = np.logical_and(line_peaks_keV >= energy_edges_keV.min(),
-                                        line_peaks_keV <= energy_edges_keV.max())
+    energy_roi_indices = np.logical_and(_LINE_PEAKS_KEV >= energy_edges_keV.min(), _LINE_PEAKS_KEV <= energy_edges_keV.max())
     n_energy_roi_indices = energy_roi_indices.sum()
     # If there are line within energy range of interest, compile spectrum.
     if n_energy_roi_indices > 0:
-        energy_roi_indices = np.arange(len(line_peaks_keV))[energy_roi_indices]
+        #energy_roi_indices = np.arange(len(_LINE_PEAKS_KEV))[energy_roi_indices]
         # Restrict energy bins of lines to energy range of interest.
-        line_peaks_keV = line_peaks_keV[energy_roi_indices]
+        line_peaks_keV = _LINE_PEAKS_KEV[energy_roi_indices]
 
         # Calculate abundance of each desired element.
         n_abundances = len(DEFAULT_ABUNDANCES)
         abundance_mask = np.zeros(n_abundances, dtype=bool)
-        abundance_mask[LINE_INTENSITY_PER_EM_AT_SOURCE.attrs["element_index"]] = True
+        abundance_mask[_LINE_ELEMENT_IDX] = True
         rel_abund_values = np.ones(n_abundances)
         if relative_abundances:
             # First axis of relative_abundances is atomic number, i.e == index + 1
@@ -191,19 +193,20 @@ def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
             rel_abund_values[relative_abundances[0]-1] = relative_abundances[1]
         abundances = DEFAULT_ABUNDANCES[abundance_type].data * rel_abund_values * abundance_mask
         # Extract only lines within energy range of interest.
-        line_abundances = abundances[LINE_INTENSITY_PER_EM_AT_SOURCE.atomic_number.data[energy_roi_indices] - 2]
+        line_abundances = abundances[_LINE_ATOMIC_NUMBERS[energy_roi_indices] - 2]
         # Above magic number of of -2 is comprised of:
-        # a -1 to account for the fact that element index is atomic number -1, and
+        # a -1 to account for the fact that index is atomic number -1, and
         # another -1 because abundance index is offset from element index by 1.
 
         #return temperature_K, energy_roi_indices
 
         # Calculate abundance-normalized intensity of each line in energy range of interest
         # as a function of energy and temperature.
-        logT = np.log10(temperature_K)
-        data_grid = LINE_INTENSITY_PER_EM_AT_SOURCE.data[energy_roi_indices]
-        line_logT_bins = LINE_INTENSITY_PER_EM_AT_SOURCE.logT.data
-        line_intensities = _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_bins)
+        #logT = np.log10(temperature_K)
+        #data_grid = _LINE_INTENSITY_PER_EM_AT_SOURCE[energy_roi_indices]
+        #line_logT_bins = _LINE_LOGT
+        #line_intensities = _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_bins)
+        line_intensities = _calculate_abundance_normalized_line_intensities(np.log10(temperature_K), _LINE_INTENSITY_PER_EM_AT_SOURCE[energy_roi_indices], _LINE_LOGT)
         #line_intensities = _calculate_abundance_normalized_line_intensities(
         #    np.log10(temperature_K),
         #    LINE_INTENSITY_PER_EM_AT_SOURCE.data[energy_roi_indices],
@@ -215,22 +218,18 @@ def line(energy_edges, temperature, emission_measure=1e44/u.cm**3,
         # such that the line centroids appear at the correct energy, despite the binning.
         # This has the effect of "doubling" the number of lines as regards the dimensionality
         # of the line_intensities array.
-        split_line_intensities, line_spectrum_bins = _weight_emission_bins_to_line_centroid(
-            line_peaks_keV, energy_edges_keV, line_intensities)
+        split_line_intensities, line_spectrum_bins = _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, line_intensities)
    
         # Use binned_statistic to determine which spectral bins contain
         # components of line emission and sum over those line components
         # to get the total emission is each spectral bin.
-        flux = scipy.stats.binned_statistic(line_spectrum_bins, split_line_intensities,
-                                            "sum", n_energy_bins, (0, n_energy_bins-1)).statistic
+        flux = scipy.stats.binned_statistic(line_spectrum_bins, split_line_intensities, "sum", n_energy_bins, (0, n_energy_bins-1)).statistic
     else:
         flux = np.zeros((n_temperatures, n_energy_bins))
     
     # Scale flux by observer distance and emission measure and put into correct units.
     energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) * u.keV
-    flux = (flux * LINE_INTENSITY_PER_EM_AT_SOURCE.attrs["units"]["data"]
-            / (energy_bin_widths * 4 * np.pi * observer_distance**2) 
-            * emission_measure)
+    flux = (flux * _LINE_INTENSITY_UNIT * emission_measure / (energy_bin_widths * 4 * np.pi * observer_distance**2))
     if temperature.isscalar:
         flux = flux[0]
 
