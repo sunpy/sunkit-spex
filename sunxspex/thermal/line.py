@@ -116,11 +116,14 @@ def line_emission(energy_edges,
         function. To load different default values for each abundance type,
         see the docstring of that function.
 
-    relative_abundances: 2xN array-like
+    relative_abundances: `tuple` of `tuples` of (`int`, `float`) (optional)
         The relative abundances of different elements as a fraction of their
         default abundances defined by abundance_type.
-        The first axis represents the atomic number of the element.
-        The second axis gives the factor by which to scale the element's abundance.
+        Each tuple represents the values for a given element.
+        The first entry represents the atomic number of the element.  If this is not
+        entered as an int, it is rounded to the nearest int.
+        The second entry represents the axis represents the fraction by which the 
+        element's default abundance should be scaled.
 
     observer_distance: `astropy.units.Quantity` (Optional)
         The distance between the source and the observer. Scales output to observer distance
@@ -152,9 +155,12 @@ def line_emission(energy_edges,
         n_abundances = len(default_abundances)
         rel_abund_values = np.ones(n_abundances)
         if relative_abundances:
-            # First axis of relative_abundances is atomic number, i.e == index + 1
+            # Convert input relative abundances to array where
+            # first axis is atomic number, i.e == index + 1
             # Second axis is relative abundance value.
-            rel_abund_values[relative_abundances[0]-1] = relative_abundances[1]
+            rel_abund_array = np.array(relative_abundances).T
+            rel_idx = np.rint(rel_abund_array[0]).astype(int) - 1
+            rel_abund_values[rel_idx] = rel_abund_array[1]
         abundance_mask = np.zeros(n_abundances, dtype=bool)
         abundance_mask[_LINE_ELEMENT_IDX] = True
         abundances = default_abundances * rel_abund_values * abundance_mask
