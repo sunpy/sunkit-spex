@@ -144,14 +144,14 @@ def load_chianti_continuum():
     where filename is the location of the file to be read.
     """
     # Define units
-    intensity_unit = u.ph / (u.cm**2 * u.s * u.sr)
+    intensity_unit = u.ph * u.cm**3 / (u.s * u.keV * u.sr)
     temperature_unit = u.K
     wave_unit = u.AA
     # Read file
     contfile = manager.get("chianti_continuum")
     contents = scipy.io.readsav(contfile)
     # Concatenate low and high wavelength intensity arrays.
-    intensities = np.concatenate((contents["totcont"], contents["totcont_lo"]), axis=-1)
+    intensities = np.concatenate((contents["totcont_lo"], contents["totcont"]), axis=-1)
     # Put file data into intuitive structure and return data.
     continuum_intensities = xarray.DataArray(
         intensities,
