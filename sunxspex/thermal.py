@@ -102,10 +102,8 @@ def setup_continuum_parameters(filename=None):
     _CONTINUUM_GRID["energy bin widths keV"] = (
         _CONTINUUM_GRID["E_keV"] * dwave_AA / wavelength.to_value(u.AA))
 
-    # Convert intensity from per sterradian to emission at source
-    _CONTINUUM_GRID["intensity"] = cont_info.data * 4 * np.pi
-    # Remove per sterradian from intensity unit in accordance with above scaling.
-    _CONTINUUM_GRID["intensity unit"] = cont_info.attrs["units"]["data"] * u.sr
+    _CONTINUUM_GRID["intensity"] = cont_info.data
+    _CONTINUUM_GRID["intensity unit"] = cont_info.attrs["units"]["data"]
     _CONTINUUM_GRID["intensity description"] = (
         "Intensity is stored as photons per keV per unit emission measure at the source.  "
         "It (and its unit) therefore must be multipled by emission measure and "

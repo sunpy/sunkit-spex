@@ -152,6 +152,11 @@ def load_chianti_continuum():
     contents = scipy.io.readsav(contfile)
     # Concatenate low and high wavelength intensity arrays.
     intensities = np.concatenate((contents["totcont_lo"], contents["totcont"]), axis=-1)
+    # Integrate over sphere surface of radius equal to observer distance
+    # to get intensity at source. This means that physical intensities can
+    # be calculated by dividing by 4 * pi * R**2 where R is the observer distance.
+    intensities *= 4 * np.pi
+    intensity_unit *= u.sr
     # Put file data into intuitive structure and return data.
     continuum_intensities = xarray.DataArray(
         intensities,
