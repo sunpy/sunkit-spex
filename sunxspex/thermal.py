@@ -378,6 +378,26 @@ def _line_emission(energy_edges_keV,
                    temperature_K,
                    abundance_type,
                    relative_abundances):
+    """
+    Calculates emission-measure-normalized X-ray line emission at the source.
+
+    Output must be multiplied by emission measure and divided by 4*pi*observer_distance**2
+    to get physical values.
+
+    Parameters
+    ----------
+    energy_edges_keV: 1-D array-like
+        Boundaries of contiguous spectral bins in units on keV.
+
+    temperature_K: 1-D array-like
+        The temperature(s) of the plasma in unit of K.  Must not be a scalar.
+
+    abundance_type: `str`
+        Set of default abundances to be used.  See the continuum_emission function docstring
+        for options.
+
+    relative_abundances: same as for continuum_emission function.
+    """
     n_energy_bins = len(energy_edges_keV)-1
     n_temperatures = len(temperature_K)
 
