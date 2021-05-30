@@ -30,12 +30,28 @@ def define_continuum_parameters(filename=None):
     filename: `str` (optional)
         URL or file location of the CHIANTI IDL save file to be used.
     """
-    global CONTINUUM_INTENSITY_PER_EM_AT_SOURCE
+    global _CONT_T_K,_CONT_LOG10T, _CONT_T_KEV, _CONT_ELEMENT_IDX, _CONT_SORTED_ELEMENT_INDEX, wavelength, _CONT_E_KEV, _CONT_SPECTRAL_BIN_WIDTHS_KEV, _CONT_INTENSITY_PER_EM_AT_SOURCE, _CONT_INTENSITY_UNIT
     if filename:
         with manager.override_file("chianti_continuum", uri=filename):
-            CONTINUUM_INTENSITY_PER_EM_AT_SOURCE = load_chianti_continuum()
+            cont_info = load_chianti_continuum()
     else:
-        CONTINUUM_INTENSITY_PER_EM_AT_SOURCE = load_chianti_continuum()
+        cont_info = load_chianti_continuum()
+    _CONT_ELEMENT_IDX = cont_info.element_index.data
+    _CONT_SORTED_ELEMENT_INDEX = np.sort(_CONT_ELEMENT_IDX)
+
+    T_grid = cont_info.temperature.data * cont_info.attrs["units"]["temperature"]
+    _CONT_T_K = T_grid.to_value(u.K)
+    _CONT_LOG10T = np.log10(_CONT_T_K)
+    _CONT_T_KEV = T_grid.to_value(u.keV, equivalencies=u.temperature_energy())
+
+    wavelength = cont_info.wavelength.data * cont_info.attrs["units"]["wavelength"]
+    dwave_AA = (cont_info.attrs["wavelength_edges"][1:] -
+                cont_info.attrs["wavelength_edges"][:-1]).to_value(u.AA)
+    _CONT_E_KEV = wavelength.to_value(u.keV, equivalencies=u.spectral())
+    _CONT_SPECTRAL_BIN_WIDTHS_KEV = _CONT_E_KEV * dwave_AA / wavelength.to_value(u.AA)
+
+    _CONT_INTENSITY_PER_EM_AT_SOURCE = cont_info.data * 4 * np.pi  # Convert from per sterradian to emission at source.
+    _CONT_INTENSITY_UNIT = cont_info.attrs["units"]["data"] * u.sr  # Remove per sterradian in accordance with above scaling.
 
 
 def define_default_abundances(filename=None):
@@ -73,35 +89,12 @@ def continuum_emission(energy_edges,
                        abundance_type="sun_coronal",
                        relative_abundances=None,
                        observer_distance=(1*u.AU).to(u.cm)):
-    # Define shortcuts to global variables and derive some useful parameters from them.
-    T_grid = (CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.temperature.data *
-              CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.attrs["units"]["temperature"])
-
-    _LOGT = np.log10(CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.temperature.data)
-    _CONT_ELEMENT_IDX = CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.element_index.data
-    E_grid_keV = (CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.wavelength.data *
-                  CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.attrs["units"]["wavelength"]).to(
-                      u.keV, equivalencies=u.spectral()).value
-    wave_edges_grid_AA = CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.attrs["wavelength_edges"].to_value(u.AA)
-    dwave_grid_AA = wave_edges_grid_AA[1:] - wave_edges_grid_AA[:-1]
-
     # Handle inputs and derive some useful parameters from them
-    energy_edges_keV = np.zeros((2, len(energy_edges)-1))
-    energy_edges_keV[0] = energy_edges[:-1].to_value(u.keV)
-    energy_edges_keV[1] = energy_edges[1:].to_value(u.keV)
-    energy_keV_gmean = stats.gmean(energy_edges_keV)  # Get energy bins centres based on geometric mean.
-    logT_in = np.log10(temperature.to_value(u.K))
-
-    # Find bin in temperature grid containing the input temperature and
-    # the bins above and below it.
-    selt = np.digitize(logT_in, _LOGT) - 1  #TODO: Extend this so function works for multiple temperatures
-    indx = selt - 1 + np.arange(3)
-    tband = _LOGT[indx]
-    x0 = np.log(tband[0])
-    x1 = np.log(tband[1])
-    x2 = np.log(tband[2])
-    # Extract continuum intensity grid for above temperature bins.
-    tcdbase = CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.data[:, indx, :]
+    log10T_in = np.log10(temperature.to_value(u.K))
+    T_in_keV = temperature.to_value(u.keV, equivalencies=u.temperature_energy())
+    energy_edges_keV = energy_edges.to_value(u.keV)
+    # Get energy bins centers based on geometric mean.
+    energy_gmean_keV = stats.gmean(np.vstack((energy_edges_keV[:-1], energy_edges_keV[1:])))
 
     #####  Calculate Abundances #####
     # Calculate abundance of each desired element.
@@ -119,58 +112,69 @@ def continuum_emission(energy_edges,
     abundance_mask[_CONT_ELEMENT_IDX] = True
     abundances = default_abundances * rel_abund_values * abundance_mask
 
-    # Calculate abundance-scaled continuum intensity as a function of temp. and energy
-    tcdbase = CONTINUUM_INTENSITY_PER_EM_AT_SOURCE[:, indx].data
-    tcd = np.zeros(tcdbase.shape[1:])
-    sorted_element_index = np.sort(_CONT_ELEMENT_IDX)  #TODO: benchmark sort versus checking where abundace > 0
-    for i in range(0,3):
-        tcd[i] = np.matmul(abundances[sorted_element_index], tcdbase[:, i])
+    #####  Calculate Continuum Intensity Summed Over All ELements
+    #####  As A Function of Temperature and Energy/Wavelength ######
+    # Define a temperature band as the bin containing the input temperature and
+    # the bins above and below it.  Find the indices of the temperature band.
+    selt = np.digitize(log10T_in, _CONT_LOG10T) - 1  #TODO: Extend this so function works for multiple temperatures
+    tband_idx = selt - 1 + np.arange(3)
+    n_tband = len(tband_idx)
+    # Calculate continuum intensity summed over all elements as a function of energy/wavelength
+    # and temperature over the temperature band.
+    element_intensities_per_em_at_source = _CONT_INTENSITY_PER_EM_AT_SOURCE[:, tband_idx]
+    intensity_per_em_at_source = np.zeros(element_intensities_per_em_at_source.shape[1:])
+    for i in range(0, n_tband):
+        intensity_per_em_at_source[i] = np.matmul(
+            abundances[_CONT_SORTED_ELEMENT_INDEX],
+            element_intensities_per_em_at_source[:, i])
 
-    repeat_E_grid_keV = np.repeat(E_grid_keV[np.newaxis, :], 3, axis=0)
-    repeat_T_grid = np.repeat(T_grid[indx, np.newaxis], len(E_grid_keV), axis=1)
-    exponential = repeat_E_grid_keV / repeat_T_grid.to_value(u.keV, equivalencies=u.temperature_energy())
-    exponential = np.exp(np.clip(exponential, None, 80))
+    ##### Calculate Continuum Intensity at Input Temperature  ######
+    ##### Do this by interpolating the normalized temperature component
+    ##### of the intensity grid to input temperature(s) and then rescaling.
+    # Calculate normalized temperature component of the intensity grid.
+    exponent = (np.repeat(_CONT_E_KEV[np.newaxis, :], n_tband, axis=0) /
+                np.repeat(_CONT_T_KEV[tband_idx, np.newaxis], len(_CONT_E_KEV), axis=1))
+    exponential = np.exp(np.clip(exponent, None, 80))
+    dE_grid_keV = np.repeat(_CONT_SPECTRAL_BIN_WIDTHS_KEV[np.newaxis, :], n_tband, axis=0)
+    gaunt = intensity_per_em_at_source / dE_grid_keV * exponential
+    # Interpolate the normalized temperature component of the intensity grid the the
+    # input temperature.
+    spectrum = _interpolate_continuum_intensities(gaunt, _CONT_LOG10T[tband_idx], _CONT_E_KEV,
+                                                  energy_gmean_keV, log10T_in)
+    # Rescale the interpolated intensity.
+    spectrum *= np.exp(-(energy_gmean_keV / T_in_keV))
 
-    # Calculate width of each spectral bin in energy using fraction of width in wavelength to central wavelength as a scaling factor.
-    dE_grid_keV = E_grid_keV * dwave_grid_AA / CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.wavelength.data
-    dE_grid_keV = np.repeat(dE_grid_keV[np.newaxis, :], 3, axis=0)
-    gaunt = tcd / dE_grid_keV * exponential
+    # Put intensity into correct units and scale by input emission measure and observer distance.
+    return spectrum * _CONT_INTENSITY_UNIT * emission_measure / (4 * np.pi * observer_distance**2)
 
-    tcont = np.zeros(energy_keV_gmean.shape)
 
-    # Define valid range
-    vrange, = np.where(gaunt[0] > 0)
-    vrange1, = np.where(gaunt[1] > 0)
-    if len(vrange) < len(vrange1):
-        vrange = vrange1
-    vrange1, = np.where(gaunt[2] > 0)
-    if len(vrange) < len(vrange1):
-        vrange = vrange1
-    gaunt = gaunt[:, vrange]
-    E_grid_keV = E_grid_keV[vrange]
-    maxE = E_grid_keV[0]
-    vgmean, = np.where(energy_keV_gmean < maxE)
+def _interpolate_continuum_intensities(data_grid, log10T_grid, energy_grid_keV, energy_keV, log10T):
+    # Determine valid range based on limits of intensity grid's spectral extent
+    # and the normalized temperature component of intensity.
+    n_tband = len(log10T_grid)
+    vrange, = np.where(data_grid[0] > 0)
+    for i in range(1, n_tband):
+        vrange_i, = np.where(data_grid[i] > 0)
+        if len(vrange) < len(vrange_i):
+            vrange = vrange_i
+    data_grid = data_grid[:, vrange]
+    energy_grid_keV = energy_grid_keV[vrange]
+    energy_idx, = np.where(energy_keV < energy_grid_keV.max())
 
-    if len(vgmean) > 0:
-        energy_keV_gmean = energy_keV_gmean[vgmean]
-        cont0 = interpolate.interp1d(E_grid_keV, gaunt[0])(energy_keV_gmean)
-        cont1 = interpolate.interp1d(E_grid_keV, gaunt[1])(energy_keV_gmean)
-        cont2 = interpolate.interp1d(E_grid_keV, gaunt[2])(energy_keV_gmean)
-        # Get the geometric weighted mean of the interpolated values between the three temperature bins.
-        logeT_in = np.log(logT_in)
-        cont0 = np.log(cont0)
-        cont1 = np.log(cont1)
-        cont2 = np.log(cont2)
-        ynew  = np.exp(
-            cont0 * (logeT_in - x1) * (logeT_in - x2) / ((x0 - x1) * (x0 - x2)) +
-            cont1 * (logeT_in - x0) * (logeT_in - x2) / ((x1 - x0) * (x1 - x2)) +
-            cont2 * (logeT_in - x0) * (logeT_in - x1) / ((x2 - x0) * (x2 - x1)) )
-
-        tcont[vgmean] += ynew
-        tcont *= np.exp(-(energy_keV_gmean / temperature.to_value(u.keV, equivalencies=u.temperature_energy())))
-        spectrum = tcont * (energy_edges[1:] - energy_edges[:-1])
-
-    dE_in = energy_edges[1:] - energy_edges[:-1]
-    return (spectrum * CONTINUUM_INTENSITY_PER_EM_AT_SOURCE.attrs["units"]["data"] *
-            emission_measure /
-            (dE_in * observer_distance**2 / u.sr))
+    # Interpolate temperature component of intensity and derive continuum intensity.
+    spectrum = np.zeros(energy_keV.shape)
+    if len(energy_idx) > 0:
+        energy_keV = energy_keV[energy_idx]
+        cont0 = interpolate.interp1d(energy_grid_keV, data_grid[0])(energy_keV)
+        cont1 = interpolate.interp1d(energy_grid_keV, data_grid[1])(energy_keV)
+        cont2 = interpolate.interp1d(energy_grid_keV, data_grid[2])(energy_keV)
+        # Calculate the continuum intensity as the weighted geometric mean
+        # of the interpolated values across the temperature band of the
+        # temperature component of intensity.
+        logelog10T = np.log(log10T)
+        x0, x1, x2 = np.log(log10T_grid)
+        spectrum[energy_idx]  = np.exp(
+            np.log(cont0) * (logelog10T - x1) * (logelog10T - x2) / ((x0 - x1) * (x0 - x2)) +
+            np.log(cont1) * (logelog10T - x0) * (logelog10T - x2) / ((x1 - x0) * (x1 - x2)) +
+            np.log(cont2) * (logelog10T - x0) * (logelog10T - x1) / ((x2 - x0) * (x2 - x1)) )
+    return spectrum

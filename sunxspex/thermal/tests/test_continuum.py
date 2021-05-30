@@ -18,7 +18,6 @@ expected_032805keV_6MK_1e44_1AU = np.array([
 
 
 def test_continuum_emission_suncoronal_NoRelAbund():
-    energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     output = continuum.continuum_emission(
         energy_edges, 6 * u.MK, 1e44/u.cm**3, abundance_type="sun_coronal",
         observer_distance=(1 * u.AU).to(u.cm))
