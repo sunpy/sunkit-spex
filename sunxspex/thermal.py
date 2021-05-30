@@ -81,28 +81,35 @@ def setup_continuum_parameters(filename=None):
     filename: `str` (optional)
         URL or file location of the CHIANTI IDL save file to be used.
     """
-    global _CONT_T_K,_CONT_LOG10T, _CONT_T_KEV, _CONT_ELEMENT_IDX, _CONT_SORTED_ELEMENT_INDEX, wavelength, _CONT_E_KEV, _CONT_SPECTRAL_BIN_WIDTHS_KEV, _CONT_INTENSITY_PER_EM_AT_SOURCE, _CONT_INTENSITY_UNIT
+    global _CONTINUUM_GRID
     if filename:
         with manager.override_file("chianti_continuum", uri=filename):
             cont_info = load_chianti_continuum()
     else:
         cont_info = load_chianti_continuum()
-    _CONT_ELEMENT_IDX = cont_info.element_index.data
-    _CONT_SORTED_ELEMENT_INDEX = np.sort(_CONT_ELEMENT_IDX)
+    _CONTINUUM_GRID = {}
+    _CONTINUUM_GRID["element index"] = cont_info.element_index.data
+    _CONTINUUM_GRID["sorted element index"] = np.sort(_CONTINUUM_GRID["element index"])
 
     T_grid = cont_info.temperature.data * cont_info.attrs["units"]["temperature"]
-    _CONT_T_K = T_grid.to_value(u.K)
-    _CONT_LOG10T = np.log10(_CONT_T_K)
-    _CONT_T_KEV = T_grid.to_value(u.keV, equivalencies=u.temperature_energy())
+    _CONTINUUM_GRID["log10T"] = np.log10(T_grid.to_value(u.K))
+    _CONTINUUM_GRID["T_keV"] = T_grid.to_value(u.keV, equivalencies=u.temperature_energy())
 
     wavelength = cont_info.wavelength.data * cont_info.attrs["units"]["wavelength"]
     dwave_AA = (cont_info.attrs["wavelength_edges"][1:] -
                 cont_info.attrs["wavelength_edges"][:-1]).to_value(u.AA)
-    _CONT_E_KEV = wavelength.to_value(u.keV, equivalencies=u.spectral())
-    _CONT_SPECTRAL_BIN_WIDTHS_KEV = _CONT_E_KEV * dwave_AA / wavelength.to_value(u.AA)
+    _CONTINUUM_GRID["E_keV"] = wavelength.to_value(u.keV, equivalencies=u.spectral())
+    _CONTINUUM_GRID["energy bin widths keV"] = (
+        _CONTINUUM_GRID["E_keV"] * dwave_AA / wavelength.to_value(u.AA))
 
-    _CONT_INTENSITY_PER_EM_AT_SOURCE = cont_info.data * 4 * np.pi  # Convert from per sterradian to emission at source.
-    _CONT_INTENSITY_UNIT = cont_info.attrs["units"]["data"] * u.sr  # Remove per sterradian in accordance with above scaling.
+    # Convert intensity from per sterradian to emission at source
+    _CONTINUUM_GRID["intensity"] = cont_info.data * 4 * np.pi
+    # Remove per sterradian from intensity unit in accordance with above scaling.
+    _CONTINUUM_GRID["intensity unit"] = cont_info.attrs["units"]["data"] * u.sr
+    _CONTINUUM_GRID["intensity description"] = (
+        "Intensity is stored as photons per keV per unit emission measure at the source.  "
+        "It (and its unit) therefore must be multipled by emission measure and "
+        "divided by 4 * pi * observer_distance**2 to get observed values.")
 
 
 def setup_line_parameters(filename=None):
@@ -124,20 +131,25 @@ def setup_line_parameters(filename=None):
     filename: `str` (optional)
         URL or file location of the CHIANTI IDL save file to be used.
     """
-    global _LINE_INTENSITY_PER_EM_AT_SOURCE, _LINE_INTENSITY_UNIT, _LINE_PEAKS_KEV, _LINE_LOGT, \
-            _LINE_ELEMENT_IDX, _LINE_ATOMIC_NUMBERS
+    global _LINE_GRID
     if filename:
         with manager.override_file("chianti_lines", uri=filename):
             line_info = load_chianti_lines_lite()
     else:
         line_info = load_chianti_lines_lite()
-    _LINE_INTENSITY_PER_EM_AT_SOURCE = np.array(line_info.data)
-    _LINE_INTENSITY_UNIT = line_info.attrs["units"]["data"]
-    _LINE_PEAKS_KEV = (line_info.peak_energy.data * line_info.attrs["units"]["peak_energy"]).to_value(
-        u.keV, equivalencies=u.spectral())
-    _LINE_LOGT = line_info.logT.data
-    _LINE_ELEMENT_IDX = line_info.attrs["element_index"]
-    _LINE_ATOMIC_NUMBERS = line_info.atomic_number.data
+    _LINE_GRID = {}
+    _LINE_GRID["intensity"] = np.array(line_info.data)
+    _LINE_GRID["intensity unit"] = line_info.attrs["units"]["data"]
+    _LINE_GRID["intensity description"] = (
+        "Intensity is stored as photons per unit emission measure at the source.  "
+        "It (and its unit) therefore must be multipled by emission measure and "
+        "divided by 4 * pi * observer_distance**2 to get observed values.")
+    _LINE_GRID["line_peaks_keV"] = (
+            line_info.peak_energy.data * line_info.attrs["units"]["peak_energy"]).to_value(
+                u.keV, equivalencies=u.spectral())
+    _LINE_GRID["log10T"] = line_info.logT.data
+    _LINE_GRID["element index"] = line_info.attrs["element_index"]
+    _LINE_GRID["line atomic numbers"] = line_info.atomic_number.data
 
 
 def setup_default_abundances(filename=None):
@@ -273,7 +285,7 @@ def _continuum_emission(energy_edges_keV,
         rel_idx = np.rint(rel_abund_array[0]).astype(int) - 1
         rel_abund_values[rel_idx] = rel_abund_array[1]
     abundance_mask = np.zeros(n_abundances, dtype=bool)
-    abundance_mask[_CONT_ELEMENT_IDX] = True
+    abundance_mask[_CONTINUUM_GRID["element index"]] = True
     abundances = default_abundances * rel_abund_values * abundance_mask
 
     #####  Calculate Continuum Intensity Summed Over All Elements
@@ -284,24 +296,23 @@ def _continuum_emission(energy_edges_keV,
     # temperatures here.  If only a few temperatures are input, do this step only
     # when looping over input temperatures.  This minimizes computation.
     n_tband = 3
-    n_t_grid = len(_CONT_LOG10T)
+    n_t_grid = len(_CONTINUUM_GRID["log10T"])
     n_temperature_K = len(temperature_K)
     n_thresh = n_temperature_K * n_tband
     if n_thresh >= n_t_grid:
-        print("All Ts multiplied by abundance.")
-        intensity_per_em_at_source_allT = np.zeros(_CONT_INTENSITY_PER_EM_AT_SOURCE.shape[1:])
+        intensity_per_em_at_source_allT = np.zeros(_CONTINUUM_GRID["intensity"].shape[1:])
         for i in range(0, n_t_grid):
             intensity_per_em_at_source_allT[i] = np.matmul(
-                abundances[_CONT_SORTED_ELEMENT_INDEX],
-                _CONT_INTENSITY_PER_EM_AT_SOURCE[:, i])
+                abundances[_CONTINUUM_GRID["sorted element index"]],
+                _CONTINUUM_GRID["intensity"][:, i])
     # 2. Add dummy axes to energy and temperature grid arrays for later vectorized operations.
-    repeat_E_grid = _CONT_E_KEV[np.newaxis, :]
-    repeat_T_grid = _CONT_T_KEV[:, np.newaxis]
-    dE_grid_keV = _CONT_SPECTRAL_BIN_WIDTHS_KEV[np.newaxis, :]
+    repeat_E_grid = _CONTINUUM_GRID["E_keV"][np.newaxis, :]
+    repeat_T_grid = _CONTINUUM_GRID["T_keV"][:, np.newaxis]
+    dE_grid_keV = _CONTINUUM_GRID["energy bin widths keV"][np.newaxis, :]
     # 3. Indentify the indices of the temperature bins containing each input temperature and
     # the bins above and below them.  For each input temperature, these three bins will
     # act as a temperature band over which we'll interpolate the continuum emission.
-    selt = np.digitize(log10T_in, _CONT_LOG10T) - 1
+    selt = np.digitize(log10T_in, _CONTINUUM_GRID["log10T"]) - 1
     tband_idx = selt[:, np.newaxis] + np.arange(n_tband)[np.newaxis, :]
 
     # Finally, loop over input temperatures and calculate continuum emission for each.
@@ -310,11 +321,11 @@ def _continuum_emission(energy_edges_keV,
         # If not already done above, calculate continuum intensity summed over
         # all elements as a function of energy/wavelength over the temperature band.
         if n_thresh < n_t_grid:
-            element_intensities_per_em_at_source = _CONT_INTENSITY_PER_EM_AT_SOURCE[:, tband_idx[j]]
+            element_intensities_per_em_at_source = _CONTINUUM_GRID["intensity"][:, tband_idx[j]]
             intensity_per_em_at_source = np.zeros(element_intensities_per_em_at_source.shape[1:])
             for i in range(0, n_tband):
                 intensity_per_em_at_source[i] = np.matmul(
-                    abundances[_CONT_SORTED_ELEMENT_INDEX],
+                    abundances[_CONTINUUM_GRID["sorted element index"]],
                     element_intensities_per_em_at_source[:, i])
         else:
             intensity_per_em_at_source = intensity_per_em_at_source_allT[tband_idx[j]]
@@ -329,12 +340,12 @@ def _continuum_emission(energy_edges_keV,
         # Interpolate the normalized temperature component of the intensity grid the the
         # input temperature.
         flux[j] = _interpolate_continuum_intensities(
-            gaunt, _CONT_LOG10T[tband_idx[j]], _CONT_E_KEV, energy_gmean_keV, logt)
+            gaunt, _CONTINUUM_GRID["log10T"][tband_idx[j]], _CONTINUUM_GRID["E_keV"], energy_gmean_keV, logt)
     # Rescale the interpolated intensity.
     flux = flux * np.exp(-(energy_gmean_keV[np.newaxis, :] / T_in_keV[:, np.newaxis]))
 
     # Put intensity into correct units.
-    return flux * _CONT_INTENSITY_UNIT
+    return flux * _CONTINUUM_GRID["intensity unit"]
 
 
 @u.quantity_input(energy_edges=u.keV,
@@ -371,8 +382,8 @@ def _line_emission(energy_edges_keV,
     n_temperatures = len(temperature_K)
 
     # Find indices of lines within user input energy range.
-    energy_roi_indices = np.logical_and(_LINE_PEAKS_KEV >= energy_edges_keV.min(),
-                                        _LINE_PEAKS_KEV <= energy_edges_keV.max())
+    energy_roi_indices = np.logical_and(_LINE_GRID["line_peaks_keV"] >= energy_edges_keV.min(),
+                                        _LINE_GRID["line_peaks_keV"] <= energy_edges_keV.max())
     n_energy_roi_indices = energy_roi_indices.sum()
     # If there are line within energy range of interest, compile spectrum.
     if n_energy_roi_indices > 0:
@@ -389,10 +400,10 @@ def _line_emission(energy_edges_keV,
             rel_idx = np.rint(rel_abund_array[0]).astype(int) - 1
             rel_abund_values[rel_idx] = rel_abund_array[1]
         abundance_mask = np.zeros(n_abundances, dtype=bool)
-        abundance_mask[_LINE_ELEMENT_IDX] = True
+        abundance_mask[_LINE_GRID["element index"]] = True
         abundances = default_abundances * rel_abund_values * abundance_mask
         # Extract only lines within energy range of interest.
-        line_abundances = abundances[_LINE_ATOMIC_NUMBERS[energy_roi_indices] - 2]
+        line_abundances = abundances[_LINE_GRID["line atomic numbers"][energy_roi_indices] - 2]
         # Above magic number of of -2 is comprised of:
         # a -1 to account for the fact that index is atomic number -1, and
         # another -1 because abundance index is offset from element index by 1.
@@ -400,9 +411,9 @@ def _line_emission(energy_edges_keV,
         ##### Calculate Line Intensities in Input Energy Range #####
         # Calculate abundance-normalized intensity of each line in energy range of
         # interest as a function of energy and temperature.
-        line_intensity_grid = _LINE_INTENSITY_PER_EM_AT_SOURCE[energy_roi_indices]
+        line_intensity_grid = _LINE_GRID["intensity"][energy_roi_indices]
         line_intensities = _calculate_abundance_normalized_line_intensities(
-            np.log10(temperature_K), line_intensity_grid, _LINE_LOGT)
+            np.log10(temperature_K), line_intensity_grid, _LINE_GRID["log10T"])
         # Scale line intensities by abundances to get true line intensities.
         line_intensities *= line_abundances
 
@@ -412,7 +423,7 @@ def _line_emission(energy_edges_keV,
         # when average over neighboring bins.
         # This has the effect of appearing to double the number of lines as regards
         # the dimensionality of the line_intensities array.
-        line_peaks_keV = _LINE_PEAKS_KEV[energy_roi_indices]
+        line_peaks_keV = _LINE_GRID["line_peaks_keV"][energy_roi_indices]
         split_line_intensities, line_spectrum_bins = _weight_emission_bins_to_line_centroid(
             line_peaks_keV, energy_edges_keV, line_intensities)
    
@@ -428,7 +439,7 @@ def _line_emission(energy_edges_keV,
     # Scale flux by observer distance, emission measure and spectral bin width
     # and put into correct units.
     energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) * u.keV
-    flux = (flux * _LINE_INTENSITY_UNIT / energy_bin_widths)
+    flux = (flux * _LINE_GRID["intensity unit"] / energy_bin_widths)
 
     return flux
 
