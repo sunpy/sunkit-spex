@@ -69,9 +69,9 @@ def setup_continuum_parameters(filename=None):
     R**2 is observer distance.
 
     Intensities are derived from output from the CHIANTI atomic physics database.
-    The default CHIANTI data used here is collected from
+    The default CHIANTI data used here are collected from
     `https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav`.
-    This includes contributions from thermal bremsstrahlung and tw-photon interactions.
+    This includes contributions from thermal bremsstrahlung and two-photon interactions.
     To use a different file, provide the URL/file location via the filename kwarg,
     e.g. to include only thermal bremsstrahlung, set the filename kwarg to 
     'https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v70_no2photon.sav'
@@ -186,11 +186,11 @@ def thermal_emission(energy_edges,
                      abundance_type="sun_coronal",
                      relative_abundances=None,
                      observer_distance=(1*u.AU).to(u.cm)):
-    f"""Calculate the thermal X-ray emission (lines + continuum) from the solar atmosphere.
+    f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
 
-    The emission is calculated as a function of temperature and emission measure.
+    The flux is calculated as a function of temperature and emission measure.
     Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
-    determined by the file from which the comtinuum parameters are loaded.
+    determined by the file from which the continuum parameters are loaded.
     To change the file used, see the setup_continuum_parameters() function.
     
     {doc_string_params}"""
@@ -242,7 +242,7 @@ def _continuum_emission(energy_edges_keV,
                         abundance_type,
                         relative_abundances):
     """
-    Calculates emission-measure-normalized X-ray continuum emission at the source.
+    Calculates emission-measure-normalized X-ray continuum spectrum at the source.
 
     Output must be multiplied by emission measure and divided by 4*pi*observer_distance**2
     to get physical values.
@@ -307,7 +307,7 @@ def _continuum_emission(energy_edges_keV,
     repeat_E_grid = _CONTINUUM_GRID["E_keV"][np.newaxis, :]
     repeat_T_grid = _CONTINUUM_GRID["T_keV"][:, np.newaxis]
     dE_grid_keV = _CONTINUUM_GRID["energy bin widths keV"][np.newaxis, :]
-    # 3. Indentify the indices of the temperature bins containing each input temperature and
+    # 3. Identify the indices of the temperature bins containing each input temperature and
     # the bins above and below them.  For each input temperature, these three bins will
     # act as a temperature band over which we'll interpolate the continuum emission.
     selt = np.digitize(log10T_in, _CONTINUUM_GRID["log10T"]) - 1
@@ -377,7 +377,7 @@ def _line_emission(energy_edges_keV,
                    abundance_type,
                    relative_abundances):
     """
-    Calculates emission-measure-normalized X-ray line emission at the source.
+    Calculates emission-measure-normalized X-ray line spectrum at the source.
 
     Output must be multiplied by emission measure and divided by 4*pi*observer_distance**2
     to get physical values.
@@ -403,7 +403,7 @@ def _line_emission(energy_edges_keV,
     energy_roi_indices = np.logical_and(_LINE_GRID["line_peaks_keV"] >= energy_edges_keV.min(),
                                         _LINE_GRID["line_peaks_keV"] <= energy_edges_keV.max())
     n_energy_roi_indices = energy_roi_indices.sum()
-    # If there are line within energy range of interest, compile spectrum.
+    # If there are emission lines within the energy range of interest, compile spectrum.
     if n_energy_roi_indices > 0:
         #####  Calculate Abundances #####
         # Calculate abundance of each desired element.
@@ -420,13 +420,13 @@ def _line_emission(energy_edges_keV,
         abundance_mask = np.zeros(n_abundances, dtype=bool)
         abundance_mask[_LINE_GRID["element index"]] = True
         abundances = default_abundances * rel_abund_values * abundance_mask
-        # Extract only lines within energy range of interest.
+        # Extract only the lines within the energy range of interest.
         line_abundances = abundances[_LINE_GRID["line atomic numbers"][energy_roi_indices] - 2]
         # Above magic number of of -2 is comprised of:
         # a -1 to account for the fact that index is atomic number -1, and
         # another -1 because abundance index is offset from element index by 1.
 
-        ##### Calculate Line Intensities in Input Energy Range #####
+        ##### Calculate Line Intensities within the Input Energy Range #####
         # Calculate abundance-normalized intensity of each line in energy range of
         # interest as a function of energy and temperature.
         line_intensity_grid = _LINE_GRID["intensity"][energy_roi_indices]
@@ -438,7 +438,7 @@ def _line_emission(energy_edges_keV,
         ##### Weight Line Emission So Peak Energies Maintained Within Input Energy Binning #####
         # Split emission of each line between nearest neighboring spectral bins in
         # proportion such that the line centroids appear at the correct energy
-        # when average over neighboring bins.
+        # when averaged over neighboring bins.
         # This has the effect of appearing to double the number of lines as regards
         # the dimensionality of the line_intensities array.
         line_peaks_keV = _LINE_GRID["line_peaks_keV"][energy_roi_indices]
@@ -506,7 +506,7 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
     Note that strictly speaking the code is agnostic to the physical properties
     of the axes and values in the array. All the matters is that data_grid
     is interpolated over the 2nd axis and the input value also corresponds to
-    somewhere along that same axis. That value does not have exactly correspond to
+    somewhere along that same axis. That value does not have to exactly correspond to
     the value of a column in the grid. This is accounted for by the interpolation.
 
     Parameters
@@ -545,7 +545,7 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
     # say energy, at the input temperature to sub-temperature bin resolution.
     interpolated_data = np.zeros((n_temperatures, data_grid.shape[0]))
     for i in range(n_temperatures):
-        # Indentify the "temperature" bin to which the input "temperature"
+        # Identify the "temperature" bin to which the input "temperature"
         # corresponds and its two nearest neighbors.
         indx = temperature_bins[i]-1+np.arange(3)
         # Interpolate the 2nd axis to produce a function that gives the data
@@ -564,7 +564,7 @@ def _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, lin
     """
     Split emission between neighboring energy bins such that averaged energy is the line peak.
 
-    Given line peak energies and a set of the energy bin edges:
+    Given the peak energies of the lines and a set of the energy bin edges:
     1. Find the bins into which each of the lines belong.
     2. Calculate distance between the line peak energy and the
     center of the bin to which it corresponds as a fraction of the distance between

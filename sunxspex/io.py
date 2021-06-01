@@ -37,7 +37,7 @@ def load_chianti_lines_lite():
 
     By default, this function uses reads the file located at
     https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav.
-    To read a different file call this function in the following way:
+    To read a different file (created by CHIANTI and saved as a sav file) call this function in the following way:
     >>> from sunpy.data import manager
     >>> with manager.override_file("chianti_lines", uri=filename):
             line_info = load_chianti_lines_light()
