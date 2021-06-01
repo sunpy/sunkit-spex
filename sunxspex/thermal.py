@@ -44,7 +44,7 @@ relative_abundances: `tuple` of `tuples` of (`int`, `float`) (optional)
     Each tuple represents the values for a given element.
     The first entry represents the atomic number of the element.  If this is not
     entered as an int, it is rounded to the nearest int.
-    The second entry represents the axis represents the fraction by which the 
+    The second entry represents the axis represents the fraction by which the
     element's default abundance should be scaled.
 
 observer_distance: `astropy.units.Quantity` (Optional)
@@ -73,7 +73,7 @@ def setup_continuum_parameters(filename=None):
     `https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav`.
     This includes contributions from thermal bremsstrahlung and two-photon interactions.
     To use a different file, provide the URL/file location via the filename kwarg,
-    e.g. to include only thermal bremsstrahlung, set the filename kwarg to 
+    e.g. to include only thermal bremsstrahlung, set the filename kwarg to
     'https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v70_no2photon.sav'
 
     Parameters
@@ -192,7 +192,7 @@ def thermal_emission(energy_edges,
     Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
     determined by the file from which the continuum parameters are loaded.
     To change the file used, see the setup_continuum_parameters() function.
-    
+
     {doc_string_params}"""
     energy_edges_keV = energy_edges.to_value(u.keV)
     temperature_K = temperature.to_value(u.K)
@@ -201,7 +201,7 @@ def thermal_emission(energy_edges,
     continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundance_type,
                                          relative_abundances)
     line_flux = _line_emission(energy_edges_keV, temperature_K, abundance_type, relative_abundances)
-    flux = ((continuum_flux + line_flux) * emission_measure / 
+    flux = ((continuum_flux + line_flux) * emission_measure /
                 (4 * np.pi * observer_distance**2))
     if temperature.isscalar and emission_measure.isscalar:
         flux = flux[0]
@@ -249,7 +249,7 @@ def _continuum_emission(energy_edges_keV,
     Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
     determined by the file from which the comtinuum parameters are loaded.
     To change the file used, see the setup_continuum_parameters() function.
-    
+
     Parameters
     ----------
     energy_edges_keV: 1-D array-like
@@ -366,7 +366,7 @@ def line_emission(energy_edges,
     if temperature.isscalar:
         temperature_K = np.array([temperature_K])
     flux = _line_emission(energy_edges_keV, temperature_K, abundance_type, relative_abundances)
-    flux *= emission_measure / (4 * np.pi * observer_distance**2)    
+    flux *= emission_measure / (4 * np.pi * observer_distance**2)
     if temperature.isscalar and emission_measure.isscalar:
         flux = flux[0]
     return flux
@@ -444,7 +444,7 @@ def _line_emission(energy_edges_keV,
         line_peaks_keV = _LINE_GRID["line_peaks_keV"][energy_roi_indices]
         split_line_intensities, line_spectrum_bins = _weight_emission_bins_to_line_centroid(
             line_peaks_keV, energy_edges_keV, line_intensities)
-   
+
         #### Calculate Flux #####
         # Use binned_statistic to determine which spectral bins contain
         # components of line emission and sum over those line components
@@ -453,7 +453,7 @@ def _line_emission(energy_edges_keV,
                                       "sum", n_energy_bins, (0, n_energy_bins-1)).statistic
     else:
         flux = np.zeros((n_temperatures, n_energy_bins))
-    
+
     # Scale flux by observer distance, emission measure and spectral bin width
     # and put into correct units.
     energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) * u.keV

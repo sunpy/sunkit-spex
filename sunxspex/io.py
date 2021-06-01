@@ -140,7 +140,7 @@ def load_chianti_continuum():
     >>> from sunpy.data import manager
     >>> with manager.override_file("chianti_continuum", uri=filename):
             line_info = load_chianti_lines_light()
-    
+
     where filename is the location of the file to be read.
     """
     # Define units
