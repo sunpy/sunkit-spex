@@ -88,11 +88,11 @@ def setup_continuum_parameters(filename=None):
     else:
         cont_info = load_chianti_continuum()
     _CONTINUUM_GRID = {}
-    _CONTINUUM_GRID["element index"] = cont_info.element_index.data
-    _CONTINUUM_GRID["sorted element index"] = np.sort(_CONTINUUM_GRID["element index"])
+    _CONTINUUM_GRID["abundance index"] = cont_info.element_index.data
+    _CONTINUUM_GRID["sorted abundance index"] = np.sort(_CONTINUUM_GRID["abundance index"])
 
-    T_grid = cont_info.temperature.data * cont_info.attrs["units"]["temperature"]
-    _CONTINUUM_GRID["log10T"] = np.log10(T_grid.to_value(u.K))
+    T_grid = (cont_info.temperature.data * cont_info.attrs["units"]["temperature"]).to(u.K)
+    _CONTINUUM_GRID["log10T"] = np.log10(T_grid.value)
     _CONTINUUM_GRID["T_keV"] = T_grid.to_value(u.keV, equivalencies=u.temperature_energy())
 
     wavelength = cont_info.wavelength.data * cont_info.attrs["units"]["wavelength"]
@@ -108,6 +108,9 @@ def setup_continuum_parameters(filename=None):
         "Intensity is stored as photons per keV per unit emission measure at the source.  "
         "It (and its unit) therefore must be multipled by emission measure and "
         "divided by 4 * pi * observer_distance**2 to get observed values.")
+
+    # Define valid input temperature and energy ranges
+    _define_valid_input_ranges(_CONTINUUM_GRID["E_keV"], T_grid.value, "_LINE_GRID")
 
 
 def setup_line_parameters(filename=None):
@@ -146,8 +149,26 @@ def setup_line_parameters(filename=None):
             line_info.peak_energy.data * line_info.attrs["units"]["peak_energy"]).to_value(
                 u.keV, equivalencies=u.spectral())
     _LINE_GRID["log10T"] = line_info.logT.data
-    _LINE_GRID["element index"] = line_info.attrs["element_index"]
+    _LINE_GRID["abundance index"] = line_info.attrs["element_index"]
     _LINE_GRID["line atomic numbers"] = line_info.atomic_number.data
+
+    # Define valid input temperature and energy ranges
+    _define_valid_input_ranges(_LINE_GRID["line_peaks_keV"], 10**_LINE_GRID["log10T"],
+                               "_CONTINUUM_GRID")
+
+
+def _define_valid_input_ranges(local_grid_E_keV, local_grid_T_K, other_grid_name):
+    global VALID_ENERGY_RANGE_KEV, VALID_TEMPERATURE_RANGE_K
+    if other_grid_name in globals():
+        VALID_ENERGY_RANGE_KEV = (
+            min(_CONTINUUM_GRID["E_keV"].min(), _LINE_GRID["line_peaks_keV"].min()),
+            max(_CONTINUUM_GRID["E_keV"].max(), _LINE_GRID["line_peaks_keV"].max()))
+        VALID_TEMPERATURE_RANGE_K = (
+            min(10**_CONTINUUM_GRID["log10T"].min(), 10**_LINE_GRID["log10T"].min()),
+            max(10**_CONTINUUM_GRID["log10T"].max(), _LINE_GRID["log10T"].max()))
+    else:
+        VALID_ENERGY_RANGE_KEV = (local_grid_E_keV.min(), local_grid_E_keV.max())
+        VALID_TEMPERATURE_RANGE_K = (local_grid_T_K.min(), local_grid_T_K.max())
 
 
 def setup_default_abundances(filename=None):
@@ -194,13 +215,12 @@ def thermal_emission(energy_edges,
     To change the file used, see the setup_continuum_parameters() function.
 
     {doc_string_params}"""
-    energy_edges_keV = energy_edges.to_value(u.keV)
-    temperature_K = temperature.to_value(u.K)
-    if temperature.isscalar:
-        temperature_K = np.array([temperature_K])
-    continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundance_type,
-                                         relative_abundances)
-    line_flux = _line_emission(energy_edges_keV, temperature_K, abundance_type, relative_abundances)
+    energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+    # Calculate abundances
+    abundances = _calculate_abundances(abundance_type, relative_abundances)
+    # Calculate fluxes.
+    continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
+    line_flux = _line_emission(energy_edges_keV, temperature_K, abundances)
     flux = ((continuum_flux + line_flux) * emission_measure /
                 (4 * np.pi * observer_distance**2))
     if temperature.isscalar and emission_measure.isscalar:
@@ -226,21 +246,19 @@ def continuum_emission(energy_edges,
     To change the file used, see the setup_continuum_parameters() function.
 
     {doc_string_params}"""
-    temperature_K = temperature.to_value(u.K)
-    if temperature.isscalar:
-        temperature_K = np.array([temperature_K])
-    flux = _continuum_emission(energy_edges.to_value(u.keV), temperature_K,
-                               abundance_type=abundance_type,
-                               relative_abundances=relative_abundances)
+    # Convert inputs to known units and confirm they are within range.
+    energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+    # Calculate abundances
+    abundances = _calculate_abundances(abundance_type, relative_abundances)
+    # Calculate flux.
+    flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
     flux *= emission_measure / (4 * np.pi * observer_distance**2)
-    if temperature.isscalar:
+    if temperature.isscalar and emission_measure.isscalar:
         flux = flux[0]
     return flux
 
-def _continuum_emission(energy_edges_keV,
-                        temperature_K,
-                        abundance_type,
-                        relative_abundances):
+
+def _continuum_emission(energy_edges_keV, temperature_K, abundances):
     """
     Calculates emission-measure-normalized X-ray continuum spectrum at the source.
 
@@ -258,11 +276,8 @@ def _continuum_emission(energy_edges_keV,
     temperature_K: 1-D array-like
         The temperature(s) of the plasma in unit of K.  Must not be a scalar.
 
-    abundance_type: `str`
-        Set of default abundances to be used.  See the continuum_emission function docstring
-        for options.
-
-    relative_abundances: same as for continuum_emission function.
+    abundances: 1-D `numpy.array` of same length a DEFAULT_ABUNDANCES.
+        The abundances for the all the elements.
     """
     # Handle inputs and derive some useful parameters from them
     log10T_in = np.log10(temperature_K)
@@ -270,21 +285,10 @@ def _continuum_emission(energy_edges_keV,
     # Get energy bins centers based on geometric mean.
     energy_gmean_keV = stats.gmean(np.vstack((energy_edges_keV[:-1], energy_edges_keV[1:])))
 
-    #####  Calculate Abundances #####
-    # Calculate abundance of each desired element.
-    default_abundances = DEFAULT_ABUNDANCES[abundance_type].data
-    n_abundances = len(default_abundances)
-    rel_abund_values = np.ones(n_abundances)
-    if relative_abundances:
-        # Convert input relative abundances to array where
-        # first axis is atomic number, i.e == index + 1
-        # Second axis is relative abundance value.
-        rel_abund_array = np.array(relative_abundances).T
-        rel_idx = np.rint(rel_abund_array[0]).astype(int) - 1
-        rel_abund_values[rel_idx] = rel_abund_array[1]
-    abundance_mask = np.zeros(n_abundances, dtype=bool)
-    abundance_mask[_CONTINUUM_GRID["element index"]] = True
-    abundances = default_abundances * rel_abund_values * abundance_mask
+    # Mask Unwanted Abundances
+    abundance_mask = np.zeros(len(abundances))
+    abundance_mask[_CONTINUUM_GRID["abundance index"]] = 1.
+    abundances *= abundance_mask
 
     #####  Calculate Continuum Intensity Summed Over All Elements
     #####  For Each Temperature as a function of Energy/Wavelength ######
@@ -301,7 +305,7 @@ def _continuum_emission(energy_edges_keV,
         intensity_per_em_at_source_allT = np.zeros(_CONTINUUM_GRID["intensity"].shape[1:])
         for i in range(0, n_t_grid):
             intensity_per_em_at_source_allT[i] = np.matmul(
-                abundances[_CONTINUUM_GRID["sorted element index"]],
+                abundances[_CONTINUUM_GRID["sorted abundance index"]],
                 _CONTINUUM_GRID["intensity"][:, i])
     # 2. Add dummy axes to energy and temperature grid arrays for later vectorized operations.
     repeat_E_grid = _CONTINUUM_GRID["E_keV"][np.newaxis, :]
@@ -323,7 +327,7 @@ def _continuum_emission(energy_edges_keV,
             intensity_per_em_at_source = np.zeros(element_intensities_per_em_at_source.shape[1:])
             for i in range(0, n_tband):
                 intensity_per_em_at_source[i] = np.matmul(
-                    abundances[_CONTINUUM_GRID["sorted element index"]],
+                    abundances[_CONTINUUM_GRID["sorted abundance index"]],
                     element_intensities_per_em_at_source[:, i])
         else:
             intensity_per_em_at_source = intensity_per_em_at_source_allT[tband_idx[j]]
@@ -360,22 +364,19 @@ def line_emission(energy_edges,
     Calculate thermal line emission from the solar corona.
 
     {docstring_params}"""
-    # For ease of calculation, convert inputs to known units and structures.
-    energy_edges_keV = energy_edges.to_value(u.keV)
-    temperature_K = temperature.to_value(u.K)
-    if temperature.isscalar:
-        temperature_K = np.array([temperature_K])
-    flux = _line_emission(energy_edges_keV, temperature_K, abundance_type, relative_abundances)
+    # Convert inputs to known units and confirm they are within range.
+    energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+    # Calculate abundances
+    abundances = _calculate_abundances(abundance_type, relative_abundances)
+
+    flux = _line_emission(energy_edges_keV, temperature_K, abundances)
     flux *= emission_measure / (4 * np.pi * observer_distance**2)
     if temperature.isscalar and emission_measure.isscalar:
         flux = flux[0]
     return flux
 
 
-def _line_emission(energy_edges_keV,
-                   temperature_K,
-                   abundance_type,
-                   relative_abundances):
+def _line_emission(energy_edges_keV, temperature_K, abundances):
     """
     Calculates emission-measure-normalized X-ray line spectrum at the source.
 
@@ -390,11 +391,8 @@ def _line_emission(energy_edges_keV,
     temperature_K: 1-D array-like
         The temperature(s) of the plasma in unit of K.  Must not be a scalar.
 
-    abundance_type: `str`
-        Set of default abundances to be used.  See the continuum_emission function docstring
-        for options.
-
-    relative_abundances: same as for continuum_emission function.
+    abundances: 1-D `numpy.array` of same length a DEFAULT_ABUNDANCES.
+        The abundances for the all the elements.
     """
     n_energy_bins = len(energy_edges_keV)-1
     n_temperatures = len(temperature_K)
@@ -405,26 +403,15 @@ def _line_emission(energy_edges_keV,
     n_energy_roi_indices = energy_roi_indices.sum()
     # If there are emission lines within the energy range of interest, compile spectrum.
     if n_energy_roi_indices > 0:
-        #####  Calculate Abundances #####
-        # Calculate abundance of each desired element.
-        default_abundances = DEFAULT_ABUNDANCES[abundance_type].data
-        n_abundances = len(default_abundances)
-        rel_abund_values = np.ones(n_abundances)
-        if relative_abundances:
-            # Convert input relative abundances to array where
-            # first axis is atomic number, i.e == index + 1
-            # Second axis is relative abundance value.
-            rel_abund_array = np.array(relative_abundances).T
-            rel_idx = np.rint(rel_abund_array[0]).astype(int) - 1
-            rel_abund_values[rel_idx] = rel_abund_array[1]
-        abundance_mask = np.zeros(n_abundances, dtype=bool)
-        abundance_mask[_LINE_GRID["element index"]] = True
-        abundances = default_abundances * rel_abund_values * abundance_mask
+        # Mask Unwanted Abundances
+        abundance_mask = np.zeros(len(abundances))
+        abundance_mask[_LINE_GRID["abundance index"]] = 1.
+        abundances *= abundance_mask
         # Extract only the lines within the energy range of interest.
         line_abundances = abundances[_LINE_GRID["line atomic numbers"][energy_roi_indices] - 2]
         # Above magic number of of -2 is comprised of:
         # a -1 to account for the fact that index is atomic number -1, and
-        # another -1 because abundance index is offset from element index by 1.
+        # another -1 because abundance index is offset from abundance index by 1.
 
         ##### Calculate Line Intensities within the Input Energy Range #####
         # Calculate abundance-normalized intensity of each line in energy range of
@@ -697,3 +684,46 @@ def _weight_emission_bins(line_deviations_keV, deviation_indices,
     neighbor_iline = iline[deviation_indices]+b
 
     return new_line_intensities, neighbor_intensities, neighbor_iline
+
+
+def _sanitize_inputs(energy_edges, temperature):
+    # Convert inputs to known units and confirm they are within range.
+    energy_edges_keV = energy_edges.to_value(u.keV)
+    temperature_K = temperature.to_value(u.K)
+    if temperature.isscalar:
+        temperature_K = np.array([temperature_K])
+    # Confirm inputs are within valid ranges
+    invalid_range_message = lambda parameter, min_, max_, unit: \
+        f"Invalid {parameter} input. All input {parameter} values must be in range {min_} -- {max_} {unit}"
+    if (energy_edges_keV.min() < VALID_ENERGY_RANGE_KEV[0] or
+        energy_edges_keV.max() > VALID_ENERGY_RANGE_KEV[1]):
+        raise ValueError(invalid_range_message("energy", VALID_ENERGY_RANGE_KEV[0],
+                                               VALID_ENERGY_RANGE_KEV[1], "keV"))
+    if (temperature_K.min() < VALID_TEMPERATURE_RANGE_K[0] or
+        temperature_K.max() > VALID_TEMPERATURE_RANGE_K[1]):
+        raise ValueError(invalid_range_message("energy", VALID_TEMPERATURE_RANGE_K[0] * 1e-6,
+                                               VALID_TEMPERATURE_RANGE_K[0] * 1e-6, "MK"))
+    return energy_edges_keV, temperature_K
+
+
+def _calculate_abundances(abundance_type, relative_abundances):
+    abundances = DEFAULT_ABUNDANCES[abundance_type].data
+    if relative_abundances:
+        # Convert input relative abundances to array where
+        # first axis is atomic number, i.e == index + 1
+        # Second axis is relative abundance value.
+        rel_abund_array = np.array(relative_abundances).T
+        # Confirm relative abundances are for valid elements and positive.
+        min_abundance_z = DEFAULT_ABUNDANCES["atomic number"].min()
+        max_abundance_z = DEFAULT_ABUNDANCES["atomic number"].max()
+        if (rel_abund_array[0].min() < min_abundance_z or
+            rel_abund_array[0].max() > max_abundance_z):
+            raise ValueError("Relative abundances can only be set for elements with "
+                             f"atomic numbers in range {min_abundance_z} -- {min_abundance_z}")
+        if rel_abund_array[1].min() < 0:
+            raise ValueError("Relative abundances cannot be negative.")
+        rel_idx = np.rint(rel_abund_array[0]).astype(int) - 1
+        rel_abund_values = np.ones(len(abundances))
+        rel_abund_values[rel_idx] = rel_abund_array[1]
+        abundances *= rel_abund_values
+    return abundances
