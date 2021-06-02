@@ -2,205 +2,181 @@ import os.path
 import glob
 from collections import OrderedDict
 
-import numpy as np
 import astropy.units as u
-from astropy.table import Table, Column
+import numpy as np
 import scipy.io
+import xarray
+from astropy.table import Table, Column
 from sunpy.io.special.genx import read_genx
 from sunpy.time import parse_time
 from sunpy.data import manager
 
-__all__  = ['chianti_kev_line_common_load_light', 'chianti_kev_line_common_load',
-            'chianti_kev_cont_common_load', 'read_abundance_genx', 'load_xray_abundances']
+__all__  = ['load_chianti_lines_lite', 'load_chianti_continuum',
+            'read_abundance_genx', 'load_xray_abundances']
 
-def chianti_kev_line_common_load_light():
+
+@manager.require('chianti_lines',
+                 ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav'],
+                  '2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677')
+def load_chianti_lines_lite():
     """
-    Read only X-ray emission line info needed for the chianti_kev functions.
+    Read X-ray emission line info from an IDL sav file produced by CHIANTI.
 
-    Unlike chianti_kev_line_common_load which formats and returns all in the file,
-    this function only returns the data required by the ChiantiKevLines class.
+    This function does not read all data in the file, but only that required to calculate the
+    observed X-ray spectrum.
 
     Returns
     -------
-    zindex: `numpy.ndarray`
-        Indicies of elements as they appear in periodic table.
+    line_intensities_at_source: `xarray.DataArray`
+        Intensities of each of each line as a function of temperature and
+        associated metadata and coordinates.
 
-    line_peak_energies: `astropy.units.Quantity` of `list` of `astropy.units.Quantity`
-        The energies of the line peaks.
+    Notes
+    -----
+    CHIANTI File
 
-    line_logT_bins: `numpy.ndarray` or `list` of `numpy.ndarray`
-        The log10 temperature bins over which the line intensities are known.
+    By default, this function uses the file located at
+    https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav.
+    To use a different file (created by CHIANTI and saved as a sav file) call this function in the following way:
+    >>> from sunpy.data import manager  # doctest: +SKIP
+    >>> with manager.override_file("chianti_lines", uri=filename): # doctest: +SKIP
+    ...     line_info = load_chianti_lines_light() # doctest: +SKIP
 
-    line_colEMs: `astropy.units.Quantity` of `list` of `astropy.units.Quantity`
-        The column emission measures used to calculate the intensities for each line.
+    where filename is the location of the file to be read.
 
-    line_element_indices: `numpy.ndarray` or `list` of `numpy.ndarray`
-        The atomic number of each line minus 1.
+    Intensity Units
 
-    line_intensities: `astropy.units.Quantity`
-        Intensities of each of the lines in line_properties over a temperature axis.
-        The array is 2D with axes of (line, temperature axis)
+    The line intensities read from the CHIANTI file are in units of ph / cm**2 / s / sr.
+    Therefore they are specific intensities, i.e. per steradian, or solid angle.
+    Here, let us call these intensities, intensity_per_solid_angle.
+    The solid angle is given by flare_area / observer_distance**2.
+    Total integrated intensity can be rewritten in terms of volume EM and solid angle:
+
+    intensity = intensity_per_solid_angle_per_volEM * volEM * solid_angle
+    intensity = intensity_per_solid_angle / (colEM * flare_area) * (flare_area / observer_dist**2) * volEM
+    intensity = intensity_per_solid_angle / colEM / observer_dist**2 * volEM
+
+    i.e. flare area cancels. Therefore:
+
+    intensity = intensity_per_solid_angle / colEM / observer_dist**2 * volEM,
+
+    or, dividing both sides by volEM,
+
+    intensity_per_EM = intensity_per_solid_angle / colEM / observer_dist**2
+
+    In this function, we normalize the intensity by colEM and scale it to the source, i.e.
+    intensity_out = intensity_per_solid_angle / colEM * 4 * pi
+    Therefore the intensity values output by this function must be multiplied by EM
+    and divided by 4 pi observer_dist**2 to get physical values at the observer.
     """
     # Read linefile
-    contents = _read_linefile()
+    linefile = manager.get('chianti_lines')
+    contents = scipy.io.readsav(linefile)
     out = contents["out"]
 
-    zindex = contents["zindex"]
-    line_logT_bins = _clean_array_dims(out["LOGT_ISOTHERMAL"])
-    line_colEMs = 10.**_clean_array_dims(out["LOGEM_ISOTHERMAL"]) / u.cm**5
+    # Define units
     wvl_units = _clean_units(out["WVL_UNITS"])
     int_units = _clean_units(out["INT_UNITS"])
+    energy_unit = u.keV
 
+    # Extract line info and convert from wavelength to energy.
     line_intensities = []
-    line_element_indices = []
+    line_elements = []
     line_peak_energies = []
     for j, lines in enumerate(out["lines"]):
-        line_element_indices.append(lines["IZ"])
-        line_peak_energies.append(u.Quantity(lines["WVL"], unit=wvl_units).to(u.keV, equivalencies=u.spectral()))
-
-        # Sort lines in ascending energy.
+        # Extract line element index and peak energy.
+        line_elements.append(lines["IZ"] + 1)  #TODO: Confirm lines["IZ"] is indeed atomic number - 1
+        line_peak_energies.append(u.Quantity(lines["WVL"], unit=wvl_units).to(
+            energy_unit, equivalencies=u.spectral()))
+        # Sort line info in ascending energy.
         ordd = np.argsort(np.array(line_peak_energies[j]))
-        line_element_indices[j] = line_element_indices[j][ordd]
+        line_elements[j] = line_elements[j][ordd]
         line_peak_energies[j] = line_peak_energies[j][ordd]
-
         # Extract line intensities.
         line_intensities.append(_extract_line_intensities(lines["INT"][ordd]) * int_units)
 
     # If there is only one element in the line properties, unpack values.
     if len(out["lines"]) == 1:
-        line_element_indices = line_element_indices[0]
+        line_elements = line_elements[0]
         line_peak_energies = line_peak_energies[0]
         line_intensities = line_intensities[0]
 
-    return zindex, line_peak_energies, line_logT_bins, line_colEMs, line_element_indices, \
-        line_intensities
+    # Normalize line intensities by EM and integrate over whole sky to get intensity at source.
+    # This means that physical intensities can be calculated by dividing by
+    # 4 * pi * R**2 where R is the observer distance.
+    line_colEMs = 10.**_clean_array_dims(out["LOGEM_ISOTHERMAL"]) / u.cm**5
+    line_intensities /= line_colEMs
+    line_intensities *= 4 * np.pi * u.sr
+
+    # Put data into intuitive structure and return it.
+    line_intensities_per_EM_at_source = xarray.DataArray(
+        line_intensities.value,
+        dims=["lines", "temperature"],
+        coords={"logT": ("temperature", _clean_array_dims(out["LOGT_ISOTHERMAL"])),
+                "peak_energy": ("lines", line_peak_energies),
+                "atomic_number": ("lines", line_elements)},
+        attrs={"units": {"data": line_intensities.unit,
+                         "peak_energy": line_peak_energies.unit},
+               "file": linefile,
+               "element_index": contents["zindex"],
+               "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])})
+
+    return line_intensities_per_EM_at_source
 
 
-def chianti_kev_line_common_load():
-    """
-    Read file containing X-ray emission line info needed for the chianti_kev functions.
-
-    Returns
-    -------
-    zindex: `numpy.ndarray`
-        Indicies of elements as they appear in periodic table.
-
-    line_meta: `dict`
-        Various metadata associated with line properties.
-
-    line_properties: `astropy.table.Table`
-        Various properties of each lines.
-
-    line_intensities: `astropy.units.Quantity`
-        Intensities of each of the lines in line_properties over a temperature axis.
-        The array is 2D with axes of (line, temperature axis)
-    """
-    # Read linefile.
-    contents = _read_linefile()
-    zindex = contents["zindex"]
-    out = contents["out"]
-
-    # Repackage metadata from file.
-    date = []
-    for date_byte in out["DATE"]:
-        date_strings = str(date_byte[3:], 'utf-8').split()
-        date.append(parse_time("{0}-{1}-{2} {3}".format(date_strings[3], date_strings[0],
-                                                        date_strings[1], date_strings[2])))
-    if len(date) == 1:
-        date = date[0]
-    line_meta = {
-        "IONEQ_LOGT": _clean_array_dims(out["IONEQ_LOGT"]),
-        "IONEQ_NAME": _clean_string_dims(out["IONEQ_NAME"]),
-        "IONEQ_REF": _combine_strings(out["IONEQ_REF"]),
-        "WVL_LIMITS": _clean_array_dims(out["WVL_LIMITS"]),
-        "MODEL_FILE": _clean_string_dims(out["MODEL_FILE"]),
-        "MODEL_NAME": _clean_string_dims(out["MODEL_NAME"]),
-        "MODEL_NE": _clean_array_dims(out["MODEL_NE"]),
-        "MODEL_PE": _clean_array_dims(out["MODEL_PE"]),
-        "MODEL_TE": _clean_array_dims(out["MODEL_TE"]),
-        "WVL_UNITS": _clean_units(out["WVL_UNITS"]),
-        "INT_UNITS": _clean_units(out["INT_UNITS"]),
-        "ADD_PROTONS": _clean_array_dims(out["ADD_PROTONS"], dtype=int),
-        "DATE": date,
-        "VERSION": _clean_string_dims(out['VERSION']),
-        "PHOTOEXCITATION": _clean_array_dims(out["PHOTOEXCITATION"], dtype=int),
-        "LOGT_ISOTHERMAL": _clean_array_dims(out["LOGT_ISOTHERMAL"]),
-        "LOGEM_ISOTHERMAL": _clean_array_dims(out["LOGEM_ISOTHERMAL"]),
-        "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
-        }
-
-    # Repackage out["line"] into a Table with appropriate units.
-    # Create a list of tables to make sure all data in file is captured.
-    # Although only one iteration is expected.
-    line_properties = []
-    line_intensities = []
-    for lines in out["lines"]:
-        line_props = Table()
-        line_props["IZ"] = Column(lines["IZ"], description="Atomic number of ion element.")
-        line_props["ION"] = Column(lines["ION"],
-            description="Integer ionization state in astronomical notation, i.e. ION-1 = negative charge of ion.")
-        line_props["IDENT"] = Column(lines["IDENT"])
-        line_props["IDENT_LATEX"] = Column(lines["IDENT_LATEX"])
-        line_props["SNOTE"] = Column(lines["SNOTE"],
-            description="Ion label in astronomical (roman numeral) notation.")
-        line_props["LVL1"] = Column(lines["LVL1"])
-        line_props["LVL2"] = Column(lines["LVL2"])
-        line_props["TMAX"] = Column(lines["TMAX"])
-        line_props["WVL"] = Column(lines["WVL"], unit=line_meta["WVL_UNITS"])
-        line_props["ENERGY"] = line_props["WVL"].quantity.to(u.keV, equivalencies=u.spectral())
-        line_props["FLAG"] = Column(lines["FLAG"])
-
-        # Sort lines in ascending energy.
-        ordd = np.argsort(np.array(line_props["WVL"]))[::-1]
-        line_props = line_props[ordd]
-
-        # Extract line intensities.
-        line_intensities.append(_extract_line_intensities(lines["INT"][ordd]))
-
-        # Enter outputs from this iteration into list.
-        line_properties.append(line_props)
-        line_intensities.append(line_ints)
-
-    # If there is only one element in the line properties, unpack values.
-    if len(out["lines"]) == 1:
-        line_properties = line_properties[0]
-        line_intensities = line_intensities[0]
-
-    return zindex, line_meta, line_properties, line_intensities * line_meta["INT_UNITS"]
-
-
-@manager.require('chianti_cont_1_250',
+@manager.require('chianti_continuum',
                  ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav'],
                  'aadf4355931b4c241ac2cd5669e89928615dc1b55c9fce49a155b70915a454dd')
-def chianti_kev_cont_common_load(_extra=None):
+def load_chianti_continuum():
     """
-    Read X-ray continuum emission info needed for the chianti_kev functions.
+    Read X-ray continuum emission info from an IDL sav file produced by CHIANTI
 
     Returns
     -------
-    zindex: `numpy.ndarray`
-        Indicies of elements as they appear in periodic table.
-    continuum_properties: `dict`
-        Properties of continuum emission.
-    """
-    contfile = manager.get("chianti_cont_1_250")
-    # Read file
-    contents = scipy.io.readsav(contfile)
-    zindex = contents["zindex"]
-    edge_str = {
-            "CONVERSION": _clean_array_dims(contents["edge_str"]["CONVERSION"]),
-            "WVL": _clean_array_dims(contents["edge_str"]["WVL"]),
-            "WVLEDGE": _clean_array_dims(contents["edge_str"]["WVLEDGE"])
-                }
-    continuum_properties = {
-            "totcont": contents["totcont"],
-            "totcont_lo": contents["totcont_lo"],
-            "edge_str": edge_str,
-            "ctemp": contents["ctemp"],
-            "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
-                            }
+    continuum_intensities: `xarray.DataArray`
+        Continuum intensity as a function of element, temperature and energy/wavelength
+        and associated metadata and coordinates.
 
-    return zindex, continuum_properties
+    Notes
+    -----
+    By default, this function uses the file located at
+    https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav
+    To use a different file call this function in the following way:
+    >>> from sunpy.data import manager # doctest: +SKIP
+    >>> with manager.override_file("chianti_continuum", uri=filename): # doctest: +SKIP
+    ...    line_info = load_chianti_lines_light() # doctest: +SKIP
+
+    where filename is the location of the file to be read.
+    """
+    # Define units
+    intensity_unit = u.ph * u.cm**3 / (u.s * u.keV * u.sr)
+    temperature_unit = u.K
+    wave_unit = u.AA
+    # Read file
+    contfile = manager.get("chianti_continuum")
+    contents = scipy.io.readsav(contfile)
+    # Concatenate low and high wavelength intensity arrays.
+    intensities = np.concatenate((contents["totcont_lo"], contents["totcont"]), axis=-1)
+    # Integrate over sphere surface of radius equal to observer distance
+    # to get intensity at source. This means that physical intensities can
+    # be calculated by dividing by 4 * pi * R**2 where R is the observer distance.
+    intensities *= 4 * np.pi
+    intensity_unit *= u.sr
+    # Put file data into intuitive structure and return data.
+    continuum_intensities = xarray.DataArray(
+        intensities,
+        dims=["element_index", "temperature", "wavelength"],
+        coords={"element_index": contents["zindex"],
+                "temperature": contents["ctemp"],
+                "wavelength": _clean_array_dims(contents["edge_str"]["WVL"])},
+        attrs={"units": {"data": intensity_unit,
+                         "temperature": temperature_unit,
+                         "wavelength": wave_unit},
+               "file": contfile,
+               "wavelength_edges": _clean_array_dims(contents["edge_str"]["WVLEDGE"]) * wave_unit,
+               "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
+               })
+    return continuum_intensities
 
 
 @manager.require('xray_abundances',
@@ -242,8 +218,15 @@ def load_xray_abundances(abundance_type=None):
     xray_abundance_file = manager.get("xray_abundances")
     # Read file
     contents = read_abundance_genx(xray_abundance_file)
-    # Extract relevant abundance type
-    abundances = contents[abundance_type]
+    # Restructure data into an easier form.
+    try:
+        header = contents.pop("header")
+    except KeyError:
+        header = None
+    n_elements = len(contents[list(contents.keys())[0]])
+    columns = [np.arange(1, n_elements+1)] + list(contents.values())
+    names = ["atomic number"] + list(contents.keys())
+    abundances = Table(columns, names=names)
 
     return abundances
 
@@ -262,24 +245,12 @@ def read_abundance_genx(filename):
     return output
 
 
-@manager.require('chianti_lines_1_10',
-                 ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav'],
-                  '2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677')
-def _read_linefile():
-    linefile = manager.get('chianti_lines_1_10')
-    # Read file
-    contents = scipy.io.readsav(linefile)
-    zindex = contents["zindex"]
-    out = contents["out"]
-
-    return contents
-
-
 def _extract_line_intensities(lines_int_sorted):
     line_ints = np.empty((lines_int_sorted.shape[0], lines_int_sorted[0].shape[0]), dtype=float)
     for i in range(line_ints.shape[0]):
         line_ints[i, :] = lines_int_sorted[i]
     return line_ints
+
 
 def _clean_array_dims(arr, dtype=None):
     # Initialize a single array to hold contents of input arr.
@@ -309,6 +280,7 @@ def _combine_strings(arr):
     if len(result) == 1:
         result = result[0]
     return result
+
 
 def _clean_units(arr):
     result = []

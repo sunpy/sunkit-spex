@@ -5,6 +5,5 @@ Reference
 Software and API.
 
 .. automodapi:: sunxspex
-.. automodapi:: sunxspex.thermal_spectrum
+.. automodapi:: sunxspex.thermal
 .. automodapi:: sunxspex.io
-.. automodapi:: sunxspex.models
