@@ -40,7 +40,7 @@ def load_chianti_lines_lite():
     To use a different file (created by CHIANTI and saved as a sav file) call this function in the following way:
     >>> from sunpy.data import manager  # doctest: +SKIP
     >>> with manager.override_file("chianti_lines", uri=filename): # doctest: +SKIP
-            line_info = load_chianti_lines_light() # doctest: +SKIP
+    ...     line_info = load_chianti_lines_light() # doctest: +SKIP
 
     where filename is the location of the file to be read.
 
@@ -51,12 +51,17 @@ def load_chianti_lines_lite():
     Here, let us call these intensities, intensity_per_solid_angle.
     The solid angle is given by flare_area / observer_distance**2.
     Total integrated intensity can be rewritten in terms of volume EM and solid angle:
+
     intensity = intensity_per_solid_angle_per_volEM * volEM * solid_angle
-              = intensity_per_solid_angle / (colEM * flare_area) * (flare_area / observer_dist**2) * volEM
-              = intensity_per_solid_angle / colEM / observer_dist**2 * volEM
+    intensity = intensity_per_solid_angle / (colEM * flare_area) * (flare_area / observer_dist**2) * volEM
+    intensity = intensity_per_solid_angle / colEM / observer_dist**2 * volEM
+
     i.e. flare area cancels. Therefore:
+
     intensity = intensity_per_solid_angle / colEM / observer_dist**2 * volEM,
+
     or, dividing both sides by volEM,
+
     intensity_per_EM = intensity_per_solid_angle / colEM / observer_dist**2
 
     In this function, we normalize the intensity by colEM and scale it to the source, i.e.
@@ -139,7 +144,7 @@ def load_chianti_continuum():
     To use a different file call this function in the following way:
     >>> from sunpy.data import manager # doctest: +SKIP
     >>> with manager.override_file("chianti_continuum", uri=filename): # doctest: +SKIP
-            line_info = load_chianti_lines_light() # doctest: +SKIP
+    ...    line_info = load_chianti_lines_light() # doctest: +SKIP
 
     where filename is the location of the file to be read.
     """

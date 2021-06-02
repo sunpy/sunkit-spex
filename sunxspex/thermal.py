@@ -193,7 +193,7 @@ def setup_default_abundances(filename=None):
 setup_continuum_parameters()
 setup_line_parameters()
 setup_default_abundances()
-
+DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
 @u.quantity_input(energy_edges=u.keV,
                   temperature=u.K,
@@ -202,7 +202,7 @@ setup_default_abundances()
 def thermal_emission(energy_edges,
                      temperature,
                      emission_measure,
-                     abundance_type="sun_coronal",
+                     abundance_type=DEFAULT_ABUNDANCE_TYPE,
                      relative_abundances=None,
                      observer_distance=(1*u.AU).to(u.cm)):
     f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
@@ -233,7 +233,7 @@ def thermal_emission(energy_edges,
 def continuum_emission(energy_edges,
               temperature,
               emission_measure,
-              abundance_type="sun_coronal",
+              abundance_type=DEFAULT_ABUNDANCE_TYPE,
               relative_abundances=None,
               observer_distance=(1*u.AU).to(u.cm)):
     f"""Calculate the thermal X-ray continuum emission from the solar atmosphere.
@@ -355,7 +355,7 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
 def line_emission(energy_edges,
          temperature,
          emission_measure,
-         abundance_type="sun_coronal",
+         abundance_type=DEFAULT_ABUNDANCE_TYPE,
          relative_abundances=None,
          observer_distance=(1*u.AU).to(u.cm)):
     """
