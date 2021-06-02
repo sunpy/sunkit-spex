@@ -359,3 +359,35 @@ def test_line_emission_against_ssw(ssw):
     output = thermal.line_emission(*input_args)
     expected_value = expected.to_value(output.unit)
     np.testing.assert_allclose(output.value, expected_value, rtol=0.03, atol=1e-30)
+
+
+def test_scalar_energy_input():
+    with pytest.raises(ValueError):
+        thermal.thermal_emission(10 * u.keV, 6*u.MK, 1e44/u.cm**3)
+
+
+def test_len1_energy_input():
+    with pytest.raises(ValueError):
+        thermal.thermal_emission([10] * u.keV, 6*u.MK, 1e44/u.cm**3)
+
+
+def test_energy_out_of_range_input():
+    with pytest.raises(ValueError):
+        thermal.thermal_emission([0.01, 10] * u.keV, 6*u.MK, 1e44/u.cm**3)
+
+
+def test_temperature_out_of_range_input():
+    with pytest.raises(ValueError):
+        thermal.thermal_emission([5, 10] * u.keV, 0.1*u.MK, 1e44/u.cm**3)
+
+
+def test_relative_abundance_negative_input():
+    with pytest.raises(ValueError):
+        thermal.thermal_emission([5, 10] * u.keV, 10*u.MK, 1e44/u.cm**3,
+                                 relative_abundances=((26, -1)))
+
+
+def test_relative_abundance_invalid_atomic_number_input():
+    with pytest.raises(ValueError):
+        thermal.thermal_emission([5, 10] * u.keV, 10*u.MK, 1e44/u.cm**3,
+                                 relative_abundances=((100, 1)))

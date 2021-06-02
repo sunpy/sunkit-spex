@@ -686,6 +686,8 @@ def _weight_emission_bins(line_deviations_keV, deviation_indices,
 
 def _sanitize_inputs(energy_edges, temperature):
     # Convert inputs to known units and confirm they are within range.
+    if energy_edges.isscalar or len(energy_edges) < 2 or energy_edges.ndim > 1:
+        raise ValueError("energy_edges must be a 1-D astropy Quantity with length greater than 1.")
     energy_edges_keV = energy_edges.to_value(u.keV)
     temperature_K = temperature.to_value(u.K)
     if temperature.isscalar:
