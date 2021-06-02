@@ -42,14 +42,12 @@ relative_abundances: `tuple` of `tuples` of (`int`, `float`) (optional)
     The relative abundances of different elements as a fraction of their
     default abundances defined by abundance_type.
     Each tuple represents the values for a given element.
-    The first entry represents the atomic number of the element.  If this is not
-    entered as an int, it is rounded to the nearest int.
+    The first entry represents the atomic number of the element.
     The second entry represents the axis represents the fraction by which the
     element's default abundance should be scaled.
 
 observer_distance: `astropy.units.Quantity` (Optional)
-    The distance between the source and the observer. Scales output to observer distance
-    and unit by 1/length.
+    The distance between the source and the observer.
     Default=1 AU.
 
 Returns
