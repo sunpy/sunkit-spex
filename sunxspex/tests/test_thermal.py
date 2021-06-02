@@ -1,3 +1,5 @@
+import warnings
+
 import astropy.units as u
 import numpy as np
 import pytest
@@ -371,12 +373,12 @@ def test_len1_energy_input():
         thermal.thermal_emission([10] * u.keV, 6*u.MK, 1e44/u.cm**3)
 
 
-def test_energy_out_of_range_input():
+def test_energy_out_of_range_error():
     with pytest.raises(ValueError):
         thermal.thermal_emission([0.01, 10] * u.keV, 6*u.MK, 1e44/u.cm**3)
 
 
-def test_temperature_out_of_range_input():
+def test_temperature_out_of_range_error():
     with pytest.raises(ValueError):
         thermal.thermal_emission([5, 10] * u.keV, 0.1*u.MK, 1e44/u.cm**3)
 
@@ -391,3 +393,13 @@ def test_relative_abundance_invalid_atomic_number_input():
     with pytest.raises(ValueError):
         thermal.thermal_emission([5, 10] * u.keV, 10*u.MK, 1e44/u.cm**3,
                                  relative_abundances=((100, 1)))
+
+
+def test_energy_out_of_range_warning():
+    with warnings.catch_warnings(record=True) as w:
+        # Cause all warnings to always be triggered.
+        warnings.simplefilter("always")
+        # Trigger a warning.
+        output = thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6*u.MK, 1e44/u.cm**3)
+        print(w[0].category)
+        assert issubclass(w[0].category, UserWarning)
