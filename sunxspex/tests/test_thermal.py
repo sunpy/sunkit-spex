@@ -5,10 +5,10 @@ import pytest
 from sunxspex import thermal
 
 # Manually load file that was used to compile expected flux values.
-test_chianti_cont_file = "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav"
-thermal.setup_continuum_parameters(test_chianti_cont_file)
-test_chianti_line_file = "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav"
-thermal.setup_line_parameters(test_chianti_line_file)
+thermal.setup_continuum_parameters(
+    "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav")
+thermal.setup_line_parameters(
+    "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav")
 SSW_INTENSITY_UNIT = u.ph / u.cm**2 / u.s / u.keV
 DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
@@ -19,7 +19,7 @@ def fvth_simple():
     f_vth is the standard routine used to calculate a thermal spectrum in SSW.
     The output defined here uses a energy bins from 3-28 keV with a bin width of 0.5 keV,
     a temperature of 6 MK, a emission measure of 1e44 cm^-3, an observer distance of 1AU,
-    default ('sun_coronal') abundances, and default relative abundances.
+    default ('sun_coronal_ext') abundances, and default relative abundances.
     The SSW output can be reproduced in SSW/IDL with the following code:
 
     Returns
@@ -68,7 +68,7 @@ def chianti_kev_cont_simple():
     that includes free-free, free-bound and two-photon components.  It is used by f_vth.pro.
     The output defined here uses a energy bins from 3-28 keV with a bin width of 0.5 keV,
     a temperature of 6 MK, a emission measure of 1e44 cm^-3, an observer distance of 1AU,
-    default ('sun_coronal') abundances, and default relative abundances.
+    default ('sun_coronal_ext') abundances, and default relative abundances.
     The SSW output can be reproduced in SSW/IDL with the following code:
 
     Returns
@@ -116,7 +116,7 @@ def chianti_kev_lines_simple():
     in SSW.  It is used by f_vth.pro.
     The output defined here uses a energy bins from 3-28 keV with a bin width of 0.5 keV,
     a temperature of 6 MK, a emission measure of 1e44 cm^-3, an observer distance of 1AU,
-    default ('sun_coronal') abundances, and default relative abundances.
+    default ('sun_coronal_ext') abundances, and default relative abundances.
     The SSW output can be reproduced in SSW/IDL with the following code:
 
     Returns
@@ -140,7 +140,7 @@ def chianti_kev_lines_simple():
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
-    abundance_type = DEFAULT_ABUNDANCE_TYPE
+    abundance_type = "sun_coronal"
     relative_abundances = None
     observer_distance = (1 * u.AU).to(u.cm)
     inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances,
@@ -158,14 +158,126 @@ def chianti_kev_lines_simple():
     return inputs, ssw_output
 
 
-def chianti_kev_lines_Fe2():
-    """Define expected thermal line spectrum as returned by SSW routine chianti_kev_lines.
+def fvth_Fe2():
+    """Define expected thermal continuum spectrum as returned by SSW routine chianti_kev_cont.
 
     chianti_cont_kev is the standard routine used to calculate a solar X-ray line spectrum
     in SSW.  It is used by f_vth.pro.
     The output defined here uses a energy bins from 3-28 keV with a bin width of 0.5 keV,
     a temperature of 6 MK, a emission measure of 1e44 cm^-3, an observer distance of 1AU,
-    default ('sun_coronal') abundances, and default relative abundances.
+    default ('sun_coronal_ext') abundances, and default relative abundances.
+    The SSW output can be reproduced in SSW/IDL with the following code:
+
+    Returns
+    -------
+    inputs: `tuple`
+        The Python inputs required to produce the spectrum
+
+    ssw_output: `astropy.units.Quantity`
+        The spectrum output by the SSW routine, chianti_kev_lines, given the above inputs.
+
+    Notes
+    -----
+    The spectrum output by this function can be reproduced in IDL with the following code.
+
+    energy_in = fltarr(2, 50)
+    energy_in[0, *] = findgen(50) * 0.5 + 3
+    energy_in[1, *] = energy_in[0, *] + 0.5
+    temp = 6.
+    rel_abun = [[26, 2]]
+    flux = chianti_kev_cont(temp, energy_in, rel_abun=rel_abun, /kev, /earth)
+
+    Ensure you are using the same .sav file as used here.
+    """
+    energy_edges = np.arange(3, 28.5, 0.5) * u.keV
+    temperature = 6 * u.MK
+    emission_measure = 1e44 / u.cm**3
+    abundance_type = DEFAULT_ABUNDANCE_TYPE
+    relative_abundances = ((26, 2),)
+    observer_distance = (1 * u.AU).to(u.cm)
+    inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances,
+              observer_distance)
+    ssw_output = [
+        4.6152353e-01, 1.5266217e-01, 5.1370505e-02, 1.7469261e-02,
+        6.0074395e-03, 2.0820354e-03, 7.2583189e-04, 2.5462240e-04,
+        8.9805966e-05, 3.1800522e-05, 1.1323175e-05, 4.0371842e-06,
+        1.4456124e-06, 5.2003952e-07, 1.8704908e-07, 6.7609605e-08,
+        2.4375957e-08, 8.8636174e-09, 3.2163083e-09, 1.1666705e-09,
+        4.2640558e-10, 1.5559361e-10, 5.6675255e-11, 2.0726003e-11,
+        7.6138887e-12, 2.7935852e-12, 1.0236266e-12, 3.7454293e-13,
+        1.3780716e-13, 5.0909286e-14, 1.8790933e-14, 6.9294558e-15,
+        2.5528610e-15, 9.3951687e-16, 3.4537985e-16, 1.2787355e-16,
+        4.7510902e-17, 1.7642638e-17, 6.5476106e-18, 2.4284929e-18,
+        9.0014011e-19, 3.3341828e-19, 1.2341190e-19, 4.5645426e-20,
+        1.6869074e-20, 6.2446062e-21, 2.3341643e-21, 8.7221399e-22,
+        3.2582179e-22, 1.2167254e-22] * SSW_INTENSITY_UNIT
+    return inputs, ssw_output
+
+
+def chianti_kev_cont_Fe2():
+    """Define expected thermal continuum spectrum as returned by SSW routine chianti_kev_cont.
+
+    chianti_cont_kev is the standard routine used to calculate a solar X-ray line spectrum
+    in SSW.  It is used by f_vth.pro.
+    The output defined here uses a energy bins from 3-28 keV with a bin width of 0.5 keV,
+    a temperature of 6 MK, a emission measure of 1e44 cm^-3, an observer distance of 1AU,
+    default ('sun_coronal_ext') abundances, and default relative abundances.
+    The SSW output can be reproduced in SSW/IDL with the following code:
+
+    Returns
+    -------
+    inputs: `tuple`
+        The Python inputs required to produce the spectrum
+
+    ssw_output: `astropy.units.Quantity`
+        The spectrum output by the SSW routine, chianti_kev_lines, given the above inputs.
+
+    Notes
+    -----
+    The spectrum output by this function can be reproduced in IDL with the following code.
+
+    energy_in = fltarr(2, 50)
+    energy_in[0, *] = findgen(50) * 0.5 + 3
+    energy_in[1, *] = energy_in[0, *] + 0.5
+    temp = 6.
+    rel_abun = [[26, 2]]
+    flux = chianti_kev_cont(temp, energy_in, rel_abun=rel_abun, /kev, /earth)
+
+    Ensure you are using the same .sav file as used here.
+    """
+    energy_edges = np.arange(3, 28.5, 0.5) * u.keV
+    temperature = 6 * u.MK
+    emission_measure = 1e44 / u.cm**3
+    abundance_type = DEFAULT_ABUNDANCE_TYPE
+    relative_abundances = ((26, 2),)
+    observer_distance = (1 * u.AU).to(u.cm)
+    inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances,
+              observer_distance)
+    ssw_output = [
+        4.6152353e-01, 1.5266217e-01, 5.1370505e-02, 1.7469261e-02,
+        6.0074395e-03, 2.0820354e-03, 7.2583189e-04, 2.5462240e-04,
+        8.9805966e-05, 3.1800522e-05, 1.1323175e-05, 4.0371842e-06,
+        1.4456124e-06, 5.2003952e-07, 1.8704908e-07, 6.7609605e-08,
+        2.4375957e-08, 8.8636174e-09, 3.2163083e-09, 1.1666705e-09,
+        4.2640558e-10, 1.5559361e-10, 5.6675255e-11, 2.0726003e-11,
+        7.6138887e-12, 2.7935852e-12, 1.0236266e-12, 3.7454293e-13,
+        1.3780716e-13, 5.0909286e-14, 1.8790933e-14, 6.9294558e-15,
+        2.5528610e-15, 9.3951687e-16, 3.4537985e-16, 1.2787355e-16,
+        4.7510902e-17, 1.7642638e-17, 6.5476106e-18, 2.4284929e-18,
+        9.0014011e-19, 3.3341828e-19, 1.2341190e-19, 4.5645426e-20,
+        1.6869074e-20, 6.2446062e-21, 2.3341643e-21, 8.7221399e-22,
+        3.2582179e-22, 1.2167254e-22] * SSW_INTENSITY_UNIT
+    return inputs, ssw_output
+
+
+def chianti_kev_lines_Fe2():
+    """Define expected thermal line spectrum as returned by SSW routine chianti_kev_lines.
+
+    chianti_lines_kev is the standard routine used to calculate a solar X-ray line spectrum
+    in SSW.  It is used by f_vth.pro.
+    The output defined here uses a energy bins from 3-28 keV with a bin width of 0.5 keV,
+    a temperature of 6 MK, a emission measure of 1e44 cm^-3, an observer distance of 1AU,
+    default ('sun_coronal_ext') abundances, and default relative abundances.
     The SSW output can be reproduced in SSW/IDL with the following code:
 
     Returns
@@ -186,17 +298,19 @@ def chianti_kev_lines_Fe2():
     temp = 6.
     rel_abun = [[26, 2]]
     flux = chianti_kev_lines(temp, energy_in, rel_abun=rel_abun, /kev, /earth)
+
+    Ensure you are using the same .sav file as used here.
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
-    abundance_type = "sun_coronal_ext"
+    abundance_type = "sun_coronal"
     relative_abundances = ((26, 2),)
     observer_distance = (1 * u.AU).to(u.cm)
     inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances,
               observer_distance)
     ssw_output = [
-        7.3248975e-02, 1.4247916e-02, 4.4440511e-03, 6.7793718e-04,
+          0.073248975,   0.014247916,  0.0044440511, 0.00067793718,
         2.3333176e-05, 5.1462595e-10, 6.8084722e-05, 4.2806998e-05,
         1.0074133e-06, 1.6740345e-11, 5.5473790e-12, 3.0992380e-13,
         1.9522283e-17, 1.3281716e-20, 1.0493879e-21, 0.0000000e+00,
@@ -214,7 +328,7 @@ def chianti_kev_lines_Fe2():
 
 @pytest.mark.parametrize("ssw",
                             (
-                                (fvth_simple,)
+                                fvth_simple,
                             ))
 def test_thermal_emission_against_ssw(ssw):
     input_args, expected = ssw()
@@ -225,7 +339,8 @@ def test_thermal_emission_against_ssw(ssw):
 
 @pytest.mark.parametrize("ssw",
                             (
-                                (chianti_kev_cont_simple,)
+                                chianti_kev_cont_simple,
+                                chianti_kev_cont_Fe2
                             ))
 def test_continuum_emission_against_ssw(ssw):
     input_args, expected = ssw()
@@ -236,8 +351,8 @@ def test_continuum_emission_against_ssw(ssw):
 
 @pytest.mark.parametrize("ssw",
                             (
-                                (chianti_kev_lines_simple),
-                                (chianti_kev_lines_Fe2)
+                                chianti_kev_lines_simple,
+                                chianti_kev_lines_Fe2
                             ))
 def test_line_emission_against_ssw(ssw):
     input_args, expected = ssw()
