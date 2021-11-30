@@ -578,7 +578,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
     # Part 1, below en_val[0] (usually eelow)
     if model == 'thick-target':
         if P1.size > 0:
-            print('Part1')
+            #print('Part1')
             a_lg = np.log10(photon_energies[P1])
             b_lg = np.log10(np.full_like(a_lg, eelow))
             i = np.copy(P1)
@@ -600,7 +600,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
         if P1.size > 0:
             aa[P1] = eelow
 
-        print('Part2')
+        #print('Part2')
         a_lg = np.log10(aa[P2])
         b_lg = np.log10(np.full_like(a_lg, eebrk))
         i = np.copy(P2)
@@ -618,7 +618,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
         if P2.size > 0:
             aa[P2] = eebrk
 
-        print('Part3')
+        #print('Part3')
         a_lg = np.log10(aa[P3])
         b_lg = np.log10(np.full_like(a_lg, eehigh))
         i = np.copy(P3)

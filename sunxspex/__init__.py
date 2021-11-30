@@ -2,4 +2,6 @@
 
 from .version import __version__
 
+
 __all__ = []
+from . import thermal, io, sunxspex_fitting
