@@ -1908,6 +1908,7 @@ class SunXspex(LoadSpec):
                         xs = np.insert(f, np.arange(1, len(f)), gaps_in_ranges, axis=0).flatten()
                         ys = ([self.res_ylim[1],self.res_ylim[1], np.nan, np.nan]*len(f))[:-2]
                     else:
+                        f = np.squeeze(f) # since this can sometimes be a list of one list depending on how th efitting range is defined
                         xs, ys = [f[0], f[1]], [self.res_ylim[1],self.res_ylim[1]]
                     res.plot(xs, np.array(ys), linewidth=9*1.2**suba, color="#17A589", solid_capstyle="butt", alpha=0.7-0.6*(suba/len(fitting_range))) # span the aphas between 0.1 and 0.7
             
@@ -1987,10 +1988,11 @@ class SunXspex(LoadSpec):
         # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined 
         _rebin_after_plot = False
         if hasattr(self, "_rebin_setting"):
-            print("Undoing binning to check if spectra can be combined. They will be rebinned when plotting.")
-            rebin = copy(self._rebin_setting)
-            self.undo_rebin
-            _rebin_after_plot = True
+            if len(self._rebin_setting)>0:
+                print("Undoing binning to check if spectra can be combined. They will be rebinned when plotting.")
+                rebin = copy(self._rebin_setting)
+                self.undo_rebin
+                _rebin_after_plot = True
         rebin = self._rebin_input_handler(_rebin_input=rebin) # get this as a dict, {"spectrum1":rebinValue1, "spectrum2":rebinValue2, ..., "combined":rebinValue}
         
         # check if the spectra combined plot can be made
