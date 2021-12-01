@@ -60,7 +60,7 @@ DYNAMIC_FUNCTION_SOURCE = {}
 def add_photon_model(function):
     """ Takes a user defined function intended to be used as a model or model component when giving a 
     string to the SunXspex.model property. Puts defined_photon_models[function.__name__]=param_inputs
-    in \'defined_photon_models\' for it to be known to the fititng code. The energies argument must be 
+    in `defined_photon_models` for it to be known to the fititng code. The energies argument must be 
     first and accept photon bins.
 
     Parameters
@@ -1728,18 +1728,24 @@ class SunXspex(LoadSpec):
         
         if spectrum=="combined":
             comb = np.mean(self._mcmc_runs,axis=0)
+            res_comb = []
             for comb_ctr in comb:
                 e_mids = self._mcmc_runs_emids
                 if _rebin_info is not None:
                     comb_ctr = self._bin_model(comb_ctr, *_rebin_info)
                     e_mids = np.mean(_rebin_info[2], axis=1)
+
+                residuals = [(res_info[0][i] - comb_ctr[i])/res_info[1][i] if res_info[1][i]>0 else 0 for i in range(len(res_info[1]))]
+                residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
+                res_comb.append(residuals)
                 if lines_or_hex=='lines':
                     ax.plot(e_mids, comb_ctr, color="grey", alpha=0.05, zorder=0)
-                    residuals = [(res_info[0][i] - comb_ctr[i])/res_info[1][i] if res_info[1][i]>0 else 0 for i in range(len(res_info[1]))]
-                    residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
                     res_ax.plot(res_info[2], residuals, color="grey", alpha=0.05, zorder=0)
-                elif lines_or_hex=='hex':
-                    pass
+            if lines_or_hex=='hex':
+                es, cts_list, res_list = np.array(list(e_mids)*len(comb_ctr)), np.array(comb_ctr).flatten(), np.array(res_comb).flatten()
+                keep = np.where((self.plot_xlims[0]<=es) & (es<=self.plot_xlims[1]) & (cts_list>0)) #& (self.plot_ylims[0]<=cts_list) & (cts_list<=self.plot_ylims[1]) 
+                ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Purples', yscale='log', zorder=0)#, alpha=0.8, bins='log'
+                res_ax.hexbin(es[keep], res_list[keep], gridsize=100, cmap='Purples', zorder=0)
             return
 
         mcmc_freepar_labels = self._free_model_param_names+self._free_rparam_names
@@ -1753,6 +1759,7 @@ class SunXspex(LoadSpec):
         _spec_pars = [self.params["Value",name] if ((type(name) is str) and (name not in mcmc_freepar_labels)) else name for name in spec_pars]
         _spec_rpars = {name:(self.rParams["Value",val] if ((type(val) is str) and (val not in mcmc_freepar_labels)) else val) for name,val in spec_rpars.items()}
 
+        # ensure same samples are used across all spectra (needs to be when combining spectra)
         if not hasattr(self, "__mcmc_samples__"):
             if lines_or_hex=='lines':
                 self.__mcmc_samples__ = self.all_mcmc_samples[np.random.randint(len(self.all_mcmc_samples), size=num_of_samples)]
@@ -1761,29 +1768,37 @@ class SunXspex(LoadSpec):
             else:
                 print("\'lines_or_hex\' can only be set to \'lines\' or \'hex\'.")
 
-        randcts = []
+        _randcts = []
+        _randctsres = []
         for _params in self.__mcmc_samples__:
             #for c, (mod_pars, rpars) in enumerate(zip(spec_pars, spec_rpars)):
             _pars = [_params[mcmc_freepar_labels.index(p)] if type(p)==str else p for p in _spec_pars]
             _rpars = {name:(_params[mcmc_freepar_labels.index(val)] if type(val)==str else val) for name,val in _spec_rpars.items()}
             e_mids, ctr = self.calc_counts_model(photon_model=self._model, parameters=_pars, spectrum="spectrum"+str(s+1), **_rpars)
-            randcts.append(ctr)
+            # randcts.append(ctr)
             if _rebin_info is not None:
                 ctr = self._bin_model(ctr, *_rebin_info)
                 e_mids = np.mean(_rebin_info[2], axis=1)
+
+            residuals = [(res_info[0][i] - ctr[i])/res_info[1][i] if res_info[1][i]>0 else 0 for i in range(len(res_info[1]))]
+            residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
             if lines_or_hex=='lines':
                 ax.plot(e_mids, ctr, color="grey", alpha=0.05, zorder=0)
-                residuals = [(res_info[0][i] - ctr[i])/res_info[1][i] if res_info[1][i]>0 else 0 for i in range(len(res_info[1]))]
-                residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
                 res_ax.plot(res_info[2], residuals, color="grey", alpha=0.05, zorder=0)
-            elif lines_or_hex=='hex':
-                    pass
+            _randcts.append(ctr)
+            _randctsres.append(residuals)
+
+        if lines_or_hex=='hex':
+            es, cts_list, res_list = np.array(list(e_mids)*len(_randcts)), np.array(_randcts).flatten(), np.array(_randctsres).flatten()
+            keep = np.where((self.plot_xlims[0]<=es) & (es<=self.plot_xlims[1]) & (cts_list>0)) #& (self.plot_ylims[0]<=cts_list) & (cts_list<=self.plot_ylims[1]) 
+            ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Purples', yscale='log', zorder=0)#, alpha=0.8, bins='log'
+            res_ax.hexbin(es[keep], res_list[keep], gridsize=100, cmap='Purples', zorder=0)
 
         if not hasattr(self, "_mcmc_runs"):
-            self._mcmc_runs = [randcts]
+            self._mcmc_runs = [_randcts]
             self._mcmc_runs_emids = e_mids
         else:
-            self._mcmc_runs.append(randcts)
+            self._mcmc_runs.append(_randcts)
     
     def plot_1fit(self,
                   energy_channels, 
@@ -1796,8 +1811,10 @@ class SunXspex(LoadSpec):
                   plot_params=None,
                   log_plotting_info=None,
                   submod_spec=None, 
-                  rebin_and_spec=None):
-
+                  rebin_and_spec=None, 
+                  num_of_samples=100, 
+                  lines_or_hex='lines'):
+        
         axs = axes if type(axes)!=type(None) else plt.gca()
         fitting_range = fitting_range if type(fitting_range)!=type(None) else self.energy_fitting_range
         self.res_ylim = self.res_ylim if hasattr(self, 'res_ylim') else [-7,7]
@@ -1883,7 +1900,7 @@ class SunXspex(LoadSpec):
 
         if self._latest_fit_run=="emcee":
             _rebin_info = [old_bin_width, old_bins, new_bins, new_bin_width] if type(rebin_and_spec[0])!=type(None) else None
-            self.plot_mcmc_mods(axs, res, [count_rates, count_rate_errors, energy_channels_res], spectrum=submod_spec, num_of_samples=100, _rebin_info=_rebin_info)
+            self.plot_mcmc_mods(axs, res, [count_rates, count_rate_errors, energy_channels_res], spectrum=submod_spec, num_of_samples=num_of_samples, _rebin_info=_rebin_info, lines_or_hex=lines_or_hex)
 
         if type(fitting_range)!=type(None):
             if submod_spec=="combined":
@@ -1981,7 +1998,7 @@ class SunXspex(LoadSpec):
         return rebin_dict
                 
             
-    def plot(self, subplot_axes_grid=None, rebin=None, **kwargs):
+    def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, lines_or_hex='lines', **kwargs):
         # **kwargs get passed to plt.plot()
         # rebin is ignored if the data has been rebinned
         
@@ -2060,7 +2077,9 @@ class SunXspex(LoadSpec):
                                           plot_params=self._param_groups[s],
                                           submod_spec=str(s+1),
                                           log_plotting_info=self._plotting_info['spectrum'+str(s+1)], 
-                                          rebin_and_spec=[rebin["spectrum"+str(s+1)], "spectrum"+str(s+1)])
+                                          rebin_and_spec=[rebin["spectrum"+str(s+1)], "spectrum"+str(s+1)], 
+                                          num_of_samples=num_of_samples,
+                                          lines_or_hex=lines_or_hex)
                 _count_rates.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"])
                 _count_rate_errors.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"])
                 axs.set_title('Spectrum '+str(s+1))
@@ -2075,7 +2094,9 @@ class SunXspex(LoadSpec):
                                           fitting_range=self.energy_fitting_range,
                                           submod_spec='combined',
                                           log_plotting_info=self._plotting_info['combined'], 
-                                          rebin_and_spec=[rebin['combined'], 'combined'])
+                                          rebin_and_spec=[rebin['combined'], 'combined'], 
+                                          num_of_samples=num_of_samples,
+                                          lines_or_hex=lines_or_hex)
                 axs.set_ylabel('Count Spectrum [cts s$^{-1}$ keV$^{-1}$ Det$^{-1}$]')
                 axs.set_title("Combined Spectra")
 
@@ -2537,7 +2558,7 @@ class SunXspex(LoadSpec):
       
         if already_discarded>0:
             fill_color = "peru"
-            ax2.fill_between([0, already_discarded], [miny, miny], [maxy, maxy], color=fill_color, alpha=0.1)
+            ax2.fill_between([0, already_discarded], [miny, miny], [0,0], color=fill_color, alpha=0.1)#[maxy, maxy]
             ax2.axvline(x=already_discarded, color=fill_color, linestyle=':')
             ax.annotate("Already\nDiscarded", (0.05, 0.05), xycoords="axes fraction", color=fill_color)
         
