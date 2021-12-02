@@ -15,22 +15,25 @@ defined_photon_models = {"f_vth":["T", "EM"],
                          "thick_warm":["tot_eflux", "indx", "ec", "plasmaD", "loopT", "length"]}
 
 def f_vth(energies, temperature, emission_measure46):
-    ''' Calculates...
+    ''' Calculates optically thin thermal bremsstrahlung radiation as seen 
+    from Earth. 
+
+    [1] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/f_vth.pro
 
     Parameters
     ----------
     energies : 2d array
-            Array of energy bins for the model to be calculated over. E.g., [[1,1.5],[1.5,2], [2,2.5],...].
-
+            Array of energy bins for the model to be calculated over. 
+            E.g., [[1,1.5],[1.5,2], [2,2.5],...].
     temperature : int or float
-            ...
-
+            Plasma temperature in megakelvin.
     emission_measure46 : int or float
-            ...
+            Emission measure in units of 1e46 cm^-3.
 
     Returns
     -------
-    ...
+    A 1d array of optically thin thermal bremsstrahlung radiation in units 
+    of ph s^-1 keV^-1.
     '''
     energies = np.unique(np.array(energies).flatten()) << u.keV # turn [[1,2],[2,3],[3,4]] into [1,2,3,4]
     temperature = temperature*1e6 << u.K
@@ -38,25 +41,29 @@ def f_vth(energies, temperature, emission_measure46):
     return thermal_emission(energies,temperature,emission_measure).value
 
 def thick_fn(energies, total_eflux, index, e_c):
-    ''' Calculates...
+    ''' Calculates the thick-target bremsstrahlung radiation of a 
+    single power-law electron distribution.
+
+    [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
+    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
+    [3] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro
 
     Parameters
     ----------
     energies : 2d array
-            Array of energy bins for the model to be calculated over. E.g., [[1,1.5],[1.5,2], [2,2.5],...].
-
+            Array of energy bins for the model to be calculated over. 
+            E.g., [[1,1.5],[1.5,2], [2,2.5],...].
     total_eflux : int or float
-            ...
-
+            Total integrated electron flux, in units of 10^35 e^- s^-1.
     index : int or float
-            ...
-
+            Power-law index of the electron distribution.
     e_c : int or float
-            ...
+            Low-energy cut-off of the electron distribution in units of keV.
 
     Returns
     -------
-    ...
+    A 1d array of thick-target bremsstrahlung radiation in units 
+    of ph s^-1 keV^-1.
     '''
     
     hack = np.round([total_eflux, index, e_c], 15)
@@ -65,6 +72,7 @@ def thick_fn(energies, total_eflux, index, e_c):
     energies = np.mean(energies, axis=1) # since energy bins are given, use midpoints though
     
     # total_eflux in units of 1e35 e/s
+    # single power law so set eebrk==eehigh at a high value, high q also
     output = bremsstrahlung_thick_target(photon_energies=energies, 
                                          p=index, 
                                          eebrk=150, 
@@ -77,36 +85,35 @@ def thick_fn(energies, total_eflux, index, e_c):
 
 
 def thick_warm(energies, total_eflux, index, e_c, plasmaD, T, length):
-    ''' Calculates...
+    ''' Calculates the warm thick-target bremsstrahlung radiation as seen 
+    from Earth.
+
+    [1] Kontar et al, ApJ 2015 (http://adsabs.harvard.edu/abs/2015arXiv150503733K)
+    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/f_thick_warm.pro
 
     Parameters
     ----------
     energies : 2d array
-            Array of energy bins for the model to be calculated over. E.g., [[1,1.5],[1.5,2], [2,2.5],...].
-
+            Array of energy bins for the model to be calculated over. 
+            E.g., [[1,1.5],[1.5,2], [2,2.5],...].
     total_eflux : int or float
-            ...
-
+            Total integrated electron flux in units of 10^35 e^- s^-1.
     index : int or float
-            ...
-
+            Power-law index of the electron distribution.
     e_c : int or float
-            ...
-
+            Low-energy cut-off of the electron distribution in units of keV.
     plasmaD : int or float
-            ...
-
+            Plasma number density in units of 1e10 cm^-3.
     T : int or float
-            ...
-
+            Plasma temperature in megakelvin.
     length : int or float
-            ...
+            Plasma column length (usually half the full loop length?) in Mm.
 
     Returns
     -------
-    ...
+    A 1d array of the warm thick-target bremsstrahlung radiation in units 
+    of ph s^-1 keV^-1.
     '''
-    # effectively taken from https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/f_thick_warm.pro
 
     me_keV = 511 #[keV]
     cc = 2.99e10  # speed of light [cm/s]
@@ -129,6 +136,6 @@ def thick_warm(energies, total_eflux, index, e_c, plasmaD, T, length):
 
     EM_add=3*np.pi/2/KK/cc*np.sqrt(me_keV/8.)*Tloop**2/np.sqrt(Emin)*total_eflux*1e35
 
-    EM46 = EM_add*1e-46 # EM in units of 10^46 cm^(-3)
+    EM46 = EM_add*1e-46 # get EM in units of 10^46 cm^(-3)
 
     return thick_fn(energies, total_eflux, index, e_c) + f_vth(energies, T, EM46)

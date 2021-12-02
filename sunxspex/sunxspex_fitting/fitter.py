@@ -1568,7 +1568,7 @@ class SunXspex(LoadSpec):
                                count_channel_mids=count_channel_mids, 
                                total_responses=srm,
                                **kwargs) 
-        
+        # turn counts s^-1 into counts s^-1 keV^-1
         for m, e in enumerate(e_binning):
             mu[m][0] /= e
   
@@ -2552,7 +2552,7 @@ class SunXspex(LoadSpec):
         ax2.set_xlim([0, len(self._lpc)/self.nwalkers])
         ax2.set_ylim([miny, maxy])
         ax2.tick_params(axis='x', color=ax2_color)
-        ax2.set_xlabel("chain [steps]\n(this number dictates discarded samples)", color=ax2_color)
+        ax2.set_xlabel("chain [steps]\n(this dictates burned number)", color=ax2_color)
         
         already_discarded = self._discard_sample_number if hasattr(self, "_discard_sample_number") else 0
       
@@ -2560,7 +2560,7 @@ class SunXspex(LoadSpec):
             fill_color = "peru"
             ax2.fill_between([0, already_discarded], [miny, miny], [0,0], color=fill_color, alpha=0.1)#[maxy, maxy]
             ax2.axvline(x=already_discarded, color=fill_color, linestyle=':')
-            ax.annotate("Already\nDiscarded", (0.05, 0.05), xycoords="axes fraction", color=fill_color)
+            ax.annotate("Burned", (0.05, 0.05), xycoords="axes fraction", color=fill_color)
         
         return ax2
         
