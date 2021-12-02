@@ -2291,6 +2291,22 @@ class SunXspex(LoadSpec):
         return spread
                 
     def remove_non_number_logprob(self, trials, logprob):
+        """ Removes any MCMC trials that produced a np.nan or infinite 
+        (will be -np.inf) log-probability.
+
+        Parameters
+        ----------
+        trials : 2d array
+                The trial parameters of an MCMC of shape nxm where n is the 
+                number of trials and m is the number of free parameters.
+        logprob : 1d array
+                List of the log-probabilities of all the trials of length n.
+
+        Returns
+        -------
+        A 2d array of all the filtered trials and 1d array of filtered 
+        log-probabilities.
+        """
         trials = trials[~np.isnan(logprob)]
         logprob = logprob[~np.isnan(logprob)]
         trials = trials[np.isfinite(logprob)]
@@ -2298,6 +2314,21 @@ class SunXspex(LoadSpec):
         return trials, logprob
     
     def combine_samples_and_logProb(self, discard_samples=0):
+        """ Extracts the parameter trial chains and the corresponding log-probability 
+        from the MCMC sampler and combines them column-wise.
+
+        Parameters
+        ----------
+        discard_samples : int
+                Number of MCMC samples from the original sample-set to 
+                discard/burn.
+                Default: 0
+
+        Returns
+        -------
+        A 2d array with columns of each free parameter sampling chain with the last 
+        column being the log-probability chain.
+        """
         flat_samples = self.mcmc_sampler.get_chain(discard=discard_samples, flat=True)
         log_prob_samples = self.mcmc_sampler.get_log_prob(discard=discard_samples, flat=True)
 
@@ -2308,26 +2339,31 @@ class SunXspex(LoadSpec):
         flat_samples, log_prob_samples = self.remove_non_number_logprob(trials=flat_samples, logprob=log_prob_samples)
         
         return np.concatenate((flat_samples, log_prob_samples[:,None]), axis=1)
+
+    def _produce_mcmc_table(self, names, relevant_values):
+        ''' Produces an astropy table with the MAP MCMC, confidence range, and 
+        maximum log-probability values from the MCMC samples.
+        
+        Parameters
+        ----------
+        names : list of strings
+                List of free parameter names.
+        all_mcmc_samples : list of 1d array
+                List of [lower_conf_range, MAP, higher_conf_range, max_log_prob] 
+                for each free parameter from the MCMC samples.
                 
-    def get_mcmc_values(self, all_mcmc_samples, names):
-        l, m, h = (0.5 - self.error_confidence_range/2)*100, 0.5*100, (0.5 + self.error_confidence_range/2)*100
-        quantiles_and_max_prob = []
-        self.max_prob = np.max(all_mcmc_samples[:, -1])
-        max_prob_index = np.argmax(all_mcmc_samples[:, -1])
-        for p in range(len(all_mcmc_samples[0, :])-1):
-            # cycle through number of parameters, last one should be the log probability
-            qs = np.percentile(all_mcmc_samples[:, p], [l, m, h])
-            mlp = all_mcmc_samples[max_prob_index, p]
-            qs_mlp = np.append(qs,mlp)
-            quantiles_and_max_prob.append(list(qs_mlp))
-            
-        a = np.array(quantiles_and_max_prob)
+        Returns
+        -------
+        None.
+        '''
+        a = np.array(relevant_values)
         b = np.array(names)
         
         # if nothing to update then
         if (len(a)==0) and (len(b)==0):
             return
         else:
+            # see if we need to make the table or just update the one that's there
             _mcmc_result = [[name, *vals] for name, vals in zip(b, a)] # can't do this with np since all values get changed to str
             if not hasattr(self, "mcmc_table"):
                 _value_types = ["LowB", "Mid", "HighB", "MaxLog"]
@@ -2343,17 +2379,88 @@ class SunXspex(LoadSpec):
                     else:
                         # add row
                         self.mcmc_table.add_row(r)
+                
+    def get_mcmc_values(self, all_mcmc_samples, names):
+        ''' Given the MCMC samples, find the maximum a postiori (MAP value) of the 
+        sampled posterior distribution, the confidence range values (via 
+        `confidence_range` setter), and the maximum log-likelihood value found.
+        
+        Parameters
+        ----------
+        all_mcmc_samples : 2d array
+                All MCMC samples for the free parameters with the last 
+                column being the log-probabilities.
+        names : list of strings
+                List of free parameter names to update.
+                
+        Returns
+        -------
+        List of [lower_conf_range, MAP, higher_conf_range, max_log_prob] for each 
+        free parameter from the MCMC samples.
+        '''
+        l, m, h = (0.5 - self.error_confidence_range/2)*100, 0.5*100, (0.5 + self.error_confidence_range/2)*100
+        quantiles_and_max_prob = []
+        self.max_prob = np.max(all_mcmc_samples[:, -1])
+        max_prob_index = np.argmax(all_mcmc_samples[:, -1])
+        for p in range(len(all_mcmc_samples[0, :])-1):
+            # cycle through number of parameters, last one should be the log probability
+            qs = np.percentile(all_mcmc_samples[:, p], [l, m, h])
+            mlp = all_mcmc_samples[max_prob_index, p]
+            qs_mlp = np.append(qs,mlp)
+            quantiles_and_max_prob.append(list(qs_mlp))
+        
+        self._produce_mcmc_table(names=names, relevant_values=quantiles_and_max_prob)
+        # a = np.array(quantiles_and_max_prob)
+        # b = np.array(names)
+        
+        # # if nothing to update then
+        # if (len(a)==0) and (len(b)==0):
+        #     return
+        # else:
+        #     _mcmc_result = [[name, *vals] for name, vals in zip(b, a)] # can't do this with np since all values get changed to str
+        #     if not hasattr(self, "mcmc_table"):
+        #         _value_types = ["LowB", "Mid", "HighB", "MaxLog"]
+        #         self.mcmc_table = Table(rows=_mcmc_result, 
+        #                                 names=["Param", *_value_types])#
+        #         for p in _value_types:
+        #             self.mcmc_table[p].format = "%10.2f"
+        #     else:
+        #         for n, r in zip(names, _mcmc_result):
+        #             if n in list(self.mcmc_table["Param"]):
+        #                 # update row
+        #                 self.mcmc_table[list(self.mcmc_table["Param"]).index(n)] = r
+        #             else:
+        #                 # add row
+        #                 self.mcmc_table.add_row(r)
             
-            return quantiles_and_max_prob
+        #     return quantiles_and_max_prob
+        return quantiles_and_max_prob
          
     def update_free_mcmc(self, updated_free, names, table):
+        ''' Updates the free parameter values in the given parameter table 
+        to the values found by the MCMC run.
+        
+        Parameters
+        ----------
+        updated_free : 2d array
+                All MCMC samples for the free parameters with the last 
+                column being the log-probabilities.
+        names : list of strings
+                List of free parameter names to update.
+        table : parameter_handler.Parameters
+                The parameter table to update.
+                
+        Returns
+        -------
+        None.
+        '''
         quantiles_and_max_prob = self.get_mcmc_values(updated_free, names)
         # only update the free params that were varied
         c = 0
         for n, key in enumerate(table.param_name):
             
             if table["Status", key].startswith("free"):
-                # just for completeness
+                # update table
                 table["Value", key] = quantiles_and_max_prob[c][1]
                 table["Error", key] = (table["Value", key] - quantiles_and_max_prob[c][0], 
                                        quantiles_and_max_prob[c][2] - table["Value", key])
@@ -2826,31 +2933,6 @@ def check_allowed_names(model_string):
     else:
         print(set(all_words) - set([n for n in all_words if ((n.isidentifier()) and (not iskeyword(n))) or (isnumber(n))]))
         return False
-
-# def Xmod_from_str(model_string, _defined_photon_models):
-#     # take in a mathematical expression with functions and parameters and constants as a string and return the named function of the expression
-#     if check_allowed_names(model_string=model_string):
-#         _mod = copy(model_string)
-#         _params = []
-#         for mn, mp in _defined_photon_models.items():
-#             number_of_this_model = _mod.count(mn)
-#             mp_numbered = [[mod_par+str(i) for mod_par in mp] for i in range(1,number_of_this_model+1)]
-#             mods_removed = _mod.split(mn)
-#             _mods_with_params = []
-#             for numbered_params in mp_numbered:
-#                 _params += numbered_params
-#                 _mods_with_params.append(mn+"(energies,"+",".join(numbered_params)+")")
-#             put_mods_back = [None]*(len(mods_removed)+len(_mods_with_params))
-#             put_mods_back[::2] = mods_removed
-#             put_mods_back[1::2] = _mods_with_params
-#             _mod = "".join(put_mods_back)
-#         _params += get_nonsubmodel_params(model_string=model_string)
-#         fun_name = re.sub(r'[^a-zA-Z0-9]+', '_', model_string).lstrip('0123456789') # replace non-word/non-numbers from string with "_", remove any starting numbers->should be a legit and unique enough function name
-#         def_line = "def "+fun_name+"("+",".join(_params)+", energies=None):\n"
-#         return_line = "    return "+_mod+"\n"
-#         return function_creator(function_name=fun_name, function_text="".join([def_line, return_line]))
-#     else:
-#         print("The above are not valid identifiers (or are keywords) in Python. Please change this in your model string.")
 
 def get_func_inputs(function):
     """ Get the inputs to a given function.
