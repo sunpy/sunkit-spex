@@ -91,7 +91,6 @@ def add_photon_model(function):
     # if user wants to define any component model to use in the fitting and reference as a string
     usr_func = deconstruct_lambda(function, add_underscore=False) # check if lambda function and return the user function
     param_inputs, _ = get_func_inputs(function) # get the param inputs for the function
-    print(usr_func.__name__)
     # check if the function has already been added
     if usr_func.__name__ in defined_photon_models.keys():
         print("Model: \'", usr_func.__name__,"\' already in \'defined_photon_models\'.")
@@ -201,6 +200,17 @@ class SunXspex(LoadSpec):
                 Identifier in LogLikelihoods().log_likelihoods dict for the log-likelihood/fit 
                 statistic to be used. E.g., (gaussian, chi2, poisson, cash, cstat).
                 Default = "cstat"
+        mcmc_sampler : sampler object
+                The MCMC sampler object.
+        mcmc_table : astropy table
+                Table of [lower_conf_range, MAP, higher_conf_range, max_log_prob] for each 
+                free parameter the MCMC was run for.
+        nestle : sampler object
+                The nested sampling sampler object.
+        nwalkers : int 
+                The number of walkers to set for the MCMC run. Set with `number_of_walkers` 
+                arg to `run_mcmc()` (must be >=2*_ndim).
+                Default: 2*_ndim
         params : Parameter object
                 Parameter table for all model parameters.
         rParams : Parameter object
@@ -230,12 +240,18 @@ class SunXspex(LoadSpec):
                 List of the free response parameter names.
         _latest_fit_run : str
                 Stores the last method used to fill the param table, either scipy or emcee.
+        _lpc : 1d array
+                Orignal list of all log-probabilities.
+        _max_prob : float
+                Maximum probability/log-likelihood/fot statistic found during the MCMC.
         _minimize_solution : OptimizeResult
                 Output from the Scipy minimise fitting funciton.
         _model : function object
                 Named function of the model used to fit the data.
         _model_param_names : list
                 All model parameter names in the one list.
+        _ndim : int
+                Number of dimensions the MCMC is sampling over.
         _orig_params : list
                 List of model parameters.
         _param_groups : list of lists
@@ -658,7 +674,7 @@ class SunXspex(LoadSpec):
         free_params = {}
         free_bounds = []
         tied_or_frozen_params = {}
-        for c, key in enumerate(self.params.param_name):
+        for key in self.params.param_name:
             if self.params["Status", key].startswith("free"):
                 free_params[key] = self.params["Value", key]
                 free_bounds.append(self.params["Bounds", key])
@@ -1026,7 +1042,7 @@ class SunXspex(LoadSpec):
         None.
         '''
         # only let "free" params vary
-        for n, key in enumerate(table.param_name):
+        for key in table.param_name:
             
             if table["Status", key].startswith("tie"):
                 # tie one parameter to another. E.g., self.model_param_names["T1"]="tie_T2".
@@ -1055,7 +1071,7 @@ class SunXspex(LoadSpec):
         '''
         # only update the free params that were varied
         c = 0
-        for n, key in enumerate(table.param_name):
+        for key in table.param_name:
             
             if table["Status", key].startswith("free"):
                 # just for completeness
@@ -1669,14 +1685,36 @@ class SunXspex(LoadSpec):
             return None
     
     def get_max_fit_stat(self):
+        ''' Return the maximum ln(L) from the minimiser or MCMC analysis result.
+        
+        Parameters
+        ----------
+
+        Returns
+        -------
+        Float.
+        '''
         if hasattr(self, "_latest_fit_run"):
             if self._latest_fit_run=="scipy":
-                return  -0.5*self._minimize_solution.fun # minimize minimises -2ln(L), so -0.5* to get ln(L)
+                # minimize minimises -2ln(L), so -0.5* to get ln(L)
+                return  -0.5*self._minimize_solution.fun 
             elif self._latest_fit_run=="emcee":
-                return  self.max_prob
+                return  self._max_prob
         return 0
     
     def fit_stat_str(self):
+        ''' Produce a string that indicates the method used to produce the last 
+        ln(L) value with the ln(L) value. E.g., last run was Scipy's minimiser 
+        and it found a maximum likelihood of N then string would be 
+        "Scipy Max. Total ln(L): N".
+        
+        Parameters
+        ----------
+
+        Returns
+        -------
+        String.
+        '''
         if hasattr(self, "_latest_fit_run"):
             string = self.loglikelihood.lower()+" Max. Total ln(L): "+str(round(self.get_max_fit_stat(), 1))
             if self._latest_fit_run=="scipy":
@@ -2359,10 +2397,8 @@ class SunXspex(LoadSpec):
         a = np.array(relevant_values)
         b = np.array(names)
         
-        # if nothing to update then
-        if (len(a)==0) and (len(b)==0):
-            return
-        else:
+        # update if we can
+        if len(a)!=0:
             # see if we need to make the table or just update the one that's there
             _mcmc_result = [[name, *vals] for name, vals in zip(b, a)] # can't do this with np since all values get changed to str
             if not hasattr(self, "mcmc_table"):
@@ -2400,7 +2436,7 @@ class SunXspex(LoadSpec):
         '''
         l, m, h = (0.5 - self.error_confidence_range/2)*100, 0.5*100, (0.5 + self.error_confidence_range/2)*100
         quantiles_and_max_prob = []
-        self.max_prob = np.max(all_mcmc_samples[:, -1])
+        self._max_prob = np.max(all_mcmc_samples[:, -1])
         max_prob_index = np.argmax(all_mcmc_samples[:, -1])
         for p in range(len(all_mcmc_samples[0, :])-1):
             # cycle through number of parameters, last one should be the log probability
@@ -2410,30 +2446,7 @@ class SunXspex(LoadSpec):
             quantiles_and_max_prob.append(list(qs_mlp))
         
         self._produce_mcmc_table(names=names, relevant_values=quantiles_and_max_prob)
-        # a = np.array(quantiles_and_max_prob)
-        # b = np.array(names)
         
-        # # if nothing to update then
-        # if (len(a)==0) and (len(b)==0):
-        #     return
-        # else:
-        #     _mcmc_result = [[name, *vals] for name, vals in zip(b, a)] # can't do this with np since all values get changed to str
-        #     if not hasattr(self, "mcmc_table"):
-        #         _value_types = ["LowB", "Mid", "HighB", "MaxLog"]
-        #         self.mcmc_table = Table(rows=_mcmc_result, 
-        #                                 names=["Param", *_value_types])#
-        #         for p in _value_types:
-        #             self.mcmc_table[p].format = "%10.2f"
-        #     else:
-        #         for n, r in zip(names, _mcmc_result):
-        #             if n in list(self.mcmc_table["Param"]):
-        #                 # update row
-        #                 self.mcmc_table[list(self.mcmc_table["Param"]).index(n)] = r
-        #             else:
-        #                 # add row
-        #                 self.mcmc_table.add_row(r)
-            
-        #     return quantiles_and_max_prob
         return quantiles_and_max_prob
          
     def update_free_mcmc(self, updated_free, names, table):
@@ -2457,7 +2470,7 @@ class SunXspex(LoadSpec):
         quantiles_and_max_prob = self.get_mcmc_values(updated_free, names)
         # only update the free params that were varied
         c = 0
-        for n, key in enumerate(table.param_name):
+        for key in table.param_name:
             
             if table["Status", key].startswith("free"):
                 # update table
@@ -2485,7 +2498,36 @@ class SunXspex(LoadSpec):
                        code="emcee", 
                        number_of_walkers=None,
                        walker_spread="mixed"):
-
+        ''' Sets up the MCMC run specific variables.
+        
+        Parameters
+        ----------
+        code : str 
+                Indicates the MCMC sampler being used. Eventually to make 
+                it easier to give user options.
+                Default: "emcee"
+        number_of_walkers : int
+                The number of walkers to set for the MCMC run.
+        walker_spread : str
+                Dictates how the walkers are spread out over the parameter 
+                space with respect to the starting values. If "mag_order" 
+                then the walkers are spread about an ordser of magnitude 
+                of the starting values, if "over_bounds" then the walkers 
+                will be spread randomly over the boundary range, and if 
+                "mixed" then half will be "mag_order" and half will be
+                "over_bounds".
+                Default: "mixed"
+                
+        Returns
+        -------
+        List of number of walkers (int), dimensions (int), model probability function (func). 
+        All info need to produce model and fitting [i.e., photon_channel_bins (list of 2d array), 
+        count_channel_mids (list of 1d arrays), srm (list of 2d arrays), livetime (list of floats), 
+        e_binning (list of 1d arrays), observed_counts (list of 1d arrays), observed_count_errors 
+        (list of 1d arrays), tied_or_frozen_params_list (list of floats), param_name_list_order 
+        (list of strings)].The starting position of all the walkers (list of floats), and finally 
+        the number of free parameters (excluding rParams, orig_free_param_len, int).
+        '''
         free_params_list, stat_args, free_bounds, orig_free_param_len = self.fit_setup()
         
         self._ndim = len(free_params_list)
@@ -2509,8 +2551,30 @@ class SunXspex(LoadSpec):
         return [self.nwalkers, self._ndim, self.model_probability], stat_args, walkers_start, orig_free_param_len
         
     def run_mcmc_core(self, mcmc_essentials, prob_args, walkers_start, steps_per_walker=1200, **kwargs):
+        ''' Passes the information of the MCMC set up to the MCMC sampler.
+        
+        Parameters
+        ----------
+        mcmc_essentials : list
+                List of the number of walkers, number of dimensions, and the 
+                probability function being used.
+        prob_args : list
+                All the arguments for the `model_probability()` method.
+        walkers_start : 2d array
+                Starting positions for the walkers.
+        steps_per_walker : int
+                The number of steps each walker will take to sample the 
+                parameter space.
+        **kwargs : 
+                Passed to the MCMC sampler.
+        
+        Returns
+        -------
+        The MCMC sampler object.
+        '''
         # find the free, tie, and frozen params + other model inputs
         if "pool" in kwargs:
+            # for parallelisation
             with kwargs["pool"] as pool:
                 kwargs.pop("pool", None)
                 mcmc_sampler = emcee.EnsembleSampler(*mcmc_essentials, 
@@ -2526,11 +2590,23 @@ class SunXspex(LoadSpec):
 
         return mcmc_sampler
         
-    def run_mcmc_post(self, orig_free_param_len, discard_samples=0):
+    def _run_mcmc_post(self, orig_free_param_len, discard_samples=0):
+        ''' Handles the results from the MCMC sampling. I.e., updates the parameter 
+        table and set relevant attributes. 
+        
+        Parameters
+        ----------
+        orig_free_param_len : int
+                Number of free parameters (excluding rParams).
+        discard_samples : int
+                Number of MCMC samples to be burned from original samples.
+                Default: 0
+        
+        Returns
+        -------
+        A 2d array of the MCMC samples after burning has taken place.
+        '''
         self.all_mcmc_samples = self.combine_samples_and_logProb(discard_samples=discard_samples)
-    
-        #self.confidence_range_check()
-        self._cr = self.error_confidence_range
 
         # update the model parameters from the mcmc
         # [params, rParams, lopProb], here want [params, lopProb]
@@ -2545,7 +2621,20 @@ class SunXspex(LoadSpec):
         
         return self.mcmc_sampler.chain.reshape((-1, self._ndim))
     
-    def setup_multiprocessing(self, workers):
+    def _multiprocessing_setup(self, workers):
+        ''' To return the pool of workers that the MCMC sampler uses to 
+        run in parallel. 
+        
+        Parameters
+        ----------
+        workers : int
+                The number of parallel workers that split up the walker's 
+                steps for the MCMC.
+        
+        Returns
+        -------
+        The pool of workers.
+        '''
         return Pool(workers)
     
     def run_mcmc(self, 
@@ -2555,6 +2644,44 @@ class SunXspex(LoadSpec):
                  steps_per_walker=1200,
                  mp_workers=None, 
                  **kwargs):
+        ''' Runs MCMC analysis on the data and model provided. 
+        
+        Parameters
+        ----------
+        code : str 
+                Indicates the MCMC sampler being used. Eventually to make 
+                it easier to give user options.
+                Default: "emcee"
+        number_of_walkers : int
+                The number of walkers to set for the MCMC run. Set to 2*`_ndim` 
+                if None is given.
+                Default: None
+        walker_spread : str
+                Dictates how the walkers are spread out over the parameter 
+                space with respect to the starting values. If "mag_order" 
+                then the walkers are spread about an ordser of magnitude 
+                of the starting values, if "over_bounds" then the walkers 
+                will be spread randomly over the boundary range, and if 
+                "mixed" then half will be "mag_order" and half will be
+                "over_bounds".
+                Default: "mixed"
+        steps_per_walker : int
+                The number of steps each walker will take to sample the 
+                parameter space.
+                Default: 1200
+        mp_workers : int or None
+                The number of parallel workers that split up the walker's 
+                steps for the MCMC.
+                Default: None
+        **kwargs :
+                Passed to the MCMC sampler.
+                The `pool` arg is overwritten if `mp_workers` is provided.
+        
+        Returns
+        -------
+        A 2d array of the MCMC samples after burning has taken place (output of 
+        `_run_mcmc_post()` method with 0 burned samples).
+        '''
         
         mcmc_setups, probability_args, walker_pos, orig_free_param_len = self.run_mcmc_setup(code=code, 
                                                                                              number_of_walkers=number_of_walkers,
@@ -2562,7 +2689,7 @@ class SunXspex(LoadSpec):
         
         if type(mp_workers)!=type(None):
             self._pickle_reason = "mcmc_parallelize"
-            kwargs["pool"] = self.setup_multiprocessing(workers=mp_workers)
+            kwargs["pool"] = self._multiprocessing_setup(workers=mp_workers)
 
         self.mcmc_sampler = self.run_mcmc_core(mcmc_setups, probability_args, walker_pos, steps_per_walker=steps_per_walker, **kwargs)
         
@@ -2570,7 +2697,7 @@ class SunXspex(LoadSpec):
 
         self._fpl = orig_free_param_len
 
-        return self.run_mcmc_post(orig_free_param_len, discard_samples=0)
+        return self._run_mcmc_post(orig_free_param_len, discard_samples=0)
 
     @property
     def burn_mcmc(self):
@@ -2623,7 +2750,7 @@ class SunXspex(LoadSpec):
         self._discard_sample_number = int(burn)
         self.all_mcmc_samples = self.combine_samples_and_logProb(discard_samples=self._discard_sample_number)
 
-        _ = self.run_mcmc_post(orig_free_param_len=self._fpl, discard_samples=self._discard_sample_number) # burns more self.all_mcmc_samples and updates the param tables
+        _ = self._run_mcmc_post(orig_free_param_len=self._fpl, discard_samples=self._discard_sample_number) # burns more self.all_mcmc_samples and updates the param tables
         
     @property
     def undo_burn_mcmc(self):
@@ -2641,6 +2768,18 @@ class SunXspex(LoadSpec):
         self.burn_mcmc = 0
     
     def plot_log_prob_chain(self):
+        ''' Produces a plot of the log-probability chain from all MCMC samples. 
+        The number of burned sampled, if any, is indicated with a shaded region.
+
+        *** Update to include all parameter chains ***
+        
+        Parameters
+        ----------
+                
+        Returns
+        -------
+        Returns axis object of the axis that dictates the burned sample number.
+        '''
         # plots the original chain length with 
         ax = plt.gca()
         ax.plot(self._lpc)
@@ -2672,6 +2811,23 @@ class SunXspex(LoadSpec):
         return ax2
         
     def corner_mcmc(self, confidence_range=None, **kwargs):
+        ''' Produces a corner plot of the MCMC run.
+        
+        *** Update to include all parameter chains ***
+        
+        Parameters
+        ----------
+        confidence_range : 0<float<=1
+                The confidence range, centred on the median, of the corner 
+                plot contours and quantiles if contours and quantiles are 
+                not given in kwargs.
+        **kwargs : 
+                Passed to `corner.corner`.
+                
+        Returns
+        -------
+        Returns axis object of the corner plot.
+        '''
         
         if not hasattr(self, "mcmc_sampler"):
             print("The MCMC analysis has not been run yet. Please run run_mcmc(...) successfully first.")
@@ -2696,6 +2852,21 @@ class SunXspex(LoadSpec):
         return plt.gca()
 
     def _prior_transform_nestle(self, *args):
+        ''' Creates the prior function used when running the nested sampling code.
+        I.e., input will be a list of parameter values mapped to the unit hypercube
+        with the output mapping them back to their corresponding value in the user 
+        defined bounds.
+        
+        Parameters
+        ----------
+        **args : floats
+                Unit hypercube values for each free parameter.
+                
+        Returns
+        -------
+        The parameter unit hypercube value mapped back to its corresponding value 
+        in the user defined bounds. 
+        '''
         
         bounds = np.array(self._free_model_param_bounds)
 
@@ -2704,22 +2875,48 @@ class SunXspex(LoadSpec):
 
     def run_nested(self, 
                    code="nestle", 
-                   number_of_walkers=None,
-                   walker_spread="mixed", 
-                   steps_per_walker=1200, 
-                   discard_samples=None,
-                   mp_workers=None, 
+                   nlive = 10,
+                   method = 'multi', 
+                   tol = 10, 
                    **kwargs):
-        #http://mattpitkin.github.io/samplers-demo/
+        ''' Runs nested sampling on the data and provided model.
+
+        [1] http://mattpitkin.github.io/samplers-demo/
+        
+        Parameters
+        ----------
+        code : str 
+                Indicates the nested sampling sampler being used. Eventually 
+                to make it easier to give user options.
+                Default: "nestle"
+        nlive : int
+                Number of live points (default should be higher, e.g., 1024).
+                Default: 10
+        method : str
+                Method for the nested sampling.
+                Default: 'multi' (MutliNest algorithm)
+        tol : float
+                Stopping criterion.
+                Default: 10
+        **kwargs :
+                Passed to the nested sampling method.
+                
+        Returns
+        -------
+        None. 
+        '''
 
         mcmc_setups, probability_args, _, _ = self.run_mcmc_setup(code=code)
 
-        nlive = 10#1024     # number of live points
-        method = 'multi' # use MutliNest algorithm
         ndims = mcmc_setups[1]       # number of parameters
-        tol = 10#0.1        # the stopping criterion
 
-        self.nestle = nestle.sample((lambda free_args: self.fit_stat_maximize(free_args, *probability_args)), self._prior_transform_nestle, ndims, method=method, npoints=nlive, dlogz=tol)
+        self.nestle = nestle.sample((lambda free_args: self.fit_stat_maximize(free_args, *probability_args)), 
+                                    self._prior_transform_nestle, 
+                                    ndims, 
+                                    method=method, 
+                                    npoints=nlive, 
+                                    dlogz=tol, 
+                                    **kwargs)
 
     def __getstate__(self):
         '''Tells pickle how this object should be pickled.'''
