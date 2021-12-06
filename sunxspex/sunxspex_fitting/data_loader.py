@@ -519,17 +519,21 @@ class LoadSpec:
         old_rmf = self.loaded_spec_data[spectrum]["extras"]["rmf.redistribution_matrix"]
         old_eff_area = self.loaded_spec_data[spectrum]["extras"]["arf.effective_area"]
         
-        # checked with ftrbnrmf
-        new_rmf = self._rebin_rmf(matrix=old_rmf, 
-                                  old_count_bins=old_count_bins, 
-                                  new_count_bins=new_count_bins, 
-                                  old_photon_bins=old_photon_bins, 
-                                  new_photon_bins=new_photon_bins, 
-                                  axis=axis)
-        
-        # average eff_area, checked with ftrbnarf
-        new_eff_area = self._rebin_any_array(data=old_eff_area, old_bins=old_photon_bins, new_bins=new_photon_bins, combine_by="mean") if (axis!="count") else old_eff_area
-        return nu_spec.make_srm(rmf_matrix=new_rmf, arf_array=new_eff_area)
+        # check if effective areas are given, if not then just rebin the SRM as ist is
+        if type(old_eff_area) is not type(None):
+            # checked with ftrbnrmf
+            new_rmf = self._rebin_rmf(matrix=old_rmf, 
+                                    old_count_bins=old_count_bins, 
+                                    new_count_bins=new_count_bins, 
+                                    old_photon_bins=old_photon_bins, 
+                                    new_photon_bins=new_photon_bins, 
+                                    axis=axis)
+            
+            # average eff_area, checked with ftrbnarf
+            new_eff_area = self._rebin_any_array(data=old_eff_area, old_bins=old_photon_bins, new_bins=new_photon_bins, combine_by="mean") if (axis!="count") else old_eff_area
+            return nu_spec.make_srm(rmf_matrix=new_rmf, arf_array=new_eff_area)
+        else:
+            return self._rebin_rmf(matrix=self.loaded_spec_data[spectrum]["srm"], old_count_bins=old_count_bins, new_count_bins=new_count_bins, old_photon_bins=old_photon_bins, new_photon_bins=new_photon_bins, axis=axis)
         
     def _rebin_loaded_spec(self, spectrum, group_min, axis="count"):
         ''' Rebins all the relevant data for a spectrum and moves original information into the \'extras\' key in the loaded_spec_data attribute.

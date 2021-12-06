@@ -34,7 +34,7 @@ import types
 import math as maths
 
 # for colour list cycling
-from itertools import cycle
+from itertools import cycle, filterfalse
 
 # for Hessian matrix calculation for the minimise errors
 import numdifftools as nd
@@ -222,6 +222,8 @@ class SunXspex(LoadSpec):
                 Default = plt.rcParams['axes.prop_cycle'].by_key()['color']
         _construction_string_sunxspex : str
                 String to be returned from __repr__() dunder method.
+        _corresponding_submod_inputs : list of strings
+                Parameter names for each sub-model.
         _covariance_matrix : 2d square array
                 Array with covariance info for each free, fitted parameter.
         _discard_sample_number : Int
@@ -261,6 +263,10 @@ class SunXspex(LoadSpec):
                 Default = "normal"
         _separate_models : list
                 List of separated component models if models is given a string with >1 defined model.
+        _submod_functions : list of functions
+                List of component functions.
+        _submod_value_inputs : lists of floats
+                Lists of the sub-model value inputs.
         _response_param_names : list
                 All response parameter names in the one list.
         _other_model_inputs : 
@@ -1555,6 +1561,17 @@ class SunXspex(LoadSpec):
         return 2 * np.linalg.inv(hessian) # 2 appears since our objective function is -2ln(L) and not -ln(L)
     
     def _calculate_model(self, **kwargs):
+        ''' Calculates the total count models (in ph. s^-1 keV^-1) for all loaded spectra.
+        
+        Parameters
+        ----------
+        **kwargs : 
+                Passed to `pseudo_model`.
+
+        Returns
+        -------
+        A list (or array) of the count models for each loaded spectrum.
+        '''
         
         # let's get all the info needed from LoadSpec for the fit if not provided
         photon_channel_bins, _, count_channel_mids, srm, _, e_binning, _, _ = self.loadSpec4fit()
@@ -1589,6 +1606,7 @@ class SunXspex(LoadSpec):
             mu[m][0] /= e
   
         self._energy_fitting_indices = _energy_fitting_indices_orig
+        # numpy is better to store but all models need to be the same length, this might not be the case
         try:
             return np.concatenate(tuple(mu))
         except ValueError:
@@ -1599,6 +1617,30 @@ class SunXspex(LoadSpec):
                           parameters=None, 
                           spectrum="spectrum1",
                           **kwargs):
+        ''' Given a model (a calculated model array or a photon model function) then 
+        calcutes the counts model for the given spectrum. If a functional input is 
+        provided for `photon_model` then `parameters` must also be set with a list 
+        or dictionary.
+        
+        Parameters
+        ----------
+        photon_model : array/list or function
+                A photon model array or a function for a photon model.
+        parameters : list or dict
+                The corresponding model parameters for a funcitonal photon model.
+                Ignored if array is given for `photon_model`.
+                Default: None
+        spectrum : str
+                The spectrum identifier, e.g., "spectrum2".
+                Default: "spectrum1"
+        **kwargs : 
+                Used to set the response parameters differently than what was calculated,
+                "gain_slope_spectrum1" and "gain_offset_spectrum1" must be given.
+
+        Returns
+        -------
+        The count channel mid-points and the calculated count spectrum.
+        '''
         
         spec_no = int(spectrum.split("spectrum")[1])
 
@@ -1624,7 +1666,7 @@ class SunXspex(LoadSpec):
                                        srm=srm) / np.diff(self.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
             
         # if the spectrum has been gain shifted then this will be done but if user provides their own values they will take priority
-        if ("gain_slope_spectrum"+str(spec_no) in kwargs) or ("gain_offset_spectrum"+str(spec_no) in kwargs):
+        if ("gain_slope_spectrum"+str(spec_no) in kwargs) and ("gain_offset_spectrum"+str(spec_no) in kwargs):
             cts_model = self.gain_energies(energies=self.loaded_spec_data[spectrum]['count_channel_mids'], 
                                            array=cts_model, 
                                            gain_slope=kwargs["gain_slope_spectrum"+str(spec_no)],
@@ -1639,6 +1681,18 @@ class SunXspex(LoadSpec):
         return self.loaded_spec_data[spectrum]['count_channel_mids'], cts_model
         
     def _prepare_submodels(self): 
+        ''' If a string was given to create the overall model for fitting then the component 
+        models should have been separated into attribute `_separate_models`. If this is the 
+        case then create the functions for the components and which parameters in the 
+        parameter table belongs to them.
+        
+        Parameters
+        ----------
+
+        Returns
+        -------
+        None.
+        '''
         if hasattr(self, '_separate_models'):
             # get [['C*(f_vth + 0)', '1'], ['C*(0 + f_vth)', '2']] from "C*(f_vth + f_vth)"
             # make functions of all the submods, the param_number should correspond with what is in the param table
@@ -1648,23 +1702,55 @@ class SunXspex(LoadSpec):
             # get the values from the param table in the same structure as corresponding_submod_inputs for each loaded spectrum
             self._submod_value_inputs = [[[self.params["Value", _p+"_spectrum"+str(s+1)] for _p in p] for p in self._corresponding_submod_inputs] for s in range(len(self.loaded_spec_data))]
 
+    def _spec_loop_range(self, spectrum):
+        ''' Finds the range limits to loop through loaded spectra of choice.
+        
+        Parameters
+        ----------
+        spectrum : None, str, int
+                The spectrum number identifier, e.g., 2 or "2" for "spectrum2". If set to "combined" 
+                then the submodel for multiple spectra will be averaged, if set to "all" then 
+                they will not be averaged and all returned as a list.
+                Default: None
+
+        Returns
+        -------
+        The range as a tuple and a boolean as to whether the count models should be combined and 
+        averaged or not.
+        '''
+        combine_submods = False
+        if str(spectrum)=='combined':
+            spec2pick = (1, len(self.loaded_spec_data)+1)
+            combine_submods = True
+        elif str(spectrum)=='all':
+            spec2pick = (1, len(self.loaded_spec_data)+1)
         else:
-            return None
+            spec2pick = (int(spectrum), int(spectrum)+1)
+        return spec2pick, combine_submods
         
     def _calculate_submodels(self, spectrum=None): 
+        ''' After running `_prepare_submodels`, this then calculated the actual count spectrum array 
+        for each submodel.
+        
+        Parameters
+        ----------
+        spectrum : None, str, int
+                The spectrum number identifier, e.g., 2 or "2" for "spectrum2". If set to "combined" 
+                then the submodel for multiple spectra will be averaged, if set to "all" then 
+                they will not be averaged and all returned as a list.
+                Default: None
+
+        Returns
+        -------
+        The count sub-model for the given spectrum (spectra) or None if there are no component models.
+        '''
         if hasattr(self, '_submod_value_inputs'):
             
             combine_submods = False
             if type(spectrum)==type(None):
                 return None
             elif type(spectrum) in [str, int]:
-                if str(spectrum)=='combined':
-                    spec2pick = (1, len(self.loaded_spec_data)+1)
-                    combine_submods = True
-                elif str(spectrum)=='all':
-                    spec2pick = (1, len(self.loaded_spec_data)+1)
-                else:
-                    spec2pick = (int(spectrum), int(spectrum)+1)
+                spec2pick, combine_submods = self._spec_loop_range(spectrum)
             else:
                 print("Not valid spectrum input.")
                 
@@ -1724,6 +1810,23 @@ class SunXspex(LoadSpec):
         return ""
     
     def _bin_data(self, rebin_and_spec):
+        ''' Bins the count data for a given spectrum.
+        
+        Parameters
+        ----------
+        rebin_and_spec : list 
+                List of the minimum counts in a group (int) and the spectrum identifier 
+                for the spectrum to be binned (str, e.g., "spectrum1").
+
+        Returns
+        -------
+        Eight arrays: the new count bins that have the minimum number of counts in them 
+        (new_bins), the new bin widths (new_bin_width), new bin mid-points 
+        (energy_channels), corresponding count rates and count rate errors (count_rates, 
+        count_rate_errors), old bins and old bin widths for binning other array in the 
+        same way (old_bins, old_bin_width), and the new bin channel "error" 
+        (energy_channel_error).
+        '''
         new_bins, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
         old_bins = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["count_channel_bins"]
         old_bin_width = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_binning"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["count_channel_binning"]
@@ -1731,17 +1834,56 @@ class SunXspex(LoadSpec):
         return new_bins, new_bin_width, energy_channels, count_rates, count_rate_errors, old_bins, old_bin_width, energy_channel_error
     
     def _bin_model(self, count_rate_model, old_bin_width, old_bins, new_bins, new_bin_width):
+        ''' Rebins a given array of data in count bins energies to a new set of bins given.
+        
+        Parameters
+        ----------
+        count_rate_model, old_bin_width, old_bins, new_bins : array
+                Array of the data (cts s^-1 keV^-1), current bins widths, current bins (for data axis==0), and new bins (for data axis==0). 
+                Need len(data)==len(old_bins).
+
+        Returns
+        -------
+        Array.
+        '''
         return self._rebin_any_array(count_rate_model*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
 
     def _bin_spec4plot(self, rebin_and_spec, count_rate_model):
+        ''' Bins the count model given based on the given spectrum's rebinning.
+        
+        Parameters
+        ----------
+        rebin_and_spec : list 
+                List of the minimum counts in a group (int) and the spectrum identifier 
+                for the spectrum to be binned (str, e.g., "spectrum1").
+        count_rate_model : array
+                The count model array.
+
+        Returns
+        -------
+        Nine arrays: the new count bins that have the minimum number of counts in them 
+        (new_bins), the new bin widths (new_bin_width), old bins and old bin widths for 
+        binning other array in the same way (old_bins, old_bin_width), new bin mid-points 
+        (energy_channels), corresponding count rate errors and count rates (energy_channel_error, 
+        count_rates), the new bin channel "error" (energy_channel_error), and the binned count 
+        rate model.
+        '''
         new_bins, new_bin_width, energy_channels, count_rates, count_rate_errors, old_bins, old_bin_width, energy_channel_error = self._bin_data(rebin_and_spec)
-        # print("(954) cts_mod before", count_rate_model)
         count_rate_model = self._bin_model(count_rate_model, old_bin_width, old_bins, new_bins, new_bin_width)
-        # print("(954) cts_mod after", count_rate_model)
         
         return new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model
     
     def _get_counts_per_detector(self):
+        ''' Calculates the mean counts for each count energy bin for all loaded spectra.
+        Used when producing the combined spectral plots.
+        
+        Parameters
+        ----------
+
+        Returns
+        -------
+        An array of the mean counts for each count energy bin for all loaded spectra.
+        '''
         _counts = []
         for s in range(len(self.loaded_spec_data)):
             _counts.append(self.loaded_spec_data['spectrum'+str(s+1)]['counts']) 
