@@ -134,7 +134,7 @@ def thick_warm(energies, total_eflux, index, e_c, plasmaD, T, length):
     if Lmin>L:
         print("Lmin>L")
 
-    EM_add=3*np.pi/2/KK/cc*np.sqrt(me_keV/8.)*Tloop**2/np.sqrt(Emin)*total_eflux*1e35
+    EM_add = 3*np.pi/2/KK/cc*np.sqrt(me_keV/8.)*Tloop**2/np.sqrt(Emin)*total_eflux*1e35
 
     EM46 = EM_add*1e-46 # get EM in units of 10^46 cm^(-3)
 

@@ -46,11 +46,17 @@ import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
 
-from .rainbow_text import rainbow_text_lines
-from .photon_models_for_fitting import *
-from .likelihoods import LogLikelihoods
-from .data_loader import LoadSpec, isnumber
-from .parameter_handler import Parameters
+# from .rainbow_text import rainbow_text_lines
+# from .photon_models_for_fitting import *
+# from .likelihoods import LogLikelihoods
+# from .data_loader import LoadSpec, isnumber
+# from .parameter_handler import Parameters
+
+from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
+from sunxspex.sunxspex_fitting.photon_models_for_fitting import *
+from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
+from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
+from sunxspex.sunxspex_fitting.parameter_handler import Parameters
 
 DYNAMIC_FUNCTION_SOURCE = {}
 
@@ -2970,8 +2976,8 @@ class SunXspex(LoadSpec):
         -------
         Returns axis object of the corner plot.
         '''
-        
-        if not hasattr(self, "mcmc_sampler"):
+        # check there are MCMC samples to plot
+        if not hasattr(self, "all_mcmc_samples"):#"mcmc_sampler"):
             print("The MCMC analysis has not been run yet. Please run run_mcmc(...) successfully first.")
             return
         
@@ -2989,9 +2995,12 @@ class SunXspex(LoadSpec):
         #    This does not happen when >1 value in the levels are given.
         kwargs["levels"] = [0, *kwargs["levels"]]
         
-        _ = corner.corner(self.all_mcmc_samples, **kwargs)
+        figure = corner.corner(self.all_mcmc_samples, **kwargs)
+
+        # Extract the axes
+        axes = np.array(figure.axes).reshape((len(kwargs["labels"]), len(kwargs["labels"])))
         
-        return plt.gca()
+        return axes
 
     def _prior_transform_nestle(self, *args):
         ''' Creates the prior function used when running the nested sampling code.
