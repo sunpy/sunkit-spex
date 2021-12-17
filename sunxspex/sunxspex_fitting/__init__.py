@@ -5,3 +5,4 @@ from . import data_loader
 from . import likelihoods
 from . import parameter_handler
 from . import fitter
+from . import instruments
