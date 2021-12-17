@@ -46,17 +46,13 @@ import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
 
-# from .rainbow_text import rainbow_text_lines
-# from .photon_models_for_fitting import *
-# from .likelihoods import LogLikelihoods
-# from .data_loader import LoadSpec, isnumber
-# from .parameter_handler import Parameters
-
 from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 from sunxspex.sunxspex_fitting.photon_models_for_fitting import *
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
 from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
 from sunxspex.sunxspex_fitting.parameter_handler import Parameters
+
+__all__ = ["add_photon_model", "SunXspex"]
 
 DYNAMIC_FUNCTION_SOURCE = {}
 
@@ -1930,8 +1926,8 @@ class SunXspex(LoadSpec):
             if lines_or_hex=='hex':
                 es, cts_list, res_list = np.array(list(e_mids)*len(comb_ctr)), np.array(comb_ctr).flatten(), np.array(res_comb).flatten()
                 keep = np.where((self.plot_xlims[0]<=es) & (es<=self.plot_xlims[1]) & (cts_list>0)) #& (self.plot_ylims[0]<=cts_list) & (cts_list<=self.plot_ylims[1]) 
-                ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Purples', yscale='log', zorder=0)#, alpha=0.8, bins='log'
-                res_ax.hexbin(es[keep], res_list[keep], gridsize=100, cmap='Purples', zorder=0)
+                ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Oranges', yscale='log', zorder=0)#, alpha=0.8, bins='log'
+                res_ax.hexbin(es[keep], res_list[keep], gridsize=100, cmap='Oranges', zorder=0)
             return
 
         mcmc_freepar_labels = self._free_model_param_names+self._free_rparam_names
@@ -1977,8 +1973,8 @@ class SunXspex(LoadSpec):
         if lines_or_hex=='hex':
             es, cts_list, res_list = np.array(list(e_mids)*len(_randcts)), np.array(_randcts).flatten(), np.array(_randctsres).flatten()
             keep = np.where((self.plot_xlims[0]<=es) & (es<=self.plot_xlims[1]) & (cts_list>0)) #& (self.plot_ylims[0]<=cts_list) & (cts_list<=self.plot_ylims[1]) 
-            ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Purples', yscale='log', zorder=0)#, alpha=0.8, bins='log'
-            res_ax.hexbin(es[keep], res_list[keep], gridsize=100, cmap='Purples', zorder=0)
+            ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Oranges', yscale='log', zorder=0)#, alpha=0.8, bins='log'
+            res_ax.hexbin(es[keep], res_list[keep], gridsize=100, cmap='Oranges', zorder=0)
 
         if not hasattr(self, "_mcmc_runs"):
             self._mcmc_runs = [_randcts]
@@ -3163,6 +3159,40 @@ def load(filename):
 
 # The following functions allows SunXspex.model take lambda functions and strings as inputs then convert them to named functions
 
+def _func_self_contained_check(function_name, function_text):
+    """ Takes a user defined function name for a NAMED function and a string that 
+    produces the NAMED function and executes the string as code. This checks to 
+    make sure the function is completely self-contatined; i.e., able to be 
+    reconstructed from source to allow for smooth pickling and loading into a new
+    environment to the one the original function was defined in.
+
+    If an exception occurs here then the user is informed.
+
+    Parameters
+    ----------
+    function_name : str
+            The name of the function.
+
+    function_text : str
+            Code for the function as a string.
+
+    Returns
+    -------
+    None.
+    """
+    exec(function_text, globals())
+    params, _ = get_func_inputs(globals()[function_name])
+    _test_e_range = np.arange(1.6,5.01, 0.04)[:,None]
+    _test_params, _test_energies = np.ones(len(params))*5, np.concatenate((_test_e_range[:-1], _test_e_range[1:]), axis=1) # 1 for each param, 2 column array of e-bins
+    try:
+        _func_to_test = globals()[function_name]
+        del globals()[function_name] # this is a check function, don't want it just adding things to globals
+        _func_to_test(*_test_params, energies=_test_energies)
+    except NameError as e:
+        raise NameError(str(e)+"\nA user defined function must be completely self-contained. It must be able to be created from its source code\nand rely entirely on its local scope. E.g., modules not imported here (etc.) need to be imported in the fuction.")
+    except FileNotFoundError as e:
+        raise FileNotFoundError(str(e)+"\nPlease check that absolute file/directory paths are given for the user defined function to be completely self-contained.")
+
 def function_creator(function_name, function_text):
     """ Takes a user defined function name for a NAMED function and a string that 
     produces the NAMED function and executes the string as code. Replicates the 
@@ -3180,6 +3210,7 @@ def function_creator(function_name, function_text):
     -------
     Returns the function that has just been created and executed into globals().
     """
+    _func_self_contained_check(function_name, function_text)
     # given the code for a NAMED function (not lambda) as a string, this will execute the code and return that function
     exec(function_text, globals())
     DYNAMIC_FUNCTION_SOURCE[function_name] = function_text

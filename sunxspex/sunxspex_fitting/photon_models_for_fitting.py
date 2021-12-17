@@ -79,6 +79,7 @@ def thick_fn(energies, total_eflux, index, e_c):
                                          q=20, 
                                          eelow=e_c, 
                                          eehigh=150)*total_eflux*1e35
+    
     output[np.isnan(output)] = 0
     output[~np.isfinite(output)] = 0
     return output
@@ -137,5 +138,5 @@ def thick_warm(energies, total_eflux, index, e_c, plasmaD, T, length):
     EM_add = 3*np.pi/2/KK/cc*np.sqrt(me_keV/8.)*Tloop**2/np.sqrt(Emin)*total_eflux*1e35
 
     EM46 = EM_add*1e-46 # get EM in units of 10^46 cm^(-3)
-
+    
     return thick_fn(energies, total_eflux, index, e_c) + f_vth(energies, T, EM46)
