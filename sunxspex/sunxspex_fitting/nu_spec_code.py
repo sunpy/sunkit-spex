@@ -24,10 +24,9 @@ def read_pha(file):
     The channel numbers, counts, and the livetime for the observation. 
     '''
 
-    hdul = fits.open(file)
-    data = hdul[1].data
-    header_for_livetime = hdul[0].header
-    hdul.close()
+    with fits.open(file) as hdul:
+        data = hdul[1].data
+        header_for_livetime = hdul[0].header
 
     return data['channel'], data['counts'], header_for_livetime['LIVETIME']
 
@@ -65,10 +64,8 @@ def read_arf(file):
     -------
     The low and high boundary of energy bins, and the ancillary response [cm^2] (data['specresp']).  
     '''
-
-    hdul = fits.open(file)
-    data = hdul[1].data
-    hdul.close()
+    with fits.open(file) as hdul:
+        data = hdul[1].data
     
     return data['energ_lo'], data['energ_hi'], data['specresp']
 
@@ -88,9 +85,8 @@ def read_rmf(file):
     number of channels in each sub-set (data['n_chan']), redistribution matrix [counts per photon] (data['matrix']). 
     '''
 
-    hdul = fits.open(file)
-    data = hdul[2].data
-    hdul.close()
+    with fits.open(file) as hdul:
+        data = hdul[2].data
     
     return data['energ_lo'], data['energ_hi'], data['n_grp'], data['f_chan'], data['n_chan'], data['matrix']
 
