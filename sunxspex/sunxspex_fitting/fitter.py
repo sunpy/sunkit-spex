@@ -2178,37 +2178,70 @@ class SunXspex(LoadSpec):
         rebin_dict["combined"] = rebin_dict["spectrum1"] if "combined" not in rebin_dict else rebin_dict["combined"]
         
         return rebin_dict
-                
+
+    def _plot_from_dict(self, subplot_axes_grid):
+        number_of_plots = len(self._plotting_info)
+        subplot_axes_grid = self._build_axes(subplot_axes_grid, number_of_plots)
+        axes, res_axes = [], []
+        for s, ax in zip(self._plotting_info.keys(), subplot_axes_grid):
+            fitting_range = self._plotting_info[s]['fitting_range']
+            self.res_ylim = self.res_ylim if hasattr(self, 'res_ylim') else [-7,7]
+
+            ax.set_xlabel('Energy [keV]')
+            ax.set_ylabel('Count Spectrum [cts s$^{-1}$ keV$^{-1}$]')
             
-    def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, lines_or_hex='lines', **kwargs):
-        # **kwargs get passed to plt.plot()
-        # rebin is ignored if the data has been rebinned
-        
-        # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined 
-        _rebin_after_plot = False
-        if hasattr(self, "_rebin_setting"):
-            if len(self._rebin_setting)>0:
-                print("Undoing binning to check if spectra can be combined. They will be rebinned when plotting.")
-                rebin = copy(self._rebin_setting)
-                self.undo_rebin
-                _rebin_after_plot = True
-        rebin = self._rebin_input_handler(_rebin_input=rebin) # get this as a dict, {"spectrum1":rebinValue1, "spectrum2":rebinValue2, ..., "combined":rebinValue}
-        
-        # check if the spectra combined plot can be made
-        _channels, _channel_error = [], []
-        for s in range(len(self.loaded_spec_data)):
-            _channels.append(self.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids']) 
-            _channel_error.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2)
-        _same_chans = all([np.array_equal(np.array(_channels[0]), np.array(c)) for c in _channels[1:]])
-        _same_errs = all([np.array_equal(np.array(_channel_error[0]), np.array(c)) for c in _channel_error[1:]])
-        if _same_chans and _same_errs:
-            can_combine = True
-        else:
-            can_combine = False
-            print("The energy channels and/or binning are different for at least one fitted spectrum. Not sure how to combine all spectra so won\'t show combined plot.")
-        
-        number_of_plots = len(self.loaded_spec_data)+1 if (len(self.loaded_spec_data)>1) and (can_combine) else len(self.loaded_spec_data) # plus one for combined plot
-        # make or check plotting grid
+            # axes limits
+            energy_channels = self._plotting_info[s]['count_channels']
+            if not hasattr(self, 'plot_xlims'):
+                extrema_x = LL_CLASS.remove_non_numbers(np.where(count_rates!=0)[0])
+                minx, maxx = energy_channels[extrema_x[0]], energy_channels[extrema_x[-1]]  
+                self.plot_xlims = [0.9*minx, 1.1*maxx]
+            ax.set_xlim(self.plot_xlims)
+            
+            count_rates = self._plotting_info[s]['count_rates']
+            count_rate_model = self._plotting_info[s]['count_rate_model']
+            if not hasattr(self, 'plot_ylims'):
+                miny = np.min(LL_CLASS.remove_non_numbers(count_rates[count_rates!=0]))
+                maxy = np.max([np.max(LL_CLASS.remove_non_numbers(count_rates[count_rates!=0])), np.max(LL_CLASS.remove_non_numbers(count_rate_model[count_rate_model!=0]))])
+                self.plot_ylims = [0.9*miny, 1.1*maxy]
+            ax.set_ylim(self.plot_ylims)
+
+            ax.set_yscale('log')
+            ax.xaxis.set_tick_params(labelbottom=False)
+            ax.get_xaxis().set_visible(False)
+
+            energy_channel_error = self._plotting_info[s]['count_channel_error']
+            count_rate_errors = self._plotting_info[s]['count_rate_errors']
+            ax.errorbar(energy_channels, 
+                     count_rates, 
+                     xerr=energy_channel_error, 
+                     yerr=count_rate_errors, 
+                     color='k', 
+                     fmt='.',
+                     markersize=0.01, 
+                     label='Data', 
+                     alpha=0.8)
+
+            ax.plot(energy_channels, count_rate_model, linewidth=2, color="k")
+
+            energy_channels_res = np.column_stack((energy_channels-energy_channel_error,energy_channels+energy_channel_error)).flatten()
+            residuals = self._plotting_info[s]['residuals']
+            #residuals plotting
+            divider = make_axes_locatable(ax)
+            res = divider.append_axes('bottom', 1.2, pad=0.2, sharex=ax)
+            res.plot(energy_channels_res, residuals, color='k', alpha=0.8)#, drawstyle='steps-mid'
+            res.axhline(0, linestyle=':', color='k')
+            res.set_ylim(self.res_ylim)
+            # res.set_ylabel('(y$_{Data}$ - y$_{Model}$)/$\sigma_{Error}$')
+            res.set_ylabel('($D - M$)/$\sigma$')
+            res.set_xlim(self.plot_xlims)
+            res.set_xlabel("Energy [keV]")
+
+            axes.append(ax)
+            res_axes.append(res)
+        return axes, res_axes
+
+    def _build_axes(self, subplot_axes_grid, number_of_plots):
         if type(subplot_axes_grid)!=type(None):
             assert len(subplot_axes_grid)>=number_of_plots, "Custom list of axes objects needs to be >= number of plots to be created. I.e., >="+str(number_of_plots)+"."
         else:
@@ -2239,7 +2272,41 @@ class SunXspex(LoadSpec):
             for p in range(number_of_plots):
                 plot_position = str(int(rows))+str(int(cols))+str(int(p+1))
                 subplot_axes_grid.append(plt.subplot(int(plot_position)))
-            
+        return subplot_axes_grid
+                
+    def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, lines_or_hex='lines', **kwargs):
+        # **kwargs get passed to plt.plot()
+        # rebin is ignored if the data has been rebinned
+        
+        # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined 
+        _rebin_after_plot = False
+        if hasattr(self, "_rebin_setting"):
+            if len(self._rebin_setting)>0:
+                print("Undoing binning to check if spectra can be combined. They will be rebinned when plotting.")
+                rebin = copy(self._rebin_setting)
+                self.undo_rebin
+                _rebin_after_plot = True
+        rebin = self._rebin_input_handler(_rebin_input=rebin) # get this as a dict, {"spectrum1":rebinValue1, "spectrum2":rebinValue2, ..., "combined":rebinValue}
+        
+        # check if the spectra combined plot can be made
+        _channels, _channel_error = [], []
+        for s in range(len(self.loaded_spec_data)):
+            _channels.append(self.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids']) 
+            _channel_error.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2)
+        _same_chans = all([np.array_equal(np.array(_channels[0]), np.array(c)) for c in _channels[1:]])
+        _same_errs = all([np.array_equal(np.array(_channel_error[0]), np.array(c)) for c in _channel_error[1:]])
+        if _same_chans and _same_errs:
+            can_combine = True
+        else:
+            can_combine = False
+            print("The energy channels and/or binning are different for at least one fitted spectrum. Not sure how to combine all spectra so won\'t show combined plot.")
+        
+        if (self._model is None) and hasattr(self,"_plotting_info"):
+            return self._plot_from_dict(subplot_axes_grid)
+
+        number_of_plots = len(self.loaded_spec_data)+1 if (len(self.loaded_spec_data)>1) and (can_combine) else len(self.loaded_spec_data) # plus one for combined plot
+        subplot_axes_grid = self._build_axes(subplot_axes_grid, number_of_plots)
+
         # only need enough axes for the number of spectra to plot so doesn't matter if more axes are given
         models = self._calculate_model()
         self._prepare_submodels() # calculate all submodels if we have them
@@ -3101,7 +3168,7 @@ class SunXspex(LoadSpec):
             function_creator(function_name=f, function_text=c)
         del d["usr_funcs"]
         self.__dict__ = d
-        self._model = globals()[d["_model"]]
+        self._model = globals()[d["_model"]] if d["_model"] in globals() else None
     
     def save(self, filename):
         ''' Pickles data from the object in a way it can be loaded back in later.
@@ -3166,7 +3233,8 @@ def _func_self_contained_check(function_name, function_text):
     reconstructed from source to allow for smooth pickling and loading into a new
     environment to the one the original function was defined in.
 
-    If an exception occurs here then the user is informed.
+    If an exception occurs here then the user is informed with a warning and 
+    (hopefully) a helpful message.
 
     Parameters
     ----------
@@ -3182,18 +3250,22 @@ def _func_self_contained_check(function_name, function_text):
     """
     exec(function_text, globals())
     params, _ = get_func_inputs(globals()[function_name])
+    param_len = len(params)-1 if "energies" in params else len(params)
     _test_e_range = np.arange(1.6,5.01, 0.04)[:,None]
-    _test_params, _test_energies = np.ones(len(params))*5, np.concatenate((_test_e_range[:-1], _test_e_range[1:]), axis=1) # 1 for each param, 2 column array of e-bins
+    _test_params, _test_energies = np.ones(param_len)*5, np.concatenate((_test_e_range[:-1], _test_e_range[1:]), axis=1) # one 5 for each param, 2 column array of e-bins
     try:
         _func_to_test = globals()[function_name]
         del globals()[function_name] # this is a check function, don't want it just adding things to globals
-        _func_to_test(*_test_params, energies=_test_energies)
+        if "energies" in params:
+            _func_to_test(_test_energies,*_test_params)
+        else:
+            _func_to_test(*_test_params, energies=_test_energies)
     except NameError as e:
-        raise NameError(str(e)+"\nA user defined function must be completely self-contained. It must be able to be created from its source code\nand rely entirely on its local scope. E.g., modules not imported here (etc.) need to be imported in the fuction.")
+        raise NameError(str(e)+f"\nA user defined function should be completely self-contained and should be able to be created from its source code,\nrelying entirely on its local scope. E.g., modules not imported here (E.g.,\n{imports()}) need to be imported in the fuction.")
     except FileNotFoundError as e:
         raise FileNotFoundError(str(e)+"\nPlease check that absolute file/directory paths are given for the user defined function to be completely self-contained.")
 
-def function_creator(function_name, function_text):
+def function_creator(function_name, function_text, _orig_func=None):
     """ Takes a user defined function name for a NAMED function and a string that 
     produces the NAMED function and executes the string as code. Replicates the 
     user coding thier function in this module directly.
@@ -3206,15 +3278,23 @@ def function_creator(function_name, function_text):
     function_text : str
             Code for the function as a string.
 
+    _orig_func : function or None
+            The original function provided to be broken down and recreated.
+            Default: None
+
     Returns
     -------
     Returns the function that has just been created and executed into globals().
     """
-    _func_self_contained_check(function_name, function_text)
-    # given the code for a NAMED function (not lambda) as a string, this will execute the code and return that function
-    exec(function_text, globals())
     DYNAMIC_FUNCTION_SOURCE[function_name] = function_text
-    return globals()[function_name]
+    try:
+        _func_self_contained_check(function_name, function_text)
+        # given the code for a NAMED function (not lambda) as a string, this will execute the code and return that function
+        exec(function_text, globals())
+        return globals()[function_name]
+    except (NameError, FileNotFoundError) as e:
+        warnings.warn(str(e) + "\nHi there! it looks like your model is not self-contained. This will mean that any method that includes\npickling (save, load, parallelisation, etc.) will not act as expected since if the model\nis loaded into another session the namespace will not be the same.")
+        return _orig_func
 
 def deconstruct_lambda(function, add_underscore=True):
     """ Takes in a lambda function and returns it as a NAMED function
@@ -3249,9 +3329,11 @@ def deconstruct_lambda(function, add_underscore=True):
         _underscore = "_" if add_underscore else ""
         def_line = "".join(["def "+_underscore+fun_name, "(", *input_params, "):\n"]) # change function_name to _function_name so the original isn't overwritten
         return_line = " ".join(["    return ", *np.array(x.group(4).split(" "))[np.array(x.group(4).split(" "))!=""], "\n"])
-        return function_creator(function_name=_underscore+fun_name, function_text="".join([def_line, return_line]))#, fun_name
+        func_info = {"function_name":_underscore+fun_name, "function_text":"".join([def_line, return_line])}  
     else:
-        return function_creator(function_name=function.__name__, function_text=inspect.getsource(function))#execute the function to be used here
+        func_info = {"function_name":function.__name__, "function_text":inspect.getsource(function)}
+
+    return function_creator(**func_info, _orig_func=function)#execute the function to be used here
 
 def get_all_words(model_string):
     """ Find any groups of non-maths characters in a string.
@@ -3265,7 +3347,8 @@ def get_all_words(model_string):
     -------
     The groups of non-maths characters.
     """
-    regex4words = r"(?<![\"=\w])(?:[^\W]+)(?![\"=\w])"# https://stackoverflow.com/questions/44256638/python-regular-expression-to-find-letters-and-numbers
+    # https://stackoverflow.com/questions/44256638/python-regular-expression-to-find-letters-and-numbers
+    regex4words = r"(?<![\"=\w])(?:[^\W]+)(?![\"=\w])"
     return re.findall(regex4words, model_string)
 
 def get_nonsubmodel_params(model_string, _defined_photon_models):
@@ -3337,4 +3420,28 @@ def get_func_inputs(function):
             # then fixed arguments
             other_inputs[param] = [actual_input.kind,actual_input.default]# self._other_model_inputs
     return param_inputs, other_inputs
-    
+
+
+def imports():
+    """ Lists the imports from other modules into this one. This is usedful when 
+    defining user made functions since these modules can be used in them normally. 
+    If a package the user uses is not in this list then they must include it in 
+    the defined model to make the model function self-contained.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    A list of the positional arguments and a list with all other arguments.
+    """
+    _imps = ""
+    for name, val in globals().items():
+        if isinstance(val, types.ModuleType):
+            # check for modules and their names being used to refer to them
+            _imps += "* "+val.__name__ +" as "+ name + "\n"
+        elif isinstance(val, (types.FunctionType, types.BuiltinFunctionType)) and not isinstance(inspect.getmodule(val), type(None)):
+            if inspect.getmodule(val).__name__ not in ("__main__", __name__):
+                # check for functions and their names being used to refer to them 
+                _imps += "* from "+str(inspect.getmodule(val).__name__)+" import "+val.__name__+" as "+name + "\n"
+    return _imps  
