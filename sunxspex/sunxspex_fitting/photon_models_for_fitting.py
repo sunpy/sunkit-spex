@@ -14,7 +14,7 @@ defined_photon_models = {"f_vth":["T", "EM"],
                          "thick_fn":["total_eflux", "index", "e_c"],
                          "thick_warm":["tot_eflux", "indx", "ec", "plasmaD", "loopT", "length"]}
 
-def f_vth(energies, temperature, emission_measure46):
+def f_vth(temperature, emission_measure46, energies=None):
     ''' Calculates optically thin thermal bremsstrahlung radiation as seen 
     from Earth. 
 
@@ -24,7 +24,7 @@ def f_vth(energies, temperature, emission_measure46):
     ----------
     energies : 2d array
             Array of energy bins for the model to be calculated over. 
-            E.g., [[1,1.5],[1.5,2], [2,2.5],...].
+            E.g., [[1,1.5],[1.5,2],[2,2.5],...].
     temperature : int or float
             Plasma temperature in megakelvin.
     emission_measure46 : int or float
@@ -40,7 +40,7 @@ def f_vth(energies, temperature, emission_measure46):
     emission_measure = emission_measure46*1e46 << u.cm**(-3)
     return thermal_emission(energies,temperature,emission_measure).value
 
-def thick_fn(energies, total_eflux, index, e_c):
+def thick_fn(total_eflux, index, e_c, energies=None):
     ''' Calculates the thick-target bremsstrahlung radiation of a 
     single power-law electron distribution.
 
@@ -52,7 +52,7 @@ def thick_fn(energies, total_eflux, index, e_c):
     ----------
     energies : 2d array
             Array of energy bins for the model to be calculated over. 
-            E.g., [[1,1.5],[1.5,2], [2,2.5],...].
+            E.g., [[1,1.5],[1.5,2],[2,2.5],...].
     total_eflux : int or float
             Total integrated electron flux, in units of 10^35 e^- s^-1.
     index : int or float
@@ -85,7 +85,7 @@ def thick_fn(energies, total_eflux, index, e_c):
     return output
 
 
-def thick_warm(energies, total_eflux, index, e_c, plasmaD, T, length):
+def thick_warm(total_eflux, index, e_c, plasmaD, T, length, energies=None):
     ''' Calculates the warm thick-target bremsstrahlung radiation as seen 
     from Earth.
 
@@ -96,7 +96,7 @@ def thick_warm(energies, total_eflux, index, e_c, plasmaD, T, length):
     ----------
     energies : 2d array
             Array of energy bins for the model to be calculated over. 
-            E.g., [[1,1.5],[1.5,2], [2,2.5],...].
+            E.g., [[1,1.5],[1.5,2],[2,2.5],...].
     total_eflux : int or float
             Total integrated electron flux in units of 10^35 e^- s^-1.
     index : int or float
@@ -139,4 +139,4 @@ def thick_warm(energies, total_eflux, index, e_c, plasmaD, T, length):
 
     EM46 = EM_add*1e-46 # get EM in units of 10^46 cm^(-3)
     
-    return thick_fn(energies, total_eflux, index, e_c) + f_vth(energies, T, EM46)
+    return thick_fn(total_eflux, index, e_c, energies=energies) + f_vth(T, EM46, energies=energies)

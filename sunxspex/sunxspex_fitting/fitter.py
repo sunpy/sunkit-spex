@@ -2,9 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from astropy.table import Table
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-# from numpy.lib.function_base import sort_complex
-
-from . import nu_spec_code as nu_spec
 
 ## to fit the model
 from scipy.optimize import minimize
@@ -46,13 +43,14 @@ import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
 
+from sunxspex.sunxspex_fitting import nu_spec_code as nu_spec
 from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 from sunxspex.sunxspex_fitting.photon_models_for_fitting import *
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
 from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
 from sunxspex.sunxspex_fitting.parameter_handler import Parameters
 
-__all__ = ["add_photon_model", "SunXspex"]
+__all__ = ["add_photon_model", "SunXspex", "load"]
 
 DYNAMIC_FUNCTION_SOURCE = {}
 
@@ -64,6 +62,15 @@ def add_photon_model(function):
     string to the SunXspex.model property. Puts defined_photon_models[function.__name__]=param_inputs
     in `defined_photon_models` for it to be known to the fititng code. The energies argument must be 
     first and accept photon bins.
+
+    The given function needs to have parameters as arguments then \'energies\' as a keyword argument
+    where energies accepts the energy bin array. E.g.,
+
+    .. math::
+     gauss = = a$\cdot$e$^{-\frac{(energies - b)^{2}}{2 c^{2}}}$
+    
+    would be
+     `gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))`
 
     Parameters
     ----------
@@ -79,7 +86,7 @@ def add_photon_model(function):
     from fitter import SunXspex, defined_photon_models, add_photon_model
 
     # Define gaussian model (doesn't have to be a lambda function)
-    gauss = lambda energies, a, b, c: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))
+    gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))
 
     # Add the gaussian model to fitter.py namespace
     add_photon_model(gauss)
@@ -91,16 +98,17 @@ def add_photon_model(function):
     Sx.plot()
     """
     # if user wants to define any component model to use in the fitting and reference as a string
-    usr_func = deconstruct_lambda(function, add_underscore=False) # check if lambda function and return the user function
-    param_inputs, _ = get_func_inputs(function) # get the param inputs for the function
+
+    # check if lambda function and return the user function
+    # a 'self-contained' check will also take place and will fail if function is not of the form f(...,energies=None)
+    usr_func = deconstruct_lambda(function, add_underscore=False) 
+    param_inputs, other_inputs = get_func_inputs(function) # get the param inputs for the function
     # check if the function has already been added
     if usr_func.__name__ in defined_photon_models.keys():
         print("Model: \'", usr_func.__name__,"\' already in \'defined_photon_models\'.")
         return
 
-    # check that "energies" is first and in function args, check same param names aren't being added
-    assert "energies" in param_inputs, "Your function should only have input energies (first and accepting energy bins) and then variable parameter inputs. E.g., f(energies,a,b)."
-    param_inputs.remove("energies")
+    # make list of all inputs for all already defined models
     def_pars = list(itertools.chain.from_iterable(defined_photon_models.values()))
     assert len(set(def_pars)-set(param_inputs))==len(def_pars), f"Please use different parameter names to the ones already defined: {def_pars}"
 
@@ -360,10 +368,10 @@ class SunXspex(LoadSpec):
         Example
         -------
         # fit the spectral data with two thermal models and a constant
-        model_2therm = lambda T1, EM1, T2, EM2, C, energies=None: C*(f_vth(energies, T1, EM1) + f_vth(energies, T2, EM2))
+        model_2therm = lambda T1, EM1, T2, EM2, C, energies=None: C*(f_vth(T1, EM1, energies=energies) + f_vth(T2, EM2, energies=energies))
                 
         def model_2therm(T1, EM1, T2, EM2, C, energies=None):
-            return C*(f_vth(energies, T1, EM1) + f_vth(energies, T2, EM2))
+            return C*(f_vth(T1, EM1, energies=energies) + f_vth(T2, EM2, energies=energies))
                         
         model_2therm = "C*(f_vth + f_vth)"
 
@@ -646,7 +654,8 @@ class SunXspex(LoadSpec):
                 for numbered_params in mp_numbered:
                     # add in inputs to the function constructor string for each of this model
                     _params += numbered_params
-                    _mods_with_params.append(mn+"(energies,"+",".join(numbered_params)+")")
+                    # _mods_with_params.append(mn+"(energies,"+",".join(numbered_params)+")") # no need to have f(e,...) AND f(...,e=None), change all to latter
+                    _mods_with_params.append(mn+"("+",".join(numbered_params)+", energies=energies)")
                 put_mods_back = [None]*(len(mods_removed)+len(_mods_with_params))
                 put_mods_back[::2] = mods_removed
                 put_mods_back[1::2] = _mods_with_params
@@ -3250,18 +3259,14 @@ def _func_self_contained_check(function_name, function_text):
     """
     exec(function_text, globals())
     params, _ = get_func_inputs(globals()[function_name])
-    param_len = len(params)-1 if "energies" in params else len(params)
     _test_e_range = np.arange(1.6,5.01, 0.04)[:,None]
-    _test_params, _test_energies = np.ones(param_len)*5, np.concatenate((_test_e_range[:-1], _test_e_range[1:]), axis=1) # one 5 for each param, 2 column array of e-bins
+    _test_params, _test_energies = np.ones(len(params))*5, np.concatenate((_test_e_range[:-1], _test_e_range[1:]), axis=1) # one 5 for each param, 2 column array of e-bins
     try:
         _func_to_test = globals()[function_name]
         del globals()[function_name] # this is a check function, don't want it just adding things to globals
-        if "energies" in params:
-            _func_to_test(_test_energies,*_test_params)
-        else:
-            _func_to_test(*_test_params, energies=_test_energies)
+        _func_to_test(*_test_params, energies=_test_energies)
     except NameError as e:
-        raise NameError(str(e)+f"\nA user defined function should be completely self-contained and should be able to be created from its source code,\nrelying entirely on its local scope. E.g., modules not imported here (E.g.,\n{imports()}) need to be imported in the fuction.")
+        raise NameError(str(e)+f"\nA user defined function should be completely self-contained and should be able to be created from its source code,\nrelying entirely on its local scope. E.g., modules not imported in the fitter module (fitter imported modules:\n{imports()}) need to be imported in the fuction.")
     except FileNotFoundError as e:
         raise FileNotFoundError(str(e)+"\nPlease check that absolute file/directory paths are given for the user defined function to be completely self-contained.")
 
@@ -3293,7 +3298,7 @@ def function_creator(function_name, function_text, _orig_func=None):
         exec(function_text, globals())
         return globals()[function_name]
     except (NameError, FileNotFoundError) as e:
-        warnings.warn(str(e) + "\nHi there! it looks like your model is not self-contained. This will mean that any method that includes\npickling (save, load, parallelisation, etc.) will not act as expected since if the model\nis loaded into another session the namespace will not be the same.")
+        warnings.warn(str(e) + "\nHi there! it looks like your model is not self-contained. This will mean that any method that includes\npickling (save, load, parallelisation, etc.) will not act as expected since if the model is loaded\ninto another session the namespace will not be the same.")
         return _orig_func
 
 def deconstruct_lambda(function, add_underscore=True):
@@ -3439,7 +3444,7 @@ def imports():
     for name, val in globals().items():
         if isinstance(val, types.ModuleType):
             # check for modules and their names being used to refer to them
-            _imps += "* "+val.__name__ +" as "+ name + "\n"
+            _imps += "* import "+val.__name__ +" as "+ name + "\n"
         elif isinstance(val, (types.FunctionType, types.BuiltinFunctionType)) and not isinstance(inspect.getmodule(val), type(None)):
             if inspect.getmodule(val).__name__ not in ("__main__", __name__):
                 # check for functions and their names being used to refer to them 
