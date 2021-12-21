@@ -50,7 +50,7 @@ from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
 from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
 from sunxspex.sunxspex_fitting.parameter_handler import Parameters
 
-__all__ = ["add_photon_model", "SunXspex", "load"]
+__all__ = ["add_photon_model", "del_photon_model", "SunXspex", "load"]
 
 DYNAMIC_FUNCTION_SOURCE = {}
 
@@ -102,7 +102,7 @@ def add_photon_model(function):
     # check if lambda function and return the user function
     # a 'self-contained' check will also take place and will fail if function is not of the form f(...,energies=None)
     usr_func = deconstruct_lambda(function, add_underscore=False) 
-    param_inputs, other_inputs = get_func_inputs(function) # get the param inputs for the function
+    param_inputs, _ = get_func_inputs(function) # get the param inputs for the function
     # check if the function has already been added
     if usr_func.__name__ in defined_photon_models.keys():
         print("Model: \'", usr_func.__name__,"\' already in \'defined_photon_models\'.")
@@ -114,6 +114,42 @@ def add_photon_model(function):
 
     # add user model to defined_photon_models from photon_models_for_fitting
     defined_photon_models[usr_func.__name__] = param_inputs 
+
+def del_photon_model(function_name):
+    """ Remove user defined sub-models that have been added via `add_photon_model`.
+
+    Parameters
+    ----------
+    function_name : str
+            Name of the function to be removed.
+
+    Returns
+    -------
+    None.
+
+    Example
+    -------
+    from fitter import add_photon_model, del_photon_model
+
+    # Define gaussian model (doesn't have to be a lambda function)
+    gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))
+
+    # Add the gaussian model to fitter.py namespace
+    add_photon_model(gauss)
+
+    # realise the model is wrong or just want it removed
+    del_photon_model("gauss")
+    """
+    # quickly check if the function exists under function_name
+    if function_name not in defined_photon_models:
+        print(function_name, "is not in defined_photon_models to be removed.")
+        return
+
+    # can only remove if the user added the model, defined models from photon_models_for_fitting.py are protected
+    if inspect.getmodule(globals()[function_name]).__name__ in (__name__):
+        del defined_photon_models[function_name], globals()[function_name], DYNAMIC_FUNCTION_SOURCE[function_name]
+    else:
+        print("Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
 
 # Easily access log-likelihood/fit-stat methods from the one place, if SunXpsex class inherits this then data is duplicated
 LL_CLASS = LogLikelihoods()
@@ -150,9 +186,9 @@ class SunXspex(LoadSpec):
         Properties
         ---------- 
         burn_mcmc : Int
-                Returns the burn-in number used with the MCMC samples.
+                Returns the burn-in number used with the MCMC samples (has setter).
         confidence_range : 0<float<=1 
-                Returns the confidence range used in the MCMC analysis (has setter).
+                Returns the confidence range used in the MCMC analysis; default 0.6827 (has setter). 
         energy_fitting_range : dict
                 Returns the defined fitting ranges for each spectrum. Default [0,np.inf] for all (has setter).
         model : function object
@@ -178,9 +214,10 @@ class SunXspex(LoadSpec):
         burn_mcmc : Int>0
                 Applies a burn-in to the calculated MCMC sampels.
         confidence_range : 0<float<=1 
-                Set to the confidence range used in the MCMC analysis.
+                Set to the confidence range used in the MCMC analysis (default 0.6827). Setting this after the MCMC has run 
+                will still update the parameter/mcmc tables.
         energy_fitting_range : dict or list
-                A dictionary of spectrum identifier and fitting range or list of range for all spectra.
+                A dictionary of spectrum identifier and fitting range or list of range for all spectra (default [0,np.inf]).
         model : function object or str
                 Model function or mathematical string using the names in defined_photon_models.
         update_model : function object or str
@@ -239,7 +276,7 @@ class SunXspex(LoadSpec):
         _discard_sample_number : Int
                 The burn-in used for the MCMC samples.
         _energy_fitting_range : dict
-                Defined fitting ranges for each spectrum.
+                Defined fitting ranges for each spectrum (default {"spectrum1":[0,np.inf],...}).
         _energy_fitting_indices : list of arrays
                 List of indices describing values in the count bins to be used in fitting.
         _fpl : Int
@@ -321,7 +358,6 @@ class SunXspex(LoadSpec):
             
         self.loglikelihood = "cstat"
         
-        # self.error_confidence_range = 0.6827
         # set self.error_confidence_range att and check 0<cr<=1
         self.confidence_range = 0.6827 
 
@@ -574,6 +610,9 @@ class SunXspex(LoadSpec):
         '''
         if 0<conf_range<=1:
             self.error_confidence_range = conf_range 
+            if hasattr(self, "all_mcmc_samples") and hasattr(self, "_latest_fit_run"):
+                if self._latest_fit_run=="emcee":
+                    self.update_tables_mcmc(orig_free_param_len=self._fpl)
         else:
             warnings.warn("Need 0<confidence_range<=1. Setting back to default: 0.6827")
             self.error_confidence_range = 0.6827
@@ -2810,6 +2849,26 @@ class SunXspex(LoadSpec):
 
         return mcmc_sampler
         
+    def update_tables_mcmc(self, orig_free_param_len):
+        ''' Updates the parameter table with MAP value and confidence range given. 
+        
+        Parameters
+        ----------
+        orig_free_param_len : int
+                Number of free parameters (excluding rParams).
+        
+        Returns
+        -------
+        None.
+        '''
+        # [params, rParams, lopProb], here want [params, lopProb]
+        self.update_free_mcmc(updated_free=np.concatenate((self.all_mcmc_samples[:,:orig_free_param_len], self.all_mcmc_samples[:,-1][:,None]), axis=1), names = self._free_model_param_names, table=self.params) # last one is the logProb
+        self.update_tied(self.params) 
+        
+        # to update the rParams want [rParams, lopProb]
+        self.update_free_mcmc(updated_free=self.all_mcmc_samples[:,orig_free_param_len:], names = self._free_rparam_names, table=self.rParams) 
+        self.update_tied(self.rParams)
+
     def _run_mcmc_post(self, orig_free_param_len, discard_samples=0):
         ''' Handles the results from the MCMC sampling. I.e., updates the parameter 
         table and set relevant attributes. 
@@ -2829,13 +2888,7 @@ class SunXspex(LoadSpec):
         self.all_mcmc_samples = self.combine_samples_and_logProb(discard_samples=discard_samples)
 
         # update the model parameters from the mcmc
-        # [params, rParams, lopProb], here want [params, lopProb]
-        self.update_free_mcmc(updated_free=np.concatenate((self.all_mcmc_samples[:,:orig_free_param_len], self.all_mcmc_samples[:,-1][:,None]), axis=1), names = self._free_model_param_names, table=self.params) # last one is the logProb
-        self.update_tied(self.params) 
-        
-        # to update the rParams want [rParams, lopProb]
-        self.update_free_mcmc(updated_free=self.all_mcmc_samples[:,orig_free_param_len:], names = self._free_rparam_names, table=self.rParams) 
-        self.update_tied(self.rParams)
+        self.update_tables_mcmc(orig_free_param_len)
         
         self._latest_fit_run = "emcee"
         
@@ -3029,18 +3082,39 @@ class SunXspex(LoadSpec):
             ax.annotate("Burned", (0.05, 0.05), xycoords="axes fraction", color=fill_color)
         
         return ax2
-        
-    def corner_mcmc(self, confidence_range=None, **kwargs):
-        ''' Produces a corner plot of the MCMC run.
-        
-        *** Update to include all parameter chains ***
+
+    def _fix_corner_plot_titles(self, axes, titles, quantiles):
+        ''' Method to create corner plot titles that are defined by user quantiles 
+        instead of corner.py's default quantiles of [0.16, 0.5, 0.84].
         
         Parameters
         ----------
-        confidence_range : 0<float<=1
-                The confidence range, centred on the median, of the corner 
-                plot contours and quantiles if contours and quantiles are 
-                not given in kwargs.
+        axes : array of axes objects
+                The array of axes from the corner plot.
+        titles : list of strings
+                List of the parameters for the titles.
+        quantiles : list of floats
+                List of the quantiles from the confidence range.
+                
+        Returns
+        -------
+        None.
+        '''
+        for c,(t,s) in enumerate(zip(titles, self.all_mcmc_samples.T)):
+            qs = np.percentile(s, np.array(quantiles)*100)
+            qs_ext = np.diff(qs)
+            title = t+" = {0:.1e}".format(qs[1])+"$^{{+{0:.1e}}}_{{-{1:.1e}}}$".format(qs_ext[-1], qs_ext[0])
+            axes[c,c].set_title(title)
+        
+    def corner_mcmc(self, _fix_titles=True, **kwargs):
+        ''' Produces a corner plot of the MCMC run.
+        
+        Parameters
+        ----------
+        _fix_titles : True
+                True to change the corner plot titles to the ones dictated by 
+                `self.error_confidence_range`.
+                Default: True
         **kwargs : 
                 Passed to `corner.corner`.
                 
@@ -3053,13 +3127,14 @@ class SunXspex(LoadSpec):
             print("The MCMC analysis has not been run yet. Please run run_mcmc(...) successfully first.")
             return
         
-        cr = self.error_confidence_range if (type(confidence_range)==type(None)) else confidence_range
+        cr = self.error_confidence_range
+        quants = [0.5 - cr/2, 0.5, 0.5 + cr/2]
         
         kwargs["labels"] = self._free_model_param_names+self._free_rparam_names+["logProb"] if "labels" not in kwargs else kwargs["labels"]
         kwargs["levels"] = [cr] if "levels" not in kwargs else kwargs["levels"]
-        kwargs["show_titles"] = True if "show_titles" not in kwargs else kwargs["show_titles"]
+        kwargs["show_titles"] = False if "show_titles" not in kwargs else kwargs["show_titles"]
         kwargs["title_fmt"] = '.1e' if "title_fmt" not in kwargs else kwargs["title_fmt"]
-        kwargs["quantiles"] = [0.5 - cr/2, 0.5, 0.5 + cr/2] if "quantiles" not in kwargs else kwargs["quantiles"]
+        kwargs["quantiles"] = quants if "quantiles" not in kwargs else kwargs["quantiles"]
         
         # for some reason matplotlib contour.py can change a single value contour list into
         #    a list containing two of the same value (e.g., levels=[0.6] -> levels=[516, 516]).
@@ -3071,6 +3146,9 @@ class SunXspex(LoadSpec):
 
         # Extract the axes
         axes = np.array(figure.axes).reshape((len(kwargs["labels"]), len(kwargs["labels"])))
+
+        if _fix_titles:
+            self._fix_corner_plot_titles(axes, kwargs["labels"], quants)
         
         return axes
 
