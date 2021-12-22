@@ -47,7 +47,7 @@ from sunxspex.sunxspex_fitting import nu_spec_code as nu_spec
 from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 from sunxspex.sunxspex_fitting.photon_models_for_fitting import *
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
-from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
+from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber, rebin_any_array
 from sunxspex.sunxspex_fitting.parameter_handler import Parameters
 
 __all__ = ["add_photon_model", "del_photon_model", "SunXspex", "load"]
@@ -1878,8 +1878,8 @@ class SunXspex(LoadSpec):
         (energy_channel_error).
         '''
         new_bins, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
-        old_bins = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["count_channel_bins"]
-        old_bin_width = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_binning"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["count_channel_binning"]
+        old_bins = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
+        old_bin_width = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_binning"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_binning"]
         energy_channel_error = new_bin_width/2
         return new_bins, new_bin_width, energy_channels, count_rates, count_rate_errors, old_bins, old_bin_width, energy_channel_error
     
@@ -1896,7 +1896,7 @@ class SunXspex(LoadSpec):
         -------
         Array.
         '''
-        return self._rebin_any_array(count_rate_model*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
+        return rebin_any_array(count_rate_model*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
 
     def _bin_spec4plot(self, rebin_and_spec, count_rate_model):
         ''' Bins the count model given based on the given spectrum's rebinning.
@@ -1945,10 +1945,10 @@ class SunXspex(LoadSpec):
         new_bins, binned_cts = self.group_cts(channel_bins=old_bins, counts=self._get_counts_per_detector(), group_min=rebin_and_spec[0], spectrum=rebin_and_spec[1], verbose=True)
         mask = binned_cts/binned_cts # turn 0/0 into nans so they don't plot
         new_bin_width = np.diff(new_bins).flatten() 
-        count_rates = (self._rebin_any_array(data=count_rates*old_bin_width, old_bins=old_bins, new_bins=new_bins, combine_by="sum") / new_bin_width) * mask
-        count_rate_errors = (self._rebin_any_array(data=count_rate_errors*old_bin_width, old_bins=old_bins, new_bins=new_bins, combine_by="quadrature") / new_bin_width) * mask
+        count_rates = (rebin_any_array(data=count_rates*old_bin_width, old_bins=old_bins, new_bins=new_bins, combine_by="sum") / new_bin_width) * mask
+        count_rate_errors = (rebin_any_array(data=count_rate_errors*old_bin_width, old_bins=old_bins, new_bins=new_bins, combine_by="quadrature") / new_bin_width) * mask
         energy_channels = np.mean(new_bins, axis=1)
-        count_rate_model = self._rebin_any_array(count_rate_model*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
+        count_rate_model = rebin_any_array(count_rate_model*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
         energy_channel_error = new_bin_width/2
         
         return new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model
@@ -2110,7 +2110,7 @@ class SunXspex(LoadSpec):
                 
             for sm, col in zip(spec_submods[0], submod_cols): 
                 if type(rebin_and_spec[0])!=type(None):
-                    sm = self._rebin_any_array(sm*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
+                    sm = rebin_any_array(sm*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
                 axs.plot(energy_channels, sm, alpha=0.7, color=col)
                 
         # plot total model
@@ -2329,7 +2329,11 @@ class SunXspex(LoadSpec):
         # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined 
         _rebin_after_plot = False
         if hasattr(self, "_rebin_setting"):
-            if len(self._rebin_setting)>0:
+            # check if rebinning needs done to at least one spectrum
+            # e.g., self._rebin_setting={'spectrum1': 8, 'spectrum2': None} -> yes, self._rebin_setting={'spectrum1': None, 'spectrum2': None} -> no
+            _need_rebinning = [0 if type(s)==type(None) else s for s in self._rebin_setting.values()]
+            # if len(self._rebin_setting)>0:
+            if np.sum(_need_rebinning)>0:
                 print("Undoing binning to check if spectra can be combined. They will be rebinned when plotting.")
                 rebin = copy(self._rebin_setting)
                 self.undo_rebin
