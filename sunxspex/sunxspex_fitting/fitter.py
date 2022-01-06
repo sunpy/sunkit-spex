@@ -47,7 +47,8 @@ from sunxspex.sunxspex_fitting import nu_spec_code as nu_spec
 from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 from sunxspex.sunxspex_fitting.photon_models_for_fitting import *
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
-from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber, rebin_any_array
+from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
+from sunxspex.sunxspex_fitting.instruments import rebin_any_array
 from sunxspex.sunxspex_fitting.parameter_handler import Parameters
 
 __all__ = ["add_photon_model", "del_photon_model", "SunXspex", "load"]
@@ -248,7 +249,7 @@ class SunXspex(LoadSpec):
                 statistic to be used. E.g., (gaussian, chi2, poisson, cash, cstat).
                 Default = "cstat"
         mcmc_sampler : sampler object
-                The MCMC sampler object.
+                The MCMC sampler object if the MCMC has been run.
         mcmc_table : astropy table
                 Table of [lower_conf_range, MAP, higher_conf_range, max_log_prob] for each 
                 free parameter the MCMC was run for.
@@ -2919,7 +2920,8 @@ class SunXspex(LoadSpec):
                  number_of_walkers=None,
                  walker_spread="mixed", 
                  steps_per_walker=1200,
-                 mp_workers=None, 
+                 mp_workers=None,
+                 append_runs=False, 
                  **kwargs):
         ''' Runs MCMC analysis on the data and model provided. 
         
@@ -2950,10 +2952,21 @@ class SunXspex(LoadSpec):
                 The number of parallel workers that split up the walker's 
                 steps for the MCMC.
                 Default: None
+        append_runs : bool
+                Set to False to run new chains, set to True to start where the 
+                last run ended and append the runs.
+                Default: False
         **kwargs :
                 Passed to the MCMC sampler.
+
+                Could pass `backend` object from `emcee` to save chains as they are 
+                running to a HDF5 file[1]. 
+                If the `backend` kwarg is given it takes priority over `append_runs`.
+
                 The `pool` arg is overwritten if `mp_workers` is provided.
         
+        [1] https://emcee.readthedocs.io/en/stable/tutorials/monitor/
+
         Returns
         -------
         A 2d array of the MCMC samples after burning has taken place (output of 
@@ -2967,6 +2980,14 @@ class SunXspex(LoadSpec):
         if type(mp_workers)!=type(None):
             self._pickle_reason = "mcmc_parallelize"
             kwargs["pool"] = self._multiprocessing_setup(workers=mp_workers)
+
+        # if user wants to append runs, an explicit sampler backend isn't given, and an MCMC run already exists then (start/append) new run (at the end of/to) previous
+        if append_runs and ('backend' not in kwargs) and hasattr(self, 'mcmc_sampler'):
+            kwargs['backend'], walker_pos = self.mcmc_sampler.backend, None
+
+        # if this method is run again then __mcmc_samples__ will need to change (for plotting)
+        if hasattr(self, "__mcmc_samples__"):
+            del self.__mcmc_samples__
 
         self.mcmc_sampler = self.run_mcmc_core(mcmc_setups, probability_args, walker_pos, steps_per_walker=steps_per_walker, **kwargs)
         
@@ -3242,8 +3263,6 @@ class SunXspex(LoadSpec):
             # delete attributes that rely on non-picklable objects (dynamic functions)
             if hasattr(self, '_model'):
                 del dict_copy['_model']
-            if hasattr(self, 'mcmc_samper'):
-                del dict_copy['mcmc_samper']
             if hasattr(self, '_submod_functions'):
                 del dict_copy['_submod_functions']
             if hasattr(self, 'all_models'):
@@ -3507,7 +3526,6 @@ def get_func_inputs(function):
             # then fixed arguments
             other_inputs[param] = [actual_input.kind,actual_input.default]# self._other_model_inputs
     return param_inputs, other_inputs
-
 
 def imports():
     """ Lists the imports from other modules into this one. This is usedful when 
