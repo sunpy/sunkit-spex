@@ -51,12 +51,10 @@ from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
 from sunxspex.sunxspex_fitting.instruments import rebin_any_array
 from sunxspex.sunxspex_fitting.parameter_handler import Parameters
 
-__all__ = ["add_photon_model", "del_photon_model", "SunXspex", "load"]
+__all__ = ["add_var", "del_var","add_photon_model", "del_photon_model", "SunXspex", "load"]
 
 DYNAMIC_FUNCTION_SOURCE = {}
 
-# this line makes no difference, can do from fitter 'import defined_photon_models' and change it anyway
-#defined_photon_models = defined_photon_models # so that the user can add their own?
 # models should return a photon spectrum with units photons s^-1 cm^-2 keV^-1
 def add_photon_model(function):
     """ Takes a user defined function intended to be used as a model or model component when giving a 
@@ -99,6 +97,7 @@ def add_photon_model(function):
     Sx.plot()
     """
     # if user wants to define any component model to use in the fitting and reference as a string
+    _glbls_cp, _dfs_cp = copy(globals()), copy(DYNAMIC_FUNCTION_SOURCE)
 
     # check if lambda function and return the user function
     # a 'self-contained' check will also take place and will fail if function is not of the form f(...,energies=None)
@@ -107,8 +106,11 @@ def add_photon_model(function):
     # check if the function has already been added
     if usr_func.__name__ in defined_photon_models.keys():
         print("Model: \'", usr_func.__name__,"\' already in \'defined_photon_models\'.")
+        # revert changes back, model needs to be initialised to know its name to hceck if it already existed but doing this overwrites it if it is there 
+        globals()[usr_func.__name__] = _glbls_cp[usr_func.__name__]
+        DYNAMIC_FUNCTION_SOURCE[usr_func.__name__] = _dfs_cp[usr_func.__name__]
         return
-
+        
     # make list of all inputs for all already defined models
     def_pars = list(itertools.chain.from_iterable(defined_photon_models.values()))
     assert len(set(def_pars)-set(param_inputs))==len(def_pars), f"Please use different parameter names to the ones already defined: {def_pars}"
@@ -151,6 +153,80 @@ def del_photon_model(function_name):
         del defined_photon_models[function_name], globals()[function_name], DYNAMIC_FUNCTION_SOURCE[function_name]
     else:
         print("Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
+
+
+DYNAMIC_VARS = {}
+def add_var(**user_kwarg):
+    """ Takes a user defined variables and makes them available to the models being used within the 
+    fitting. E.g., the user could define a variable in their own namespace (obtained from a file?) 
+    and, instead of loading the file in with every function call, they can add the variable using 
+    this method.
+
+    Parameters
+    ----------
+    **user_kwarg : 
+            User added variables.
+
+    Returns
+    -------
+    None.
+
+    Example
+    -------
+    from fitter import SunXspex, defined_photon_models, add_photon_model, add_var
+
+    # the user variable that might be too costly to run every function call or too hard to hard code
+    some_user_var = something_complicated
+
+    # Define gaussian model (doesn't have to be a lambda function), but include some user variable outside the scope of the model
+    gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2))) * some_user_var
+
+    # add user variable 
+    add_var(some_user_var=some_user_var)
+
+    # Add the gaussian model to fitter.py namespace
+    add_photon_model(gauss)
+    
+    # Now can use it in fitting with string defined model. Will be plotted separately to the total model
+    Sx = SunXspex(pha_file=[...])
+    Sx.model = "gauss+gauss"
+    Sx.fit()
+    Sx.plot()
+    """
+    for k,i in user_kwarg.items():
+        if k in globals():
+            print(f"Argument {k} already exists. Please either delete this with `del_var({k})` before trying to add again or use a different argument name.")
+        else:
+            DYNAMIC_VARS.update({k:i})
+            globals().update({k:i})
+
+def del_var(user_arg_name):
+    """ Remove user defined variables that have been added via `add_var`.
+
+    Parameters
+    ----------
+    user_arg_name : str
+            Name of the variable to be removed.
+
+    Returns
+    -------
+    None.
+
+    Example
+    -------
+    from fitter import add_var, del_var
+
+    # the user variable that might be too costly to run every function call or too hard to hard code
+    some_user_var = something_complicated
+
+    # add user variable 
+    add_var(some_user_var=some_user_var)
+
+    # realise the variable should be there or want it gome to update it
+    del_var("some_user_var")
+    """
+    if user_arg_name in globals():
+        del globals()[user_arg_name], DYNAMIC_VARS[user_arg_name]
 
 # Easily access log-likelihood/fit-stat methods from the one place, if SunXpsex class inherits this then data is duplicated
 LL_CLASS = LogLikelihoods()
@@ -1954,29 +2030,29 @@ class SunXspex(LoadSpec):
         
         return new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model
 
-    def plot_mcmc_mods(self, ax, res_ax, res_info, spectrum="combined", num_of_samples=100, _rebin_info=None, lines_or_hex='lines'):
+    def plot_mcmc_mods(self, ax, res_ax, res_info, spectrum="combined", num_of_samples=100, _rebin_info=None, hex_grid=False):
         # [count_rates, count_rate_errors]
         
         if spectrum=="combined":
-            comb = np.mean(self._mcmc_runs,axis=0)
+            comb = np.mean(self._mcmc_mod_runs,axis=0)
             res_comb = []
             for comb_ctr in comb:
-                e_mids = self._mcmc_runs_emids
+                e_mids = self._mcmc_mod_runs_emids
                 if _rebin_info is not None:
                     comb_ctr = self._bin_model(comb_ctr, *_rebin_info)
                     e_mids = np.mean(_rebin_info[2], axis=1)
 
                 residuals = [(res_info[0][i] - comb_ctr[i])/res_info[1][i] if res_info[1][i]>0 else 0 for i in range(len(res_info[1]))]
-                residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
                 res_comb.append(residuals)
-                if lines_or_hex=='lines':
-                    ax.plot(e_mids, comb_ctr, color="grey", alpha=0.05, zorder=0)
-                    res_ax.plot(res_info[2], residuals, color="grey", alpha=0.05, zorder=0)
-            if lines_or_hex=='hex':
+                residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
+                if not hex_grid:
+                    ax.plot(e_mids, comb_ctr, color="orange", alpha=0.05, zorder=0)#, color="grey"
+                    res_ax.plot(res_info[2], residuals, color="orange", alpha=0.05, zorder=0)#, color="grey"
+            if hex_grid:
                 es, cts_list, res_list = np.array(list(e_mids)*len(comb_ctr)), np.array(comb_ctr).flatten(), np.array(res_comb).flatten()
                 keep = np.where((self.plot_xlims[0]<=es) & (es<=self.plot_xlims[1]) & (cts_list>0)) #& (self.plot_ylims[0]<=cts_list) & (cts_list<=self.plot_ylims[1]) 
-                ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Oranges', yscale='log', zorder=0)#, alpha=0.8, bins='log'
-                res_ax.hexbin(es[keep], res_list[keep], gridsize=100, cmap='Oranges', zorder=0)
+                ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Oranges', yscale='log', zorder=0, mincnt=1)#, alpha=0.8, bins='log'
+                res_ax.hexbin(es[keep], res_list[keep], gridsize=(100,20), cmap='Oranges', zorder=0, mincnt=1)
             return
 
         mcmc_freepar_labels = self._free_model_param_names+self._free_rparam_names
@@ -1990,14 +2066,17 @@ class SunXspex(LoadSpec):
         _spec_pars = [self.params["Value",name] if ((type(name) is str) and (name not in mcmc_freepar_labels)) else name for name in spec_pars]
         _spec_rpars = {name:(self.rParams["Value",val] if ((type(val) is str) and (val not in mcmc_freepar_labels)) else val) for name,val in spec_rpars.items()}
 
-        # ensure same samples are used across all spectra (needs to be when combining spectra)
-        if not hasattr(self, "__mcmc_samples__"):
-            if lines_or_hex=='lines':
-                self.__mcmc_samples__ = self.all_mcmc_samples[np.random.randint(len(self.all_mcmc_samples), size=num_of_samples)]
-            elif lines_or_hex=='hex':
+        # assign _samp_inds to random ones if we have them AND lines are to be plotted, else make it all samples
+        self._samp_inds = self._samp_inds if hasattr(self, "_samp_inds") and (not hex_grid) else np.arange(len(self.all_mcmc_samples))
+
+        # ensure same samples are used across all spectra (needs to be when combining spectra), only update if more runs have been added since __mcmc_samples__ was created
+        # or if plotting lines then hexagons
+        if not hasattr(self, "__mcmc_samples__") or not np.array_equal(self.__mcmc_samples__, self.all_mcmc_samples[self._samp_inds]):
+            if not hex_grid:
+                self._samp_inds = np.random.randint(len(self.all_mcmc_samples), size=num_of_samples)
+                self.__mcmc_samples__ = self.all_mcmc_samples[self._samp_inds]
+            elif hex_grid:
                 self.__mcmc_samples__ = self.all_mcmc_samples
-            else:
-                print("\'lines_or_hex\' can only be set to \'lines\' or \'hex\'.")
 
         _randcts = []
         _randctsres = []
@@ -2006,30 +2085,30 @@ class SunXspex(LoadSpec):
             _pars = [_params[mcmc_freepar_labels.index(p)] if type(p)==str else p for p in _spec_pars]
             _rpars = {name:(_params[mcmc_freepar_labels.index(val)] if type(val)==str else val) for name,val in _spec_rpars.items()}
             e_mids, ctr = self.calc_counts_model(photon_model=self._model, parameters=_pars, spectrum="spectrum"+str(s+1), **_rpars)
+            _randcts.append(ctr)
             # randcts.append(ctr)
             if _rebin_info is not None:
                 ctr = self._bin_model(ctr, *_rebin_info)
                 e_mids = np.mean(_rebin_info[2], axis=1)
 
             residuals = [(res_info[0][i] - ctr[i])/res_info[1][i] if res_info[1][i]>0 else 0 for i in range(len(res_info[1]))]
-            residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
-            if lines_or_hex=='lines':
-                ax.plot(e_mids, ctr, color="grey", alpha=0.05, zorder=0)
-                res_ax.plot(res_info[2], residuals, color="grey", alpha=0.05, zorder=0)
-            _randcts.append(ctr)
             _randctsres.append(residuals)
-
-        if lines_or_hex=='hex':
+            residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
+            if not hex_grid:
+                ax.plot(e_mids, ctr, color="orange", alpha=0.05, zorder=0)#, color="grey"
+                res_ax.plot(res_info[2], residuals, color="orange", alpha=0.05, zorder=0)#, color="orangegrey"
+            
+        if hex_grid:
             es, cts_list, res_list = np.array(list(e_mids)*len(_randcts)), np.array(_randcts).flatten(), np.array(_randctsres).flatten()
             keep = np.where((self.plot_xlims[0]<=es) & (es<=self.plot_xlims[1]) & (cts_list>0)) #& (self.plot_ylims[0]<=cts_list) & (cts_list<=self.plot_ylims[1]) 
-            ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Oranges', yscale='log', zorder=0)#, alpha=0.8, bins='log'
-            res_ax.hexbin(es[keep], res_list[keep], gridsize=100, cmap='Oranges', zorder=0)
+            ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Oranges', yscale='log', zorder=0, mincnt=1)#, alpha=0.8, bins='log'
+            res_ax.hexbin(es[keep], res_list[keep], gridsize=(100,20), cmap='Oranges', zorder=0, mincnt=1)
 
         if not hasattr(self, "_mcmc_runs"):
-            self._mcmc_runs = [_randcts]
-            self._mcmc_runs_emids = e_mids
+            self._mcmc_mod_runs = [_randcts]
+            self._mcmc_mod_runs_emids = e_mids
         else:
-            self._mcmc_runs.append(_randcts)
+            self._mcmc_mod_runs.append(_randcts)
     
     def plot_1fit(self,
                   energy_channels, 
@@ -2044,7 +2123,7 @@ class SunXspex(LoadSpec):
                   submod_spec=None, 
                   rebin_and_spec=None, 
                   num_of_samples=100, 
-                  lines_or_hex='lines'):
+                  hex_grid=False):
         
         axs = axes if type(axes)!=type(None) else plt.gca()
         fitting_range = fitting_range if type(fitting_range)!=type(None) else self.energy_fitting_range
@@ -2113,15 +2192,10 @@ class SunXspex(LoadSpec):
                 if type(rebin_and_spec[0])!=type(None):
                     sm = rebin_any_array(sm*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
                 axs.plot(energy_channels, sm, alpha=0.7, color=col)
-                
-        # plot total model
-        # print("(1116)",count_rate_model)
-        axs.plot(energy_channels, count_rate_model, linewidth=2, color="k")
 
         #residuals plotting
         divider = make_axes_locatable(axs)
         res = divider.append_axes('bottom', 1.2, pad=0.2, sharex=axs)
-        res.plot(energy_channels_res, residuals, color='k', alpha=0.8)#, drawstyle='steps-mid'
         res.axhline(0, linestyle=':', color='k')
         res.set_ylim(self.res_ylim)
         # res.set_ylabel('(y$_{Data}$ - y$_{Model}$)/$\sigma_{Error}$')
@@ -2129,9 +2203,14 @@ class SunXspex(LoadSpec):
         res.set_xlim(self.plot_xlims)
         res.set_xlabel("Energy [keV]")
 
+        # plot final result, final model and resulting residuals
+        if self._plr:
+            axs.plot(energy_channels, count_rate_model, linewidth=2, color="k")
+            res.plot(energy_channels_res, residuals, color='k', alpha=0.8)#, drawstyle='steps-mid'
+
         if self._latest_fit_run=="emcee":
             _rebin_info = [old_bin_width, old_bins, new_bins, new_bin_width] if type(rebin_and_spec[0])!=type(None) else None
-            self.plot_mcmc_mods(axs, res, [count_rates, count_rate_errors, energy_channels_res], spectrum=submod_spec, num_of_samples=num_of_samples, _rebin_info=_rebin_info, lines_or_hex=lines_or_hex)
+            self.plot_mcmc_mods(axs, res, [count_rates, count_rate_errors, energy_channels_res], spectrum=submod_spec, num_of_samples=num_of_samples, _rebin_info=_rebin_info, hex_grid=hex_grid)
 
         if type(fitting_range)!=type(None):
             if submod_spec=="combined":
@@ -2170,6 +2249,9 @@ class SunXspex(LoadSpec):
             # do we have submodels
             if hasattr(self, '_corresponding_submod_inputs'):
                 log_plotting_info["submodels"] = spec_submods[0]
+
+            if hasattr(self, '_mcmc_mod_runs'):
+                log_plotting_info["mcmc_model_runs"] = self._mcmc_mod_runs
             
         if type(plot_params)==list:
             param_str = []
@@ -2323,8 +2405,9 @@ class SunXspex(LoadSpec):
                 subplot_axes_grid.append(plt.subplot(int(plot_position)))
         return subplot_axes_grid
                 
-    def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, lines_or_hex='lines', **kwargs):
-        # **kwargs get passed to plt.plot()
+    def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, hex_grid=False, plot_final_result=True):
+        # if the user doesn't want the final result to be shown, perhaps want the MCMC runs to be seen but not the MAP value on top
+        self._plr = plot_final_result
         # rebin is ignored if the data has been rebinned
         
         # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined 
@@ -2381,7 +2464,7 @@ class SunXspex(LoadSpec):
                                           log_plotting_info=self._plotting_info['spectrum'+str(s+1)], 
                                           rebin_and_spec=[rebin["spectrum"+str(s+1)], "spectrum"+str(s+1)], 
                                           num_of_samples=num_of_samples,
-                                          lines_or_hex=lines_or_hex)
+                                          hex_grid=hex_grid)
                 _count_rates.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"])
                 _count_rate_errors.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"])
                 axs.set_title('Spectrum '+str(s+1))
@@ -2398,7 +2481,7 @@ class SunXspex(LoadSpec):
                                           log_plotting_info=self._plotting_info['combined'], 
                                           rebin_and_spec=[rebin['combined'], 'combined'], 
                                           num_of_samples=num_of_samples,
-                                          lines_or_hex=lines_or_hex)
+                                          hex_grid=hex_grid)
                 axs.set_ylabel('Count Spectrum [cts s$^{-1}$ keV$^{-1}$ Det$^{-1}$]')
                 axs.set_title("Combined Spectra")
 
@@ -3248,6 +3331,7 @@ class SunXspex(LoadSpec):
         '''Tells pickle how this object should be pickled.'''
         _model = {"_model":self._model.__name__}
         _user_fncs = {"usr_funcs":DYNAMIC_FUNCTION_SOURCE}
+        _user_args = {"user_args":DYNAMIC_VARS}
         if self._pickle_reason=="mcmc_parallelize":
             _loaded_spec_data = {"loaded_spec_data":{s:{k:d for (k,d) in v.items() if k!="extras"} for (s,v) in self.loaded_spec_data.items()}} # don't need anything in "extras"
             _atts = {"params":self.params, 
@@ -3256,7 +3340,7 @@ class SunXspex(LoadSpec):
                      "_param_groups":self._param_groups, 
                      "_free_model_param_bounds":self._free_model_param_bounds,
                      "_orig_params":self._orig_params}
-            return {**_loaded_spec_data, **_model, **_atts, **_user_fncs}
+            return {**_loaded_spec_data, **_model, **_atts, **_user_fncs, **_user_args}
         else:
             dict_copy = self.__dict__.copy()
 
@@ -3270,13 +3354,14 @@ class SunXspex(LoadSpec):
                     self.all_models[mod]["function"] = inspect.getsource(self.all_models[mod]["function"])
 
             # _model is a function in dict_copy (likely not picklable) but the **_model dict will replace this in dict_copy
-            return {**dict_copy, **_model, **_user_fncs}
+            return {**dict_copy, **_model, **_user_fncs, **_user_args}
 
     def __setstate__(self, d):
         '''Tells pickle how this object should be loaded.'''
         for f,c in d["usr_funcs"].items():
             function_creator(function_name=f, function_text=c)
-        del d["usr_funcs"]
+        add_var(**d["user_args"])
+        del d["usr_funcs"], d["user_args"]
         self.__dict__ = d
         self._model = globals()[d["_model"]] if d["_model"] in globals() else None
     
@@ -3367,9 +3452,11 @@ def _func_self_contained_check(function_name, function_text):
         del globals()[function_name] # this is a check function, don't want it just adding things to globals
         _func_to_test(*_test_params, energies=_test_energies)
     except NameError as e:
-        raise NameError(str(e)+f"\nA user defined function should be completely self-contained and should be able to be created from its source code,\nrelying entirely on its local scope. E.g., modules not imported in the fitter module (fitter imported modules:\n{imports()}) need to be imported in the fuction.")
+        raise NameError(str(e)+f"\nA user defined function should be completely self-contained and should be able to be created from its source code,\nrelying entirely on its local scope. E.g., modules not imported in the fitter module need to be imported in the fuction (fitter imported modules:\n{imports()}).")
     except FileNotFoundError as e:
         raise FileNotFoundError(str(e)+"\nPlease check that absolute file/directory paths are given for the user defined function to be completely self-contained.")
+    except ValueError as e:
+        warnings.warn(str(e)+"\nFunction failed self-contained check; however, this may be due to conflict in test inputs used to the model.")
 
 def function_creator(function_name, function_text, _orig_func=None):
     """ Takes a user defined function name for a NAMED function and a string that 

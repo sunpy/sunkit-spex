@@ -51,8 +51,8 @@ class Parameters:
                       Status  Value       Bounds       Error
         p1_spectrum1    free    1.0  (0.0, None)  (0.0, 0.0)
         p2_spectrum1    free    1.0  (0.0, None)  (0.0, 0.0)
-        p1_spectrum2    free    1.0  (0.0, None)  (0.0, 0.0)
-        p2_spectrum2    free    1.0  (0.0, None)  (0.0, 0.0)
+        p1_spectrum2    tie_p1_spectrum1    1.0  (0.0, None)  (0.0, 0.0)
+        p2_spectrum2    tie_p2_spectrum1    1.0  (0.0, None)  (0.0, 0.0)
 
         pt["p1_spectrum1"] = "fixed" 
         # <equivalent> pt["Status", "p1_spectrum1"] = "fixed"
@@ -81,9 +81,12 @@ class Parameters:
         """
 
         self._construction_string_parameters = f"Parameters({parameter_names},rParams={rParams})"
-        # Ordinary params, default all free, value 1. Response params, default frozen and value 1 (gain) and 0 (offset)
+        # Ordinary params, default spec1 free, rest are tied, value 1. Response params, default frozen and value 1 (gain) and 0 (offset)
+        spec1_param_num = sum(1 for i in parameter_names if "spectrum1" in i)
         if not rParams:
-            stat = ["free"]*len(parameter_names)
+            stat_s1 = ["free"]*spec1_param_num 
+            tied_stats = ["tie_"+s1 for s1 in parameter_names[:spec1_param_num]]*int((len(parameter_names)/spec1_param_num) - 1)
+            stat = stat_s1 + tied_stats
             params = np.ones(len(parameter_names))
             param_bounds = [(0.0, None)]*len(parameter_names) # None is no bounds for scipy
             param_errors = [(0.0, 0.0)]*len(parameter_names)
