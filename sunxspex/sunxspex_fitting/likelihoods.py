@@ -16,6 +16,7 @@ class LogLikelihoods:
         ----------
         log_likelihoods : dict
                 Name of each log-likelihoods/fit statistic (dict. key) with the method object (dict. value).
+                
         _construction_string : string
                 String to be returned from __repr__() dunder method.
 

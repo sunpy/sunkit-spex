@@ -25,7 +25,7 @@ import itertools
 
 from scipy.interpolate import interp1d
 
-from copy import copy
+from copy import copy, deepcopy
 
 import types
 import math as maths
@@ -56,7 +56,7 @@ __all__ = ["add_var", "del_var","add_photon_model", "del_photon_model", "SunXspe
 DYNAMIC_FUNCTION_SOURCE = {}
 
 # models should return a photon spectrum with units photons s^-1 cm^-2 keV^-1
-def add_photon_model(function):
+def add_photon_model(function, overwrite=False):
     """ Takes a user defined function intended to be used as a model or model component when giving a 
     string to the SunXspex.model property. Puts defined_photon_models[function.__name__]=param_inputs
     in `defined_photon_models` for it to be known to the fititng code. The energies argument must be 
@@ -75,6 +75,10 @@ def add_photon_model(function):
     ----------
     function : function
             The function object.
+    overwrite : bool
+            Set True to overwrite a model that already exists. User needs to be explicit if they wish 
+            to overwrite their models.
+            Default: False
 
     Returns
     -------
@@ -98,18 +102,20 @@ def add_photon_model(function):
     """
     # if user wants to define any component model to use in the fitting and reference as a string
     _glbls_cp, _dfs_cp = copy(globals()), copy(DYNAMIC_FUNCTION_SOURCE)
-
     # check if lambda function and return the user function
     # a 'self-contained' check will also take place and will fail if function is not of the form f(...,energies=None)
     usr_func = deconstruct_lambda(function, add_underscore=False) 
     param_inputs, _ = get_func_inputs(function) # get the param inputs for the function
     # check if the function has already been added
-    if usr_func.__name__ in defined_photon_models.keys():
-        print("Model: \'", usr_func.__name__,"\' already in \'defined_photon_models\'.")
+    if (usr_func.__name__ in defined_photon_models.keys()) and not overwrite:
+        print("Model: \'", usr_func.__name__,"\' already in \'defined_photon_models\'. Please set `overwrite=True`\nor use `del_photon_model()` to remove the existing model entirely.")
         # revert changes back, model needs to be initialised to know its name to hceck if it already existed but doing this overwrites it if it is there 
         globals()[usr_func.__name__] = _glbls_cp[usr_func.__name__]
         DYNAMIC_FUNCTION_SOURCE[usr_func.__name__] = _dfs_cp[usr_func.__name__]
         return
+    
+    # if overwrite is True and it gets to this stage remove the function entry from defined_photon_models quietly, else this line does nothing 
+    defined_photon_models.pop(usr_func.__name__, None)
         
     # make list of all inputs for all already defined models
     def_pars = list(itertools.chain.from_iterable(defined_photon_models.values()))
@@ -117,6 +123,7 @@ def add_photon_model(function):
 
     # add user model to defined_photon_models from photon_models_for_fitting
     defined_photon_models[usr_func.__name__] = param_inputs 
+    print(f"Model {usr_func.__name__} added.")
 
 def del_photon_model(function_name):
     """ Remove user defined sub-models that have been added via `add_photon_model`.
@@ -145,27 +152,37 @@ def del_photon_model(function_name):
     """
     # quickly check if the function exists under function_name
     if function_name not in defined_photon_models:
-        print(function_name, "is not in defined_photon_models to be removed.")
+        print(function_name, "is not in `defined_photon_models` to be removed.")
         return
 
     # can only remove if the user added the model, defined models from photon_models_for_fitting.py are protected
     if inspect.getmodule(globals()[function_name]).__name__ in (__name__):
         del defined_photon_models[function_name], globals()[function_name], DYNAMIC_FUNCTION_SOURCE[function_name]
+        print(f"Model {function_name} removed.")
     else:
         print("Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
 
 
 DYNAMIC_VARS = {}
-def add_var(**user_kwarg):
-    """ Takes a user defined variables and makes them available to the models being used within the 
+def add_var(overwrite=False, quiet=False, **user_kwarg):
+    """ Takes user defined variables and makes them available to the models being used within the 
     fitting. E.g., the user could define a variable in their own namespace (obtained from a file?) 
     and, instead of loading the file in with every function call, they can add the variable using 
     this method.
 
     Parameters
     ----------
+    overwrite : bool
+            Set True to overwrite an argument that already exists. User needs to be explicit if they wish 
+            to overwrite their arguments.
+            Default: False
+    quiet : bool
+            S.
+            Default: False
     **user_kwarg : 
-            User added variables.
+            User added variables. Arrays, lists, constants, etc., to be used in user defined models. This 
+            enables sessions with complex models (say that use a constants from a file) to still be save 
+            and work nroally when loaded back in.
 
     Returns
     -------
@@ -194,19 +211,24 @@ def add_var(**user_kwarg):
     Sx.plot()
     """
     for k,i in user_kwarg.items():
-        if k in globals():
-            print(f"Argument {k} already exists. Please either delete this with `del_var({k})` before trying to add again or use a different argument name.")
+        if k in DYNAMIC_VARS and not overwrite:
+            vb = f"Variable {k} already exists. Please set `overwrite=True`, delete this with `del_var({k})`,\nor use a different variable name."
+        elif not k in DYNAMIC_VARS and k in globals():
+            vb = f"Argument name {k} already exists **in globals** and is not a good idea to overwrite. Please use a different variable name."
         else:
             DYNAMIC_VARS.update({k:i})
             globals().update({k:i})
+            vb = f"Variable {k} added."
+        if not quiet:
+            print(vb)
 
-def del_var(user_arg_name):
+def del_var(*user_arg_name):
     """ Remove user defined variables that have been added via `add_var`.
 
     Parameters
     ----------
-    user_arg_name : str
-            Name of the variable to be removed.
+    *user_arg_name : str
+            Name(s) of the variable(s) to be removed.
 
     Returns
     -------
@@ -225,8 +247,16 @@ def del_var(user_arg_name):
     # realise the variable should be there or want it gome to update it
     del_var("some_user_var")
     """
-    if user_arg_name in globals():
-        del globals()[user_arg_name], DYNAMIC_VARS[user_arg_name]
+    _removed, _not_removed = [], []
+    for uan in user_arg_name:
+        if uan in DYNAMIC_VARS:
+            del globals()[uan], DYNAMIC_VARS[uan]
+            _removed.append(uan)
+        else:
+            _not_removed.append(uan)
+    _rmstr, spc = (f"Variables {_removed} were removed.", "\n") if len(_removed)>0 else ("", "")
+    _nrmstr, spc  = (f"Variables {_not_removed} are not ones added by user and so were not removed.", spc) if len(_not_removed)>0 else ("", "")
+    print(_rmstr, _nrmstr, sep=spc)
 
 # Easily access log-likelihood/fit-stat methods from the one place, if SunXpsex class inherits this then data is duplicated
 LL_CLASS = LogLikelihoods()
@@ -270,6 +300,8 @@ class SunXspex(LoadSpec):
                 Returns the defined fitting ranges for each spectrum. Default [0,np.inf] for all (has setter).
         model : function object
                 Returns self._model which is the functional model used for fitting (has setter).
+        renew_model : None
+                Only exists to allow the setter to be defined (has setter).
         show_params : astropy table
                 Returns an table showing all model spectral parameter information.
         show_rParams : astropy table
@@ -277,7 +309,7 @@ class SunXspex(LoadSpec):
         undo_burn_mcmc : None
                 Undoes any burn-in applied to the calculated MCMC samples.
         update_model : None
-                Only exists to allow th esetter to be defined (has setter).
+                Only exists to allow the setter to be defined (has setter).
 
         rebin : list/array
                 Returns the new energy bins of the data (self._rebinned_edges), None if the has not been rebinned (has setter). 
@@ -297,6 +329,10 @@ class SunXspex(LoadSpec):
                 A dictionary of spectrum identifier and fitting range or list of range for all spectra (default [0,np.inf]).
         model : function object or str
                 Model function or mathematical string using the names in defined_photon_models.
+        renew_model : function object or str
+                Same input as model setter. Defines the model function again without changing the parameter tables, etc. To be 
+                used if model function couldn't be save to then be loaded back in by the user. At the start of the next session,
+                once the class has been loaded back in, then this setter can be used to renew the complicated user defined model.
         update_model : function object or str
                 Same input as model setter. Saves previous model info and resets model setter.
 
@@ -341,6 +377,7 @@ class SunXspex(LoadSpec):
                 Parameter table for all response parameters.
         sigmas : 1d array
                 Array of the standard error on the free parameters.
+                
         _colour_list : list of colours
                 Colour cycle to be used when plotting submodels.
                 Default = plt.rcParams['axes.prop_cycle'].by_key()['color']
@@ -567,6 +604,96 @@ class SunXspex(LoadSpec):
         if hasattr(self, "_latest_fit_run"):
             del self._latest_fit_run 
         self.model = new_model_function
+
+    @property
+    def renew_model(self):
+        ''' ***Property*** 
+        Allows the model to be replaced while keeping the same parameter table. Can be used 
+        if the user provided a complicated model function that was not self-contained, hence 
+        could not be pickled and loaded back in, where this setter is used to insert the user 
+        model back into the class.
+
+        The renewing model must at least have the same model parameters as the previous model.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        None.
+        '''
+        # only here to allow the setter
+        pass
+    
+    @update_model.setter
+    def renew_model(self, renewed_model_function):
+        ''' ***Property Setter*** 
+        Allows the model to be replaced while keeping the same parameter table. Can be used 
+        if the user provided a complicated model function that was not self-contained, hence 
+        could not be pickled and loaded back in, where this setter is used to insert the user 
+        model back into the class.
+
+        The renewing model must at least have the same model parameters as the previous model.
+
+        Parameters
+        ----------
+        renewed_model_function : function object or str
+                The model to be used to fit the spectral data. Same as input to 
+                model property.
+
+        Returns
+        -------
+        None.
+
+        Example
+        -------
+        # fit the spectral data with one thermal model and a constant and something_complicated or a function dependent on something_complicated
+        def complicated_model(T1, EM1, C, something_complicated, energies=None):
+            return C*(f_vth(T1, EM1, energies=energies)) * f(something_complicated)
+
+        # set the model
+        spec.model = complicated_model
+
+        # this may produce warnings if the user has not been able to add their own functions and variables using `add_photon_model()` and `add_var()`, respectively
+        # parallelisation will not work if this is the case since variables/functions will not be getable when freshly loaded in for each thread
+
+        # do stuff
+        spec.fit() # etc.
+
+        # save and load back in
+        spec.save("./test.pickle")
+        new_spec = load("./test.pickle")
+        # will get the same 
+
+        new_spec.renew_model = complicated_model
+        '''
+        # if the new function fails because of typo/bug then this method becomes unusable since _model is deleted early on but is needed at the start, just make sure its here
+        self._model = self._model if hasattr(self, '_model') else None
+
+        # save a copy of the parameter tables since the model parameters must be the same as model it's renewing
+        if hasattr(self, 'params'):
+            _model, _ps, _rps = deepcopy(self._model), deepcopy(self.params), deepcopy(self.rParams)
+            _periph = deepcopy((self._orig_params, self._param_groups, self._model_param_names, self._response_param_names, self._other_model_inputs))
+
+        # remove _model attr to attempt to add renewed model
+        del self._model
+        
+        self.model = renewed_model_function
+
+        # parameters that the original model (being renewed) has that the new function doesnt have
+        _orig_params_mismatch = set(_ps.param_name)-set(self.params.param_name) 
+        # parameters that the new model (renewing) has that the original function doesnt have
+        _new_params_mismatch = set(self.params.param_name)-set(_ps.param_name)
+        if not (_orig_params_mismatch==set()) or not (_new_params_mismatch==set()):
+            del self.params, self.rParams 
+            self._orig_params, self._param_groups, self._model_param_names, self._response_param_names, self._other_model_inputs = _periph
+            self.params, self.rParams = Parameters(_ps.param_name), Parameters(_rps.param_name, rParams=True)
+            self._model = _model
+            print("Model cannot be renewed as the number of parameters are different.")
+            print(f"The following parameters are missing: {_orig_params_mismatch}, and the following are new: {_new_params_mismatch}")
+            
+        self.params["Status"], self.params["Value"], self.params["Bounds"], self.params["Error"] = list(_ps.param_status), list(_ps.param_value), list(_ps.param_bounds), list(_ps.param_error)
+        self.rParams["Status"], self.rParams["Value"], self.rParams["Bounds"], self.rParams["Error"] = list(_rps.param_status), list(_rps.param_value), list(_rps.param_bounds), list(_rps.param_error)
         
     @property
     def energy_fitting_range(self):
@@ -1605,7 +1732,7 @@ class SunXspex(LoadSpec):
         # step=percentage of each best fit param. E.g., step=0.02 means that the step will be 2% for each param when differentiating
         _hess_step = 0.01 if "_hess_step" not in kwargs else kwargs["_hess_step"]
         kwargs.pop("_hess_step", None)
-
+        self.soltn = [self.fit_stat_minimize, free_params_list, stat_args, free_bounds, kwargs]
         soltn = minimize(self.fit_stat_minimize,
                          free_params_list, 
                          args=stat_args,
@@ -1676,15 +1803,24 @@ class SunXspex(LoadSpec):
         step : float
                 A float fraction (>0) indicating the percentage of step for the Hessian matrix 
                 calculation to take for each parameter. I.e., if step=0.01 and 
-                free_params=[6,0.05] then Hessian steps would be [0.06,0.0005] (1%).
+                free_params=[6,0.05] then Hessian steps would be [0.06,0.0005] (1%). If the param
+                is 0 then a best guess at the correct order of magnitude for the step is made.
                 Default: 0.01 (or 1% steps)
 
         Returns
         -------
         The 2d square covariance matrix.
         '''
-        step = fparams*step
-        hessian = nd.Hessian(mod_without_x, step=step)(fparams)
+        # get step sizes
+        steps = abs(fparams)*step
+
+        # step sized must be >0 but if using fractional step and parameter is 0 then try to get a good step size
+        zero_steps = np.where(steps==0)
+        # use the last few params the minimizer used to get an order of magnitude for the step to be
+        replacement_steps = np.mean(self._minimize_solution.final_simplex[0][:,zero_steps], axis=0)*step
+        steps[zero_steps] = replacement_steps if replacement_steps>0 else step
+
+        hessian = nd.Hessian(mod_without_x, step=steps)(fparams)
         return 2 * np.linalg.inv(hessian) # 2 appears since our objective function is -2ln(L) and not -ln(L)
     
     def _calculate_model(self, **kwargs):
@@ -3358,9 +3494,9 @@ class SunXspex(LoadSpec):
 
     def __setstate__(self, d):
         '''Tells pickle how this object should be loaded.'''
+        add_var(**d["user_args"], quiet=True)
         for f,c in d["usr_funcs"].items():
             function_creator(function_name=f, function_text=c)
-        add_var(**d["user_args"])
         del d["usr_funcs"], d["user_args"]
         self.__dict__ = d
         self._model = globals()[d["_model"]] if d["_model"] in globals() else None
@@ -3446,7 +3582,7 @@ def _func_self_contained_check(function_name, function_text):
     exec(function_text, globals())
     params, _ = get_func_inputs(globals()[function_name])
     _test_e_range = np.arange(1.6,5.01, 0.04)[:,None]
-    _test_params, _test_energies = np.ones(len(params))*5, np.concatenate((_test_e_range[:-1], _test_e_range[1:]), axis=1) # one 5 for each param, 2 column array of e-bins
+    _test_params, _test_energies = np.ones(len(params)), np.concatenate((_test_e_range[:-1], _test_e_range[1:]), axis=1) # one 5 for each param, 2 column array of e-bins
     try:
         _func_to_test = globals()[function_name]
         del globals()[function_name] # this is a check function, don't want it just adding things to globals
@@ -3455,8 +3591,8 @@ def _func_self_contained_check(function_name, function_text):
         raise NameError(str(e)+f"\nA user defined function should be completely self-contained and should be able to be created from its source code,\nrelying entirely on its local scope. E.g., modules not imported in the fitter module need to be imported in the fuction (fitter imported modules:\n{imports()}).")
     except FileNotFoundError as e:
         raise FileNotFoundError(str(e)+"\nPlease check that absolute file/directory paths are given for the user defined function to be completely self-contained.")
-    except ValueError as e:
-        warnings.warn(str(e)+"\nFunction failed self-contained check; however, this may be due to conflict in test inputs used to the model.")
+    # except ValueError as e:
+    #     warnings.warn(str(e)+"\nFunction failed self-contained check; however, this may be due to conflict in test inputs used to the model.")
 
 def function_creator(function_name, function_text, _orig_func=None):
     """ Takes a user defined function name for a NAMED function and a string that 

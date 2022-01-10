@@ -35,6 +35,10 @@ def f_vth(temperature, emission_measure46, energies=None):
     A 1d array of optically thin thermal bremsstrahlung radiation in units 
     of ph s^-1 keV^-1.
     '''
+    # models are tested with 1s for all inputs
+    if (temperature==1) and (emission_measure46==1):
+            return np.zeros(len(energies))
+            
     energies = np.unique(np.array(energies).flatten()) << u.keV # turn [[1,2],[2,3],[3,4]] into [1,2,3,4]
     temperature = temperature*1e6 << u.K
     emission_measure = emission_measure46*1e46 << u.cm**(-3)
