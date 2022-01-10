@@ -36,7 +36,7 @@ class Parameters:
 
         Attributes
         ----------
-        self.parameter_info : pandas.DataFrame
+        parameter_info : pandas.DataFrame
                 Parameter table. This is the object that is indexed when the class is indexed.
         states : list of strings
                 Parameter fields ["Status", "Value", "Bounds", "Error"].
@@ -336,7 +336,7 @@ class Parameters:
                 self.parameter_info.at[key, item] = val
         elif type(new_value) is list:
             # check the list is the same length as the parameters
-            assert len(self.param_names)==len(new_value), "List for column must be same legnth as parameters ("+str(len(self.param_names))+")."
+            assert len(self.param_names)==len(new_value), "List for column must be same length as parameters ("+str(len(self.param_names))+")."
             for key, val in zip(self.param_names, new_value):
                 val = self._frozen_free_or_tie(value=val) if (type(val) is str) else val
                 self.parameter_info.at[key, item] = val

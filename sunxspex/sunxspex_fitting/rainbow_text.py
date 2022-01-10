@@ -1,3 +1,7 @@
+"""
+The following code is purely to plot multicoloured lines of text for plotting purposes.
+"""
+
 # draw multicoloured text
 import matplotlib.pyplot as plt
 
@@ -5,9 +9,8 @@ import matplotlib.pyplot as plt
 def rainbow_text_lines(xy, strings, colors, orientation='horizontal',
                        ax=None, **kwargs):
     """
-    *** NOT MY FUNCTION.
-    ADAPTED FROM: https://matplotlib.org/stable/gallery/text_labels_and_annotations/rainbow_text.html
-    USES ANNOTATE INSTEAD OF TEXT AND DELTA_X/Y UPDATE FOR TEXT IS APPLIED DIFFERENTLY. ***
+    *** NOT MY FUNCTION. ADAPTED FROM: https://matplotlib.org/stable/gallery/text_labels_and_annotations/rainbow_text.html ***
+    *** USES ANNOTATE INSTEAD OF TEXT AND DELTA_X/Y UPDATE FOR TEXT IS APPLIED DIFFERENTLY. ***
     
     Take a list of *strings* and *colors* and place them next to each
     other, with text strings[i] being shown in colors[i]. Each entry 
@@ -17,13 +20,18 @@ def rainbow_text_lines(xy, strings, colors, orientation='horizontal',
     ----------
     xy : (float, float)
         Text position in data coordinates.
+
     strings : list of str
         The strings to draw.
+
     colors : list of color
         The colors to use.
+
     orientation : {'horizontal', 'vertical'}
+
     ax : Axes, optional
         The Axes to draw into. If None, the current axes will be used.
+
     **kwargs
         All other keyword arguments are passed to plt.text(), so you can
         set the font size, family, etc.
