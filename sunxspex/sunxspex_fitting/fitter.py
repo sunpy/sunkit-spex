@@ -262,7 +262,9 @@ def del_var(*user_arg_name):
 LL_CLASS = LogLikelihoods()
 
 class SunXspex(LoadSpec):
-    
+    """Summarise behaviour and listist the public methods, attributes.
+    https://www.python.org/dev/peps/pep-0257/"""
+
     def __init__(self, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
         """
         This class's job is to load in spectral file(s) using the LoadSpec class and then provide a 
@@ -433,6 +435,9 @@ class SunXspex(LoadSpec):
         _other_model_inputs : 
                 Model inputs that are not model parameters, i.e., energies=None.
 
+        intrument_loaders : dict
+                Dictionary with keys of the supported instruments and values of their repsective loaders.
+                See LoadSpec class.
         loaded_spec_data : dict
                 All loaded spectral data. See LoadSpec class.
         _rebinned_edges : See LoadSpec class.

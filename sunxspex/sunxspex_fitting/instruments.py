@@ -1,5 +1,6 @@
 import numpy as np
 from os import path as os_path
+import inspect
 
 from sunxspex.sunxspex_fitting import nu_spec_code as nu_spec
 
@@ -9,6 +10,40 @@ __all__ = ["NustarLoader", "StixLoader", "RhessiLoader", "CustomLoader", "rebin_
 # Once the instrument specific loaders inherit from this then all they really have to do is get the spectral
 #    data they want to fit in the correct dictionary form and assigned to `self._loaded_spec_data`.
 class InstrumentBlueprint:
+    """ The blueprint class for an instruemnt to be given to the `DataLoader` class in data_loader.py. 
+    The main aim of these classes is to:
+            (1) produce a `_loaded_spec_data` attribute with the instrument spectral data in the 
+                form {"photon_channel_bins":Photon Space Bins (e.g., [keV,keV],[keV,keV],...]), 
+                      "photon_channel_mids":Photon Space Bin Mid-points (e.g., [keV,...]), 
+                      "photon_channel_binning":Photon Space Binwidths (e.g., [keV,...]), 
+                      "count_channel_bins":Count Space Bins (e.g., [keV,keV],[keV,keV],...]), 
+                      "count_channel_mids":Count Space Bin Mid-points (e.g., [keV,...]), 
+                      "count_channel_binning":Count Space Binwidths (e.g., [keV,...]), 
+                      "counts":counts (e.g., cts), 
+                      "count_rate":Count Rate (e.g., cts/keV/s), 
+                      "count_rate_error":Count Rate Error for `count_rate`, 
+                      "effective_exposure":Effective Exposure (e.g., s),
+                      "srm":Spectral Response Matrix (e.g., cts/ph * cm^2),
+                      "extras":{"any_extra_info":or_empty_dict} 
+                     };
+            (2) provide instrument specific methods such as time/spatial/spectral range selectors 
+                and SRM rebinning methods that then update the `_loaded_spec_data` attrbute 
+                appropriately.
+
+    Instrument loader classes are expected to receive the PHA spctral file (`pha_file`) as the first 
+    argument then other spectral information (`arf_file`, `rmf_file`, `srm_custom`, 
+    `custom_channel_bins`). Obviously not all of these files need be used and so just pass then through 
+    as **kwargs.
+
+    The `DataLoader` class in data_loader.py then creates a dictionary attrbute called `loaded_spec_data`
+    (note no underscore) that is then getable by the user when spectral fitting with the `SunXspex` class 
+    in fitter.py where the keys are each spectum's ID (e.g, spectrum1, spectrum2, etc.). 
+    
+    This means that, while fitting STIX data with spectrum ID "spectrum1" for example, if the user wants 
+    to change the time interval for the spectrum (e.g., with an intrument specific method time_range) 
+    they can do this by `loaded_spec_data["spectrum1"].time_range(new_time_range)` which will update the 
+    StixLoader `_loaded_spec_data` attribute located in loaded_spec_data["spectrum1"].
+    """
 
     def _rebin_rmf(self, matrix, old_count_bins=None, new_count_bins=None, old_photon_bins=None, new_photon_bins=None, axis="count"):
         ''' Rebins the photon and/or count channels of the redistribution matrix if needed.
@@ -48,6 +83,19 @@ class InstrumentBlueprint:
         return matrix
 
     def _channel_bin_info(self, axis):
+        ''' Returns the old and new channel bins for the indicated axis (count axis, photon 
+        axis or both).
+
+        Parameters
+        ----------
+        axis : string
+                Set to "count", "photon", or "photon_and_count" to return the old and new count 
+                channel bins, photon channel bins, or both. 
+
+        Returns
+        -------
+        Arrays of old_count_bins, new_count_bins, old_photon_bins, new_photon_bins or Nones.
+        '''
         old_count_bins, new_count_bins, old_photon_bins, new_photon_bins = None, None, None, None
         if (axis=="count") or (axis=="photon_and_count"):
             old_count_bins = self._loaded_spec_data["extras"]["original_count_channel_bins"]
@@ -115,6 +163,34 @@ class InstrumentBlueprint:
 
 class NustarLoader(InstrumentBlueprint):
     def __init__(self, pha_file, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+        """
+        Loader specifically for NuSTAR spectral data.
+
+        Parameters
+        ----------
+        pha_file : string 
+                The PHA file for the spectrum to be loaded.
+
+        arf_file, rmf_file : string
+                The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
+                that these are in the same directory with same filename as the PHA file(s) but with 
+                extensions '.arf' and '.rmf', respectively.
+
+        srm_custom : 2d array
+                User defined spectral response matrix. This is accepted over the SRM created from any 
+                ARF and RMF files given.
+
+        custom_channel_bins : 2d array
+                User defined channel bins for the columns of the SRM matrix. 
+                E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
+
+        Attributes
+        ----------
+        _construction_string : string
+                String to show how class was constructed.
+        _loaded_spec_data : dict
+                Loaded spectral data.
+        """
         self._construction_string = f"NustarLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
         self._loaded_spec_data = self.load1spec(pha_file, f_arf=arf_file, f_rmf=rmf_file, srm=srm_custom, channel_bins=custom_channel_bins)
 
@@ -305,15 +381,89 @@ class NustarLoader(InstrumentBlueprint):
         
 
 class StixLoader(InstrumentBlueprint):
-    def __init__(self):
+    def __init__(self, pha_file, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+        """
+        Loader specifically for STIX spectral data.
+
+        Parameters
+        ----------
+        pha_file : string 
+                The PHA file for the spectrum to be loaded.
+
+        arf_file, rmf_file : string
+                The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
+                that these are in the same directory with same filename as the PHA file(s) but with 
+                extensions '.arf' and '.rmf', respectively.
+
+        srm_custom : 2d array
+                User defined spectral response matrix. This is accepted over the SRM created from any 
+                ARF and RMF files given.
+
+        custom_channel_bins : 2d array
+                User defined channel bins for the columns of the SRM matrix. 
+                E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
+
+        Attributes
+        ----------
+        _construction_string : string
+                String to show how class was constructed.
+        _loaded_spec_data : dict
+                Loaded spectral data.
+        """
+        self._construction_string = f"StixLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
         self._loaded_spec_data = {}
 
 class RhessiLoader(InstrumentBlueprint):
-    def __init__(self):
+    def __init__(self, pha_file, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+        """
+        Loader specifically for RHESSI spectral data.
+
+        Parameters
+        ----------
+        pha_file : string 
+                The PHA file for the spectrum to be loaded.
+
+        arf_file, rmf_file : string
+                The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
+                that these are in the same directory with same filename as the PHA file(s) but with 
+                extensions '.arf' and '.rmf', respectively.
+
+        srm_custom : 2d array
+                User defined spectral response matrix. This is accepted over the SRM created from any 
+                ARF and RMF files given.
+
+        custom_channel_bins : 2d array
+                User defined channel bins for the columns of the SRM matrix. 
+                E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
+
+        Attributes
+        ----------
+        _construction_string : string
+                String to show how class was constructed.
+        _loaded_spec_data : dict
+                Loaded spectral data.
+        """
+        self._construction_string = f"RhessiLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
         self._loaded_spec_data = {}
 
 class CustomLoader(InstrumentBlueprint):
     def __init__(self, spec_data_dict):
+        """
+        Loader specifically for RHESSI spectral data.
+
+        Parameters
+        ----------
+        spec_data_dict : dict
+                Dictionary for custom spectral data.
+
+        Attributes
+        ----------
+        _construction_string : string
+                String to show how class was constructed.
+        _loaded_spec_data : dict
+                Custom loaded spectral data.
+        """
+        self._construction_string = f"CustomLoader({spec_data_dict})"
 
         # needed keys
         ess_keys = ["count_channel_bins",
@@ -340,7 +490,25 @@ class CustomLoader(InstrumentBlueprint):
 
         self._loaded_spec_data = _def
 
-    def _nonessential_defaults(self,nonessential_list,count_channels,counts):
+    def _nonessential_defaults(self, nonessential_list, count_channels, counts):
+        ''' To return a dictionary of all "non-essential" `_loaded_spec_data` values
+        That then get overwritten with the user provided dictionary in __init__.
+
+        Parameters
+        ----------
+        nonessential_list : list of strings
+                List of the "non-essential" entries in the custom `_loaded_spec_data`
+                dict that need defaults.
+        count_channels : 2d np.array, shape (N,2)
+                Array of the count channel bin edges.
+        counts : np.array, length N
+                Array of counts data.
+
+        Returns
+        -------
+        Defaults of all "non-essential" `_loaded_spec_data` values as a dictionary if 
+        needed, else an empty dictionary.
+        '''
         if len(nonessential_list)>0:
             _count_length_default = np.ones(len(count_channels))
             defaults = {"photon_channel_bins":count_channels,
