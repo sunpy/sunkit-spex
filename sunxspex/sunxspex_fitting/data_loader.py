@@ -2,92 +2,111 @@ import numpy as np
 from copy import deepcopy
 from astropy.io import fits
 
-from sunxspex.sunxspex_fitting.parameter_handler import _make_into_list
-import sunxspex.sunxspex_fitting.instruments as inst
+from . import _make_into_list # sunxspex.sunxspex_fitting.parameter_handler
+from . import instruments as inst # sunxspex.sunxspex_fitting.instruments 
 
 __all__ = ["LoadSpec", "isnumber"]
 
 
 class LoadSpec:
+    """
+    This class's job is to load in spectral file(s), obtain count spectra, and calculate/store the info for fitting.
+
+    This class holds all data required to perform spectral fitting as well as methods used for appropriately handling 
+    or changing the loaded data.
+
+    Parameters
+    ----------
+    *args : dict
+            Dictionaries for custom data to be passed to `sunxspex.sunxspex_fitting.instruments.CustomLoader`. 
+            These will be added before any instrument file entries from `pha_file`.
+
+    pha_file : string or list of strings
+            The PHA file or list of PHA files for the spectrum to be loaded.
+
+    arf_file, rmf_file : string or list of strings
+            The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
+            that these are in the same directory with same filename as the PHA file(s) but with 
+            extensions '.arf' and '.rmf', respectively.
+
+    srm_custom : 2d array
+            User defined spectral response matrix. This is accepted over the SRM created from any 
+            ARF and RMF files given.
+
+    custom_channel_bins : 2d array
+            User defined channel bins for the columns of the SRM matrix. 
+            E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
+
+    Properties
+    ----------
+    rebin : list/array
+            Returns the new energy bins of the data (self._rebinned_edges), None if the has not been rebinned (has setter). 
+
+    undo_rebin : None
+            Has the code that uses self._undo_rebin to undo the rebinning for spectra (has setter).
+
+    Setters
+    -------
+    rebin : int, {specID:int}, {"all":int}
+            Minimum number of counts in each bin. Changes data but saves original in "extras" key 
+            in loaded_spec_data attribute. 
+            
+    undo_rebin : int, specID, "all"
+            Undo the rebinning. Move the original data from "extras" in loaded_spec_data attribute
+            back to main part of the dict and set self._undo_rebin.
+
+    Methods
+    -------
+    group_pha_finder : channels, counts, group_min, print_tries
+            Check, incrementally from a minimum number, what group minimum is needed to leave no counts unbinned 
+            after rebinning. Returns binned channels and the minimum group number if one exists.
+
+    group_spec : spectrum, group_min, _orig_in_extras
+            Returns new bins and new binned counts for a given spectrum and minimun bin gorup number.
+
+    Attributes
+    ----------
+    intrument_loaders : dict
+            Dictionary with keys of the supported instruments and values of their repsective loaders.
+
+    loaded_spec_data : dict
+            All loaded spectral data.
+
+
+    _construction_string : string
+            String to be returned from __repr__() dunder method.
+
+    _rebinned_edges : dict
+            Dictionary of energy bins if they have been rebinned for each loaded spectrum. Set in rebin().
+
+    _rebin_setting : dict
+            Dictionary of rebin setting for each loaded spectrum. Set in rebin().
+
+    _undo_rebin : string
+            Indicates the spectral rebinning to be undone. E.g., 'all', 'spectrumN', or None. Set in undo_rebin().
+
+    Examples
+    --------
+    # load in 2 spectra, rebin the count channels to have a minimum of 10 counts then undo that rebinning
+    s = LoadSpec(pha_file=['filename1.pha', 'filename2.pha'],
+                    arf_file=['filename1.arf', 'filename2.arf'],
+                    rmf_file=['filename1.rmf', 'filename2.rmf'])
+    s.rebin = 10
+    s.undo_rebin = 10
+    """ 
     def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
-        """
-        This class's job is to load in spectral file(s). I.e., load in the count spectrum and then 
-        calculate/store the SRM for fitting.
-
-        Parameters
-        ----------
-        *args : dict
-                Dictionaries for custom data to be passed to `sunxspex.sunxspex_fitting.instruments.CustomLoader`. 
-                These will be added before any instrument file entries from `pha_file`.
-
-        pha_file : string or list of strings
-                The PHA file or list of PHA files for the spectrum to be loaded.
-
-        arf_file, rmf_file : string or list of strings
-                The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
-                that these are in the same directory with same filename as the PHA file(s) but with 
-                extensions '.arf' and '.rmf', respectively.
-
-        srm_custom : 2d array
-                User defined spectral response matrix. This is accepted over the SRM created from any 
-                ARF and RMF files given.
-
-        custom_channel_bins : 2d array
-                User defined channel bins for the columns of the SRM matrix. 
-                E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
-
-        Properties
-        ----------
-        rebin : list/array
-                Returns the new energy bins of the data (self._rebinned_edges), None if the has not been rebinned (has setter). 
-        undo_rebin : None
-                Has the code that uses self._undo_rebin to undo the rebinning for spectra (has setter).
-
-        Setters
-        -------
-        rebin : int, {specID:int}, {"all":int}
-                Minimum number of counts in each bin. Changes data but saves original in "extras" key 
-                in loaded_spec_data attribute. 
-        undo_rebin : int, specID, "all"
-                Undo the rebinning. Move the original data from "extras" in loaded_spec_data attribute
-                back to main part of the dict and set self._undo_rebin.
-
-        Attributes
-        ----------
-        intrument_loaders : dict
-                Dictionary with keys of the supported instruments and values of their repsective loaders.
-        loaded_spec_data : dict
-                All loaded spectral data.
-
-        _construction_string : string
-                String to be returned from __repr__() dunder method.
-        _rebinned_edges : dict
-                Dictionary of energy bins if they have been rebinned for each loaded spectrum. Set in rebin().
-        _rebin_setting : dict
-                Dictionary of rebin setting for each loaded spectrum. Set in rebin().
-        _undo_rebin : string
-                Indicates the spectral rebinning to be undone. E.g., 'all', 'spectrumN', or None. Set in undo_rebin().
-
-        Examples
-        --------
-        # load in 2 spectra, rebin the count channels to have a minimum of 10 counts then undo that rebinning
-        s = LoadSpec(pha_file=['filename1.pha', 'filename2.pha'],
-                     arf_file=['filename1.arf', 'filename2.arf'],
-                     rmf_file=['filename1.rmf', 'filename2.rmf'])
-        s.rebin = 10
-        s.undo_rebin = 10
-        """
+        """Construct a string to show how the class was constructed (`_construction_string`) and set the `loaded_spec_data` dictionary attribute."""
 
         self._construction_string = f"LoadSpec(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
         
         # from sunxspex.sunxspex_fitting.instruments import * gives us the instrument specific loaders
         self.intrument_loaders = {"NuSTAR":inst.NustarLoader, "STIX":inst.StixLoader, "RHESSI":inst.RhessiLoader}
 
-        pha_file, arf_file, rmf_file, srm_custom, custom_channel_bins, instruments = self.sort_files(pha_file=pha_file, 
-                                                                                                     arf_file=arf_file, 
-                                                                                                     rmf_file=rmf_file, 
-                                                                                                     srm_custom=srm_custom, 
-                                                                                                     custom_channel_bins=custom_channel_bins)
+        pha_file, arf_file, rmf_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file, 
+                                                                                                      arf_file=arf_file, 
+                                                                                                      rmf_file=rmf_file, 
+                                                                                                      srm_custom=srm_custom, 
+                                                                                                      custom_channel_bins=custom_channel_bins)
         # get ready to load multiple spectra if needed
         num_of_files, num_of_custom = len(pha_file), len(args)
         self.loaded_spec_data = {}
@@ -104,7 +123,7 @@ class LoadSpec:
 
         # Adding these classes should also yield {"spectrum1":..., "spectrum2":..., etc.}
 
-    def sort_files(self, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+    def _sort_files(self, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
         ''' Takes in spectral data files and turns then all into list.
 
         Parameters
@@ -164,11 +183,11 @@ class LoadSpec:
         if (len(custom_channel_bins)==1) and (len(file_pha)>1):
             custom_channel_bins *= len(file_pha)
 
-        instruments = self.files2instruments(file_pha)
+        instruments = self._files2instruments(file_pha)
 
         return file_pha, file_arf, file_rmf, custom_srm, custom_channel_bins, instruments
 
-    def files2instruments(self, pha_files):
+    def _files2instruments(self, pha_files):
         ''' Finds the instruments that correspond to the list of input `pha_files` (list of fits files).
 
         Parameters
@@ -192,11 +211,7 @@ class LoadSpec:
     
     @property
     def rebin(self):
-        ''' ***Property*** 
-        Allows energy channels to be rebinned.
-
-        Parameters
-        ----------
+        ''' ***Property*** Allows energy channels to be rebinned.
 
         Returns
         -------
@@ -208,12 +223,11 @@ class LoadSpec:
 
     @rebin.setter
     def rebin(self, group_mins):
-        ''' ***Property Setter*** 
-        Allows energy channels to be rebinned.
+        ''' ***Property Setter*** Allows energy channels to be rebinned.
 
         Parameters
         ----------
-        group_mins : int
+        group_mins : int, list, or dict
                 The minimum number of counts in a bin.
 
         Returns
@@ -225,6 +239,7 @@ class LoadSpec:
         # load in 1 spectra, rebin the count channels to have a minimum of 10 counts
         s = LoadSpec(pha_file='filename1.pha',arf_file='filename1.arf',rmf_file='filename1.rmf')
         s.rebin = 10
+        s.rebin = {"spectrum1":10}
         '''
         # check what the setter has been given
         # if dict, can group all loaded spectral data differently, "all" key takes priority and is applied to all spectra
@@ -243,10 +258,8 @@ class LoadSpec:
             return None
         elif (type(group_mins)==int):
             group_mins = [group_mins]*len(list(self.loaded_spec_data.keys()))
-        elif (type(group_mins) in (list, np.ndarray)):
-            if len(group_mins)!=len(list(self.loaded_spec_data.keys())):
-                print("rebin must be int or list of int with one-to-one match to the loaded spectra or dict with keys as the spectrum identifiers or with key \"all\".")
-                return None
+        elif not self._rebin_list_and_one2one(group_mins):
+            return None
         
         # now rebin the data
         bin_edges = []           
@@ -258,6 +271,24 @@ class LoadSpec:
         self._rebinned_edges = dict(zip(self.loaded_spec_data.keys(), bin_edges))
         # remember how it was rebinned
         self._rebin_setting = dict(zip(self.loaded_spec_data.keys(), group_mins))
+
+    def _rebin_list_and_one2one(self, group_mins):
+        ''' Check if the group minimum (minima) given is in a list form and with a one-to-one entry to the loaded stectra.
+
+        Parameters
+        ----------
+        group_mins : string
+                Spectrum to be checked. E.g., \'spectrum1\'
+
+        Returns
+        -------
+        Boolean.
+        '''
+        if (type(group_mins) in (list, np.ndarray)) and len(group_mins)==len(list(self.loaded_spec_data.keys())):
+            return True
+        else:
+            print("rebin must be int or list of int with one-to-one match to the loaded spectra or dict with keys as the spectrum identifiers or with key \"all\".")
+            return False
         
     def _rebin_check(self, spectrum):
         ''' Check if the spectrum given has been rebinned.
@@ -276,11 +307,7 @@ class LoadSpec:
         
     @property
     def undo_rebin(self):
-        ''' ***Property*** 
-        Allows the energy channel's rebinning to be undone.
-
-        Parameters
-        ----------
+        ''' ***Property*** Allows the energy channel's rebinning to be undone.
 
         Returns
         -------
@@ -309,8 +336,7 @@ class LoadSpec:
     
     @undo_rebin.setter
     def undo_rebin(self, spectrum):
-        ''' ***Property Setter*** 
-        Allows the energy channel's rebinning to be undone.
+        ''' ***Property Setter*** Allows the energy channel's rebinning to be undone.
 
         Parameters
         ----------
@@ -435,8 +461,7 @@ class LoadSpec:
         
         
     def group_pha_finder(self, channels, counts, group_min=None, print_tries=False):
-        ''' Takes the counts, and checks the bins left over from grouping the bins with a minimum 
-        value.
+        ''' Takes the counts, and checks the bins left over from grouping the bins with a minimum value.
 
         Parameters
         ----------
@@ -458,9 +483,8 @@ class LoadSpec:
         The new bins and the minimum bin number that gives zero counts left over at the end, if they exist, else None.
         '''
 
-        if type(group_min)!=int or group_min<=0: 
-            print('The \'group_min\' parameter must be an integer > 0.')
-            return
+        if not self._valid_group_min_entry(group_min):
+            return 
 
         # grppha groups in counts, not counts s^-1 or anything
         total_counts = np.sum(counts)
@@ -480,7 +504,7 @@ class LoadSpec:
                         binned_channel.append([start_e_bin, channels[c][1]]) # starting at the last bin edge and the last edge of the bin we're on
                         combin = 0
 
-            if print_tries == True:
+            if print_tries:
                 print('Group min, ', group_min, ', has counts left over: ', combin)
 
             if combin != 0:
@@ -491,11 +515,9 @@ class LoadSpec:
             else:
                 print('Group minimum that works is: ', group_min)
                 return np.array(binned_channel), group_min
-            
     
     def group_spec(self, spectrum, group_min=None, _orig_in_extras=False):
-        ''' Takes the counts, and checks the bins left over from grouping the bins with a minimum 
-        value.
+        ''' Takes the counts, and checks the bins left over from grouping the bins with a minimum value.
 
         Parameters
         ----------
@@ -518,16 +540,16 @@ class LoadSpec:
 
         Returns
         -------
-        The bin edges for you minimum group number. Any bins left over are now included.
+        The bin edges and new counts for you minimum group number. Any bins left over are now included with zero counts.
         '''
 
         counts = self.loaded_spec_data[spectrum]["counts"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_counts"]
         channel_bins = self.loaded_spec_data[spectrum]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"]
         
         
-        return self.group_cts(channel_bins, counts, group_min=group_min, spectrum=spectrum)
+        return self._group_cts(channel_bins, counts, group_min=group_min, spectrum=spectrum)
     
-    def group_cts(self, channel_bins, counts, group_min=None, spectrum=None, verbose=True):
+    def _group_cts(self, channel_bins, counts, group_min=None, spectrum=None, verbose=True):
         ''' Takes the counts and bins and groups the counts to have a minimum number of group_min.
 
         Parameters
@@ -536,8 +558,7 @@ class LoadSpec:
                 Array of the channel bins and counts.
 
         group_min : Int
-                The minimum number of counts allowed in a bin. This input is a starting number and the is checked 
-                incrementally.
+                The minimum number of counts allowed in a bin. 
                 Default: None
 
         spectrum : string
@@ -552,10 +573,7 @@ class LoadSpec:
         The new bins and the corresponding grouped counts.
         '''
 
-        if type(group_min)!=int or group_min<=0: 
-            if type(group_min)==type(None):
-                return channel_bins, counts
-            print('The \'group_min\' parameter must be an integer > 0.')
+        if not self._valid_group_min_entry(group_min):
             return channel_bins, counts
         
         # grppha groups in counts, not counts s^-1 or anything
@@ -584,12 +602,56 @@ class LoadSpec:
         remainder_bins = channel_bins[np.where(channel_bins[:,1] > np.array(binned_channel)[-1,-1])]
         binned_counts += [0]*len(remainder_bins)
                     
+        self._verbose_tries(spectrum, group_min, combin, verbose)
+        
+        return np.concatenate((np.array(binned_channel), remainder_bins)), np.array(binned_counts)# np.unique(np.array(binned_channel).flatten())
+
+    def _valid_group_min_entry(self, group_min):
+        ''' Checks if a valid `group_min` entry has been given. An entry of None is valid but still returns False.
+
+        Parameters
+        ----------
+        group_min : Int > 0
+                The minimum number of counts allowed in a bin.
+
+        Returns
+        -------
+        Boolean.
+        '''
+        if type(group_min)!=int or group_min<=0: 
+            if type(group_min)==type(None):
+                return False
+            print('The \'group_min\' parameter must be an integer > 0.')
+            return False
+        return True
+
+    def _verbose_tries(self, spectrum, group_min, combin, verbose):
+        ''' Executes print statements on the result of count rebinning. Any counts that were left over and could 
+        not form a bin are indicated in the print statements.
+
+        Parameters
+        ----------
+        spectrum : string
+                SRM's spectrum identifier to be rebinned. E.g., \'spectrum1\'.
+
+        group_min : Int > 0
+                The minimum number of counts allowed in a bin. This input is a starting number and the is checked 
+                incrementally.
+
+        combin : Int > 0
+                The number of bins left over that were not able to be binned.
+
+        verbose : Bool
+                If True, will print out the number counts not able to be binned.
+
+        Returns
+        -------
+        None.
+        '''
         if combin>0 and verbose:
             if type(spectrum)!=type(None):
                 print("In "+spectrum+": ", end="")
             print(combin,f' counts are left over from binning (bin min. {group_min}) and will not be included when fitting or shown when plotted.')
-        
-        return np.concatenate((np.array(binned_channel), remainder_bins)), np.array(binned_counts)# np.unique(np.array(binned_channel).flatten())
     
     def __add__(self, other):
         ''' Define what adding means to the function, just combine other's loaded_spec_data with self's while changing other's 

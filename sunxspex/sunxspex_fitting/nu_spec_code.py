@@ -2,9 +2,8 @@
 The following code is used to read in NuSTAR spectral data and create spectral models.
 '''
 
-import sys
-from os.path import *
-import os
+#from os.path import *
+#import os
 import numpy as np
 from astropy.io import fits
 
@@ -202,7 +201,7 @@ def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None
     A 2D numpy array of the correctly ordered input data with dimensions of energy in the rows and channels in 
     the columns.
     
-    Code Example
+    Example
     -------
     >>> d_rmf = 'directory/'
     >>> f_rmf = 'file.rmf'

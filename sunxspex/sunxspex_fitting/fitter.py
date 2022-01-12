@@ -15,7 +15,7 @@ import nestle
 
 # run mcmc in parallel
 from multiprocessing import Pool
-import dill
+##import### dill
 
 # function construction packages
 import inspect
@@ -2160,7 +2160,7 @@ class SunXspex(LoadSpec):
     def _bin_comb4plot(self, rebin_and_spec, count_rate_model, energy_channels, energy_channel_error, count_rates, count_rate_errors):
         old_bins = np.column_stack((energy_channels-energy_channel_error, energy_channels+energy_channel_error))
         old_bin_width = energy_channel_error*2
-        new_bins, binned_cts = self.group_cts(channel_bins=old_bins, counts=self._get_counts_per_detector(), group_min=rebin_and_spec[0], spectrum=rebin_and_spec[1], verbose=True)
+        new_bins, binned_cts = self._group_cts(channel_bins=old_bins, counts=self._get_counts_per_detector(), group_min=rebin_and_spec[0], spectrum=rebin_and_spec[1], verbose=True)
         mask = binned_cts/binned_cts # turn 0/0 into nans so they don't plot
         new_bin_width = np.diff(new_bins).flatten() 
         count_rates = (rebin_any_array(data=count_rates*old_bin_width, old_bins=old_bins, new_bins=new_bins, combine_by="sum") / new_bin_width) * mask
