@@ -1,3 +1,7 @@
+"""
+The following code is for instrument specific classes each using their own methods to create and edit their `_loaded_spec_data` attrbutes.
+"""
+
 import numpy as np
 from os import path as os_path
 
@@ -67,12 +71,13 @@ class InstrumentBlueprint:
                          ----------
                          _construction_string : string
                                  String to show how class was constructed.
+
                          _loaded_spec_data : dict
                                  Loaded spectral data.
                          """
 
     def _rebin_rmf(self, matrix, old_count_bins=None, new_count_bins=None, old_photon_bins=None, new_photon_bins=None, axis="count"):
-        ''' Rebins the photon and/or count channels of the redistribution matrix if needed.
+        """ Rebins the photon and/or count channels of the redistribution matrix if needed.
 
         This will rebin any 2d array by taking the mean across photon space (rows) and summing
         across count space (columns).
@@ -97,7 +102,7 @@ class InstrumentBlueprint:
         Returns
         -------
         The rebinned 2d redistribution matrix.
-        '''
+        """
         # across channel bins, we sum. across energy bins, we average
         # appears to be >2x faster to average first then sum if needing to do both
         if (axis=="photon") or (axis=="photon_and_count"):
@@ -110,7 +115,7 @@ class InstrumentBlueprint:
         return matrix
 
     def _channel_bin_info(self, axis):
-        ''' Returns the old and new channel bins for the indicated axis (count axis, photon axis or both).
+        """ Returns the old and new channel bins for the indicated axis (count axis, photon axis or both).
 
         Parameters
         ----------
@@ -121,7 +126,7 @@ class InstrumentBlueprint:
         Returns
         -------
         Arrays of old_count_bins, new_count_bins, old_photon_bins, new_photon_bins or Nones.
-        '''
+        """
         old_count_bins, new_count_bins, old_photon_bins, new_photon_bins = None, None, None, None
         if (axis=="count") or (axis=="photon_and_count"):
             old_count_bins = self._loaded_spec_data["extras"]["original_count_channel_bins"]
@@ -132,7 +137,7 @@ class InstrumentBlueprint:
         return old_count_bins, new_count_bins, old_photon_bins, new_photon_bins
 
     def _rebin_srm(self, axis="count"):
-        ''' Rebins the photon and/or count channels of the spectral response matrix (SRM) if needed. 
+        """ Rebins the photon and/or count channels of the spectral response matrix (SRM) if needed. 
         
         Note: If the instrument has a spatial aspect and effective information is present (e.g., 
         NuSTAR from its ARF file) then this method should be overwritten in the instrument 
@@ -156,26 +161,26 @@ class InstrumentBlueprint:
         Returns
         -------
         The rebinned 2d spectral response matrix.
-        '''
+        """
         old_count_bins, new_count_bins, old_photon_bins, new_photon_bins = self._channel_bin_info(axis)
         matrix = self._loaded_spec_data["srm"]
         return self._rebin_rmf(matrix, old_count_bins=old_count_bins, new_count_bins=new_count_bins, old_photon_bins=old_photon_bins, new_photon_bins=new_photon_bins, axis="count")
 
     def __getitem__(self, item):
-        '''Index the entries in `_loaded_spec_data`'''
+        """Index the entries in `_loaded_spec_data`"""
         return self._loaded_spec_data[item]
 
     def __setitem__(self, item, new_value):
-        '''Allows entries in `_loaded_spec_data` to be changed.'''
+        """Allows entries in `_loaded_spec_data` to be changed."""
         self._loaded_spec_data[item] = new_value
 
     def __call__(self):
-        '''When the class is called (n=NustarLoader()->n()) then `_loaded_spec_data` 
-        is returned.'''
+        """When the class is called (n=NustarLoader()->n()) then `_loaded_spec_data` 
+        is returned."""
         return self._loaded_spec_data
 
     def __repr__(self):
-        '''String representation of `_loaded_spec_data`.'''
+        """String representation of `_loaded_spec_data`."""
         return str(self._loaded_spec_data)
 
 
@@ -208,7 +213,7 @@ class NustarLoader(InstrumentBlueprint):
         self._loaded_spec_data = self._load1spec(pha_file, f_arf=arf_file, f_rmf=rmf_file, srm=srm_custom, channel_bins=custom_channel_bins)
 
     def _load1spec(self, f_pha, f_arf=None, f_rmf=None, srm=None, channel_bins=None):
-        ''' Loads all the information in for a given spectrum.
+        """ Loads all the information in for a given spectrum.
 
         Parameters
         ----------
@@ -255,7 +260,7 @@ class NustarLoader(InstrumentBlueprint):
                                                                                 "rmf.matrix":matrix,
                                                                                 "rmf.redistribution_matrix":redist_m} 
                                                                      }.
-        '''
+        """
         
         # what files might be needed (for NuSTAR)
         f_arf = f_pha[:-3]+"arf" if type(f_arf)==type(None) else f_arf
@@ -315,7 +320,7 @@ class NustarLoader(InstrumentBlueprint):
                 } # this might make it easier to add different observations together
 
     def _load_rmf(self, rmf_file):
-        ''' Extracts all information, mainly the redistribution matrix ([counts/photon]) from a given RMF file.
+        """ Extracts all information, mainly the redistribution matrix ([counts/photon]) from a given RMF file.
 
         Parameters
         ----------
@@ -328,7 +333,7 @@ class NustarLoader(InstrumentBlueprint):
         starting indices of the count channel groups (fchan), number counts channels from each starting index (nchan), the coresponding 
         counts/photon value for each count and photon entry (matrix), and the redistribution matrix (redist_m: with rows of photon channels, 
         columns of counts channels, and in the units of counts/photon).
-        '''
+        """
         
         e_lo_rmf, e_hi_rmf, ngrp, fchan, nchan, matrix = nu_spec.read_rmf(rmf_file)
         fchan_array = nu_spec.col2arr_py(fchan)
@@ -341,7 +346,7 @@ class NustarLoader(InstrumentBlueprint):
         return e_lo_rmf, e_hi_rmf, ngrp, fchan, nchan, matrix, redist_m
 
     def _calc_channel_bins(self, e_low, e_hi):
-        ''' Calculates the count channel bins from the given rmf files. Assumes that the photon and count channel bins are the same.
+        """ Calculates the count channel bins from the given rmf files. Assumes that the photon and count channel bins are the same.
 
         Parameters
         ----------
@@ -354,7 +359,7 @@ class NustarLoader(InstrumentBlueprint):
         Returns
         -------
         None if no e_low or e_hi is given or 2d array where each row is the lower and higher bound of that bin.
-        '''
+        """
         if (e_low is None) or (e_hi is None):
             print("If no rmf/arf files are given and a custom srm is provided, please provide the custom_channel_bins.\nE.g., custom_channel_bins=[[1,2],[2,3],...]")
             return None
@@ -362,7 +367,7 @@ class NustarLoader(InstrumentBlueprint):
             return np.stack((e_low, e_hi), axis=-1)
 
     def _rebin_srm(self, axis="count"):
-        ''' Rebins the photon and/or count channels of the spectral response matrix by rebinning the redistribution matrix and the effective area array.
+        """ Rebins the photon and/or count channels of the spectral response matrix by rebinning the redistribution matrix and the effective area array.
 
         Parameters
         ----------
@@ -372,7 +377,7 @@ class NustarLoader(InstrumentBlueprint):
         Returns
         -------
         The rebinned 2d spectral response matrix.
-        '''
+        """
         old_count_bins, new_count_bins, old_photon_bins, new_photon_bins = self._channel_bin_info(axis)
         
         old_rmf = self._loaded_spec_data["extras"]["rmf.redistribution_matrix"]
@@ -517,7 +522,7 @@ class CustomLoader(InstrumentBlueprint):
         self._loaded_spec_data = _def
 
     def _nonessential_defaults(self, nonessential_list, count_channels, counts):
-        ''' To return a dictionary of all "non-essential" `_loaded_spec_data` values.
+        """ To return a dictionary of all "non-essential" `_loaded_spec_data` values.
 
         These then get overwritten with the user provided dictionary in __init__.
 
@@ -535,7 +540,7 @@ class CustomLoader(InstrumentBlueprint):
         -------
         Defaults of all "non-essential" `_loaded_spec_data` values as a dictionary if 
         needed, else an empty dictionary.
-        '''
+        """
         if len(nonessential_list)>0:
             _count_length_default = np.ones(len(count_channels))
             defaults = {"photon_channel_bins":count_channels,
@@ -554,7 +559,7 @@ class CustomLoader(InstrumentBlueprint):
 
 
 def rebin_any_array(data, old_bins, new_bins, combine_by="sum"):
-    ''' Takes any array of data in old_bins space and rebins along data array axis==0 to have new_bins.
+    """ Takes any array of data in old_bins space and rebins along data array axis==0 to have new_bins.
     
     Can specify how the bins are combined.
 
@@ -572,7 +577,7 @@ def rebin_any_array(data, old_bins, new_bins, combine_by="sum"):
     Returns
     -------
     The new bins and the corresponding grouped counts.
-    '''
+    """
     new_binned_data = []
     for nb in new_bins:
         # just loop through new bins and bin data from between new_bin_lower<=old_bin_lowers and old_bin_highers<new_bin_higher

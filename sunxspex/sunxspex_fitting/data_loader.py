@@ -2,7 +2,7 @@ import numpy as np
 from copy import deepcopy
 from astropy.io import fits
 
-from . import _make_into_list # sunxspex.sunxspex_fitting.parameter_handler
+from .parameter_handler import _make_into_list # sunxspex.sunxspex_fitting.parameter_handler
 from . import instruments as inst # sunxspex.sunxspex_fitting.instruments 
 
 __all__ = ["LoadSpec", "isnumber"]
@@ -124,7 +124,7 @@ class LoadSpec:
         # Adding these classes should also yield {"spectrum1":..., "spectrum2":..., etc.}
 
     def _sort_files(self, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
-        ''' Takes in spectral data files and turns then all into list.
+        """ Takes in spectral data files and turns then all into list.
 
         Parameters
         ----------
@@ -149,7 +149,7 @@ class LoadSpec:
         Equal length lists such that each spectral data set has an entry for all inputs (pha_file, 
         arf_file, rmf_file, srm_custom, custom_channel_bins) along with a list of corresponding 
         instrument names.
-        '''
+        """
         # if only one observation is given then it won't be a list so make it one
         file_pha = _make_into_list(pha_file)
         file_arf = _make_into_list(arf_file)
@@ -188,7 +188,7 @@ class LoadSpec:
         return file_pha, file_arf, file_rmf, custom_srm, custom_channel_bins, instruments
 
     def _files2instruments(self, pha_files):
-        ''' Finds the instruments that correspond to the list of input `pha_files` (list of fits files).
+        """ Finds the instruments that correspond to the list of input `pha_files` (list of fits files).
 
         Parameters
         ----------
@@ -198,7 +198,7 @@ class LoadSpec:
         Returns
         -------
         List of corresponding instrument names (strings) to the input fits files.
-        '''
+        """
         _instruments_names = []
         for pf in pha_files:
             with fits.open(pf) as hdul:
@@ -211,19 +211,19 @@ class LoadSpec:
     
     @property
     def rebin(self):
-        ''' ***Property*** Allows energy channels to be rebinned.
+        """ ***Property*** Allows energy channels to be rebinned.
 
         Returns
         -------
         None if the data has not been rebinned, the new energy bins for the rebinned data.
-        '''
+        """
         if not hasattr(self, "_rebinned_edges"):
             return None
         return self._rebinned_edges
 
     @rebin.setter
     def rebin(self, group_mins):
-        ''' ***Property Setter*** Allows energy channels to be rebinned.
+        """ ***Property Setter*** Allows energy channels to be rebinned.
 
         Parameters
         ----------
@@ -240,7 +240,7 @@ class LoadSpec:
         s = LoadSpec(pha_file='filename1.pha',arf_file='filename1.arf',rmf_file='filename1.rmf')
         s.rebin = 10
         s.rebin = {"spectrum1":10}
-        '''
+        """
         # check what the setter has been given
         # if dict, can group all loaded spectral data differently, "all" key takes priority and is applied to all spectra
         if type(group_mins)==dict:
@@ -273,7 +273,7 @@ class LoadSpec:
         self._rebin_setting = dict(zip(self.loaded_spec_data.keys(), group_mins))
 
     def _rebin_list_and_one2one(self, group_mins):
-        ''' Check if the group minimum (minima) given is in a list form and with a one-to-one entry to the loaded stectra.
+        """ Check if the group minimum (minima) given is in a list form and with a one-to-one entry to the loaded stectra.
 
         Parameters
         ----------
@@ -283,7 +283,7 @@ class LoadSpec:
         Returns
         -------
         Boolean.
-        '''
+        """
         if (type(group_mins) in (list, np.ndarray)) and len(group_mins)==len(list(self.loaded_spec_data.keys())):
             return True
         else:
@@ -291,7 +291,7 @@ class LoadSpec:
             return False
         
     def _rebin_check(self, spectrum):
-        ''' Check if the spectrum given has been rebinned.
+        """ Check if the spectrum given has been rebinned.
 
         Parameters
         ----------
@@ -301,18 +301,18 @@ class LoadSpec:
         Returns
         -------
         Boolean.
-        '''
+        """
         _orig_in_extras = False if ("original_srm" not in self.loaded_spec_data[spectrum]["extras"]) else True
         return _orig_in_extras
         
     @property
     def undo_rebin(self):
-        ''' ***Property*** Allows the energy channel's rebinning to be undone.
+        """ ***Property*** Allows the energy channel's rebinning to be undone.
 
         Returns
         -------
         None.
-        '''
+        """
         if not hasattr(self, "_undo_rebin"):
             self._undo_rebin = "all"
             
@@ -336,7 +336,7 @@ class LoadSpec:
     
     @undo_rebin.setter
     def undo_rebin(self, spectrum):
-        ''' ***Property Setter*** Allows the energy channel's rebinning to be undone.
+        """ ***Property Setter*** Allows the energy channel's rebinning to be undone.
 
         Parameters
         ----------
@@ -354,7 +354,7 @@ class LoadSpec:
         s = LoadSpec(pha_file='filename1.pha',arf_file='filename1.arf',rmf_file='filename1.rmf')
         s.rebin = 10
         s.undo_rebin = \'all\' <equivalent to> s.undo_rebin
-        '''
+        """
         if type(spectrum)==type(None):
             self._undo_rebin = None
         elif type(spectrum)==list:
@@ -378,7 +378,7 @@ class LoadSpec:
             
         
     def _rebin_data(self, spectrum, group_min): 
-        ''' Rebins the data and channels to return them.
+        """ Rebins the data and channels to return them.
 
         Parameters
         ----------
@@ -392,7 +392,7 @@ class LoadSpec:
         -------
         The new bins (new_bins), counts (new_counts), binning widths (new_binning), bin centres (bin_mids), count 
         rates (ctr), count rate errors (ctr_err), and whether the spectrum was already binned (_orig_in_extras).
-        '''
+        """
         # check if data has been rebinned already
         _orig_in_extras = self._rebin_check(spectrum=spectrum)
 
@@ -408,7 +408,7 @@ class LoadSpec:
         return new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, _orig_in_extras
     
     def _rebin_loaded_spec(self, spectrum, group_min, axis="count"):
-        ''' Rebins all the relevant data for a spectrum and moves original information into the \'extras\' key in the loaded_spec_data attribute.
+        """ Rebins all the relevant data for a spectrum and moves original information into the \'extras\' key in the loaded_spec_data attribute.
 
         Parameters
         ----------
@@ -424,7 +424,7 @@ class LoadSpec:
         Returns
         -------
         New bin edges from teh rebinning process.
-        '''
+        """
         
         if (axis=="count") or (axis=="photon_and_count"):
             new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, _orig_in_extras = self._rebin_data(spectrum, group_min)
@@ -461,7 +461,7 @@ class LoadSpec:
         
         
     def group_pha_finder(self, channels, counts, group_min=None, print_tries=False):
-        ''' Takes the counts, and checks the bins left over from grouping the bins with a minimum value.
+        """ Takes the counts, and checks the bins left over from grouping the bins with a minimum value.
 
         Parameters
         ----------
@@ -481,7 +481,7 @@ class LoadSpec:
         Returns
         -------
         The new bins and the minimum bin number that gives zero counts left over at the end, if they exist, else None.
-        '''
+        """
 
         if not self._valid_group_min_entry(group_min):
             return 
@@ -517,7 +517,7 @@ class LoadSpec:
                 return np.array(binned_channel), group_min
     
     def group_spec(self, spectrum, group_min=None, _orig_in_extras=False):
-        ''' Takes the counts, and checks the bins left over from grouping the bins with a minimum value.
+        """ Takes the counts, and checks the bins left over from grouping the bins with a minimum value.
 
         Parameters
         ----------
@@ -541,7 +541,7 @@ class LoadSpec:
         Returns
         -------
         The bin edges and new counts for you minimum group number. Any bins left over are now included with zero counts.
-        '''
+        """
 
         counts = self.loaded_spec_data[spectrum]["counts"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_counts"]
         channel_bins = self.loaded_spec_data[spectrum]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"]
@@ -550,7 +550,7 @@ class LoadSpec:
         return self._group_cts(channel_bins, counts, group_min=group_min, spectrum=spectrum)
     
     def _group_cts(self, channel_bins, counts, group_min=None, spectrum=None, verbose=True):
-        ''' Takes the counts and bins and groups the counts to have a minimum number of group_min.
+        """ Takes the counts and bins and groups the counts to have a minimum number of group_min.
 
         Parameters
         ----------
@@ -571,7 +571,7 @@ class LoadSpec:
         Returns
         -------
         The new bins and the corresponding grouped counts.
-        '''
+        """
 
         if not self._valid_group_min_entry(group_min):
             return channel_bins, counts
@@ -607,7 +607,7 @@ class LoadSpec:
         return np.concatenate((np.array(binned_channel), remainder_bins)), np.array(binned_counts)# np.unique(np.array(binned_channel).flatten())
 
     def _valid_group_min_entry(self, group_min):
-        ''' Checks if a valid `group_min` entry has been given. An entry of None is valid but still returns False.
+        """ Checks if a valid `group_min` entry has been given. An entry of None is valid but still returns False.
 
         Parameters
         ----------
@@ -617,7 +617,7 @@ class LoadSpec:
         Returns
         -------
         Boolean.
-        '''
+        """
         if type(group_min)!=int or group_min<=0: 
             if type(group_min)==type(None):
                 return False
@@ -626,8 +626,9 @@ class LoadSpec:
         return True
 
     def _verbose_tries(self, spectrum, group_min, combin, verbose):
-        ''' Executes print statements on the result of count rebinning. Any counts that were left over and could 
-        not form a bin are indicated in the print statements.
+        """ Executes print statements on the result of count rebinning. 
+        
+        Any counts that were left over and could not form a bin are indicated in the print statements.
 
         Parameters
         ----------
@@ -647,16 +648,19 @@ class LoadSpec:
         Returns
         -------
         None.
-        '''
+        """
         if combin>0 and verbose:
             if type(spectrum)!=type(None):
                 print("In "+spectrum+": ", end="")
             print(combin,f' counts are left over from binning (bin min. {group_min}) and will not be included when fitting or shown when plotted.')
     
     def __add__(self, other):
-        ''' Define what adding means to the function, just combine other's loaded_spec_data with self's while changing other's 
-        spectrum numbers. E.g., self.loaded_spec_data={"spectrum1":...}, other.loaded_spec_data={"spectrum1":...}, 
-        then (self+other).loaded_spec_data={"spectrum1":...,"spectrum2":...}"spectrum2" was other's "spectrum1"'''
+        """ Define what adding means to the function.
+        
+        Just combine other's loaded_spec_data with self's while changing other's spectrum numbers. E.g., 
+        self.loaded_spec_data={"spectrum1":...}, other.loaded_spec_data={"spectrum1":...}, then 
+        (self+other).loaded_spec_data={"spectrum1":...,"spectrum2":...}"spectrum2" was other's "spectrum1"
+        """
 
         # combine loaded_spec_data attribute between classes
         # can't just do a = {**b, **c} since keys need to change in the second dict
@@ -671,11 +675,11 @@ class LoadSpec:
         return new_self
     
     def __repr__(self):
-        '''Provide a representation to construct the class from scratch.'''
+        """Provide a representation to construct the class from scratch."""
         return self._construction_string
     
     def __str__(self):
-        '''Provide a printable, user friendly representation of what the class contains.'''
+        """Provide a printable, user friendly representation of what the class contains."""
         _loadedspec = ""
         plural = ["Spectrum", "is"] if len(self.loaded_spec_data.keys())==1 else ["Spectra", "are"]
         tag = f"{plural[0]} Loaded {plural[1]}: "

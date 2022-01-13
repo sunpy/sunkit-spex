@@ -1,9 +1,7 @@
-'''
+"""
 The following code is used to read in NuSTAR spectral data and create spectral models.
-'''
+"""
 
-#from os.path import *
-#import os
 import numpy as np
 from astropy.io import fits
 
@@ -11,7 +9,7 @@ __all__ = ["read_pha", "flux_cts_spec", "read_arf", "read_rmf", "col2arr_py", "v
 
 
 def read_pha(file):
-    ''' Takes a .pha file and extracts useful information from it.
+    """ Takes a .pha file and extracts useful information from it.
     
     Parameters
     ----------
@@ -21,7 +19,7 @@ def read_pha(file):
     Returns
     -------
     The channel numbers, counts, and the livetime for the observation. 
-    '''
+    """
 
     with fits.open(file) as hdul:
         data = hdul[1].data
@@ -30,7 +28,7 @@ def read_pha(file):
     return data['channel'], data['counts'], header_for_livetime['LIVETIME']
 
 def flux_cts_spec(file, bin_size):
-    ''' Takes a .pha file and returns plotting information.
+    """ Takes a .pha file and returns plotting information.
     
     Parameters
     ----------
@@ -40,7 +38,7 @@ def flux_cts_spec(file, bin_size):
     Returns
     -------
     The count rate per keV (cts), and its error (cts_err). 
-    '''
+    """
 
     channel, counts, livetime = read_pha(file)
 
@@ -52,7 +50,7 @@ def flux_cts_spec(file, bin_size):
 
 
 def read_arf(file):
-    ''' Takes a .arf file and extracts useful information from it.
+    """ Takes a .arf file and extracts useful information from it.
     
     Parameters
     ----------
@@ -62,7 +60,7 @@ def read_arf(file):
     Returns
     -------
     The low and high boundary of energy bins, and the ancillary response [cm^2] (data['specresp']).  
-    '''
+    """
     with fits.open(file) as hdul:
         data = hdul[1].data
     
@@ -70,7 +68,7 @@ def read_arf(file):
 
 
 def read_rmf(file):
-    ''' Takes a .rmf file and extracts useful information from it.
+    """ Takes a .rmf file and extracts useful information from it.
     
     Parameters
     ----------
@@ -82,7 +80,7 @@ def read_rmf(file):
     The low and high boundary of energy bins (data['energ_lo'], data['energ_hi']), number of sub-set channels in the energy 
     bin (data['n_grp']), starting index of each sub-set of channels (data['f_chan']), 
     number of channels in each sub-set (data['n_chan']), redistribution matrix [counts per photon] (data['matrix']). 
-    '''
+    """
 
     with fits.open(file) as hdul:
         data = hdul[2].data
@@ -91,7 +89,7 @@ def read_rmf(file):
 
 
 def col2arr_py(data, **kwargs):
-    ''' Takes a list of parameters for each energy channel from a .rmf file and returns it in the correct format.
+    """ Takes a list of parameters for each energy channel from a .rmf file and returns it in the correct format.
 
     From: https://lost-contact.mit.edu/afs/physics.wisc.edu/home/craigm/lib/idl/util/vcol2arr.pro
     
@@ -121,7 +119,7 @@ def col2arr_py(data, **kwargs):
            [  0.,   0.],
            [  0.,  22.]])
     ## max row length of 2 so 2 columns, each row is an energy channel. 
-    '''
+    """
 
     ## this is the quicker way I have chosen to do in Python (this may be revised later but is ~30x faster than way below in Python)
     max_len = np.max([len(r) for r in data]) # find max row length
@@ -169,7 +167,7 @@ def col2arr_py(data, **kwargs):
 
 
 def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None, **kwargs):
-    ''' Takes redistribution parameters for each energy channel from a .rmf file and returns it in the correct format.
+    """ Takes redistribution parameters for each energy channel from a .rmf file and returns it in the correct format.
 
     From: https://lost-contact.mit.edu/afs/physics.wisc.edu/home/craigm/lib/idl/spectral/vrmf2arr.pro
     
@@ -251,7 +249,7 @@ def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None
                          [                 ...                   ] , 
                          [                 ...                   ] , 
                                            ...                      ] 
-    '''
+    """
     # this was is about >6x quicker in than the IDL code written in Python
     
     n_grp_list = n_grp_list.astype("<i2") # change from ‘big-endian’ (">i2") to ‘little-endian’ ("<i2")
@@ -356,7 +354,7 @@ def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None
 
 
 def make_srm(rmf_matrix=(), arf_array=()):
-    ''' Takes rmf and arf and produces the spectral response matrix fro NuSTAR.
+    """ Takes rmf and arf and produces the spectral response matrix fro NuSTAR.
 
     From: https://github.com/ianan/nsigh_nov14/blob/master/make_ns_srm.pro
     
@@ -373,7 +371,7 @@ def make_srm(rmf_matrix=(), arf_array=()):
     Returns
     -------
     An array that is the spectral response (srm).
-    '''
+    """
     
     if len(rmf_matrix) == 0 or len(arf_array) == 0:
         print('Need both RMF and ARF information to proceed.')
@@ -386,7 +384,7 @@ def make_srm(rmf_matrix=(), arf_array=()):
 
 
 def make_model(energies=None, photon_model=None, parameters=None, srm=None):
-    ''' Takes a photon model array ( or function if you provide the pinputs with parameters), the spectral response matrix and returns a model count spectrum.
+    """ Takes a photon model array ( or function if you provide the pinputs with parameters), the spectral response matrix and returns a model count spectrum.
     
     Parameters
     ----------
@@ -409,7 +407,7 @@ def make_model(energies=None, photon_model=None, parameters=None, srm=None):
     Returns
     -------
     A model count spectrum.
-    '''
+    """
 
     ## if parameters is None then assume the photon_model input is already a spectrum to test, else make the model spectrum from the funciton and parameters
     if type(parameters) == type(None):

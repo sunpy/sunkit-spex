@@ -31,7 +31,7 @@ import types
 import math as maths
 
 # for colour list cycling
-from itertools import cycle, filterfalse
+from itertools import cycle
 
 # for Hessian matrix calculation for the minimise errors
 import numdifftools as nd
@@ -57,7 +57,9 @@ DYNAMIC_FUNCTION_SOURCE = {}
 
 # models should return a photon spectrum with units photons s^-1 cm^-2 keV^-1
 def add_photon_model(function, overwrite=False):
-    """ Takes a user defined function intended to be used as a model or model component when giving a 
+    """ Add user photon model to fitting namespace.
+    
+    Takes a user defined function intended to be used as a model or model component when giving a 
     string to the SunXspex.model property. Puts defined_photon_models[function.__name__]=param_inputs
     in `defined_photon_models` for it to be known to the fititng code. The energies argument must be 
     first and accept photon bins.
@@ -75,6 +77,7 @@ def add_photon_model(function, overwrite=False):
     ----------
     function : function
             The function object.
+            
     overwrite : bool
             Set True to overwrite a model that already exists. User needs to be explicit if they wish 
             to overwrite their models.
@@ -165,7 +168,9 @@ def del_photon_model(function_name):
 
 DYNAMIC_VARS = {}
 def add_var(overwrite=False, quiet=False, **user_kwarg):
-    """ Takes user defined variables and makes them available to the models being used within the 
+    """ Add user variable to fitting namespace.
+    
+    Takes user defined variables and makes them available to the models being used within the 
     fitting. E.g., the user could define a variable in their own namespace (obtained from a file?) 
     and, instead of loading the file in with every function call, they can add the variable using 
     this method.
@@ -176,9 +181,13 @@ def add_var(overwrite=False, quiet=False, **user_kwarg):
             Set True to overwrite an argument that already exists. User needs to be explicit if they wish 
             to overwrite their arguments.
             Default: False
+
     quiet : bool
-            S.
+            Suppress any print statement to announce the variable has been added or not added. To be used
+            when loading session back in as if the variables were save then they were fine to add in the 
+            first place.
             Default: False
+
     **user_kwarg : 
             User added variables. Arrays, lists, constants, etc., to be used in user defined models. This 
             enables sessions with complex models (say that use a constants from a file) to still be save 
@@ -262,214 +271,275 @@ def del_var(*user_arg_name):
 LL_CLASS = LogLikelihoods()
 
 class SunXspex(LoadSpec):
-    """Summarise behaviour and listist the public methods, attributes.
-    https://www.python.org/dev/peps/pep-0257/"""
+    """
+    Load's in spectral file(s) and then provide a framework for fitting models to the spectral data.
+
+    Parameters
+    ----------
+    pha_file : string or list of strings
+            The PHA file or list of PHA files for the spectrum to be loaded.
+            See LoadSpec class.
+
+    arf_file, rmf_file : string or list of strings
+            The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
+            that these are in the same directory with same filename as the PHA file(s) but with 
+            extensions '.arf' and '.rmf', respectively.
+            See LoadSpec class.
+
+    srm_custom : 2d array
+            User defined spectral response matrix. This is accepted over the SRM created from any 
+            ARF and RMF files given.
+            See LoadSpec class.
+
+    custom_channel_bins : 2d array
+            User defined channel bins for the columns of the SRM matrix. 
+            E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
+            See LoadSpec class.
+
+    Properties
+    ---------- 
+    burn_mcmc : Int
+            Returns the burn-in number used with the MCMC samples (has setter).
+
+    confidence_range : 0<float<=1 
+            Returns the confidence range used in the MCMC analysis; default 0.6827 (has setter). 
+
+    energy_fitting_range : dict
+            Returns the defined fitting ranges for each spectrum. Default [0,np.inf] for all (has setter).
+
+    model : function object
+            Returns self._model which is the functional model used for fitting (has setter).
+
+    renew_model : None
+            Only exists to allow the setter to be defined (has setter).
+
+    show_params : astropy table
+            Returns an table showing all model spectral parameter information.
+
+    show_rParams : astropy table
+            Returns an table showing all response parameter information.
+
+    undo_burn_mcmc : None
+            Undoes any burn-in applied to the calculated MCMC samples.
+
+    update_model : None
+            Only exists to allow the setter to be defined (has setter).
+
+
+    rebin : list/array
+            Returns the new energy bins of the data (self._rebinned_edges), None if the has not been rebinned (has setter). 
+            See LoadSpec class.
+
+    undo_rebin : None
+            Has the code that uses self._undo_rebin to undo the rebinning for spectra (has setter).
+            See LoadSpec class.
+
+    Setters
+    -------
+    burn_mcmc : Int>0
+            Applies a burn-in to the calculated MCMC sampels.
+
+    confidence_range : 0<float<=1 
+            Set to the confidence range used in the MCMC analysis (default 0.6827). Setting this after the MCMC has run 
+            will still update the parameter/mcmc tables.
+
+    energy_fitting_range : dict or list
+            A dictionary of spectrum identifier and fitting range or list of range for all spectra (default [0,np.inf]).
+
+    model : function object or str
+            Model function or mathematical string using the names in defined_photon_models.
+
+    renew_model : function object or str
+            Same input as model setter. Defines the model function again without changing the parameter tables, etc. To be 
+            used if model function couldn't be save to then be loaded back in by the user. At the start of the next session,
+            once the class has been loaded back in, then this setter can be used to renew the complicated user defined model.
+            
+    update_model : function object or str
+            Same input as model setter. Saves previous model info and resets model setter.
+
+
+    rebin : int, {specID:int}, {"all":int}
+            Minimum number of counts in each bin. Changes data but saves original in "extras" key 
+            in loaded_spec_data attribute. 
+            See LoadSpec class.
+
+    undo_rebin : int, specID, "all"
+            Undo the rebinning. Move the original data from "extras" in loaded_spec_data attribute
+            back to main part of the dict and set self._undo_rebin.
+            See LoadSpec class.
+
+    Methods
+    -------
+    method : arg1, arg2, ...
+            .
+
+    Attributes
+    ----------
+    all_mcmc_samples : array
+            Array of all MCMC used samples if run.
+
+    all_models : dict
+            Information of previous models if they exist.
+
+    correlation_matrix : 2d square array
+            Array holding correlation info between the free, fitted parameters.
+
+    error_confidence_range : float
+            Fraction of the error confidence. I.e., 0.6827 is 1-sigma or 68.27%.
+            Default = 0.6827
+
+    loglikelihood : str
+            Identifier in LogLikelihoods().log_likelihoods dict for the log-likelihood/fit 
+            statistic to be used. E.g., (gaussian, chi2, poisson, cash, cstat).
+            Default = "cstat"
+
+    mcmc_sampler : sampler object
+            The MCMC sampler object if the MCMC has been run.
+
+    mcmc_table : astropy table
+            Table of [lower_conf_range, MAP, higher_conf_range, max_log_prob] for each 
+            free parameter the MCMC was run for.
+
+    nestle : sampler object
+            The nested sampling sampler object.
+            
+    nwalkers : int 
+            The number of walkers to set for the MCMC run. Set with `number_of_walkers` 
+            arg to `run_mcmc()` (must be >=2*_ndim).
+            Default: 2*_ndim
+
+    params : Parameter object
+            Parameter table for all model parameters.
+
+    rParams : Parameter object
+            Parameter table for all response parameters.
+
+    sigmas : 1d array
+            Array of the standard error on the free parameters.
+            
+
+    _colour_list : list of colours
+            Colour cycle to be used when plotting submodels.
+            Default = plt.rcParams['axes.prop_cycle'].by_key()['color']
+
+    _construction_string_sunxspex : str
+            String to be returned from __repr__() dunder method.
+
+    _corresponding_submod_inputs : list of strings
+            Parameter names for each sub-model.
+
+    _covariance_matrix : 2d square array
+            Array with covariance info for each free, fitted parameter.
+
+    _discard_sample_number : Int
+            The burn-in used for the MCMC samples.
+
+    _energy_fitting_range : dict
+            Defined fitting ranges for each spectrum (default {"spectrum1":[0,np.inf],...}).
+
+    _energy_fitting_indices : list of arrays
+            List of indices describing values in the count bins to be used in fitting.
+
+    _fpl : Int
+            The number of free model parameters.
+
+    _free_model_param_bounds : list of tuples  
+            List of bounds for each free parameter for parameter space exploration.
+
+    _free_model_param_names : list of strings
+            List of the free model parameter names.
+
+    _free_rparam_names : list of strings
+            List of the free response parameter names.
+
+    _latest_fit_run : str
+            Stores the last method used to fill the param table, either scipy or emcee.
+
+    _lpc : 1d array
+            Orignal list of all log-probabilities.
+
+    _max_prob : float
+            Maximum probability/log-likelihood/fot statistic found during the MCMC.
+
+    _minimize_solution : OptimizeResult
+            Output from the Scipy minimise fitting funciton.
+
+    _model : function object
+            Named function of the model used to fit the data.
+
+    _model_param_names : list
+            All model parameter names in the one list.
+    _ndim : int
+            Number of dimensions the MCMC is sampling over.
+
+    _orig_params : list
+            List of model parameters.
+
+    _param_groups : list of lists
+            Lists of the model parameters for each spectrum.
+
+    _pickle_reason : str
+            Determines how the class is pickled, used for parallelisation.
+            Default = "normal"
+
+    _separate_models : list
+            List of separated component models if models is given a string with >1 defined model.
+
+    _submod_functions : list of functions
+            List of component functions.
+
+    _submod_value_inputs : lists of floats
+            Lists of the sub-model value inputs.
+
+    _response_param_names : list
+            All response parameter names in the one list.
+
+    _other_model_inputs : dict
+            Model inputs that are not model parameters, i.e., energies=None.
+
+
+    intrument_loaders : dict
+            Dictionary with keys of the supported instruments and values of their repsective loaders.
+            See LoadSpec class.
+
+    loaded_spec_data : dict
+            All loaded spectral data. See LoadSpec class.
+
+    _rebinned_edges : See LoadSpec class.
+
+    _rebin_setting : See LoadSpec class.
+
+    _undo_rebin : See LoadSpec class.
+
+    Examples
+    --------
+    # load in 2 spectra, rebin the count channels to have a minimum of 10 counts then undo that rebinning, then fit the data
+    s = SunXspex(pha_file=['filename1.pha', 'filename2.pha'],
+                    arf_file=['filename1.arf', 'filename2.arf'],
+                    rmf_file=['filename1.rmf', 'filename2.rmf'])
+    s.rebin = 10
+    s.undo_rebin = 10
+
+    # two thermal models multiplied by a constant
+    s.model = "C*f_vth" 
+    # define a fitting range in keV
+    energy_fitting_range = [2.5,8.1]
+
+    # thermal
+    s.params["T1_spectrum1"] = {"Value":3.05, "Bounds":(2.5, 6)}
+    s.params["T1_spectrum2"] = s.params["T1_spectrum1"] # tie T1_spectrum2's value to T1_spectrum1's
+    s.params["EM1_spectrum1"] = {"Value":1.7, "Bounds":(0.5, 3.5)}
+    s.params["EM1_spectrum2"] = s.params["EM1_spectrum1"]
+
+    # constant multiplier, vary for spectral data from filename2.pha
+    s.params["C_spectrum1"] = {"Status":"freeze"}
+    s.params["C_spectrum2"] = {"Bounds":(0.5, 2)}
+
+    s_minimised_params = s.fit()
+    """
 
     def __init__(self, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
-        """
-        This class's job is to load in spectral file(s) using the LoadSpec class and then provide a 
-        nice framework for fitting models to the spectral data.
-
-        Parameters
-        ----------
-        pha_file : string or list of strings
-                The PHA file or list of PHA files for the spectrum to be loaded.
-                See LoadSpec class.
-
-        arf_file, rmf_file : string or list of strings
-                The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
-                that these are in the same directory with same filename as the PHA file(s) but with 
-                extensions '.arf' and '.rmf', respectively.
-                See LoadSpec class.
-
-        srm_custom : 2d array
-                User defined spectral response matrix. This is accepted over the SRM created from any 
-                ARF and RMF files given.
-                See LoadSpec class.
-
-        custom_channel_bins : 2d array
-                User defined channel bins for the columns of the SRM matrix. 
-                E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
-                See LoadSpec class.
-
-        Properties
-        ---------- 
-        burn_mcmc : Int
-                Returns the burn-in number used with the MCMC samples (has setter).
-        confidence_range : 0<float<=1 
-                Returns the confidence range used in the MCMC analysis; default 0.6827 (has setter). 
-        energy_fitting_range : dict
-                Returns the defined fitting ranges for each spectrum. Default [0,np.inf] for all (has setter).
-        model : function object
-                Returns self._model which is the functional model used for fitting (has setter).
-        renew_model : None
-                Only exists to allow the setter to be defined (has setter).
-        show_params : astropy table
-                Returns an table showing all model spectral parameter information.
-        show_rParams : astropy table
-                Returns an table showing all response parameter information.
-        undo_burn_mcmc : None
-                Undoes any burn-in applied to the calculated MCMC samples.
-        update_model : None
-                Only exists to allow the setter to be defined (has setter).
-
-        rebin : list/array
-                Returns the new energy bins of the data (self._rebinned_edges), None if the has not been rebinned (has setter). 
-                See LoadSpec class.
-        undo_rebin : None
-                Has the code that uses self._undo_rebin to undo the rebinning for spectra (has setter).
-                See LoadSpec class.
-
-        Setters
-        -------
-        burn_mcmc : Int>0
-                Applies a burn-in to the calculated MCMC sampels.
-        confidence_range : 0<float<=1 
-                Set to the confidence range used in the MCMC analysis (default 0.6827). Setting this after the MCMC has run 
-                will still update the parameter/mcmc tables.
-        energy_fitting_range : dict or list
-                A dictionary of spectrum identifier and fitting range or list of range for all spectra (default [0,np.inf]).
-        model : function object or str
-                Model function or mathematical string using the names in defined_photon_models.
-        renew_model : function object or str
-                Same input as model setter. Defines the model function again without changing the parameter tables, etc. To be 
-                used if model function couldn't be save to then be loaded back in by the user. At the start of the next session,
-                once the class has been loaded back in, then this setter can be used to renew the complicated user defined model.
-        update_model : function object or str
-                Same input as model setter. Saves previous model info and resets model setter.
-
-        rebin : int, {specID:int}, {"all":int}
-                Minimum number of counts in each bin. Changes data but saves original in "extras" key 
-                in loaded_spec_data attribute. 
-                See LoadSpec class.
-        undo_rebin : int, specID, "all"
-                Undo the rebinning. Move the original data from "extras" in loaded_spec_data attribute
-                back to main part of the dict and set self._undo_rebin.
-                See LoadSpec class.
-
-        Attributes
-        ----------
-        all_mcmc_samples : array
-                Array of all MCMC used samples if run.
-        all_models : dict
-                Information of previous models if they exist.
-        correlation_matrix : 2d square array
-                Array holding correlation info between the free, fitted parameters.
-        error_confidence_range : float
-                Fraction of the error confidence. I.e., 0.6827 is 1-sigma or 68.27%.
-                Default = 0.6827
-        loglikelihood : str
-                Identifier in LogLikelihoods().log_likelihoods dict for the log-likelihood/fit 
-                statistic to be used. E.g., (gaussian, chi2, poisson, cash, cstat).
-                Default = "cstat"
-        mcmc_sampler : sampler object
-                The MCMC sampler object if the MCMC has been run.
-        mcmc_table : astropy table
-                Table of [lower_conf_range, MAP, higher_conf_range, max_log_prob] for each 
-                free parameter the MCMC was run for.
-        nestle : sampler object
-                The nested sampling sampler object.
-        nwalkers : int 
-                The number of walkers to set for the MCMC run. Set with `number_of_walkers` 
-                arg to `run_mcmc()` (must be >=2*_ndim).
-                Default: 2*_ndim
-        params : Parameter object
-                Parameter table for all model parameters.
-        rParams : Parameter object
-                Parameter table for all response parameters.
-        sigmas : 1d array
-                Array of the standard error on the free parameters.
-                
-        _colour_list : list of colours
-                Colour cycle to be used when plotting submodels.
-                Default = plt.rcParams['axes.prop_cycle'].by_key()['color']
-        _construction_string_sunxspex : str
-                String to be returned from __repr__() dunder method.
-        _corresponding_submod_inputs : list of strings
-                Parameter names for each sub-model.
-        _covariance_matrix : 2d square array
-                Array with covariance info for each free, fitted parameter.
-        _discard_sample_number : Int
-                The burn-in used for the MCMC samples.
-        _energy_fitting_range : dict
-                Defined fitting ranges for each spectrum (default {"spectrum1":[0,np.inf],...}).
-        _energy_fitting_indices : list of arrays
-                List of indices describing values in the count bins to be used in fitting.
-        _fpl : Int
-                The number of free model parameters.
-        _free_model_param_bounds : list of tuples  
-                List of bounds for each free parameter for parameter space exploration.
-        _free_model_param_names : list of strings
-                List of the free model parameter names.
-        _free_rparam_names : list of strings
-                List of the free response parameter names.
-        _latest_fit_run : str
-                Stores the last method used to fill the param table, either scipy or emcee.
-        _lpc : 1d array
-                Orignal list of all log-probabilities.
-        _max_prob : float
-                Maximum probability/log-likelihood/fot statistic found during the MCMC.
-        _minimize_solution : OptimizeResult
-                Output from the Scipy minimise fitting funciton.
-        _model : function object
-                Named function of the model used to fit the data.
-        _model_param_names : list
-                All model parameter names in the one list.
-        _ndim : int
-                Number of dimensions the MCMC is sampling over.
-        _orig_params : list
-                List of model parameters.
-        _param_groups : list of lists
-                Lists of the model parameters for each spectrum.
-        _pickle_reason : str
-                Determines how the class is pickled, used for parallelisation.
-                Default = "normal"
-        _separate_models : list
-                List of separated component models if models is given a string with >1 defined model.
-        _submod_functions : list of functions
-                List of component functions.
-        _submod_value_inputs : lists of floats
-                Lists of the sub-model value inputs.
-        _response_param_names : list
-                All response parameter names in the one list.
-        _other_model_inputs : 
-                Model inputs that are not model parameters, i.e., energies=None.
-
-        intrument_loaders : dict
-                Dictionary with keys of the supported instruments and values of their repsective loaders.
-                See LoadSpec class.
-        loaded_spec_data : dict
-                All loaded spectral data. See LoadSpec class.
-        _rebinned_edges : See LoadSpec class.
-        _rebin_setting : See LoadSpec class.
-        _undo_rebin : See LoadSpec class.
-
-        Examples
-        --------
-        # load in 2 spectra, rebin the count channels to have a minimum of 10 counts then undo that rebinning, then fit the data
-        s = SunXspex(pha_file=['filename1.pha', 'filename2.pha'],
-                     arf_file=['filename1.arf', 'filename2.arf'],
-                     rmf_file=['filename1.rmf', 'filename2.rmf'])
-        s.rebin = 10
-        s.undo_rebin = 10
-
-        # two thermal models multiplied by a constant
-        s.model = "C*f_vth" 
-        # define a fitting range in keV
-        energy_fitting_range = [2.5,8.1]
-
-        # thermal
-        s.params["T1_spectrum1"] = {"Value":3.05, "Bounds":(2.5, 6)}
-        s.params["T1_spectrum2"] = s.params["T1_spectrum1"] # tie T1_spectrum2's value to T1_spectrum1's
-        s.params["EM1_spectrum1"] = {"Value":1.7, "Bounds":(0.5, 3.5)}
-        s.params["EM1_spectrum2"] = s.params["EM1_spectrum1"]
-
-        # constant multiplier, vary for spectral data from filename2.pha
-        s.params["C_spectrum1"] = {"Status":"freeze"}
-        s.params["C_spectrum2"] = {"Bounds":(0.5, 2)}
-
-        s_minimised_params = s.fit()
-        """
+        """Construct the class and set up some defaults."""
         
         LoadSpec.__init__(self, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins)
 
@@ -491,24 +561,21 @@ class SunXspex(LoadSpec):
     
     @property
     def model(self):
-        ''' ***Property*** 
-        Allows a model to be set and a parameter table to be generated straight away.
-        Sets the _model attribute.
+        """ ***Property*** Allows a model to be set and a parameter table to be generated straight away.
 
-        Parameters
-        ----------
+        Sets the _model attribute.
 
         Returns
         -------
         The named model function used for fitting the data.
-        '''
+        """
         # to get get param names
         return self._model
     
     @model.setter
     def model(self, model_function):
-        ''' ***Property Setter*** 
-        Allows a model to be set and a parameter table to be generated straight away.
+        """ ***Property Setter*** Allows a model to be set and a parameter table to be generated straight away.
+        
         Sets the _model attribute.
 
         Parameters
@@ -532,7 +599,7 @@ class SunXspex(LoadSpec):
 
         # all above model_2therm are equivalent
         spec.model = model_2therm
-        '''
+        """
         if hasattr(self, '_model'):
             # if we already have a model defined then don't want to do all this again
             print("Model already assigned. If you want to change model please set property \"update_model\".")
@@ -540,7 +607,7 @@ class SunXspex(LoadSpec):
             if isinstance(model_function, (types.FunctionType, types.BuiltinFunctionType)):
                 self._model = deconstruct_lambda(model_function)#model_function
             elif type(model_function) is str:
-                self._model = self.mod_from_str(model_string=model_function)
+                self._model = self._mod_from_str(model_string=model_function)
             else:
                 print("Model not set.")
     
@@ -570,23 +637,19 @@ class SunXspex(LoadSpec):
     
     @property
     def update_model(self):
-        ''' ***Property*** 
-        Allows the existing model to be replaced and a new parameter table to be created.
-
-        Parameters
-        ----------
+        """ ***Property*** Allows the existing model to be replaced and a new parameter table to be created.
 
         Returns
         -------
         None.
-        '''
+        """
         # only here to allow the setter
         pass
     
     @update_model.setter
     def update_model(self, new_model_function):
-        ''' ***Property Setter*** 
-        Allows the existing model to be replaced and a new parameter table to be created.
+        """ ***Property Setter*** Allows the existing model to be replaced and a new parameter table to be created.
+        
         Previous model, params, rParams, and mcmc_samples are save to all_models.
 
         Parameters
@@ -598,13 +661,26 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         # make sure all_models is there to save previous models
         if not hasattr(self, "all_models"):
             self.all_models = {}
-        _mcmc_samples = {"mcmc_samples":self.all_mcmc_samples} if hasattr(self, "all_mcmc_samples") else {}
+
+        # save MCMC result if it was run
+        if hasattr(self, "all_mcmc_samples"):
+            _mcmc_sampler = {"mcmc_sampler":self.mcmc_sampler} 
+            del self.mcmc_sampler
+        else:
+            _mcmc_sampler = {}
+
+        # save nested sampling if it was run
+        if hasattr(self, "nestle"):
+            _nested_run = {"nested_run":self.nestle}
+            del self.nestle
+        else:
+            _nested_run = {}
         
-        self.all_models["model"+str(len(self.all_models)+1)] = {"function":self.model,"params":self.params,"rParams":self.rParams,**_mcmc_samples} # to be used for model comparison?
+        self.all_models["model"+str(len(self.all_models)+1)] = {"function":self.model,"params":self.params,"rParams":self.rParams,**_mcmc_sampler,**_nested_run} # to be used for model comparison?
         del self._model
         if hasattr(self, "_latest_fit_run"):
             del self._latest_fit_run 
@@ -612,31 +688,28 @@ class SunXspex(LoadSpec):
 
     @property
     def renew_model(self):
-        ''' ***Property*** 
-        Allows the model to be replaced while keeping the same parameter table. Can be used 
-        if the user provided a complicated model function that was not self-contained, hence 
-        could not be pickled and loaded back in, where this setter is used to insert the user 
+        """ ***Property*** Allows the model to be replaced while keeping the same parameter table. 
+        
+        Can be used if the user provided a complicated model function that was not self-contained, 
+        hence could not be pickled and loaded back in, where this setter is used to insert the user 
         model back into the class.
 
         The renewing model must at least have the same model parameters as the previous model.
 
-        Parameters
-        ----------
-
         Returns
         -------
         None.
-        '''
+        """
         # only here to allow the setter
         pass
     
     @update_model.setter
     def renew_model(self, renewed_model_function):
-        ''' ***Property Setter*** 
-        Allows the model to be replaced while keeping the same parameter table. Can be used 
-        if the user provided a complicated model function that was not self-contained, hence 
-        could not be pickled and loaded back in, where this setter is used to insert the user 
-        model back into the class.
+        """ ***Property Setter*** Allows the model to be replaced while keeping the same parameter table. 
+        
+        Can be used if the user provided a complicated model function that was not self-contained, hence 
+        could not be pickled and loaded back in, where this setter is used to insert the user model back 
+        into the class.
 
         The renewing model must at least have the same model parameters as the previous model.
 
@@ -671,7 +744,7 @@ class SunXspex(LoadSpec):
         # will get the same 
 
         new_spec.renew_model = complicated_model
-        '''
+        """
         # if the new function fails because of typo/bug then this method becomes unusable since _model is deleted early on but is needed at the start, just make sure its here
         self._model = self._model if hasattr(self, '_model') else None
 
@@ -702,24 +775,19 @@ class SunXspex(LoadSpec):
         
     @property
     def energy_fitting_range(self):
-        ''' ***Property*** 
-        Allows a fitting range to be defined.
-
-        Parameters
-        ----------
+        """ ***Property*** Allows a fitting range to be defined.
 
         Returns
         -------
         Dictionary of the fitting ranges defined for each loaded spectrum.
-        '''
+        """
         if not hasattr(self, "_energy_fitting_range"):
             self.energy_fitting_range = [0, np.inf] 
         return self._energy_fitting_range
 
     @energy_fitting_range.setter
     def energy_fitting_range(self, fitting_ranges):
-        ''' ***Property Setter*** 
-        Allows a fitting range to be defined.
+        """ ***Property Setter*** Allows a fitting range to be defined.
 
         Parameters
         ----------
@@ -743,7 +811,7 @@ class SunXspex(LoadSpec):
 
         # To vary the fitting range per spectrum, say if we have two spectra loaded:
         spec.energy_fitting_range = {"spectrum1":[[2.5,4], [4.5,8.1]], "spectrum2":[[2.5,8.1]]}
-        '''
+        """
         _default_fitting_range = [0, np.inf]
 
         # if a dict with keys of the spectra identifiers and energy ranges
@@ -755,7 +823,7 @@ class SunXspex(LoadSpec):
 
         # if not type list or array then set to default
         if (type(fitting_ranges) not in (list, np.ndarray)):
-            warnings.warn(self.energy_fitting_range_instructions())
+            warnings.warn(self._energy_fitting_range_instructions())
             fitting_ranges = _default_fitting_range
 
         # if a list is given then it is the fitting range for all spectra loaded
@@ -768,67 +836,63 @@ class SunXspex(LoadSpec):
         else:
             # if (somehow) none of the above then default it
             frs = np.tile(_default_fitting_range, (len(self.loaded_spec_data.keys()), 1))
-            warnings.warn(self.energy_fitting_range_instructions())
+            warnings.warn(self._energy_fitting_range_instructions())
             
             
         self._energy_fitting_range = dict(zip(self.loaded_spec_data.keys(), frs))
 
-    def energy_fitting_range_instructions(self):
-        ''' Function to store string needed for multiple points in 
-        the energy_fitting_range setter.
+    def _energy_fitting_range_instructions(self):
+        """ Function to store string needed for multiple points in the energy_fitting_range setter.
         
-        Parameters
-        ----------
-                
         Returns
         -------
-        None.
-        '''
+        String.
+        """
         return "\nNeed one fitting_energy_range entry (e.g., [2,6.5]) for a fitting range for each loaded spectrum. Back to default [0,inf].\nExamples: energy_fitting_range=[1,2] or energy_fitting_range=[[1,2], [5,6]] for fitting 1--2 keV or 1--2 and 5--6 keV, respectively, for all loaded spectra.\nenergy_fitting_range={\"Spectrum1\":[1,2], \"Spectrum2\":[[1,2], [5,6]]} for fitting spectrum1 over 1--2 keV and spectrum2 over 1--2 and 5--6 keV, respectively."
             
 
     @property
     def confidence_range(self):
-        ''' ***Property*** 
-        Allows the confidence region for mcmc errors and plots to be set 
-        and checks 0<confidence region<=1.
+        """ ***Property*** Allows the confidence region for mcmc errors and plots to be set.
         
-        Parameters
-        ----------
-                
+        Checks 0<confidence region<=1.
+        
         Returns
         -------
         Float.
-        '''
+        """
         if not hasattr(self, "error_confidence_range"):
             self.error_confidence_range = 0.6827
         return self.error_confidence_range
 
     @confidence_range.setter
     def confidence_range(self, conf_range):
-        ''' ***Property Setter*** 
-        Allows the confidence region for mcmc errors and plots to be set 
-        and checks 0<confidence region<=1.
+        """ ***Property Setter*** Allows the confidence region for mcmc errors and plots to be set.
+        
+        Checks 0<confidence region<=1.
         
         Parameters
         ----------
+        conf_range : 0<float<=1
+                Fractional confidence range used for MCMC stuff.
                 
         Returns
         -------
         None.
-        '''
+        """
         if 0<conf_range<=1:
             self.error_confidence_range = conf_range 
-            if hasattr(self, "all_mcmc_samples") and hasattr(self, "_latest_fit_run"):
-                if self._latest_fit_run=="emcee":
-                    self.update_tables_mcmc(orig_free_param_len=self._fpl)
+            if hasattr(self, "all_mcmc_samples") and hasattr(self, "_latest_fit_run") and (self._latest_fit_run=="emcee"):
+                self.update_tables_mcmc(orig_free_param_len=self._fpl)
         else:
             warnings.warn("Need 0<confidence_range<=1. Setting back to default: 0.6827")
             self.error_confidence_range = 0.6827
         
-    def component_mods_from_str(self, model_string):
-        ''' Deconstructs a given model string into its component models and returning 
-        a list of lists with each model isolated and its counter.
+    def _component_mods_from_str(self, model_string):
+        """ Deconstructs a given model string into its component models.
+        
+        Returns a list of lists with each model isolated and its counter.
+
         E.g., C*(f_vth+f_vth) would return [["C*(f_vth+0)", 1], ["C*(0+f_vth)", 2]].
         
         Parameters
@@ -839,7 +903,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         List.
-        '''
+        """
         
         model_names = list(defined_photon_models.keys())
         mods_removed = model_string.split(model_names[0]) # split the first one to start
@@ -864,12 +928,13 @@ class SunXspex(LoadSpec):
                 _mod_counter = str(__mod_counter.count(_model)+1)
                 __mod_counter.append(_model)
                 _isolated_model_strings.append(["".join(put_mods_back), _mod_counter]) 
-                # model shorthand string for mod_from_str and the number for the input parameters. E.g., 1st f_vth->f_vth(T1,EM1, ...), 2nd f_vth->f_vth(T2,EM2, ...)
+                # model shorthand string for _mod_from_str and the number for the input parameters. E.g., 1st f_vth->f_vth(T1,EM1, ...), 2nd f_vth->f_vth(T2,EM2, ...)
             self._separate_models = _isolated_model_strings
         
             
-    def mod_from_str(self, model_string, custom_param_number=None):
-        ''' Construct a named function object from a given string.
+    def _mod_from_str(self, model_string, custom_param_number=None):
+        """ Construct a named function object from a given string.
+
         Function name is made up of the string and model inputs.
         
         Parameters
@@ -886,12 +951,12 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Function.
-        '''
+        """
         # take in a mathematical expression with functions and parameters and constants and return the named function of the expression
         if check_allowed_names(model_string=model_string):
             _mod = copy(model_string)
             _params = []
-            self.component_mods_from_str(model_string=model_string) # try to break down into separate models and assign them to self._separate_models, need >1 sub-model
+            self._component_mods_from_str(model_string=model_string) # try to break down into separate models and assign them to self._separate_models, need >1 sub-model
             for mn, mp in defined_photon_models.items():
                 # how many of this model are in the string
                 number_of_this_model = _mod.count(mn)
@@ -917,14 +982,12 @@ class SunXspex(LoadSpec):
         else:
             print("The above are not valid identifiers (or are keywords) in Python. Please change this in your model string.")
         
-    def free_and_other(self):
-        ''' Find all inputs to the model being used and return the starting values 
-        of the free parameters and the tied/frozen parameters. Also list the parameter 
-        names such that the free parameter names are all first.
+    def _free_and_other(self):
+        """ Find all inputs to the model being used.
         
-        Parameters
-        ----------
-                
+        Return the starting values of the free parameters and the tied/frozen parameters. 
+        Also list the parameter names such that the free parameter names are all first.
+        
         Returns
         -------
         The starting values for the free parameters (free_params_list), the values 
@@ -933,7 +996,7 @@ class SunXspex(LoadSpec):
         moment), a list of the new parameter order with the free ones first followed by 
         the tied or frozen ones (param_name_list_order), a list of the free parameter 
         bounds (free_bounds).
-        '''
+        """
         # to sort the free params to be first in your actual model
         # find the free param names and values and bounds, find the tied or frozen params
         free_params = {}
@@ -957,8 +1020,10 @@ class SunXspex(LoadSpec):
             
         return free_params_list, tied_or_frozen_params_list, other_inputs, param_name_list_order, free_bounds
  
-    def tie_params(self, param_name_dict_order):
-        ''' Before the pseudo_model passes the reordered parameter info to the user model, 
+    def _tie_params(self, param_name_dict_order):
+        """ Change tied parameter values to the ones they are tied to.
+        
+        Before the pseudo_model passes the reordered parameter info to the user model, 
         change the tied parameter values to the values of the parameter they are tied to.
 
         E.g., 
@@ -974,7 +1039,7 @@ class SunXspex(LoadSpec):
         -------
         The new `free_tied_or_frozen_params_list` where the parameters that are tied have 
         their value changed to the value of the parameter they are tied to.
-        '''
+        """
         
         for key in self.params.param_name:
             _status = self.params["Status", key]
@@ -1001,7 +1066,7 @@ class SunXspex(LoadSpec):
         return param_name_dict_order
 
     def gain_energies(self, energies, array, gain_slope, gain_offset):
-        ''' Allow a gain shift to be applied to the output model spectra by redefining 
+        """ Allow a gain shift to be applied to the output model spectra by redefining 
         the energies ($E_{new}$) the counts are said to correspond to. We have
 
         .. math::
@@ -1035,7 +1100,7 @@ class SunXspex(LoadSpec):
         -------
         Array of the new count values to be used with the original energies given 
         (not with the new energy values they were interpolated to).
-        '''
+        """
         # find the new energy values
         new_energies = np.array(energies)/gain_slope - gain_offset
         # interpolate the counts to them for them to be used with the original energies
@@ -1043,7 +1108,7 @@ class SunXspex(LoadSpec):
     
     
     def match_kwargs2orig_params(self, original_parameters, expected_kwargs, given_kwargs):
-        ''' Takes the original parameters for the model, the corresponding spectrum specific parameters,
+        """ Takes the original parameters for the model, the corresponding spectrum specific parameters,
         and all inputs to counts_model and returns a list of the inputs to the user model in the 
         correct order.
 
@@ -1067,7 +1132,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         List of floats ordered to go into the user defined model.
-        '''
+        """
 
         # check all parameters are given
         ordered_kwarg_values = [0]*len(original_parameters)
@@ -1079,7 +1144,7 @@ class SunXspex(LoadSpec):
         return ordered_kwarg_values
     
     def counts_model(self, **kwargs):
-        ''' Takes the user model, and all other relavent inputs, to calculate the user's photon spectrum 
+        """ Takes the user model, and all other relavent inputs, to calculate the user's photon spectrum 
         model (_model) into a count rate spectrum (cts s^-1). 
 
         Note: The energy binning (keV^-1) is removed when the photon spectrum is calculated. This makes 
@@ -1100,7 +1165,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         List of count rate models (counts s^-1) for all loaded spectra.
-        '''
+        """
         # return counts s^-1 (keV^-1 has been multiplied out)
         
         cts_models = []
@@ -1143,7 +1208,7 @@ class SunXspex(LoadSpec):
                      tied_or_frozen_params_list, 
                      param_name_list_order, 
                      **other_inputs):
-        ''' Takes model parameters with the free ones in one list and tied/frozen in another 
+        """ Takes model parameters with the free ones in one list and tied/frozen in another 
         with the names of all in order. All parameter values are match with their 
         names and tied parameter values are changed to be the same as 
         the parameter they are tied to before passing to counts_model. 
@@ -1158,7 +1223,7 @@ class SunXspex(LoadSpec):
                 Values for the free parameters.
         tied_or_frozen_params_list : list of floats
                 Values for the tied or frozen parameters (the tied parameter values 
-                get changed by tie_params).
+                get changed by _tie_params).
         param_name_list_order : list of str
                 All parameter names in order of [*free_params_list, *tied_or_frozen_params_list]
         **other_inputs: 
@@ -1169,19 +1234,19 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Output from counts_model.
-        '''
+        """
         # match all parameters up with their names
         dictionary = dict(zip(param_name_list_order, list(free_params_list)+list(tied_or_frozen_params_list)))
 
         # change the tied parameter's value to the value of the param it is tied to
-        dictionary = self.tie_params(dictionary) 
+        dictionary = self._tie_params(dictionary) 
 
         return self.counts_model(**dictionary, **other_inputs)
            
     
     @property
     def show_params(self):
-        ''' ***Property*** 
+        """ ***Property*** 
         Returns an astropy table of the model parameter info.
         
         Parameters
@@ -1190,7 +1255,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Astropy table.
-        '''
+        """
         t = self.params.to_astropy
         t.add_row(["Fit Stat.", self.loglikelihood+" ln(L)", self.get_max_fit_stat(), (None, None), (0.0, 0.0)]) # add fit stat info
         t = Table(t, masked=True, copy=False) # allow values to be masked
@@ -1202,7 +1267,7 @@ class SunXspex(LoadSpec):
     
     @property
     def show_rParams(self):
-        ''' ***Property*** 
+        """ ***Property*** 
         Returns an astropy table of the response parameter info.
         
         Parameters
@@ -1211,13 +1276,13 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Astropy table.
-        '''
+        """
         t = self.rParams.to_astropy
         t["Value"].format, t["Error"].format = "%10.3f", "(%10.2f, %10.2f)"
         return t
     
     def fit_range(self, channel, fitting_range):
-        ''' Takes the energy channels and a fitting range and returns the indices of 
+        """ Takes the energy channels and a fitting range and returns the indices of 
         channels and counts within that range. Works with bin mid-points and is 
         non-inclusive. I.e., fitting_range_lower<channels<fitting_range_higher.
 
@@ -1226,15 +1291,15 @@ class SunXspex(LoadSpec):
         channel : list or array
                 List or arrays of the energy channels for all loaded spectra.
         fitting_range : dict
-                A dictionary of the fitting ranges for each spectrum see 
-                energy_fitting_range and energy_fitting_range_instructions 
+                A dictionary of the fitting ranges for each spectrum, see 
+                energy_fitting_range and _energy_fitting_range_instructions 
                 methods for more detail.
                 
         Returns
         -------
         Array or lists of indices of the channels/counts in the given 
         fitting range.
-        '''
+        """
         useful_inds = []
         # if multiple spectra are loaded then have multiple channel lists
         if (len(np.shape(channel))==2) or (type(channel)==list):
@@ -1252,7 +1317,7 @@ class SunXspex(LoadSpec):
             return allowed 
     
     def count_rate2count(self, counts_model, livetime):
-        ''' Convert a count rate [counts s^-1] to just counts.
+        """ Convert a count rate [counts s^-1] to just counts.
         
         Parameters
         ----------
@@ -1264,11 +1329,11 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Array or lists of count spectra.
-        '''
+        """
         return (counts_model * livetime).astype(int) 
     
     def choose_loglikelihood(self):
-        ''' Access the log_likelihoods attribute in the likelihoods 
+        """ Access the log_likelihoods attribute in the likelihoods 
         module and return the log_likelihoods associtated with the 
         loglikelihood attribute of this class.
         
@@ -1278,11 +1343,11 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Function.
-        '''
+        """
         return LL_CLASS.log_likelihoods[self.loglikelihood.lower()]
     
     def minus_2lnL(self):
-        ''' Return -2*log_likelihood for a minimiser.
+        """ Return -2*log_likelihood for a minimiser.
         
         Parameters
         ----------
@@ -1290,11 +1355,11 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Lambda function.
-        '''
+        """
         return lambda *args: -2*self.choose_loglikelihood()(*args)
     
     def update_tied(self, table):
-        ''' Updates the tied parameter values in the given parameter table 
+        """ Updates the tied parameter values in the given parameter table 
         to the values of the parameters they were tied to.
         
         Parameters
@@ -1305,7 +1370,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         # only let "free" params vary
         for key in table.param_name:
             
@@ -1316,7 +1381,7 @@ class SunXspex(LoadSpec):
                 table["Value", key] = table["Value", param_tied_2]
                 
     def update_free(self, table, updated_free, errors):
-        ''' Updates the free parameter values in the given parameter table 
+        """ Updates the free parameter values in the given parameter table 
         to the values found by the minimiser.
         
         Parameters
@@ -1333,7 +1398,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         # only update the free params that were varied
         c = 0
         for key in table.param_name:
@@ -1357,7 +1422,7 @@ class SunXspex(LoadSpec):
                  param_name_list_order,
                  maximize_or_minimize,
                  **kwargs): 
-        ''' Calculates the model count spectrum and calculates the fit statistic 
+        """ Calculates the model count spectrum and calculates the fit statistic 
         in relation to the data. The ln(L) (or -2ln(L)) is added for all spectra 
         that are loaded, fitting all spectra simultaneously, and returned.
         
@@ -1396,7 +1461,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Float, the combined ln(L) or -2ln(L) for all spectra loaded and model.
-        '''
+        """
         
         # make sure only the free parameters are getting varied so put them first
         mu = self.pseudo_model(free_params_list, 
@@ -1422,7 +1487,7 @@ class SunXspex(LoadSpec):
         return ll
         
     def cut_srm(self, srms, spectrum=None):
-        ''' Select the columns in the SRM (count space) that are appropriate 
+        """ Select the columns in the SRM (count space) that are appropriate 
         for the defined fitting range.
         
         Parameters
@@ -1438,7 +1503,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         List of 2d arrays.
-        '''
+        """
         # clip the counts bins in the srm (keeping all photon bins) to cut down on matrix multiplication
         # don't need all the count bins from the model for fitting
         if spectrum is None:
@@ -1449,7 +1514,7 @@ class SunXspex(LoadSpec):
         return srms
     
     def cut_counts(self, counts, spectrum=None):
-        ''' Select the entries in counts information that correspond to the
+        """ Select the entries in counts information that correspond to the
         defined fitting range.
         
         Parameters
@@ -1466,7 +1531,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         List of 1d arrays.
-        '''
+        """
         # clip the counts bins in the count spectrum
         if spectrum is None:
             for c, count in enumerate(counts):
@@ -1476,7 +1541,7 @@ class SunXspex(LoadSpec):
         return counts
     
     def loadSpec4fit(self):
-        ''' Loads all photon and count bin information, SRMs, effective exposure, 
+        """ Loads all photon and count bin information, SRMs, effective exposure, 
         energy binning, data and data errors needed for fitting.
         
         Parameters
@@ -1489,7 +1554,7 @@ class SunXspex(LoadSpec):
         spectral response matrices (srm), effective exposures (livetime), 
         count channel bin widths (e_binning), observed count data (observed_counts), 
         observed count data errors (observed_count_errors).
-        '''
+        """
         
         photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors = [], [], [], [], [], [], [], []
         for k in self.loaded_spec_data:
@@ -1505,7 +1570,7 @@ class SunXspex(LoadSpec):
         return photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors
 
     def _tied2frozen(self, spectrum_num):
-        ''' Checks if any gain parameters are tied to another frozen rparameter.
+        """ Checks if any gain parameters are tied to another frozen rparameter.
         Returns True is both slope and offset are tied to frozen parameters.
         
         Parameters
@@ -1516,7 +1581,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Bool.
-        '''
+        """
         # if either the slope OR the offset is tied to another response param that is frozen then this flags them to be 
         #  checked if the frozen rparam has default 1 and 0 values
         tied2frozen = []
@@ -1534,7 +1599,7 @@ class SunXspex(LoadSpec):
         return tied2frozen
     
     def sort_gain(self):
-        ''' Assesses whether the response parameters for each spectrum (slope and offset)
+        """ Assesses whether the response parameters for each spectrum (slope and offset)
         should be passed to the model fitting process. If slope=1 and offset=0 then nothing 
         is passed; however, if one of them is different, allowed to vary, or tied to a 
         response parameter that is different or allowed to vary then then both the slope and 
@@ -1547,7 +1612,7 @@ class SunXspex(LoadSpec):
         -------
         Lists of the gain parameters if any need to be passed to the model calculation to 
         update the total fixed, free, and bounds lists.
-        '''
+        """
         update_fixed_params = {}
         update_free_params = {}
         update_free_bounds = []
@@ -1579,7 +1644,7 @@ class SunXspex(LoadSpec):
         return update_fixed_params, update_free_params, update_free_bounds
     
     def fit_stat_minimize(self, *args, **kwargs):
-        ''' Return the chosen fit statistic defined to minimise for the best fit.
+        """ Return the chosen fit statistic defined to minimise for the best fit.
         I.e., returns -2ln(L).
         
         Parameters
@@ -1590,11 +1655,11 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Float.
-        '''
+        """
         return self.fit_stat(*args, maximize_or_minimize="minimize", **kwargs)
         
     def _photon_space_reduce(self, ph_bins, ph_mids, srm):
-        ''' Cuts out photon bins that only include rows of 0s at the top and bottom in the 
+        """ Cuts out photon bins that only include rows of 0s at the top and bottom in the 
         SRM. Returns the new photon bins, mid-points, and SRMs.
         
         Parameters
@@ -1609,7 +1674,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         The 2d (nx2) arrays (photon bins), 1d (n) arrays (mid-points), and 2d (nxm) arrays (SRMs).
-        '''
+        """
         _ph_bins, _ph_mids, _srm = [], [], []
         for i in range(len(srm)):
             non_zero_rows = np.where(np.sum(srm[i], axis=1)!=0)[0] # remove photon energy bins that only have zeros in the srm
@@ -1622,7 +1687,7 @@ class SunXspex(LoadSpec):
         return _ph_bins, _ph_mids, _srm
     
     def _count_space_reduce(self, ct_binning, ct_mids, ct_obs, ct_err, srm):
-        ''' Cuts out count bins that only include columns of 0s from the left and right in the 
+        """ Cuts out count bins that only include columns of 0s from the left and right in the 
         SRM. Returns the new count bins, mid-points, and SRMs.
         
         Parameters
@@ -1642,7 +1707,7 @@ class SunXspex(LoadSpec):
         -------
         The 1d (m) arrays (count binning), 1d (m) arrays (mid-points), 1d (m) arrays (observed counts), 
         1d (m) arrays (observed count errors), and 2d (nxm) arrays (SRMs).
-        '''
+        """
         _ct_binning, _ct_mids, _ct_obs, _ct_err, _srm = [], [], [], [], []
         for i in range(len(srm)):
             non_zero_cols = np.where(np.sum(srm[i], axis=0)!=0)[0] # remove photon energy bins that only have zeros in the srm
@@ -1657,7 +1722,7 @@ class SunXspex(LoadSpec):
         return _ct_binning, _ct_mids, _ct_obs, _ct_err, _srm
     
     def fit_setup(self):
-        ''' Returns all information ready to be given the fitting process.
+        """ Returns all information ready to be given the fitting process.
         
         Parameters
         ----------
@@ -1671,14 +1736,14 @@ class SunXspex(LoadSpec):
         tied_or_frozen_params_list (list of floats), param_name_list_order (list of strings)].
         The correspsonding bounds for each parameter's parameter space (free_bounds, list of tuples), 
         and finally the number of free parameters (excluding rParams, orig_free_param_len, int).
-        '''
+        """
 
         photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors = self.loadSpec4fit()
         
         self._energy_fitting_indices = self.fit_range(count_channel_mids, self.energy_fitting_range) # get fitting indices from the bin midpoints
         
         # find the free, tie, and frozen params + other model inputs
-        free_params_list, tied_or_frozen_params_list, _, param_name_list_order, free_bounds = self.free_and_other()
+        free_params_list, tied_or_frozen_params_list, _, param_name_list_order, free_bounds = self._free_and_other()
         self._free_model_param_names = param_name_list_order[:len(free_params_list)]
         self._free_model_param_bounds = free_bounds
         orig_free_param_len = len(free_params_list)
@@ -1713,7 +1778,7 @@ class SunXspex(LoadSpec):
         
         
     def fit(self, **kwargs):
-        ''' Runs the fitting process and returns all found parameter values.
+        """ Runs the fitting process and returns all found parameter values.
         
         Parameters
         ----------
@@ -1726,7 +1791,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         List of all parameter values after the fitting has taken place.
-        '''
+        """
 
         free_params_list, stat_args, free_bounds, orig_free_param_len = self.fit_setup()
         
@@ -1760,7 +1825,7 @@ class SunXspex(LoadSpec):
         return list(self.params.param_value)#self.model_params
     
     def _calc_minimize_error(self, stat_args, step):
-        ''' Calculates errors on the minimize solutions best fit parameters. This assumes 
+        """ Calculates errors on the minimize solutions best fit parameters. This assumes 
         that free parameters have Gaussian posterior distributions and are independent. For 
         a better handle on errors an mcmc run is recommended.
         
@@ -1776,7 +1841,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Array of errors for the free parameters.
-        '''
+        """
         
         self.sigmas = np.zeros(len(self._minimize_solution.x))
         self.correlation_matrix = np.identity(len(self._minimize_solution.x))
@@ -1795,7 +1860,7 @@ class SunXspex(LoadSpec):
         return self.sigmas
     
     def calc_hessian(self, mod_without_x, fparams, step=0.01):
-        ''' Calculates and returns 2*inv(Hessian) which is equal to the covariance matrix 
+        """ Calculates and returns 2*inv(Hessian) which is equal to the covariance matrix 
         from a Gaussian posterior -2ln(L) distribution.
         
         Parameters
@@ -1815,7 +1880,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         The 2d square covariance matrix.
-        '''
+        """
         # get step sizes
         steps = abs(fparams)*step
 
@@ -1829,7 +1894,7 @@ class SunXspex(LoadSpec):
         return 2 * np.linalg.inv(hessian) # 2 appears since our objective function is -2ln(L) and not -ln(L)
     
     def _calculate_model(self, **kwargs):
-        ''' Calculates the total count models (in ph. s^-1 keV^-1) for all loaded spectra.
+        """ Calculates the total count models (in ph. s^-1 keV^-1) for all loaded spectra.
         
         Parameters
         ----------
@@ -1839,7 +1904,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         A list (or array) of the count models for each loaded spectrum.
-        '''
+        """
         
         # let's get all the info needed from LoadSpec for the fit if not provided
         photon_channel_bins, _, count_channel_mids, srm, _, e_binning, _, _ = self.loadSpec4fit()
@@ -1852,7 +1917,7 @@ class SunXspex(LoadSpec):
         # if just one spectrum then its just the appropriate entries in the dict from LoadSpec
         
         # find the free, tie, and frozen params + other model inputs
-        free_params_list, tied_or_frozen_params_list, other_inputs, param_name_list_order, _ = self.free_and_other()
+        free_params_list, tied_or_frozen_params_list, other_inputs, param_name_list_order, _ = self._free_and_other()
         orig_free_param_len = len(free_params_list)
         # clip the counts bins in the srm (keeping all photon bins) to cut down on matrix multiplication
         update_fixed_params, update_free_params, update_free_bounds = self.sort_gain()
@@ -1885,7 +1950,7 @@ class SunXspex(LoadSpec):
                           parameters=None, 
                           spectrum="spectrum1",
                           **kwargs):
-        ''' Given a model (a calculated model array or a photon model function) then 
+        """ Given a model (a calculated model array or a photon model function) then 
         calcutes the counts model for the given spectrum. If a functional input is 
         provided for `photon_model` then `parameters` must also be set with a list 
         or dictionary.
@@ -1908,7 +1973,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         The count channel mid-points and the calculated count spectrum.
-        '''
+        """
         
         spec_no = int(spectrum.split("spectrum")[1])
 
@@ -1949,7 +2014,7 @@ class SunXspex(LoadSpec):
         return self.loaded_spec_data[spectrum]['count_channel_mids'], cts_model
         
     def _prepare_submodels(self): 
-        ''' If a string was given to create the overall model for fitting then the component 
+        """ If a string was given to create the overall model for fitting then the component 
         models should have been separated into attribute `_separate_models`. If this is the 
         case then create the functions for the components and which parameters in the 
         parameter table belongs to them.
@@ -1960,18 +2025,18 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         if hasattr(self, '_separate_models'):
             # get [['C*(f_vth + 0)', '1'], ['C*(0 + f_vth)', '2']] from "C*(f_vth + f_vth)"
             # make functions of all the submods, the param_number should correspond with what is in the param table
-            self._submod_functions = [self.mod_from_str(model_string=sm[0], custom_param_number=sm[1]) for sm in self._separate_models] 
+            self._submod_functions = [self._mod_from_str(model_string=sm[0], custom_param_number=sm[1]) for sm in self._separate_models] 
             # get the the params for each model, e.g., from above [['T1', 'EM1'], ['T2', 'EM2']] from 'C*(f_vth(T1,EM1,energies=None) + 0)' and 'C*(0 + f_vth(T2,EM2,energies=None))'
             self._corresponding_submod_inputs = [get_func_inputs(submod_fun)[0] for submod_fun in self._submod_functions]
             # get the values from the param table in the same structure as corresponding_submod_inputs for each loaded spectrum
             self._submod_value_inputs = [[[self.params["Value", _p+"_spectrum"+str(s+1)] for _p in p] for p in self._corresponding_submod_inputs] for s in range(len(self.loaded_spec_data))]
 
     def _spec_loop_range(self, spectrum):
-        ''' Finds the range limits to loop through loaded spectra of choice.
+        """ Finds the range limits to loop through loaded spectra of choice.
         
         Parameters
         ----------
@@ -1985,7 +2050,7 @@ class SunXspex(LoadSpec):
         -------
         The range as a tuple and a boolean as to whether the count models should be combined and 
         averaged or not.
-        '''
+        """
         combine_submods = False
         if str(spectrum)=='combined':
             spec2pick = (1, len(self.loaded_spec_data)+1)
@@ -1997,7 +2062,7 @@ class SunXspex(LoadSpec):
         return spec2pick, combine_submods
         
     def _calculate_submodels(self, spectrum=None): 
-        ''' After running `_prepare_submodels`, this then calculated the actual count spectrum array 
+        """ After running `_prepare_submodels`, this then calculated the actual count spectrum array 
         for each submodel.
         
         Parameters
@@ -2011,7 +2076,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         The count sub-model for the given spectrum (spectra) or None if there are no component models.
-        '''
+        """
         if hasattr(self, '_submod_value_inputs'):
             
             combine_submods = False
@@ -2039,7 +2104,7 @@ class SunXspex(LoadSpec):
             return None
     
     def get_max_fit_stat(self):
-        ''' Return the maximum ln(L) from the minimiser or MCMC analysis result.
+        """ Return the maximum ln(L) from the minimiser or MCMC analysis result.
         
         Parameters
         ----------
@@ -2047,7 +2112,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Float.
-        '''
+        """
         if hasattr(self, "_latest_fit_run"):
             if self._latest_fit_run=="scipy":
                 # minimize minimises -2ln(L), so -0.5* to get ln(L)
@@ -2057,7 +2122,7 @@ class SunXspex(LoadSpec):
         return 0
     
     def fit_stat_str(self):
-        ''' Produce a string that indicates the method used to produce the last 
+        """ Produce a string that indicates the method used to produce the last 
         ln(L) value with the ln(L) value. E.g., last run was Scipy's minimiser 
         and it found a maximum likelihood of N then string would be 
         "Scipy Max. Total ln(L): N".
@@ -2068,7 +2133,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         String.
-        '''
+        """
         if hasattr(self, "_latest_fit_run"):
             string = self.loglikelihood.lower()+" Max. Total ln(L): "+str(round(self.get_max_fit_stat(), 1))
             if self._latest_fit_run=="scipy":
@@ -2078,7 +2143,7 @@ class SunXspex(LoadSpec):
         return ""
     
     def _bin_data(self, rebin_and_spec):
-        ''' Bins the count data for a given spectrum.
+        """ Bins the count data for a given spectrum.
         
         Parameters
         ----------
@@ -2094,7 +2159,7 @@ class SunXspex(LoadSpec):
         count_rate_errors), old bins and old bin widths for binning other array in the 
         same way (old_bins, old_bin_width), and the new bin channel "error" 
         (energy_channel_error).
-        '''
+        """
         new_bins, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
         old_bins = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
         old_bin_width = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_binning"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_binning"]
@@ -2102,7 +2167,7 @@ class SunXspex(LoadSpec):
         return new_bins, new_bin_width, energy_channels, count_rates, count_rate_errors, old_bins, old_bin_width, energy_channel_error
     
     def _bin_model(self, count_rate_model, old_bin_width, old_bins, new_bins, new_bin_width):
-        ''' Rebins a given array of data in count bins energies to a new set of bins given.
+        """ Rebins a given array of data in count bins energies to a new set of bins given.
         
         Parameters
         ----------
@@ -2113,11 +2178,11 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Array.
-        '''
+        """
         return rebin_any_array(count_rate_model*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
 
     def _bin_spec4plot(self, rebin_and_spec, count_rate_model):
-        ''' Bins the count model given based on the given spectrum's rebinning.
+        """ Bins the count model given based on the given spectrum's rebinning.
         
         Parameters
         ----------
@@ -2135,14 +2200,14 @@ class SunXspex(LoadSpec):
         (energy_channels), corresponding count rate errors and count rates (energy_channel_error, 
         count_rates), the new bin channel "error" (energy_channel_error), and the binned count 
         rate model.
-        '''
+        """
         new_bins, new_bin_width, energy_channels, count_rates, count_rate_errors, old_bins, old_bin_width, energy_channel_error = self._bin_data(rebin_and_spec)
         count_rate_model = self._bin_model(count_rate_model, old_bin_width, old_bins, new_bins, new_bin_width)
         
         return new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model
     
     def _get_counts_per_detector(self):
-        ''' Calculates the mean counts for each count energy bin for all loaded spectra.
+        """ Calculates the mean counts for each count energy bin for all loaded spectra.
         Used when producing the combined spectral plots.
         
         Parameters
@@ -2151,7 +2216,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         An array of the mean counts for each count energy bin for all loaded spectra.
-        '''
+        """
         _counts = []
         for s in range(len(self.loaded_spec_data)):
             _counts.append(self.loaded_spec_data['spectrum'+str(s+1)]['counts']) 
@@ -2867,7 +2932,7 @@ class SunXspex(LoadSpec):
         return np.concatenate((flat_samples, log_prob_samples[:,None]), axis=1)
 
     def _produce_mcmc_table(self, names, relevant_values):
-        ''' Produces an astropy table with the MAP MCMC, confidence range, and 
+        """ Produces an astropy table with the MAP MCMC, confidence range, and 
         maximum log-probability values from the MCMC samples.
         
         Parameters
@@ -2881,7 +2946,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         a = np.array(relevant_values)
         b = np.array(names)
         
@@ -2905,7 +2970,7 @@ class SunXspex(LoadSpec):
                         self.mcmc_table.add_row(r)
                 
     def get_mcmc_values(self, all_mcmc_samples, names):
-        ''' Given the MCMC samples, find the maximum a postiori (MAP value) of the 
+        """ Given the MCMC samples, find the maximum a postiori (MAP value) of the 
         sampled posterior distribution, the confidence range values (via 
         `confidence_range` setter), and the maximum log-likelihood value found.
         
@@ -2921,7 +2986,7 @@ class SunXspex(LoadSpec):
         -------
         List of [lower_conf_range, MAP, higher_conf_range, max_log_prob] for each 
         free parameter from the MCMC samples.
-        '''
+        """
         l, m, h = (0.5 - self.error_confidence_range/2)*100, 0.5*100, (0.5 + self.error_confidence_range/2)*100
         quantiles_and_max_prob = []
         self._max_prob = np.max(all_mcmc_samples[:, -1])
@@ -2938,7 +3003,7 @@ class SunXspex(LoadSpec):
         return quantiles_and_max_prob
          
     def update_free_mcmc(self, updated_free, names, table):
-        ''' Updates the free parameter values in the given parameter table 
+        """ Updates the free parameter values in the given parameter table 
         to the values found by the MCMC run.
         
         Parameters
@@ -2954,7 +3019,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         quantiles_and_max_prob = self.get_mcmc_values(updated_free, names)
         # only update the free params that were varied
         c = 0
@@ -2968,7 +3033,7 @@ class SunXspex(LoadSpec):
                 c += 1
                 
     def fit_stat_maximize(self, *args, **kwargs):
-        ''' Return the chosen fit statistic defined to maximise for the best fit.
+        """ Return the chosen fit statistic defined to maximise for the best fit.
         I.e., returns ln(L).
         
         Parameters
@@ -2979,14 +3044,14 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Float.
-        '''
+        """
         return self.fit_stat(*args, maximize_or_minimize="maximize", **kwargs)
     
     def run_mcmc_setup(self, 
                        code="emcee", 
                        number_of_walkers=None,
                        walker_spread="mixed"):
-        ''' Sets up the MCMC run specific variables.
+        """ Sets up the MCMC run specific variables.
         
         Parameters
         ----------
@@ -3015,7 +3080,7 @@ class SunXspex(LoadSpec):
         (list of 1d arrays), tied_or_frozen_params_list (list of floats), param_name_list_order 
         (list of strings)].The starting position of all the walkers (list of floats), and finally 
         the number of free parameters (excluding rParams, orig_free_param_len, int).
-        '''
+        """
         free_params_list, stat_args, free_bounds, orig_free_param_len = self.fit_setup()
         
         self._ndim = len(free_params_list)
@@ -3039,7 +3104,7 @@ class SunXspex(LoadSpec):
         return [self.nwalkers, self._ndim, self.model_probability], stat_args, walkers_start, orig_free_param_len
         
     def run_mcmc_core(self, mcmc_essentials, prob_args, walkers_start, steps_per_walker=1200, **kwargs):
-        ''' Passes the information of the MCMC set up to the MCMC sampler.
+        """ Passes the information of the MCMC set up to the MCMC sampler.
         
         Parameters
         ----------
@@ -3059,7 +3124,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         The MCMC sampler object.
-        '''
+        """
         # find the free, tie, and frozen params + other model inputs
         if "pool" in kwargs:
             # for parallelisation
@@ -3079,7 +3144,7 @@ class SunXspex(LoadSpec):
         return mcmc_sampler
         
     def update_tables_mcmc(self, orig_free_param_len):
-        ''' Updates the parameter table with MAP value and confidence range given. 
+        """ Updates the parameter table with MAP value and confidence range given. 
         
         Parameters
         ----------
@@ -3089,7 +3154,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         # [params, rParams, lopProb], here want [params, lopProb]
         self.update_free_mcmc(updated_free=np.concatenate((self.all_mcmc_samples[:,:orig_free_param_len], self.all_mcmc_samples[:,-1][:,None]), axis=1), names = self._free_model_param_names, table=self.params) # last one is the logProb
         self.update_tied(self.params) 
@@ -3099,7 +3164,7 @@ class SunXspex(LoadSpec):
         self.update_tied(self.rParams)
 
     def _run_mcmc_post(self, orig_free_param_len, discard_samples=0):
-        ''' Handles the results from the MCMC sampling. I.e., updates the parameter 
+        """ Handles the results from the MCMC sampling. I.e., updates the parameter 
         table and set relevant attributes. 
         
         Parameters
@@ -3113,7 +3178,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         A 2d array of the MCMC samples after burning has taken place.
-        '''
+        """
         self.all_mcmc_samples = self.combine_samples_and_logProb(discard_samples=discard_samples)
 
         # update the model parameters from the mcmc
@@ -3124,7 +3189,7 @@ class SunXspex(LoadSpec):
         return self.mcmc_sampler.chain.reshape((-1, self._ndim))
     
     def _multiprocessing_setup(self, workers):
-        ''' To return the pool of workers that the MCMC sampler uses to 
+        """ To return the pool of workers that the MCMC sampler uses to 
         run in parallel. 
         
         Parameters
@@ -3136,7 +3201,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         The pool of workers.
-        '''
+        """
         return Pool(workers)
     
     def run_mcmc(self, 
@@ -3147,7 +3212,7 @@ class SunXspex(LoadSpec):
                  mp_workers=None,
                  append_runs=False, 
                  **kwargs):
-        ''' Runs MCMC analysis on the data and model provided. 
+        """ Runs MCMC analysis on the data and model provided. 
         
         Parameters
         ----------
@@ -3195,7 +3260,7 @@ class SunXspex(LoadSpec):
         -------
         A 2d array of the MCMC samples after burning has taken place (output of 
         `_run_mcmc_post()` method with 0 burned samples).
-        '''
+        """
         
         mcmc_setups, probability_args, walker_pos, orig_free_param_len = self.run_mcmc_setup(code=code, 
                                                                                              number_of_walkers=number_of_walkers,
@@ -3223,7 +3288,7 @@ class SunXspex(LoadSpec):
 
     @property
     def burn_mcmc(self):
-        ''' ***Property*** 
+        """ ***Property*** 
         Allows the number of discarded samples to be set. Returns the number of 
         discarded samples (`_discard_sample_number`).
         
@@ -3233,14 +3298,14 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Int.
-        '''
+        """
         if not hasattr(self, "_discard_sample_number"):
             self._discard_sample_number = 0
         return self._discard_sample_number
 
     @burn_mcmc.setter
     def burn_mcmc(self, burn):
-        ''' ***Property Setter*** 
+        """ ***Property Setter*** 
         Allows the number of discarded samples to be set. The samples are always 
         discarded from the original sampler.
         
@@ -3267,7 +3332,7 @@ class SunXspex(LoadSpec):
         s.burn_mcmc = 0
         # or <equivalent>
         s.undo_burn_mcmc
-        '''
+        """
         
         self._discard_sample_number = int(burn)
         self.all_mcmc_samples = self.combine_samples_and_logProb(discard_samples=self._discard_sample_number)
@@ -3276,7 +3341,7 @@ class SunXspex(LoadSpec):
         
     @property
     def undo_burn_mcmc(self):
-        ''' ***Property*** 
+        """ ***Property*** 
         Undoes any burn-in applied to the mcmc chains and returns `all_mcmc_samples` back 
         to every chain calculated.
         
@@ -3286,11 +3351,11 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         self.burn_mcmc = 0
     
     def plot_log_prob_chain(self):
-        ''' Produces a plot of the log-probability chain from all MCMC samples. 
+        """ Produces a plot of the log-probability chain from all MCMC samples. 
         The number of burned sampled, if any, is indicated with a shaded region.
 
         *** Update to include all parameter chains ***
@@ -3301,7 +3366,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Returns axis object of the axis that dictates the burned sample number.
-        '''
+        """
         # plots the original chain length with 
         ax = plt.gca()
         ax.plot(self._lpc)
@@ -3333,7 +3398,7 @@ class SunXspex(LoadSpec):
         return ax2
 
     def _fix_corner_plot_titles(self, axes, titles, quantiles):
-        ''' Method to create corner plot titles that are defined by user quantiles 
+        """ Method to create corner plot titles that are defined by user quantiles 
         instead of corner.py's default quantiles of [0.16, 0.5, 0.84].
         
         Parameters
@@ -3348,7 +3413,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         for c,(t,s) in enumerate(zip(titles, self.all_mcmc_samples.T)):
             qs = np.percentile(s, np.array(quantiles)*100)
             qs_ext = np.diff(qs)
@@ -3356,7 +3421,7 @@ class SunXspex(LoadSpec):
             axes[c,c].set_title(title)
         
     def corner_mcmc(self, _fix_titles=True, **kwargs):
-        ''' Produces a corner plot of the MCMC run.
+        """ Produces a corner plot of the MCMC run.
         
         Parameters
         ----------
@@ -3370,7 +3435,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         Returns axis object of the corner plot.
-        '''
+        """
         # check there are MCMC samples to plot
         if not hasattr(self, "all_mcmc_samples"):#"mcmc_sampler"):
             print("The MCMC analysis has not been run yet. Please run run_mcmc(...) successfully first.")
@@ -3402,7 +3467,7 @@ class SunXspex(LoadSpec):
         return axes
 
     def _prior_transform_nestle(self, *args):
-        ''' Creates the prior function used when running the nested sampling code.
+        """ Creates the prior function used when running the nested sampling code.
         I.e., input will be a list of parameter values mapped to the unit hypercube
         with the output mapping them back to their corresponding value in the user 
         defined bounds.
@@ -3416,7 +3481,7 @@ class SunXspex(LoadSpec):
         -------
         The parameter unit hypercube value mapped back to its corresponding value 
         in the user defined bounds. 
-        '''
+        """
         
         bounds = np.array(self._free_model_param_bounds)
 
@@ -3429,7 +3494,7 @@ class SunXspex(LoadSpec):
                    method = 'multi', 
                    tol = 10, 
                    **kwargs):
-        ''' Runs nested sampling on the data and provided model.
+        """ Runs nested sampling on the data and provided model.
 
         [1] http://mattpitkin.github.io/samplers-demo/
         
@@ -3454,7 +3519,7 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None. 
-        '''
+        """
 
         mcmc_setups, probability_args, _, _ = self.run_mcmc_setup(code=code)
 
@@ -3469,7 +3534,7 @@ class SunXspex(LoadSpec):
                                     **kwargs)
 
     def __getstate__(self):
-        '''Tells pickle how this object should be pickled.'''
+        """Tells pickle how this object should be pickled."""
         _model = {"_model":self._model.__name__}
         _user_fncs = {"usr_funcs":DYNAMIC_FUNCTION_SOURCE}
         _user_args = {"user_args":DYNAMIC_VARS}
@@ -3498,7 +3563,7 @@ class SunXspex(LoadSpec):
             return {**dict_copy, **_model, **_user_fncs, **_user_args}
 
     def __setstate__(self, d):
-        '''Tells pickle how this object should be loaded.'''
+        """Tells pickle how this object should be loaded."""
         add_var(**d["user_args"], quiet=True)
         for f,c in d["usr_funcs"].items():
             function_creator(function_name=f, function_text=c)
@@ -3507,7 +3572,7 @@ class SunXspex(LoadSpec):
         self._model = globals()[d["_model"]] if d["_model"] in globals() else None
     
     def save(self, filename):
-        ''' Pickles data from the object in a way it can be loaded back in later.
+        """ Pickles data from the object in a way it can be loaded back in later.
         
         Parameters
         ----------
@@ -3518,17 +3583,17 @@ class SunXspex(LoadSpec):
         Returns
         -------
         None.
-        '''
+        """
         filename = filename if filename.endswith("pickle") else filename+".pickle"
         with open(filename, 'wb') as f:
             pickle.dump(self, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     def __repr__(self):
-        '''Provide a representation to construct the class from scratch.'''
+        """Provide a representation to construct the class from scratch."""
         return self._construction_string_sunxspex
     
     def __str__(self):
-        '''Provide a printable, user friendly representation of what the class contains.'''
+        """Provide a printable, user friendly representation of what the class contains."""
         _loaded_spec = ""
         plural = ["Spectrum", "is"] if len(self.loaded_spec_data.keys())==1 else ["Spectra", "are"]
         tag = f"{plural[0]} Loaded {plural[1]}: "
@@ -3563,7 +3628,9 @@ def load(filename):
 # The following functions allows SunXspex.model take lambda functions and strings as inputs then convert them to named functions
 
 def _func_self_contained_check(function_name, function_text):
-    """ Takes a user defined function name for a NAMED function and a string that 
+    """ Checks that the function can be run only from its source code in any directory.
+    
+    Takes a user defined function name for a NAMED function and a string that 
     produces the NAMED function and executes the string as code. This checks to 
     make sure the function is completely self-contatined; i.e., able to be 
     reconstructed from source to allow for smooth pickling and loading into a new
@@ -3571,6 +3638,9 @@ def _func_self_contained_check(function_name, function_text):
 
     If an exception occurs here then the user is informed with a warning and 
     (hopefully) a helpful message.
+
+    The test inputs to check a function works are 1s for all arguments and 
+    energy bins of np.array([[1.60,1.64],[1.64,1.68],...,[4.96,5.00]]).
 
     Parameters
     ----------
@@ -3600,7 +3670,9 @@ def _func_self_contained_check(function_name, function_text):
     #     warnings.warn(str(e)+"\nFunction failed self-contained check; however, this may be due to conflict in test inputs used to the model.")
 
 def function_creator(function_name, function_text, _orig_func=None):
-    """ Takes a user defined function name for a NAMED function and a string that 
+    """ Creates a named function from its name and source code.
+    
+    Takes a user defined function name for a NAMED function and a string that 
     produces the NAMED function and executes the string as code. Replicates the 
     user coding thier function in this module directly.
 
@@ -3686,8 +3758,9 @@ def get_all_words(model_string):
     return re.findall(regex4words, model_string)
 
 def get_nonsubmodel_params(model_string, _defined_photon_models):
-    """ From the non-maths character groups in a string, remove the ones that refer to any defined 
-    model name. The others should be other parameters for the fit. E.g., "C*f_vth" means this function 
+    """ From the non-maths character groups in a string, remove the ones that refer to any defined model name. 
+    
+    The others should be other parameters for the fit. E.g., "C*f_vth" means this function 
     will pick out the "C" as a fitting parameter.
 
     Parameters
@@ -3756,10 +3829,12 @@ def get_func_inputs(function):
     return param_inputs, other_inputs
 
 def imports():
-    """ Lists the imports from other modules into this one. This is usedful when 
-    defining user made functions since these modules can be used in them normally. 
-    If a package the user uses is not in this list then they must include it in 
-    the defined model to make the model function self-contained.
+    """ Lists the imports from other modules into this one. 
+    
+    This is usedful when defining user made functions since these modules can 
+    be used in them normally. If a package the user uses is not in this list 
+    then they must include it in the defined model to make the model function 
+    self-contained.
 
     Parameters
     ----------

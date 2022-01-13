@@ -1,3 +1,7 @@
+"""
+The following code contains the default log-likelihoods/fit statistics used for model fitting.
+"""
+
 import numpy as np
 from scipy.special import factorial
 
@@ -57,7 +61,7 @@ class LogLikelihoods:
                                 "cstat":self.cstat_loglikelihood}
         
     def _remove_nans(self, _lhoods):
-        ''' Removes Nans in the output array from any /0 data entries.
+        """ Removes Nans in the output array from any /0 data entries.
 
         Parameters
         ----------
@@ -67,11 +71,11 @@ class LogLikelihoods:
         Returns
         -------
         Input array but with Nans removed.
-        '''
+        """
         return _lhoods[~np.isnan(_lhoods)]
     
     def remove_non_numbers(self, _lhoods):
-        ''' Removes Nans, infs, -infs in the output array from any /0 data entries.
+        """ Removes Nans, infs, -infs in the output array from any /0 data entries.
 
         Parameters
         ----------
@@ -81,13 +85,14 @@ class LogLikelihoods:
         Returns
         -------
         Input array but with Nans, infs, -infs removed.
-        '''
+        """
         _lhoods = self._remove_nans(_lhoods)
         return _lhoods[np.isfinite(_lhoods)]
     
     def _check_numbers_left(self, remaining):
-        ''' Check if there are any numbers left after all Nans, infs, and -infs have been remove 
-        and return the sum, if no numbers left then return -np.inf since it it a rubbish fit.
+        """ Check if there are any numbers left after all Nans, infs, and -infs have been remove and return the sum.
+        
+        If no numbers left then return -np.inf since it it a rubbish fit.
 
         Parameters
         ----------
@@ -98,14 +103,14 @@ class LogLikelihoods:
         Returns
         -------
         Sum of the bin fit statistics, or -np.inf if nothing to sum.
-        '''
+        """
         if len(remaining)==0:
             return -np.inf
         else:
             return np.sum(remaining)
         
     def gaussian_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        ''' Gaussian log-likelihood.
+        """ Gaussian log-likelihood.
 
         .. math::
          ln(L_{Gauss}) = -\frac{N}{2} ln(2\pi D^{2}) + \frac{1}{2}\Chi^{2}
@@ -121,7 +126,7 @@ class LogLikelihoods:
         Returns
         -------
         A float, the gaussian log-likelihood (to be maximised).
-        '''
+        """
         
         likelihoods = -(len(observed_counts)/2) * np.log(2*np.pi*np.array(observed_count_errors)**2) + (1/2)* self.chi2_loglikelihood(model_counts, observed_counts, observed_count_errors)
 
@@ -129,7 +134,7 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods)) # =ln(L)
     
     def chi2_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        ''' Chi-squared fit statistic.
+        """ Chi-squared fit statistic.
 
         .. math::
          \Chi^{2} = - (\frac{(D - \mu)^{2}}{\sigma})^{2}
@@ -144,7 +149,7 @@ class LogLikelihoods:
         Returns
         -------
         A float, the chi-squared fit statistic (to be maximised).
-        '''
+        """
         
         likelihoods = -(np.array(observed_counts)-np.array(model_counts))**2 / np.array(observed_count_errors)**2
 
@@ -152,7 +157,7 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods)) # =ln(L)
     
     def poisson_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        ''' Poissonian log-likelihood.
+        """ Poissonian log-likelihood.
 
         .. math::
          ln(L_{Poisson}) = D ln(\mu) - \mu - ln(D!)
@@ -167,7 +172,7 @@ class LogLikelihoods:
         Returns
         -------
         A float, the poissonian log-likelihood (to be maximised).
-        '''
+        """
         
         # proper Poisson log-likelihood, factorial and all
         likelihoods = np.array(observed_counts) * np.log(np.array(model_counts)) - np.array(model_counts) - np.log(factorial(observed_counts))
@@ -175,7 +180,7 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
     
     def cash_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        ''' Cash log-likelihood. 
+        """ Cash log-likelihood. 
         
         A simplification of the poissonian log-likelihood where the independent data term is 
         neglected. Since the data term is neglected the absolute number does not say much 
@@ -196,7 +201,7 @@ class LogLikelihoods:
         Returns
         -------
         A float, the cash log-likelihood (to be maximised).
-        '''
+        """
         
         # needs to be based on counts so multiply out the livetime and keV^-1
         # Cash - more bins=higher natural value, i.e., the number doesn't say much about the absolute goodness of fit 
@@ -205,7 +210,7 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
     
     def cstat_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        ''' C-stat log-likelihood. 
+        """ C-stat log-likelihood. 
         
         A simplification of the poissonian log-likelihood where the independent data term 
         is replaced using sterling's approximation. Used in the XSPEC fitting software. 
@@ -227,7 +232,7 @@ class LogLikelihoods:
         Returns
         -------
         A float, the c-stat log-likelihood (to be maximised).
-        '''
+        """
         
         # C-stat (XSPEC) - has data term in it so the lower the -2*ln(L) number the better the fit, this is the ln(L) though
         # Best value is 0, if obs_counts>mod_counts or obs_counts<mod_counts then likelihoods<0
@@ -237,9 +242,9 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods)) 
 
     def __repr__(self):
-        '''Provide a representation to construct the class from scratch.'''
+        """Provide a representation to construct the class from scratch."""
         return self._construction_string
     
     def __str__(self):
-        '''Provide a printable, user friendly representation of what the class contains.'''
+        """Provide a printable, user friendly representation of what the class contains."""
         return f"Different log-likelihoods/fit statistics available are: {self.log_likelihoods}"
