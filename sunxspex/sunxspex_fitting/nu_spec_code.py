@@ -40,7 +40,7 @@ def flux_cts_spec(file, bin_size):
     The count rate per keV (cts), and its error (cts_err). 
     """
 
-    channel, counts, livetime = read_pha(file)
+    _, counts, livetime = read_pha(file)
 
     cts = (counts / bin_size) / livetime # now in cts keV^-1 s^-1
     
@@ -135,10 +135,10 @@ def col2arr_py(data, **kwargs):
         chan = np.array(data)
 
         nc = np.array([len(n) for n in data]) # number of entries in each row
-        accum_nc_almost = [nc[i]+sum(nc[0:i]) for i in range(len(nc))] # running total in each row
+        #***not even used*** accum_nc_almost = [nc[i]+sum(nc[0:i]) for i in range(len(nc))] # running total in each row
     
         # need 0 as start with 0 arrays
-        accum_nc = np.array([0] + accum_nc_almost) # this acts as the index as if the array has been unraveled
+        #***not even used*** accum_nc = np.array([0] + accum_nc_almost) # this acts as the index as if the array has been unraveled
 
         ## number of columns is the length of the row with the max number of entries (nc)
         ncol = np.max(nc)

@@ -175,8 +175,7 @@ class InstrumentBlueprint:
         self._loaded_spec_data[item] = new_value
 
     def __call__(self):
-        """When the class is called (n=NustarLoader()->n()) then `_loaded_spec_data` 
-        is returned."""
+        """When the class is called (n=NustarLoader()->n()) then `_loaded_spec_data` is returned."""
         return self._loaded_spec_data
 
     def __repr__(self):
