@@ -175,8 +175,7 @@ class InstrumentBlueprint:
         self._loaded_spec_data[item] = new_value
 
     def __call__(self):
-        """When the class is called (n=NustarLoader()->n()) then `_loaded_spec_data` 
-        is returned."""
+        """When the class is called (n=NustarLoader()->n()) then `_loaded_spec_data` is returned."""
         return self._loaded_spec_data
 
     def __repr__(self):
@@ -463,12 +462,12 @@ class CustomLoader(InstrumentBlueprint):
     CustomLoader Specifics
     ----------------------
     Offers a user a way to provide custom spectral data as long as they can organise it in the accepted dictionary 
-    form. Accepted dictionary format: {"photon_channel_bins":Photon Space Bins (e.g., [keV,keV],[keV,keV],...]), 
-                                       "photon_channel_mids":Photon Space Bin Mid-points (e.g., [keV,...]), 
-                                       "photon_channel_binning":Photon Space Binwidths (e.g., [keV,...]), 
-                                       "count_channel_bins":Count Space Bins (e.g., [keV,keV],[keV,keV],...]), 
-                                       "count_channel_mids":Count Space Bin Mid-points (e.g., [keV,...]), 
-                                       "count_channel_binning":Count Space Binwidths (e.g., [keV,...]), 
+    form. Accepted dictionary format: {"photon_channel_bins":Photon-space Bins (e.g., [keV,keV],[keV,keV],...]), 
+                                       "photon_channel_mids":Photon-space Bin Mid-points (e.g., [keV,...]), 
+                                       "photon_channel_binning":Photon-space Binwidths (e.g., [keV,...]), 
+                                       "count_channel_bins":Count-space Bins (e.g., [keV,keV],[keV,keV],...]), 
+                                       "count_channel_mids":Count-space Bin Mid-points (e.g., [keV,...]), 
+                                       "count_channel_binning":Count-space Binwidths (e.g., [keV,...]), 
                                        "counts":counts (e.g., cts), 
                                        "count_rate":Count Rate (e.g., cts/keV/s), 
                                        "count_rate_error":Count Rate Error for `count_rate`, 

@@ -1,21 +1,24 @@
 """
 The following code contains the default functions commonly used for solar X-ray spectral fitting in the for f(*args,energies=None).
+
+Used to import `*` into fitter.py but changed as per the Zen of Python, the models here are now imported explicitly into fitter.py 
+so **remember** to add any new models there too as well as into `defined_photon_models` and `__all__`.
 """
 
 import numpy as np
 from astropy import units as u
 
-from sunxspex.thermal import thermal_emission
-from sunxspex.emission import bremsstrahlung_thin_target, bremsstrahlung_thick_target
+from ..thermal import thermal_emission
+from ..emission import bremsstrahlung_thick_target #bremsstrahlung_thin_target
 
-__all__ = ["f_vth", "thick_fn", "thick_warm", "defined_photon_models"]
+__all__ = ["defined_photon_models", "f_vth", "thick_fn", "thick_warm"]
 
 ### Issue when using np.float64 numbers for the parameters as it ends up returning all nans and infs but rounding to 15 decimal places fixes this??????
 
 # The defined models shouldn't have duplicate parameter input names 
 defined_photon_models = {"f_vth":["T", "EM"], 
                          "thick_fn":["total_eflux", "index", "e_c"],
-                         "thick_warm":["tot_eflux", "indx", "ec", "plasmaD", "loopT", "length"]}
+                         "thick_warm":["tot_eflux", "indx", "ec", "plasma_d", "loop_temp", "length"]}
 
 def f_vth(temperature, emission_measure46, energies=None):
     """ Calculates optically thin thermal bremsstrahlung radiation as seen from Earth. 
@@ -92,7 +95,7 @@ def thick_fn(total_eflux, index, e_c, energies=None):
     return output
 
 
-def thick_warm(total_eflux, index, e_c, plasmaD, T, length, energies=None):
+def thick_warm(total_eflux, index, e_c, plasma_d, loop_temp, length, energies=None):
     """ Calculates the warm thick-target bremsstrahlung radiation as seen from Earth.
 
     [1] Kontar et al, ApJ 2015 (http://adsabs.harvard.edu/abs/2015arXiv150503733K)
@@ -113,10 +116,10 @@ def thick_warm(total_eflux, index, e_c, plasmaD, T, length, energies=None):
     e_c : int or float
             Low-energy cut-off of the electron distribution in units of keV.
 
-    plasmaD : int or float
+    plasma_d : int or float
             Plasma number density in units of 1e10 cm^-3.
 
-    T : int or float
+    loop_temp : int or float
             Plasma temperature in megakelvin.
 
     length : int or float
@@ -128,27 +131,27 @@ def thick_warm(total_eflux, index, e_c, plasmaD, T, length, energies=None):
     of ph s^-1 keV^-1.
     """
 
-    me_keV = 511 #[keV]
-    cc = 2.99e10  # speed of light [cm/s]
+    ME_KEV = 511 #[keV]
+    CC = 2.99e10  # speed of light [cm/s]
     KK = 2.6e-18
-    n_p = plasmaD*1e10 # was in 1e10 cm^-3, now in cm^-3
-    Tloop = T*8.6173e-2 # was in MK, now in keV
-    L = length*1e8 # was in Mm, now in cm
+    n_p = plasma_d*1e10 # was in 1e10 cm^-3, now in cm^-3
+    tloop = loop_temp*8.6173e-2 # was in MK, now in keV
+    l = length*1e8 # was in Mm, now in cm
 
-    ll = Tloop**2/(2*KK*n_p) # collisional stoping distance for electrons of Tloop energy
+    ll = tloop**2/(2*KK*n_p) # collisional stopping distance for electrons of Tloop energy
 
-    Emin = Tloop*3*(5*ll/L)**4
+    emin = tloop*3*(5*ll/l)**4
 
-    if Emin>0.1:
-        print("Fixing Emin to 0.1.")
-        Emin = 0.1
+    if emin>0.1:
+        print(f"The loop_temp ({loop_temp}), plasma density ({plasma_d}), and loop length ({length}) make emin ({emin}) >0.1. Fixing emin to 0.1.")
+        emin = 0.1
 
-    Lmin = e_c**2 / (2*KK*n_p) / 3
-    if Lmin>L:
-        print("Lmin>L")
+    lmin = e_c**2 / (2*KK*n_p) / 3
+    if lmin>l:
+        print("Minimum length>length")
 
-    EM_add = 3*np.pi/2/KK/cc*np.sqrt(me_keV/8.)*Tloop**2/np.sqrt(Emin)*total_eflux*1e35
+    em_add = 3*np.pi/2/KK/CC*np.sqrt(ME_KEV/8.)*tloop**2/np.sqrt(emin)*total_eflux*1e35
 
-    EM46 = EM_add*1e-46 # get EM in units of 10^46 cm^(-3)
+    em46 = em_add*1e-46 # get EM in units of 10^46 cm^(-3)
     
-    return thick_fn(total_eflux, index, e_c, energies=energies) + f_vth(T, EM46, energies=energies)
+    return thick_fn(total_eflux, index, e_c, energies=energies) + f_vth(loop_temp, em46, energies=energies)
