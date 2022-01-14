@@ -1,3 +1,7 @@
+"""
+The following code Handles how all data is loaded in from the individual instrument loaders and how the data is used (e.g., rebinning, etc.).
+"""
+
 import numpy as np
 from copy import deepcopy
 from astropy.io import fits
@@ -57,11 +61,14 @@ class LoadSpec:
 
     Methods
     -------
-    group_pha_finder : channels, counts, group_min, print_tries
+    group : channel_bins (array (n,2)), counts (array (n)), group_min (int)
+            Groups bins so they have at least a `group_min` number of counts.
+
+    group_pha_finder : channels (array (n,2)), counts (array (n)), group_min (int), print_tries (bool)
             Check, incrementally from a minimum number, what group minimum is needed to leave no counts unbinned 
             after rebinning. Returns binned channels and the minimum group number if one exists.
 
-    group_spec : spectrum, group_min, _orig_in_extras
+    group_spec : spectrum (str), group_min (int), _orig_in_extras (bool)
             Returns new bins and new binned counts for a given spectrum and minimun bin gorup number.
 
     Attributes
@@ -458,7 +465,44 @@ class LoadSpec:
         # self.loaded_spec_data[spectrum]["srm"] = self._rebin_srm(spectrum=spectrum, axis="count")
         self.loaded_spec_data[spectrum]["srm"] = self.loaded_spec_data[spectrum]._rebin_srm(axis="count")
         return new_bins
-        
+
+    def group(self, channel_bins, counts, group_min):
+        """ Groups bins so they have at least a `group_min` number of counts.
+
+        Parameters
+        ----------
+        channel_bins, counts : np.array
+                Array of the channel bins and counts.
+
+        group_min : Int
+                The minimum number of counts allowed in a bin. This input is a starting number and then is checked 
+                incrementally.
+                Default: None
+
+        Returns
+        -------
+        The number of counts left over at the end that could not be grouped into the minimum number and new bins/counts arrays.
+        """
+        binned_channel = []
+        binned_counts = []
+        combin = 0
+        reset_bin_counter = True
+        for c, count in enumerate(counts):
+            if count>=group_min and combin==0 and reset_bin_counter:
+                binned_channel.append(channel_bins[c])
+                binned_counts.append(count)
+            else:
+                if reset_bin_counter:
+                    start_e_bin = channel_bins[c][0] 
+                    reset_bin_counter = False
+                combin += count
+                if combin >= group_min:
+                    binned_channel.append([start_e_bin, channel_bins[c][1]]) # starting at the last bin edge and the last edge of the bin we're on
+                    binned_counts.append(combin)
+                    combin = 0
+                    reset_bin_counter = True
+
+        return combin, binned_channel, binned_counts
         
     def group_pha_finder(self, channels, counts, group_min=None, print_tries=False):
         """ Takes the counts, and checks the bins left over from grouping the bins with a minimum value.
@@ -490,23 +534,13 @@ class LoadSpec:
         total_counts = np.sum(counts)
 
         while True:
-            binned_channel = []
-            combin = 0
-            # check if we can make it through the whole count list with 0 left over when grouping with group_min
-            for c, count in enumerate(counts):
-                if count>=group_min and combin==0:
-                    binned_channel.append(channels[c])
-                else:
-                    if combin==0:
-                        start_e_bin = channels[c][0] 
-                    combin += count
-                    if combin >= group_min:
-                        binned_channel.append([start_e_bin, channels[c][1]]) # starting at the last bin edge and the last edge of the bin we're on
-                        combin = 0
+            # group the counts
+            combin, binned_channel, _ = self.group(channels, counts, group_min)
 
             if print_tries:
                 print('Group min, ', group_min, ', has counts left over: ', combin)
 
+            # check if all counts are binned, if not increment group_min and start again
             if combin != 0:
                 group_min += 1
             elif group_min == total_counts:
@@ -577,25 +611,7 @@ class LoadSpec:
             return channel_bins, counts
         
         # grppha groups in counts, not counts s^-1 or anything
-
-        binned_channel = []
-        binned_counts = []
-        combin = 0
-        reset_bin_counter = True
-        for c, count in enumerate(counts):
-            if count>=group_min and combin==0 and reset_bin_counter:
-                binned_channel.append(channel_bins[c])
-                binned_counts.append(count)
-            else:
-                if reset_bin_counter:
-                    start_e_bin = channel_bins[c][0] 
-                    reset_bin_counter = False
-                combin += count
-                if combin >= group_min:
-                    binned_channel.append([start_e_bin, channel_bins[c][1]]) # starting at the last bin edge and the last edge of the bin we're on
-                    binned_counts.append(combin)
-                    combin = 0
-                    reset_bin_counter = True
+        combin, binned_channel, binned_counts = self.group(channel_bins, counts, group_min)
                 
         # since SRM is going to be binned, add the rest of the photon bins on at the end with native binning
         # any counts in these bins will be ignored, only 0s taken into consideration in photon space for these

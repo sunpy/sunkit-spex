@@ -15,22 +15,22 @@ class LogLikelihoods:
 
     Methods
     -------
-    remove_non_numbers : _lhoods
+    remove_non_numbers : _lhoods (array)
             Takes an array and removes Nans, infs, -infs.
 
-    gaussian_loglikelihood : model_counts, observed_counts, observed_count_errors
+    gaussian_loglikelihood : model_counts (array), observed_counts (array), observed_count_errors (array)
             Gaussian log-likelihood function. Access via `log_likelihoods` attribute.
 
-    chi2_loglikelihood : model_counts, observed_counts, observed_count_errors
+    chi2_loglikelihood : model_counts (array), observed_counts (array), observed_count_errors (array)
             Chi-squared fit statistic function. Access via `log_likelihoods` attribute.
 
-    poisson_loglikelihood : model_counts, observed_counts, observed_count_errors
+    poisson_loglikelihood : model_counts (array), observed_counts (array), observed_count_errors (array)
             Poissonian log-likelihood function. Access via `log_likelihoods` attribute.
 
-    cash_loglikelihood : model_counts, observed_counts, observed_count_errors
+    cash_loglikelihood : model_counts (array), observed_counts (array), observed_count_errors (array)
             Cash log-likelihood function. Access via `log_likelihoods` attribute.
 
-    cstat_loglikelihood : model_counts, observed_counts, observed_count_errors
+    cstat_loglikelihood : model_counts (array), observed_counts (array), observed_count_errors (array)
             C-stat log-likelihood function. Access via `log_likelihoods` attribute. 
 
     Attributes
