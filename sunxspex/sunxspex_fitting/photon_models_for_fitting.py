@@ -1,5 +1,8 @@
 """
 The following code contains the default functions commonly used for solar X-ray spectral fitting in the for f(*args,energies=None).
+
+Used to import `*` into fitter.py but changed as per the Zen of Python, the models here are now imported explicitly into fitter.py 
+so **remember** to add any new models there too as well as into `defined_photon_models` and `__all__`.
 """
 
 import numpy as np
@@ -8,7 +11,7 @@ from astropy import units as u
 from ..thermal import thermal_emission
 from ..emission import bremsstrahlung_thick_target #bremsstrahlung_thin_target
 
-__all__ = ["f_vth", "thick_fn", "thick_warm", "defined_photon_models"]
+__all__ = ["defined_photon_models", "f_vth", "thick_fn", "thick_warm"]
 
 ### Issue when using np.float64 numbers for the parameters as it ends up returning all nans and infs but rounding to 15 decimal places fixes this??????
 
@@ -135,17 +138,17 @@ def thick_warm(total_eflux, index, e_c, plasma_d, loop_temp, length, energies=No
     tloop = loop_temp*8.6173e-2 # was in MK, now in keV
     l = length*1e8 # was in Mm, now in cm
 
-    ll = tloop**2/(2*KK*n_p) # collisional stoping distance for electrons of Tloop energy
+    ll = tloop**2/(2*KK*n_p) # collisional stopping distance for electrons of Tloop energy
 
     emin = tloop*3*(5*ll/l)**4
 
     if emin>0.1:
-        print("Fixing Emin to 0.1.")
+        print(f"The loop_temp ({loop_temp}), plasma density ({plasma_d}), and loop length ({length}) make emin ({emin}) >0.1. Fixing emin to 0.1.")
         emin = 0.1
 
     lmin = e_c**2 / (2*KK*n_p) / 3
     if lmin>l:
-        print("Lmin>L")
+        print("Minimum length>length")
 
     em_add = 3*np.pi/2/KK/CC*np.sqrt(ME_KEV/8.)*tloop**2/np.sqrt(emin)*total_eflux*1e35
 

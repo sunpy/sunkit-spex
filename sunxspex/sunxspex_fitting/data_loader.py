@@ -1,3 +1,7 @@
+"""
+The following code Handles how all data is loaded in from the individual instrument loaders and how the data is used (e.g., rebinning, etc.).
+"""
+
 import numpy as np
 from copy import deepcopy
 from astropy.io import fits

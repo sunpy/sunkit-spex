@@ -49,7 +49,7 @@ warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 from sunxspex.sunxspex_fitting import nu_spec_code as nu_spec
 from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
-from sunxspex.sunxspex_fitting.photon_models_for_fitting import *
+from sunxspex.sunxspex_fitting.photon_models_for_fitting import (defined_photon_models, f_vth, thick_fn, thick_warm)
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
 from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
 from sunxspex.sunxspex_fitting.instruments import rebin_any_array
@@ -627,14 +627,8 @@ class SunXspex(LoadSpec):
         if hasattr(self, '_model'):
             # if we already have a model defined then don't want to do all this again
             print("Model already assigned. If you want to change model please set property \"update_model\".")
-        else:
-            if isinstance(model_function, (types.FunctionType, types.BuiltinFunctionType)):
-                self._model = deconstruct_lambda(model_function)#model_function
-            elif type(model_function) is str:
-                self._model = self._mod_from_str(model_string=model_function)
-            else:
-                print("Model not set.")
-    
+        elif self._set_model_attr(model_function):
+
             # get parameter names from the function
             # need the same parameter for every spectrum
             self._orig_params = []
@@ -659,6 +653,30 @@ class SunXspex(LoadSpec):
             self.params = Parameters(self._model_param_names)
             self.rParams = Parameters(self._response_param_names, rparams=True)
     
+    def _set_model_attr(self, model_function):
+        """ Sets the `_model` attribute if it can.
+
+        True means the `_model` attribute was set and things like parameter table construction can happen. 
+        False means _model` attribute was not set.
+
+        Parameters
+        ----------
+        model_function : function object or str
+                The model to be used to fit the spectral data.
+
+        Returns
+        -------
+        Bool.
+        """
+        if isinstance(model_function, (types.FunctionType, types.BuiltinFunctionType)):
+            self._model = deconstruct_lambda(model_function)#model_function
+        elif type(model_function) is str:
+            self._model = self._mod_from_str(model_string=model_function)
+        else:
+            print("Model not set.")
+            return False
+        return True
+
     @property
     def update_model(self):
         """ ***Property*** Allows the existing model to be replaced and a new parameter table to be created.
@@ -1084,13 +1102,39 @@ class SunXspex(LoadSpec):
                 # This would tie T1's value to T2's.
                 # if an rparam is tied to a frozen rparam then this is handled in sort_fixed_gain_method()
                 try:
-                    if self.rParams[_rstatus[4:], "Status"]=="frozen":
-                        self.rParams[key, "Value"] = self.rParams[_rstatus[4:], "Value"]
-                    else:
-                        param_name_dict_order[key] = param_name_dict_order[_rstatus[4:]]
+                    param_name_dict_order = self._update_rtable_or_kwargs(_rstatus, key, param_name_dict_order)
                 except ValueError:
                     warnings.warn(f"Either the {key} or {_rstatus[4:]} response parameter has not been passed to the _pseudo_model. Value for parameter {key} will act like it is frozen.")
         
+        return param_name_dict_order
+
+    def _update_rtable_or_kwargs(self, key, param_name_dict_order, _rstatus):
+        """ Either update the parameter list or the response parameter table.
+
+        If a response parameter is tied to a frozen rparam then might as well just update the table and pull 
+        the values from there later. Otherwise, add the rparam to the input parameter list.
+        
+        Parameters
+        ----------
+        key : str
+                The response parameter under question.
+
+        param_name_dict_order : dict
+                Dictionary with keys of the parameter names and values of the parameter values.
+
+        _rstatus : str
+                Status of the response parameter under question. If it starts with `tie` then can find the 
+                response parameter it is tied to.
+                
+        Returns
+        -------
+        The input parameter list either as it was (rParam tied to frozen rParam) or updated parameter list 
+        with the tied to rParam included.
+        """
+        if self.rParams[_rstatus[4:], "Status"]=="frozen":
+            self.rParams[key, "Value"] = self.rParams[_rstatus[4:], "Value"]
+        else:
+            param_name_dict_order[key] = param_name_dict_order[_rstatus[4:]]
         return param_name_dict_order
 
     def _gain_energies(self, energies, array, gain_slope, gain_offset):
@@ -2112,14 +2156,13 @@ class SunXspex(LoadSpec):
         return self.loaded_spec_data[spectrum]['count_channel_mids'], cts_model
         
     def _prepare_submodels(self): 
-        """ If a string was given to create the overall model for fitting then the component 
+        """ Prepare individual sub-models for use.
+        
+        If a string was given to create the overall model for fitting then the component 
         models should have been separated into attribute `_separate_models`. If this is the 
         case then create the functions for the components and which parameters in the 
         parameter table belongs to them.
         
-        Parameters
-        ----------
-
         Returns
         -------
         None.
@@ -2160,8 +2203,7 @@ class SunXspex(LoadSpec):
         return spec2pick, combine_submods
         
     def _calculate_submodels(self, spectrum=None): 
-        """ After running `_prepare_submodels`, this then calculated the actual count spectrum array 
-        for each submodel.
+        """ After running `_prepare_submodels`, this then calculates the actual count spectrum array for each submodel.
         
         Parameters
         ----------
@@ -2283,6 +2325,7 @@ class SunXspex(LoadSpec):
         rebin_and_spec : list 
                 List of the minimum counts in a group (int) and the spectrum identifier 
                 for the spectrum to be binned (str, e.g., "spectrum1").
+
         count_rate_model : array
                 The count model array.
 
@@ -2332,35 +2375,81 @@ class SunXspex(LoadSpec):
         
         return new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model
 
-    def _plot_mcmc_mods(self, ax, res_ax, res_info, spectrum="combined", num_of_samples=100, _rebin_info=None, hex_grid=False):
-        # [count_rates, count_rate_errors]
+    def _plot_mcmc_mods_combin(self, ax, res_ax, res_info, hex_grid=False, _rebin_info=None):
+        """ Plots model runs for a combined data plot.
         
-        if spectrum=="combined":
-            comb = np.mean(self._mcmc_mod_runs,axis=0)
-            res_comb = []
-            for comb_ctr in comb:
-                e_mids = self._mcmc_mod_runs_emids
-                if _rebin_info is not None:
-                    comb_ctr = self._bin_model(comb_ctr, *_rebin_info)
-                    e_mids = np.mean(_rebin_info[2], axis=1)
+        Parameters
+        ----------
+        ax : axis object
+                Axis for the data and model.
 
-                residuals = [(res_info[0][i] - comb_ctr[i])/res_info[1][i] if res_info[1][i]>0 else 0 for i in range(len(res_info[1]))]
-                res_comb.append(residuals)
-                residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
-                if not hex_grid:
-                    ax.plot(e_mids, comb_ctr, color="orange", alpha=0.05, zorder=0)#, color="grey"
-                    res_ax.plot(res_info[2], residuals, color="orange", alpha=0.05, zorder=0)#, color="grey"
-            if hex_grid:
-                es, cts_list, res_list = np.array(list(e_mids)*len(comb_ctr)), np.array(comb_ctr).flatten(), np.array(res_comb).flatten()
-                keep = np.where((self.plot_xlims[0]<=es) & (es<=self.plot_xlims[1]) & (cts_list>0)) #& (self.plot_ylims[0]<=cts_list) & (cts_list<=self.plot_ylims[1]) 
-                ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Oranges', yscale='log', zorder=0, mincnt=1)#, alpha=0.8, bins='log'
-                res_ax.hexbin(es[keep], res_list[keep], gridsize=(100,20), cmap='Oranges', zorder=0, mincnt=1)
-            return
-
-        mcmc_freepar_labels = self._free_model_param_names+self._free_rparam_names
-        s = int(spectrum.split("spectrum")[-1])-1
+        res_ax : axis object
+                Axis for the residuals.
         
-        # fixed values take their values, tied values entry displayes the name they are attached to, free are set to "free"
+        res_info : list of length 2
+                First entry is the combined data and second entry is the correpsonding uncertainty list.
+        
+        hex_grid : bool
+                Indicates whether separate model lines should be drawn for MCMC runs or produce hexagonal 
+                histogram grid for all runs.
+                Default: False
+                
+        _rebin_info : list of lrngth 4
+                Inputs for `_bin_model` method: [old_bin_width, old_bins, new_bins, new_bin_width].
+                Default: None
+
+        Returns
+        -------
+        None.
+        """
+        comb = np.mean(self._mcmc_mod_runs,axis=0)
+        res_comb = []
+        for comb_ctr in comb:
+            e_mids = self._mcmc_mod_runs_emids
+            if _rebin_info is not None:
+                comb_ctr = self._bin_model(comb_ctr, *_rebin_info)
+                e_mids = np.mean(_rebin_info[2], axis=1)
+
+            residuals = [(res_info[0][i] - comb_ctr[i])/res_info[1][i] if res_info[1][i]>0 else 0 for i in range(len(res_info[1]))]
+            res_comb.append(residuals)
+            residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
+            if not hex_grid:
+                ax.plot(e_mids, comb_ctr, color="orange", alpha=0.05, zorder=0)#, color="grey"
+                res_ax.plot(res_info[2], residuals, color="orange", alpha=0.05, zorder=0)#, color="grey"
+        if hex_grid:
+            es, cts_list, res_list = np.array(list(e_mids)*len(comb_ctr)), np.array(comb_ctr).flatten(), np.array(res_comb).flatten()
+            keep = np.where((self.plot_xlims[0]<=es) & (es<=self.plot_xlims[1]) & (cts_list>0)) #& (self.plot_ylims[0]<=cts_list) & (cts_list<=self.plot_ylims[1]) 
+            ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Oranges', yscale='log', zorder=0, mincnt=1)#, alpha=0.8, bins='log'
+            res_ax.hexbin(es[keep], res_list[keep], gridsize=(100,20), cmap='Oranges', zorder=0, mincnt=1)
+
+    def _plot_mcmc_mods_sep_pars(self, spectrum_indx, mcmc_freepar_labels, hex_grid):
+        """ Creates lists fo the parameters.
+        
+        All frozen (or params tied to frozen) are set to their fixed value. If the parameter is one that was 
+        sampled over (or tied to a param that was sampled over) then the entry is the name of the sampled 
+        parameter. When looping through the MCMC samples the named (string) entries are then replaced with 
+        their sample value.
+        
+        Parameters
+        ----------
+        spectrum_indx : int
+                Index of spectrum in the `loaded_spec_data` attribute.
+
+        mcmc_freepar_labels : list of strings
+                List of parameter/rparameter names sampled over.
+        
+        hex_grid : bool
+                Indicates whether separate model lines should be drawn for MCMC runs or produce hexagonal 
+                histogram grid for all runs.
+
+        Returns
+        -------
+        Two lists (_spec_pars, _spec_rpars). Either fixed value entries in the list or names of the MCMC 
+        sample to go in that entry. 
+        """
+        s = spectrum_indx
+        
+        # fixed values take their values, tied values entry displays the name they are attached to, free are set to "free"
         spec_pars = [self.params["Value",name] if (self.params["Status",name]=="frozen") else self.params["Status",name][4:] if (self.params["Status",name].startswith("tie")) else name for name in self._param_groups[s]]
         spec_rpars = {name:(self.rParams["Value",name] if (self.rParams["Status",name]=="frozen") else self.rParams["Status",name][4:] if (self.rParams["Status",name].startswith("tie")) else name) for name in self._response_param_names[s*2:2*s+2]}
 
@@ -2371,24 +2460,81 @@ class SunXspex(LoadSpec):
         # assign _samp_inds to random ones if we have them AND lines are to be plotted, else make it all samples
         self._samp_inds = self._samp_inds if hasattr(self, "_samp_inds") and (not hex_grid) else np.arange(len(self.all_mcmc_samples))
 
+        return _spec_pars, _spec_rpars
+
+    def _randsamples_or_all(self, hex_grid, num_of_samples):
+        """ Sets `__mcmc_samples__` and maybe `_samp_inds`.
+        
+        If `hex_grid` is True then `__mcmc_samples__` becomes all samples from the MCMC. If `hex_grid` is 
+        False then `__mcmc_samples__` becomes a random number of samples (`num_of_samples`) from the MCMC 
+        run with `all_mcmc_samples` indices `_samp_inds`.
+        
+        Parameters
+        ----------
+        hex_grid : bool
+                Indicates whether separate model lines should be drawn for MCMC runs or produce hexagonal 
+                histogram grid for all runs.
+
+        num_of_samples : int
+                Number of random sample entries to use for MCMC model run plotting.
+
+        Returns
+        -------
+        Two lists (_spec_pars, _spec_rpars). Either fixed value entries in the list or names of the MCMC 
+        sample to go in that entry. 
+        """
+        if not hex_grid:
+            self._samp_inds = np.random.randint(len(self.all_mcmc_samples), size=num_of_samples)
+            self.__mcmc_samples__ = self.all_mcmc_samples[self._samp_inds]
+        elif hex_grid:
+            self.__mcmc_samples__ = self.all_mcmc_samples
+
+    def _make_or_add_mcmc_mod_runs(self, _randcts, e_mids):
+        """ From individual spectra, create or add a sampled models list.
+        
+        Parameters
+        ----------
+        _randcts : int
+                Lists of count rates produced from the MCMC samples.
+
+        e_mids : list
+                The energy mid-points list for the count rate models.
+
+        Returns
+        -------
+        None. 
+        """
+        if not hasattr(self, "_mcmc_mod_runs"):
+            self._mcmc_mod_runs = [_randcts]
+            self._mcmc_mod_runs_emids = e_mids
+        else:
+            self._mcmc_mod_runs.append(_randcts)
+
+    def _plot_mcmc_mods(self, ax, res_ax, res_info, spectrum="combined", num_of_samples=100, hex_grid=False, _rebin_info=None):
+        # [count_rates, count_rate_errors]
+        
+        if spectrum=="combined":
+            self._plot_mcmc_mods_combin(ax, res_ax, res_info, hex_grid=hex_grid, _rebin_info=_rebin_info)
+            return
+
+        mcmc_freepar_labels = self._free_model_param_names+self._free_rparam_names
+        s = int(spectrum.split("spectrum")[-1])-1
+        
+        _spec_pars, _spec_rpars = self._plot_mcmc_mods_sep_pars(s, mcmc_freepar_labels, hex_grid)
+
         # ensure same samples are used across all spectra (needs to be when combining spectra), only update if more runs have been added since __mcmc_samples__ was created
         # or if plotting lines then hexagons
         if not hasattr(self, "__mcmc_samples__") or not np.array_equal(self.__mcmc_samples__, self.all_mcmc_samples[self._samp_inds]):
-            if not hex_grid:
-                self._samp_inds = np.random.randint(len(self.all_mcmc_samples), size=num_of_samples)
-                self.__mcmc_samples__ = self.all_mcmc_samples[self._samp_inds]
-            elif hex_grid:
-                self.__mcmc_samples__ = self.all_mcmc_samples
+            self._randsamples_or_all(hex_grid, num_of_samples)
 
         _randcts = []
         _randctsres = []
         for _params in self.__mcmc_samples__:
-            #for c, (mod_pars, rpars) in enumerate(zip(spec_pars, spec_rpars)):
+            # take list of [1,0.1,3,par1,70] where par1 was sampled over and replace par1 a sample value
             _pars = [_params[mcmc_freepar_labels.index(p)] if type(p)==str else p for p in _spec_pars]
             _rpars = {name:(_params[mcmc_freepar_labels.index(val)] if type(val)==str else val) for name,val in _spec_rpars.items()}
             e_mids, ctr = self._calc_counts_model(photon_model=self._model, parameters=_pars, spectrum="spectrum"+str(s+1), **_rpars)
             _randcts.append(ctr)
-            # randcts.append(ctr)
             if _rebin_info is not None:
                 ctr = self._bin_model(ctr, *_rebin_info)
                 e_mids = np.mean(_rebin_info[2], axis=1)
@@ -2406,11 +2552,7 @@ class SunXspex(LoadSpec):
             ax.hexbin(es[keep], cts_list[keep], gridsize=100, cmap='Oranges', yscale='log', zorder=0, mincnt=1)#, alpha=0.8, bins='log'
             res_ax.hexbin(es[keep], res_list[keep], gridsize=(100,20), cmap='Oranges', zorder=0, mincnt=1)
 
-        if not hasattr(self, "_mcmc_runs"):
-            self._mcmc_mod_runs = [_randcts]
-            self._mcmc_mod_runs_emids = e_mids
-        else:
-            self._mcmc_mod_runs.append(_randcts)
+        self._make_or_add_mcmc_mod_runs(_randcts, e_mids)
     
     def _plot_1fit(self,
                    energy_channels, 
@@ -2512,7 +2654,7 @@ class SunXspex(LoadSpec):
 
         if self._latest_fit_run=="emcee":
             _rebin_info = [old_bin_width, old_bins, new_bins, new_bin_width] if type(rebin_and_spec[0])!=type(None) else None
-            self._plot_mcmc_mods(axs, res, [count_rates, count_rate_errors, energy_channels_res], spectrum=submod_spec, num_of_samples=num_of_samples, _rebin_info=_rebin_info, hex_grid=hex_grid)
+            self._plot_mcmc_mods(axs, res, [count_rates, count_rate_errors, energy_channels_res], spectrum=submod_spec, num_of_samples=num_of_samples, hex_grid=hex_grid, _rebin_info=_rebin_info)
 
         if type(fitting_range)!=type(None):
             if submod_spec=="combined":
@@ -2557,6 +2699,7 @@ class SunXspex(LoadSpec):
             
         if type(plot_params)==list:
             param_str = []
+            _xycoords = "axes fraction"
             for p in plot_params:
                 par_spec = p.split("_spectrum")
                 error = self.params["Error", p]
@@ -2565,9 +2708,9 @@ class SunXspex(LoadSpec):
                 else:
                     param_str += [par_spec[0]+": {0:.2e}".format(self.params["Value", p])+"$^{{+{0:.2e}}}_{{-{1:.2e}}}$".format(error[1], error[0])+"\n"] # str(round(self.params["Value", p], 2))
             if hasattr(self, '_params2get'):
-                rainbow_text_lines((0.95, 0.95), strings=param_str, colors=submod_param_cols, xycoords="axes fraction", verticalalignment="top", horizontalalignment="right", ax=axs)
+                rainbow_text_lines((0.95, 0.95), strings=param_str, colors=submod_param_cols, xycoords=_xycoords, verticalalignment="top", horizontalalignment="right", ax=axs)
             else:
-                axs.annotate("".join(param_str), (0.95, 0.95), xycoords="axes fraction", verticalalignment="top", horizontalalignment="right", color="navy")
+                axs.annotate("".join(param_str), (0.95, 0.95), xycoords=_xycoords, verticalalignment="top", horizontalalignment="right", color="navy")
             
             rparam_str = ""
             for rp, rname in zip(["gain_slope_spectrum"+par_spec[1], "gain_offset_spectrum"+par_spec[1]], ["slope", "offset"]):
@@ -2576,9 +2719,9 @@ class SunXspex(LoadSpec):
                     rparam_str += "\n"+rname+": "+str(round(self.rParams["Value", rp], 2))
                 else:
                     rparam_str += "\n"+rname+": {0:.2f}".format(self.rParams["Value", rp])+"$^{{+{0:.2f}}}_{{-{1:.2f}}}$".format(rerror[1], rerror[0])
-            axs.annotate(rparam_str, (0.01, 0.01), xycoords="axes fraction", verticalalignment="bottom", horizontalalignment="left", fontsize="small", color="red", alpha=0.5)
+            axs.annotate(rparam_str, (0.01, 0.01), xycoords=_xycoords, verticalalignment="bottom", horizontalalignment="left", fontsize="small", color="red", alpha=0.5)
                 
-            res.annotate(self._fit_stat_str(), (0.99, 0.01), xycoords="axes fraction", verticalalignment="bottom", horizontalalignment="right", fontsize="small", color="navy", alpha=0.7)
+            res.annotate(self._fit_stat_str(), (0.99, 0.01), xycoords=_xycoords, verticalalignment="bottom", horizontalalignment="right", fontsize="small", color="navy", alpha=0.7)
             
         return axs, res
     
@@ -2588,22 +2731,9 @@ class SunXspex(LoadSpec):
         if type(_rebin_input)==int:
             rebin_dict = dict(zip(self.loaded_spec_data.keys(), [_rebin_input]*len(self.loaded_spec_data.keys())))
         elif type(_rebin_input) in (list, np.ndarray):
-            if len(self.loaded_spec_data.keys())==len(_rebin_input):
-                rebin_dict = dict(zip(self.loaded_spec_data.keys(), _rebin_input))
-            else:
-                print("rebin input list must have an entry for each spectrum, e.g., 3 spectra would be [10,15,None].")
-                rebin_dict = _default
+            rebin_dict = self._if_rebin_input_list(_rebin_input, _default)
         elif type(_rebin_input) is dict:
-            if "all" in _rebin_input.keys():
-                rebin_dict = dict(zip(self.loaded_spec_data.keys(), [_rebin_input["all"]]*len(self.loaded_spec_data.keys())))
-            else:
-                labels = list(self.loaded_spec_data.keys())+['combined']
-                rebin_dict = dict(zip(labels, [None]*(len(self.loaded_spec_data.keys())+1)))
-                for k in _rebin_input.keys():
-                    if k in labels:
-                        rebin_dict[k] = _rebin_input[k]
-                if rebin_dict['combined'] is None:
-                    rebin_dict['combined'] = rebin_dict['spectrum1']
+            rebin_dict = self._if_rebin_input_dict(_rebin_input)
         else:
             if type(_rebin_input)!=type(None):
                 print("Rebin input needs to be a single int (applied to all spectra), a list with a rebin entry for each spectrum, or a dict with the spec. identifier and rebin value for any of the loaded spectra.")
@@ -2612,12 +2742,60 @@ class SunXspex(LoadSpec):
         
         return rebin_dict
 
+    def _if_rebin_input_list(self, _rebin_input, _default):
+        """ Handles rebin input as a list.
+
+        Parameters
+        ----------
+        _rebin_input : list, np.ndarray
+                The rebin input. Need to check if there is a one-to-one match between 
+                input entries and spectra loaded.
+
+        _default : dict
+                A default dictionary for rebinning.
+
+        Returns
+        -------
+        Returns a rebinning dictionary with keys of spectra IDs and rebin number.
+        """
+        if len(self.loaded_spec_data.keys())==len(_rebin_input):
+            rebin_dict = dict(zip(self.loaded_spec_data.keys(), _rebin_input))
+        else:
+            print("rebin input list must have an entry for each spectrum; e.g., 3 spectra could be [10,15,None].")
+            rebin_dict = _default
+        return rebin_dict
+
+    def _if_rebin_input_dict(self, _rebin_input):
+        """ Handles rebin input as a list.
+
+        Parameters
+        ----------
+        _rebin_input : dict
+                The rebin input. Keys of spectra IDs and rebin values. If `all` key 
+                exists then it takes priority over all other keys.
+
+        Returns
+        -------
+        Returns a rebinning dictionary with keys of spectra IDs and rebin number.
+        """
+        if "all" in _rebin_input.keys():
+            rebin_dict = dict(zip(self.loaded_spec_data.keys(), [_rebin_input["all"]]*len(self.loaded_spec_data.keys())))
+        else:
+            labels = list(self.loaded_spec_data.keys())+['combined']
+            rebin_dict = dict(zip(labels, [None]*(len(self.loaded_spec_data.keys())+1)))
+            for k in _rebin_input.keys():
+                if k in labels:
+                    rebin_dict[k] = _rebin_input[k]
+            if rebin_dict['combined'] is None:
+                rebin_dict['combined'] = rebin_dict['spectrum1']
+        return rebin_dict
+
     def _plot_from_dict(self, subplot_axes_grid):
         number_of_plots = len(self.plotting_info)
         subplot_axes_grid = self._build_axes(subplot_axes_grid, number_of_plots)
         axes, res_axes = [], []
         for s, ax in zip(self.plotting_info.keys(), subplot_axes_grid):
-            fitting_range = self.plotting_info[s]['fitting_range']
+            # need this at some point fitting_range = self.plotting_info[s]['fitting_range']
             self.res_ylim = self.res_ylim if hasattr(self, 'res_ylim') else [-7,7]
 
             ax.set_xlabel('Energy [keV]')
@@ -2706,12 +2884,22 @@ class SunXspex(LoadSpec):
                 plot_position = str(int(rows))+str(int(cols))+str(int(p+1))
                 subplot_axes_grid.append(plt.subplot(int(plot_position)))
         return subplot_axes_grid
-                
-    def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, hex_grid=False, plot_final_result=True):
-        # if the user doesn't want the final result to be shown, perhaps want the MCMC runs to be seen but not the MAP value on top
-        self._plr = plot_final_result
-        # rebin is ignored if the data has been rebinned
+
+    def _unbin_combin_check_and_rebin_input_format(self, rebin):
+        """ Get the correct dictionary rebin format.
         
+        If the data has been rebinned previously then this is undone to check if multiple data can be 
+        combined. The biinuing to the data is then re-applied at the end of plotting.
+
+        Parameters
+        ----------
+        rebin : int, list, or dict
+                The minimum number of counts in a bin.
+
+        Returns
+        -------
+        Boolean if the data needs rebinned after plot and the rebin dictionary to do this.
+        """
         # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined 
         _rebin_after_plot = False
         if hasattr(self, "_rebin_setting"):
@@ -2725,6 +2913,14 @@ class SunXspex(LoadSpec):
                 self.undo_rebin
                 _rebin_after_plot = True
         rebin = self._rebin_input_handler(_rebin_input=rebin) # get this as a dict, {"spectrum1":rebinValue1, "spectrum2":rebinValue2, ..., "combined":rebinValue}
+        return _rebin_after_plot, rebin
+                
+    def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, hex_grid=False, plot_final_result=True):
+        # if the user doesn't want the final result to be shown, perhaps want the MCMC runs to be seen but not the MAP value on top
+        self._plr = plot_final_result
+
+        # rebin is ignored if the data has been rebinned
+        _rebin_after_plot, rebin = self._unbin_combin_check_and_rebin_input_format(rebin)
         
         # check if the spectra combined plot can be made
         _channels, _channel_error = [], []
@@ -3515,8 +3711,9 @@ class SunXspex(LoadSpec):
         return ax2
 
     def _fix_corner_plot_titles(self, axes, titles, quantiles):
-        """ Method to create corner plot titles that are defined by user quantiles 
-        instead of corner.py's default quantiles of [0.16, 0.5, 0.84].
+        """ Method to create corner plot titles.
+        
+        Defined by user quantiles instead of corner.py's default quantiles of [0.16, 0.5, 0.84].
         
         Parameters
         ----------
