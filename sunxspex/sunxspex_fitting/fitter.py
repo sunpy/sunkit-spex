@@ -1102,7 +1102,7 @@ class SunXspex(LoadSpec):
                 # This would tie T1's value to T2's.
                 # if an rparam is tied to a frozen rparam then this is handled in sort_fixed_gain_method()
                 try:
-                    param_name_dict_order = self._update_rtable_or_kwargs(_rstatus, key, param_name_dict_order)
+                    param_name_dict_order = self._update_rtable_or_kwargs(key, param_name_dict_order, _rstatus)
                 except ValueError:
                     warnings.warn(f"Either the {key} or {_rstatus[4:]} response parameter has not been passed to the _pseudo_model. Value for parameter {key} will act like it is frozen.")
         
