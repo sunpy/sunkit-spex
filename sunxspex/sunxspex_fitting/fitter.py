@@ -2358,6 +2358,30 @@ class SunXspex(LoadSpec):
         return np.mean(np.array(_counts), axis=0)
         
     def _bin_comb4plot(self, rebin_and_spec, count_rate_model, energy_channels, energy_channel_error, count_rates, count_rate_errors):
+        """ Returns all information to rebin some counts data. 
+        
+        Mainly rebins the data to plot for the combined plot.
+        
+        Parameters
+        ----------
+        rebin_and_spec : list 
+                List of the minimum counts in a group (int) and the spectrum identifier 
+                for the spectrum to be binned (str, e.g., "spectrum1").
+
+        count_rate_model : 1d array
+                The count model array.
+
+        energy_channels, energy_channel_error, count_rates, count_rate_errors : 1d arrays
+                The energy channel mid-points, energy channel half bin widths, count rates, 
+                and count rate errors, respectively.
+
+        Returns
+        -------
+        A 2d array of new bins (new_bins), 1d array of bin widths (new_bin_width), 2d array of old bins (old_bins), 
+        1d array of old bin widths (old_bin_width), 1d array of new bin mid-points (energy_channels), 1d array of
+        energy errors/half bin width (energy_channel_error), and three more 1d arrays (count_rates, count_rate_errors, 
+        count_rate_model).
+        """
         old_bins = np.column_stack((energy_channels-energy_channel_error, energy_channels+energy_channel_error))
         old_bin_width = energy_channel_error*2
         new_bins, mask = self._group_cts(channel_bins=old_bins, counts=self._get_mean_counts_across_specs(), group_min=rebin_and_spec[0], spectrum=rebin_and_spec[1], verbose=True)
@@ -2380,11 +2404,11 @@ class SunXspex(LoadSpec):
         
         Parameters
         ----------
-        ax : axis object
-                Axis for the data and model.
+        ax : axes object
+                Axes for the data and model.
 
-        res_ax : axis object
-                Axis for the residuals.
+        res_ax : axes object
+                Axes for the residuals.
         
         res_info : list of length 2
                 First entry is the combined data and second entry is the correpsonding uncertainty list.
@@ -2511,7 +2535,40 @@ class SunXspex(LoadSpec):
             self._mcmc_mod_runs.append(_randcts)
 
     def _plot_mcmc_mods(self, ax, res_ax, res_info, spectrum="combined", num_of_samples=100, hex_grid=False, _rebin_info=None):
-        # [count_rates, count_rate_errors]
+        """ Plots MCMC runs (and residuals) on the given axes.
+        
+        Parameters
+        ----------
+        ax : axes object
+                Axes for the data and model.
+
+        res_ax : axes object
+                Axes for the residuals.
+        
+        res_info : list of length 2
+                First entry is the combined data and second entry is the correpsonding uncertainty list.
+
+        spectrum_indx : str
+                Spectrum ID in the `loaded_spec_data` attribute. E.g., "spectrum1", etc.
+                Default: "combined"
+
+        num_of_samples : int
+                Number of random sample entries to use for MCMC model run plotting.
+                Default: 100
+
+        hex_grid : bool
+                Indicates whether separate model lines should be drawn for MCMC runs or produce hexagonal 
+                histogram grid for all runs. If True `num_of_samples` is ignored.
+                Default: False
+                
+        _rebin_info : list of lrngth 4
+                Inputs for `_bin_model` method: [old_bin_width, old_bins, new_bins, new_bin_width].
+                Default: None
+
+        Returns
+        -------
+        None. 
+        """
         
         if spectrum=="combined":
             self._plot_mcmc_mods_combin(ax, res_ax, res_info, hex_grid=hex_grid, _rebin_info=_rebin_info)
@@ -2553,21 +2610,299 @@ class SunXspex(LoadSpec):
             res_ax.hexbin(es[keep], res_list[keep], gridsize=(100,20), cmap='Oranges', zorder=0, mincnt=1)
 
         self._make_or_add_mcmc_mod_runs(_randcts, e_mids)
+
+    def _combin_fitting_range(self, submod_spec, fitting_range):
+        """ Get the fitting range(s) for the combined plot.
+        
+        Parameters
+        ----------
+        submod_spec : str, int
+                The spectrum number identifier, e.g., 2 or "2" for "spectrum2". Set to "combined" 
+                for combined plot.
+
+        fitting_range : dict
+                Fitting range corresponding to the spectrum being plotted.
+
+        Returns
+        -------
+        The (potentially modified) fitting range list (fitting_range). 
+        """
+        if submod_spec=="combined":
+            frvs = np.array(list(fitting_range.values()))
+            if (frvs == frvs[0]).all():
+                fitting_range = [frvs[0]] if np.size(frvs[0])>2 else frvs[0]
+            else:
+                fitting_range = frvs
+        return fitting_range
+
+    def _plot_fitting_range(self, res, fitting_range, submod_spec):
+        """ Handles the fitting range plotting for one loaded spectrum.
+        
+        Parameters
+        ----------
+        res : axes object
+                Axes for the residual data.
+                Default: None
+
+        fitting_range : list, None
+                Fitting range corresponding to the spectrum being plotted.
+                Default: None
+
+        submod_spec : str, int
+                The spectrum number identifier, e.g., 2 or "2" for "spectrum2". Set to "combined" 
+                for combined plot.
+                Default: None
+
+        Returns
+        -------
+        None. 
+        """
+        if type(fitting_range)!=type(None):
+            # if combined then need all fitting ranges
+            fitting_range = self._combin_fitting_range(submod_spec, fitting_range)
+
+            if (np.size(fitting_range)==2) and (type(fitting_range[0])!=list):
+                # simple fitting range; e.g., [2,4]
+                res.plot([fitting_range[0], fitting_range[1]], [self.res_ylim[1],self.res_ylim[1]], linewidth=9, color="#17A589", solid_capstyle="butt")
+            elif (np.size(fitting_range)>2) and (submod_spec!="combined"):
+                # more complex fitting range; e.g., [[2,4], [5,9]]
+                fitting_range = np.array(fitting_range)
+                gaps_in_ranges = np.concatenate((fitting_range[:,-1][:-1][:,None], fitting_range[:,0][1:][:,None]), axis=1)
+                xs = np.insert(fitting_range, np.arange(1, len(fitting_range)), gaps_in_ranges, axis=0).flatten()
+                ys = ([self.res_ylim[1],self.res_ylim[1], np.nan, np.nan]*len(fitting_range))[:-2]
+                res.plot(xs, ys, linewidth=9, color="#17A589", solid_capstyle="butt")
+            else:
+                # for more multiple fitting ranges for combined plots; e.g., [[2,4], [[2,4], [5,9]]]
+                for suba, f in enumerate(fitting_range):
+                    if np.size(f)>2:
+                        f = np.array(f)
+                        gaps_in_ranges = np.concatenate((f[:,-1][:-1][:,None], f[:,0][1:][:,None]), axis=1)
+                        xs = np.insert(f, np.arange(1, len(f)), gaps_in_ranges, axis=0).flatten()
+                        ys = ([self.res_ylim[1],self.res_ylim[1], np.nan, np.nan]*len(f))[:-2]
+                    else:
+                        f = np.squeeze(f) # since this can sometimes be a list of one list depending on how the fitting range is defined
+                        xs, ys = [f[0], f[1]], [self.res_ylim[1],self.res_ylim[1]]
+                    res.plot(xs, np.array(ys), linewidth=9*1.2**suba, color="#17A589", solid_capstyle="butt", alpha=0.7-0.6*(suba/len(fitting_range))) # span the aphas between 0.1 and 0.7
     
-    def _plot_1fit(self,
-                   energy_channels, 
-                   energy_channel_error, 
-                   count_rates, 
-                   count_rate_errors, 
-                   count_rate_model, 
-                   axes=None, 
-                   fitting_range=None,
-                   plot_params=None,
-                   log_plotting_info=None,
-                   submod_spec=None, 
-                   rebin_and_spec=None, 
-                   num_of_samples=100, 
-                   hex_grid=False):
+    def _plot_submodels(self, axs, submod_spec, rebin, bin_info):
+        """ Plots sub/component models if available.
+        
+        Parameters
+        ----------
+        axs : axes object
+                Axes for the sub-model.
+
+        submod_spec : str
+                The spectrum number identifier, e.g., 2 or "2" for "spectrum2". Set to "combined" 
+                for combined plot.
+
+        rebin : list 
+                List of the minimum counts in a group (int) and the spectrum identifier for the spectrum to 
+                be binned (str, e.g., "spectrum1").
+
+        bin_info : tuple of arrays
+                The old energy bin widths (old_bin_width), old bins (old_bins), new bins and bin widths 
+                (new_bins, new_bin_width), and x-axis poitions for model points (energy_channels), 
+                respectively.
+
+        Returns
+        -------
+        List of sub-model arrays (spec_submods) and a list of strings (hex colour codes) for each sub-model's 
+        parameters (submod_param_cols). Colour for every parameter, each group of parameters for a sub-model 
+        is has the same colour.
+        """
+        old_bin_width, old_bins, new_bins, new_bin_width, energy_channels = bin_info
+
+        if hasattr(self, '_corresponding_submod_inputs'):
+            spec_submods = self._calculate_submodels(spectrum=submod_spec)
+            colour_pool = cycle(self._colour_list)
+            submod_cols = [next(colour_pool) for _ in range(len(self._corresponding_submod_inputs))]
+            
+            if submod_spec!="combined":
+                common = set([common for pl in range(len(self._corresponding_submod_inputs)-1) for common in (set(self._corresponding_submod_inputs[pl]) & set(self._corresponding_submod_inputs[pl+1]))])
+                self._params2get = [[unique+"_spectrum"+submod_spec for unique in pl if unique not in common] for pl in self._corresponding_submod_inputs]
+                submod_param_cols = [[smcs]*len(params) for smcs, params in zip(submod_cols, self._params2get)] + [["blue"]*len(common)]
+                submod_param_cols = [param for params in submod_param_cols for param in params]
+                
+            for sm, col in zip(spec_submods[0], submod_cols): 
+                if type(rebin)!=type(None):
+                    sm = rebin_any_array(sm*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
+                axs.plot(energy_channels, sm, alpha=0.7, color=col)
+        else:
+            spec_submods, submod_param_cols = None, None
+
+        return spec_submods, submod_param_cols
+
+    def _annotate_params(self, axs, param_str, submod_param_cols, _xycoords):
+        """ Annotates the plot with parameter names and values.
+        
+        Parameters
+        ----------
+        axs : axes objects
+                Axes for data.
+
+        param_str : str
+                One string with all formatted parameter names and values.
+
+        submod_param_cols : list of strings (hex colour codes)
+                Colours for each (sub-)model's parameters.
+
+        _xycoords : str
+                Tells matplotlib the coordinate system to use when placing the 
+                text (e.g., "axes fraction").
+
+        Returns
+        -------
+        None.
+        """
+        if hasattr(self, '_params2get'):
+            # if we know about sub-models
+            rainbow_text_lines((0.95, 0.95), strings=param_str, colors=submod_param_cols, xycoords=_xycoords, verticalalignment="top", horizontalalignment="right", ax=axs)
+        else:
+            axs.annotate("".join(param_str), (0.95, 0.95), xycoords=_xycoords, verticalalignment="top", horizontalalignment="right", color="navy")
+
+    def _plot_params(self, axs, res, plot_params, submod_param_cols):
+        """ Annotates the plot with parameter/response parameter names and values.
+        
+        Parameters
+        ----------
+        axs, res : axes objects
+                Axes for data and residuals, respectively.
+
+        plot_params : list of strings
+                List of parameter names from the parameter table corresponding to this spectrum.
+
+        submod_param_cols : list of strings (hex colour codes)
+                Colours for each (sub-)model's parameters.
+
+        Returns
+        -------
+        None.
+        """
+        if type(plot_params)==list:
+            param_str = []
+            _xycoords = "axes fraction"
+            for p in plot_params:
+                par_spec = p.split("_spectrum")
+                error = self.params["Error", p]
+                if np.all(error)==np.all([0,0]):
+                    param_str += [par_spec[0]+": {0:.2e}".format(self.params["Value", p])+"\n"]
+                else:
+                    param_str += [par_spec[0]+": {0:.2e}".format(self.params["Value", p])+"$^{{+{0:.2e}}}_{{-{1:.2e}}}$".format(error[1], error[0])+"\n"] # str(round(self.params["Value", p], 2))
+            # join param strings correctly and annotate the axes depending on whether they should be coloured with sub-models if present
+            self._annotate_params(axs, param_str, submod_param_cols, _xycoords)
+            
+            rparam_str = ""
+            for rp, rname in zip(["gain_slope_spectrum"+par_spec[1], "gain_offset_spectrum"+par_spec[1]], ["slope", "offset"]):
+                rerror = self.rParams["Error", rp]
+                if np.all(rerror)==np.all([0,0]):
+                    rparam_str += "\n"+rname+": "+str(round(self.rParams["Value", rp], 2))
+                else:
+                    rparam_str += "\n"+rname+": {0:.2f}".format(self.rParams["Value", rp])+"$^{{+{0:.2f}}}_{{-{1:.2f}}}$".format(rerror[1], rerror[0])
+            axs.annotate(rparam_str, (0.01, 0.01), xycoords=_xycoords, verticalalignment="bottom", horizontalalignment="left", fontsize="small", color="red", alpha=0.5)
+                
+            res.annotate(self._fit_stat_str(), (0.99, 0.01), xycoords=_xycoords, verticalalignment="bottom", horizontalalignment="right", fontsize="small", color="navy", alpha=0.7)
+
+    def _setup_rebin_plotting(self, rebin_and_spec, data_arrays):
+        """ Checks if plot wants rebinned data/models and returns relevant information.
+        
+        Parameters
+        ----------
+        data_arrays : tuple of 1d arrays
+                The energy channel mid-points (energy_channels), energy channel half bin widths 
+                (energy_channel_error), count rates (count_rates), count rate errors 
+                (count_rate_errors), and count rate model array (count_rate_model), respectively.
+
+        rebin_and_spec : list 
+                List of the minimum counts in a group (int) and the spectrum identifier for the spectrum to 
+                be binned (str, e.g., "spectrum1").
+
+        Returns
+        -------
+        A 2d array of new bins (new_bins), 1d array of bin widths (new_bin_width), 2d array of old bins (old_bins), 
+        1d array of old bin widths (old_bin_width), 1d array of new bin mid-points (energy_channels), 1d array of
+        energy errors/half bin width (energy_channel_error), three more 1d arrays (count_rates, count_rate_errors, 
+        count_rate_model), and a 1d array of energies for residual plotting (energy_channels_res), respectively.
+        """
+        rebin_val, rebin_spec = rebin_and_spec[0], rebin_and_spec[1]
+        energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = data_arrays
+        if type(rebin_val)!=type(None):
+            if rebin_spec in list(self.loaded_spec_data.keys()):
+                new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_spec4plot(rebin_and_spec, 
+                                                                                                                                                                                count_rate_model)
+            elif rebin_spec=='combined':
+                new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_comb4plot(rebin_and_spec, 
+                                                                                                                                                                                count_rate_model, 
+                                                                                                                                                                                energy_channels, 
+                                                                                                                                                                                energy_channel_error, 
+                                                                                                                                                                                count_rates, 
+                                                                                                                                                                                count_rate_errors)
+            energy_channels_res = new_bins.flatten() 
+        else:
+            old_bin_width, old_bins, new_bins, new_bin_width = None, None, None, None
+            energy_channels_res = np.column_stack((energy_channels-energy_channel_error, energy_channels+energy_channel_error)).flatten()
+        
+        return new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model, energy_channels_res
+
+    def _plot_1spec(self,
+                    data_arrays, 
+                    axes=None, 
+                    fitting_range=None,
+                    plot_params=None,
+                    log_plotting_info=None,
+                    submod_spec=None, 
+                    rebin_and_spec=None, 
+                    num_of_samples=100, 
+                    hex_grid=False):
+        """ Handles the plotting for one loaded spectrum.
+        
+        Parameters
+        ----------
+        data_arrays : tuple of 1d arrays
+                The energy channel mid-points (energy_channels), energy channel half bin widths 
+                (energy_channel_error), count rates (count_rates), count rate errors 
+                (count_rate_errors), and count rate model array (count_rate_model), respectively.
+
+        axes : axes object
+                Axes for the data and model. If None use `plt.gca()`.
+                Default: None
+
+        fitting_range : list
+                Fitting range corresponding to this spectrum.
+                Default: None
+
+        plot_params : list of strings
+                List of parameter names from the parameter table corresponding to this spectrum.
+                Default: None
+
+        log_plotting_info : dict
+                Dictionary to record the arrays used to plot the spectrum.
+                Default: None
+
+        submod_spec : None, str, int
+                The spectrum number identifier, e.g., 2 or "2" for "spectrum2". Set to "combined" 
+                for combined plot.
+                Default: None
+
+        rebin_and_spec : list 
+                List of the minimum counts in a group (int) and the spectrum identifier for the spectrum to 
+                be binned (str, e.g., "spectrum1").
+                Default: None
+
+        num_of_samples : int
+                Number of random sample entries to use for MCMC model run plotting.
+                Default: 100
+
+        hex_grid : bool
+                Indicates whether separate model lines should be drawn for MCMC runs or produce hexagonal 
+                histogram grid for all runs. If True `num_of_samples` is ignored.
+                Default: False
+
+        Returns
+        -------
+        None. 
+        """
+        energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = data_arrays
         
         axs = axes if type(axes)!=type(None) else plt.gca()
         fitting_range = fitting_range if type(fitting_range)!=type(None) else self.energy_fitting_range
@@ -2592,20 +2927,10 @@ class SunXspex(LoadSpec):
         axs.set_yscale('log')
         axs.xaxis.set_tick_params(labelbottom=False)
         axs.get_xaxis().set_visible(False)
-        if type(rebin_and_spec[0])!=type(None):
-            if rebin_and_spec[1] in list(self.loaded_spec_data.keys()):
-                new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_spec4plot(rebin_and_spec, 
-                                                                                                                                                                                count_rate_model)
-            elif rebin_and_spec[1]=='combined':
-                new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_comb4plot(rebin_and_spec, 
-                                                                                                                                                                                count_rate_model, 
-                                                                                                                                                                                energy_channels, 
-                                                                                                                                                                                energy_channel_error, 
-                                                                                                                                                                                count_rates, 
-                                                                                                                                                                                count_rate_errors)
-            energy_channels_res = new_bins.flatten() 
-        else:
-            energy_channels_res = np.column_stack((energy_channels-energy_channel_error,energy_channels+energy_channel_error)).flatten()
+
+        # check if the plot is to produce rebinned data and models
+        new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model, energy_channels_res = self._setup_rebin_plotting(rebin_and_spec, data_arrays)
+        
         residuals = [(count_rates[i] - count_rate_model[i])/count_rate_errors[i] if count_rate_errors[i]>0 else 0 for i in range(len(count_rate_errors))]
         residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
         # print("(1086)",energy_channels, count_rates)
@@ -2621,21 +2946,7 @@ class SunXspex(LoadSpec):
                      alpha=0.8)
         
         # if we have submodels, plot them
-        if hasattr(self, '_corresponding_submod_inputs'):
-            spec_submods = self._calculate_submodels(spectrum=submod_spec)
-            colour_pool = cycle(self._colour_list)
-            submod_cols = [next(colour_pool) for _ in range(len(self._corresponding_submod_inputs))]
-            
-            if submod_spec!="combined":
-                common = set([common for pl in range(len(self._corresponding_submod_inputs)-1) for common in (set(self._corresponding_submod_inputs[pl]) & set(self._corresponding_submod_inputs[pl+1]))])
-                self._params2get = [[unique+"_spectrum"+submod_spec for unique in pl if unique not in common] for pl in self._corresponding_submod_inputs]
-                submod_param_cols = [[smcs]*len(params) for smcs, params in zip(submod_cols, self._params2get)] + [["blue"]*len(common)]
-                submod_param_cols = [param for params in submod_param_cols for param in params]
-                
-            for sm, col in zip(spec_submods[0], submod_cols): 
-                if type(rebin_and_spec[0])!=type(None):
-                    sm = rebin_any_array(sm*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
-                axs.plot(energy_channels, sm, alpha=0.7, color=col)
+        spec_submods, submod_param_cols = self._plot_submodels(axs, submod_spec, rebin_and_spec[0], (old_bin_width, old_bins, new_bins, new_bin_width, energy_channels))
 
         #residuals plotting
         divider = make_axes_locatable(axs)
@@ -2656,32 +2967,8 @@ class SunXspex(LoadSpec):
             _rebin_info = [old_bin_width, old_bins, new_bins, new_bin_width] if type(rebin_and_spec[0])!=type(None) else None
             self._plot_mcmc_mods(axs, res, [count_rates, count_rate_errors, energy_channels_res], spectrum=submod_spec, num_of_samples=num_of_samples, hex_grid=hex_grid, _rebin_info=_rebin_info)
 
-        if type(fitting_range)!=type(None):
-            if submod_spec=="combined":
-                frvs = np.array(list(fitting_range.values()))
-                if (frvs == frvs[0]).all():
-                    fitting_range = [frvs[0]] if np.size(frvs[0])>2 else frvs[0]
-                else:
-                    fitting_range = frvs
-            if (np.size(fitting_range)==2) and (type(fitting_range[0])!=list):
-                res.plot([fitting_range[0], fitting_range[1]], [self.res_ylim[1],self.res_ylim[1]], linewidth=9, color="#17A589", solid_capstyle="butt")
-            elif (np.size(fitting_range)>2) and (submod_spec!="combined"):
-                fitting_range = np.array(fitting_range)
-                gaps_in_ranges = np.concatenate((fitting_range[:,-1][:-1][:,None], fitting_range[:,0][1:][:,None]), axis=1)
-                xs = np.insert(fitting_range, np.arange(1, len(fitting_range)), gaps_in_ranges, axis=0).flatten()
-                ys = ([self.res_ylim[1],self.res_ylim[1], np.nan, np.nan]*len(fitting_range))[:-2]
-                res.plot(xs, ys, linewidth=9, color="#17A589", solid_capstyle="butt")
-            else:
-                for suba, f in enumerate(fitting_range):
-                    if np.size(f)>2:
-                        f = np.array(f)
-                        gaps_in_ranges = np.concatenate((f[:,-1][:-1][:,None], f[:,0][1:][:,None]), axis=1)
-                        xs = np.insert(f, np.arange(1, len(f)), gaps_in_ranges, axis=0).flatten()
-                        ys = ([self.res_ylim[1],self.res_ylim[1], np.nan, np.nan]*len(f))[:-2]
-                    else:
-                        f = np.squeeze(f) # since this can sometimes be a list of one list depending on how th efitting range is defined
-                        xs, ys = [f[0], f[1]], [self.res_ylim[1],self.res_ylim[1]]
-                    res.plot(xs, np.array(ys), linewidth=9*1.2**suba, color="#17A589", solid_capstyle="butt", alpha=0.7-0.6*(suba/len(fitting_range))) # span the aphas between 0.1 and 0.7
+        # plot fitting range
+        self._plot_fitting_range(res, fitting_range, submod_spec)
             
         if type(log_plotting_info)==dict:
             # model
@@ -2697,35 +2984,23 @@ class SunXspex(LoadSpec):
             if hasattr(self, '_mcmc_mod_runs'):
                 log_plotting_info["mcmc_model_runs"] = self._mcmc_mod_runs
             
-        if type(plot_params)==list:
-            param_str = []
-            _xycoords = "axes fraction"
-            for p in plot_params:
-                par_spec = p.split("_spectrum")
-                error = self.params["Error", p]
-                if np.all(error)==np.all([0,0]):
-                    param_str += [par_spec[0]+": {0:.2e}".format(self.params["Value", p])+"\n"]
-                else:
-                    param_str += [par_spec[0]+": {0:.2e}".format(self.params["Value", p])+"$^{{+{0:.2e}}}_{{-{1:.2e}}}$".format(error[1], error[0])+"\n"] # str(round(self.params["Value", p], 2))
-            if hasattr(self, '_params2get'):
-                rainbow_text_lines((0.95, 0.95), strings=param_str, colors=submod_param_cols, xycoords=_xycoords, verticalalignment="top", horizontalalignment="right", ax=axs)
-            else:
-                axs.annotate("".join(param_str), (0.95, 0.95), xycoords=_xycoords, verticalalignment="top", horizontalalignment="right", color="navy")
-            
-            rparam_str = ""
-            for rp, rname in zip(["gain_slope_spectrum"+par_spec[1], "gain_offset_spectrum"+par_spec[1]], ["slope", "offset"]):
-                rerror = self.rParams["Error", rp]
-                if np.all(rerror)==np.all([0,0]):
-                    rparam_str += "\n"+rname+": "+str(round(self.rParams["Value", rp], 2))
-                else:
-                    rparam_str += "\n"+rname+": {0:.2f}".format(self.rParams["Value", rp])+"$^{{+{0:.2f}}}_{{-{1:.2f}}}$".format(rerror[1], rerror[0])
-            axs.annotate(rparam_str, (0.01, 0.01), xycoords=_xycoords, verticalalignment="bottom", horizontalalignment="left", fontsize="small", color="red", alpha=0.5)
-                
-            res.annotate(self._fit_stat_str(), (0.99, 0.01), xycoords=_xycoords, verticalalignment="bottom", horizontalalignment="right", fontsize="small", color="navy", alpha=0.7)
-            
+        # annotate with parameter names and values
+        self._plot_params(axs, res, plot_params, submod_param_cols)
+        
         return axs, res
     
     def _rebin_input_handler(self, _rebin_input):
+        """ Handles any acceptable rebin input.
+
+        Parameters
+        ----------
+        _rebin_input : list, np.ndarray, dict, int, None
+                The rebin input to be converted to the standard dictionary format. 
+
+        Returns
+        -------
+        Returns a rebinning dictionary with keys of spectra IDs and rebin number.
+        """
         
         _default = dict(zip(self.loaded_spec_data.keys(), [None]*len(self.loaded_spec_data.keys())))
         if type(_rebin_input)==int:
@@ -2791,6 +3066,22 @@ class SunXspex(LoadSpec):
         return rebin_dict
 
     def _plot_from_dict(self, subplot_axes_grid):
+        """ Try to build plot from `plotting_info` dict.
+
+        ** Under Construction **
+        
+        To be used if no access to a model function.
+
+        Parameters
+        ----------
+        subplot_axes_grid : list, None
+                List of axes objects for the spectra to be plotted on, if None then 
+                this list will be automatically created.
+
+        Returns
+        -------
+        A list of axes objects for spectra and a list of axes objects for residuals.
+        """
         number_of_plots = len(self.plotting_info)
         subplot_axes_grid = self._build_axes(subplot_axes_grid, number_of_plots)
         axes, res_axes = [], []
@@ -2853,6 +3144,22 @@ class SunXspex(LoadSpec):
         return axes, res_axes
 
     def _build_axes(self, subplot_axes_grid, number_of_plots):
+        """ Handles cutsom axes for plotting or creates the axes list.
+
+        Parameters
+        ----------
+        subplot_axes_grid : list, None
+                List of axes objects for the spectra to be plotted on, if None then 
+                this list will be automatically created.
+
+        number_of_plots : int
+                Number of plots needed; i.e., the number of loaded spectra (+1 if 
+                there is a combined spectra plot).
+
+        Returns
+        -------
+        A list of axes objects for spectra information.
+        """
         if type(subplot_axes_grid)!=type(None):
             assert len(subplot_axes_grid)>=number_of_plots, "Custom list of axes objects needs to be >= number of plots to be created. I.e., >="+str(number_of_plots)+"."
         else:
@@ -2916,6 +3223,38 @@ class SunXspex(LoadSpec):
         return _rebin_after_plot, rebin
                 
     def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, hex_grid=False, plot_final_result=True):
+        """ Plots the latest fit or sampling result.
+
+        Parameters
+        ----------
+        subplot_axes_grid : list, None
+                List of axes objects for the spectra to be plotted on, if None then 
+                this list will be automatically created.
+                Default: None
+
+        rebin : list, np.ndarray, dict, int, None
+                The rebin input to be converted to the standard dictionary format. If list, need one-to-one 
+                match with loaded spectra.
+                Default: None
+
+        num_of_samples : int
+                Number of random sample entries to use for MCMC model run plotting.
+                Default: 100
+
+        hex_grid : bool
+                Indicates whether separate model lines should be drawn for MCMC runs or produce hexagonal 
+                histogram grid for all runs. If True `num_of_samples` is ignored.
+                Default: False
+        
+        plot_final_result : bool
+                Indicates whether the final result should be plotted. Mainly for MCMC runs if only the runs 
+                are to be plotted without the MAP parameter value models.
+                Default: True
+
+        Returns
+        -------
+        A list of axes objects for spectra information.
+        """
         # if the user doesn't want the final result to be shown, perhaps want the MCMC runs to be seen but not the MAP value on top
         self._plr = plot_final_result
 
@@ -2950,36 +3289,36 @@ class SunXspex(LoadSpec):
         for s, ax in zip(range(number_of_plots), subplot_axes_grid):
             if (s<number_of_plots-1) or ((s==number_of_plots-1) and not can_combine) or (number_of_plots==1):
                 self.plotting_info['spectrum'+str(s+1)] = {}
-                axs, res = self._plot_1fit(energy_channels=self.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'],
-                                           energy_channel_error=self.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2, 
-                                           count_rates=self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"], 
-                                           count_rate_errors=self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"], 
-                                           count_rate_model=models[s], 
-                                           axes=ax, 
-                                           fitting_range=self.energy_fitting_range['spectrum'+str(s+1)],
-                                           plot_params=self._param_groups[s],
-                                           submod_spec=str(s+1),
-                                           log_plotting_info=self.plotting_info['spectrum'+str(s+1)], 
-                                           rebin_and_spec=[rebin["spectrum"+str(s+1)], "spectrum"+str(s+1)], 
-                                           num_of_samples=num_of_samples,
-                                           hex_grid=hex_grid)
+                axs, res = self._plot_1spec((self.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'],
+                                             self.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2, 
+                                             self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"], 
+                                             self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"], 
+                                             models[s]), 
+                                            axes=ax, 
+                                            fitting_range=self.energy_fitting_range['spectrum'+str(s+1)],
+                                            plot_params=self._param_groups[s],
+                                            submod_spec=str(s+1),
+                                            log_plotting_info=self.plotting_info['spectrum'+str(s+1)], 
+                                            rebin_and_spec=[rebin["spectrum"+str(s+1)], "spectrum"+str(s+1)], 
+                                            num_of_samples=num_of_samples,
+                                            hex_grid=hex_grid)
                 _count_rates.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"])
                 _count_rate_errors.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"])
                 axs.set_title('Spectrum '+str(s+1))
             else:
                 self.plotting_info['combined'] = {}
-                axs, res = self._plot_1fit(energy_channels=self.loaded_spec_data['spectrum'+str(s)]['count_channel_mids'], 
-                                           energy_channel_error=self.loaded_spec_data['spectrum'+str(s)]["count_channel_binning"]/2, 
-                                           count_rates=np.mean(np.array(_count_rates), axis=0), 
-                                           count_rate_errors=np.sqrt(np.sum(np.array(_count_rate_errors)**2, axis=0))/len(_count_rate_errors), 
-                                           count_rate_model=np.mean(models, axis=0), 
-                                           axes=ax, 
-                                           fitting_range=self.energy_fitting_range,
-                                           submod_spec='combined',
-                                           log_plotting_info=self.plotting_info['combined'], 
-                                           rebin_and_spec=[rebin['combined'], 'combined'], 
-                                           num_of_samples=num_of_samples,
-                                           hex_grid=hex_grid)
+                axs, res = self._plot_1spec((self.loaded_spec_data['spectrum'+str(s)]['count_channel_mids'], 
+                                             self.loaded_spec_data['spectrum'+str(s)]["count_channel_binning"]/2, 
+                                             np.mean(np.array(_count_rates), axis=0), 
+                                             np.sqrt(np.sum(np.array(_count_rate_errors)**2, axis=0))/len(_count_rate_errors), 
+                                             np.mean(models, axis=0)), 
+                                            axes=ax, 
+                                            fitting_range=self.energy_fitting_range,
+                                            submod_spec='combined',
+                                            log_plotting_info=self.plotting_info['combined'], 
+                                            rebin_and_spec=[rebin['combined'], 'combined'], 
+                                            num_of_samples=num_of_samples,
+                                            hex_grid=hex_grid)
                 axs.set_ylabel('Count Spectrum [cts s$^{-1}$ keV$^{-1}$ Det$^{-1}$]')
                 axs.set_title("Combined Spectra")
 
