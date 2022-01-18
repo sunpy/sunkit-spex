@@ -2712,6 +2712,7 @@ class SunXspex(LoadSpec):
         is has the same colour.
         """
         old_bin_width, old_bins, new_bins, new_bin_width, energy_channels = bin_info
+        spec_submods, submod_param_cols = None, None
 
         if hasattr(self, '_corresponding_submod_inputs'):
             spec_submods = self._calculate_submodels(spectrum=submod_spec)
@@ -2728,9 +2729,7 @@ class SunXspex(LoadSpec):
                 if type(rebin)!=type(None):
                     sm = rebin_any_array(sm*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
                 axs.plot(energy_channels, sm, alpha=0.7, color=col)
-        else:
-            spec_submods, submod_param_cols = None, None
-
+        
         return spec_submods, submod_param_cols
 
     def _annotate_params(self, axs, param_str, submod_param_cols, _xycoords):
