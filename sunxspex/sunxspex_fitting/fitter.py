@@ -1938,6 +1938,10 @@ class SunXspex(LoadSpec):
         # step=percentage of each best fit param. E.g., step=0.02 means that the step will be 2% for each param when differentiating
         _hess_step = 0.01 if "_hess_step" not in kwargs else kwargs["_hess_step"]
         kwargs.pop("_hess_step", None)
+
+        # any issues with the step size being a fractional input (e.g., parameter=0) then provide a fix, this gives a direct input to nd.Hessian
+        _abs_hess_step = None if "_abs_hess_step" not in kwargs else kwargs["_abs_hess_step"]
+        kwargs.pop("_abs_hess_step", None)
         
         soltn = minimize(self._fit_stat_minimize,
                          free_params_list, 
@@ -1947,7 +1951,7 @@ class SunXspex(LoadSpec):
         
         self._minimize_solution = soltn
         
-        std_err = self._calc_minimize_error(stat_args, step=_hess_step)
+        std_err = self._calc_minimize_error(stat_args, step=_hess_step, _abs_step=_abs_hess_step)
         
         # update the model parameters
         self._update_free(table=self.params, updated_free=soltn.x[:orig_free_param_len], errors=std_err[:orig_free_param_len])
@@ -1960,7 +1964,7 @@ class SunXspex(LoadSpec):
         
         return list(self.params.param_value)#self.model_params
     
-    def _calc_minimize_error(self, stat_args, step):
+    def _calc_minimize_error(self, stat_args, step, _abs_step=None):
         """ Calculates errors on the minimize solutions best fit parameters. 
         
         This assumes that free parameters have Gaussian posterior distributions and are 
@@ -1976,6 +1980,9 @@ class SunXspex(LoadSpec):
                 calculation to take for each parameter. I.e., if step=0.01 and 
                 free_params=[6,0.05] then Hessian steps would be [0.06,0.0005] (1%).
 
+        _abs_step : float, array-like or StepGenerator object, optional
+                Direct input to the `step` arg in nd.Hessian. Takes priority over `step`.
+
         Returns
         -------
         Array of errors for the free parameters.
@@ -1984,7 +1991,7 @@ class SunXspex(LoadSpec):
         self.sigmas = np.zeros(len(self._minimize_solution.x))
         self.correlation_matrix = np.identity(len(self._minimize_solution.x))
         try:
-            self._covariance_matrix = self._calc_hessian(mod_without_x=(lambda free_args: self._fit_stat_minimize(free_args, *stat_args)), fparams=self._minimize_solution.x, step=step)
+            self._covariance_matrix = self._calc_hessian(mod_without_x=(lambda free_args: self._fit_stat_minimize(free_args, *stat_args)), fparams=self._minimize_solution.x, step=step, _abs_step=_abs_step)
 
             for (i,j), cov in np.ndenumerate(self._covariance_matrix):
                 # diagonals are the variances
@@ -1997,7 +2004,7 @@ class SunXspex(LoadSpec):
             warnings.warn(f"LinAlgError when calculating the hessian. No errors are calculated.")
         return self.sigmas
     
-    def _calc_hessian(self, mod_without_x, fparams, step=0.01):
+    def _calc_hessian(self, mod_without_x, fparams, step=0.01, _abs_step=None):
         """ Calculates 2*inv(Hessian).
         
         Calculates and returns 2*inv(Hessian) which is equal to the covariance matrix 
@@ -2019,18 +2026,24 @@ class SunXspex(LoadSpec):
                 is 0 then a best guess at the correct order of magnitude for the step is made.
                 Default: 0.01 (or 1% steps)
 
+        _abs_step : float, array-like or StepGenerator object, optional
+                Direct input to the `step` arg in nd.Hessian. Takes priority over `step`. 
+
         Returns
         -------
         The 2d square covariance matrix.
         """
-        # get step sizes
-        steps = abs(fparams)*step
+        if type(_abs_step)==type(None):
+            # get step sizes
+            steps = abs(fparams)*step 
 
-        # step sized must be >0 but if using fractional step and parameter is 0 then try to get a good step size
-        zero_steps = np.where(steps==0)
-        # use the last few params the minimizer used to get an order of magnitude for the step to be
-        replacement_steps = np.mean(self._minimize_solution.final_simplex[0][:,zero_steps], axis=0)*step
-        steps[zero_steps] = replacement_steps if replacement_steps>0 else step
+            # step sized must be >0 but if using fractional step and parameter is 0 then try to get a good step size
+            zero_steps = np.where(steps==0)
+            # use the last few params the minimizer used to get an order of magnitude for the step to be
+            replacement_steps = np.mean(self._minimize_solution.final_simplex[0][:,zero_steps], axis=0)*step
+            steps[zero_steps] = replacement_steps if replacement_steps>0 else step
+        else:
+            steps = _abs_step
 
         hessian = nd.Hessian(mod_without_x, step=steps)(fparams)
         return 2 * np.linalg.inv(hessian) # 2 appears since our objective function is -2ln(L) and not -ln(L)
