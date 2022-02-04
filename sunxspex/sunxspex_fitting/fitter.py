@@ -47,13 +47,13 @@ import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
 
-from sunxspex.sunxspex_fitting import nu_spec_code as nu_spec
 from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 from sunxspex.sunxspex_fitting.photon_models_for_fitting import (defined_photon_models, f_vth, thick_fn, thick_warm)
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
-from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
+from sunxspex.sunxspex_fitting.data_loader import LoadSpec
 from sunxspex.sunxspex_fitting.instruments import rebin_any_array
-from sunxspex.sunxspex_fitting.parameter_handler import Parameters
+from sunxspex.sunxspex_fitting.parameter_handler import Parameters, isnumber
+
 
 __all__ = ["add_var", "del_var","add_photon_model", "del_photon_model", "SunXspex", "load"]
 
@@ -280,6 +280,10 @@ class SunXspex(LoadSpec):
 
     Parameters
     ----------
+    *args : dict
+            Dictionaries for custom data to be passed to `sunxspex.sunxspex_fitting.instruments.CustomLoader`. 
+            These will be added before any instrument file entries from `pha_file`.
+
     pha_file : string or list of strings
             The PHA file or list of PHA files for the spectrum to be loaded.
             See LoadSpec class.
@@ -288,6 +292,10 @@ class SunXspex(LoadSpec):
             The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
             that these are in the same directory with same filename as the PHA file(s) but with 
             extensions '.arf' and '.rmf', respectively.
+            See LoadSpec class.
+
+    srm_file : string
+            The file that contains the spectral response matrix for the given spectrum.
             See LoadSpec class.
 
     srm_custom : 2d array
@@ -372,23 +380,37 @@ class SunXspex(LoadSpec):
 
     Methods
     -------
+    corner_mcmc : _fix_titles (bool), **kwargs
+            Produces a corner plot of the MCMC run. The kwargs are passed to `corner.corner`.
+
     fit : **kwargs
             Used to initiate the spectral fitting. The kwargs are passed to minimiser, `bounds` kwarg is overwritten, 
             `_hess_step` can be passed to hessian calculation for errors.
+
+    group : channel_bins (array (n,2)), counts (array (n)), group_min (int)
+            Groups bins so they have at least a `group_min` number of counts.
+            See LoadSpec class.
+
+    group_pha_finder : channels (array (n,2)), counts (array (n)), group_min (int), print_tries (bool)
+            Check, incrementally from a minimum number, what group minimum is needed to leave no counts unbinned 
+            after rebinning. Returns binned channels and the minimum group number if one exists.
+            See LoadSpec class.
+
+    group_spec : spectrum (str), group_min (int), _orig_in_extras (bool)
+            Returns new bins and new binned counts, count errors, and effective exposures for a given spectrum and 
+            minimun bin gorup number.
+            See LoadSpec class.
 
     plot : subplot_axes_grid (list of axes), rebin (int,list,dict,None), num_of_samples (int), hex_grid (bool), plot_final_result (bool)
             Used to produce a plot. No inputs are required but they offer customisation for the default plot. Creates the 
             `plotting_info` attribute that contains may of the arrays (channel bins, counts, etc.) that produced the plot.
 
-    run_mcmc : code (str), number_of_walkers (int), walker_spread (str), steps_per_walker (int), mp_workers (int,None), append_runs (bool), **kwargs
-            Used to initiate posterior probability distribution sampling via MCMC. The kwargs are passed to the MCMC sampler,
-            `backend` takes priority over `append` keyword, `pool` is overwritten if `mp_workers` is provided.
-    
     plot_log_prob_chain : 
             Produces a plot of the log-probability chain from all MCMC samples. 
 
-    corner_mcmc : _fix_titles (bool), **kwargs
-            Produces a corner plot of the MCMC run. The kwargs are passed to `corner.corner`.
+    run_mcmc : code (str), number_of_walkers (int), walker_spread (str), steps_per_walker (int), mp_workers (int,None), append_runs (bool), **kwargs
+            Used to initiate posterior probability distribution sampling via MCMC. The kwargs are passed to the MCMC sampler,
+            `backend` takes priority over `append` keyword, `pool` is overwritten if `mp_workers` is provided.
 
     run_nested : code (str), nlive (int), method (str), tol (float), **kwargs
             Used to initiate posterior probability distribution sampling to perform nested sampling. Can be used for model 
@@ -412,6 +434,10 @@ class SunXspex(LoadSpec):
     error_confidence_range : float
             Fraction of the error confidence. I.e., 0.6827 is 1-sigma or 68.27%.
             Default = 0.6827
+
+    instruments : dict
+            Spectrum identifiers as keys with the spectrum's instrument as a string for values.
+            See LoadSpec class.
 
     intrument_loaders : dict
             Dictionary with keys of the supported instruments and values of their repsective loaders.
@@ -442,6 +468,9 @@ class SunXspex(LoadSpec):
 
     params : Parameters object
             Parameter table for all model parameters. See Parameters class.
+
+    plotting_info : dict
+            Contains most arrays used for plotting.
 
     rParams : Parameters object
             Parameter table for all response parameters. See Parameters class.
@@ -514,12 +543,26 @@ class SunXspex(LoadSpec):
             Determines how the class is pickled, used for parallelisation.
             Default = "normal"
 
+    _plr : bool
+            Set through plot() method's `plot_final_result` entry. True will plot the final model fit 
+            result, False will leave it out.
+            Default: True
+
     _rebin_setting : See LoadSpec class.
 
     _rebinned_edges : See LoadSpec class.
 
     _response_param_names : list
             All response parameter names in the one list.
+
+    _scaled_backgrounds : dict
+            Holds each spectrum's scaled background counts/s, if it has any.
+
+    _scaled_background_rates_cut : dict
+            Holds each spectrum's scaled background counts/s cut to the fitting range, if it has any.
+
+    _scaled_background_rates_full : dict
+            Holds each spectrum's full list scaled background counts/s, if it has any.
 
     _separate_models : list
             List of separated component models if models is given a string with >1 defined model.
@@ -562,12 +605,12 @@ class SunXspex(LoadSpec):
     s_minimised_params = s.fit()
     """
 
-    def __init__(self, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None):
         """Construct the class and set up some defaults."""
         
-        LoadSpec.__init__(self, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins)
+        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins)
 
-        self._construction_string_sunxspex = f"SunXspex(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
             
         self.loglikelihood = "cstat"
         
@@ -1267,11 +1310,14 @@ class SunXspex(LoadSpec):
             m = self._model(**sep_params, energies=kwargs["photon_channels"][s]) * np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1] 
-            cts_model = nu_spec.make_model(energies=kwargs["photon_channels"][s], 
-                                       photon_model=m,
-                                       parameters=None, 
-                                       srm=kwargs["total_responses"][s]) 
+            cts_model = make_model(energies=kwargs["photon_channels"][s], 
+                                   photon_model=m,
+                                   parameters=None, 
+                                   srm=kwargs["total_responses"][s]) 
             
+            if "scaled_background_spectrum"+str(s+1) in self._scaled_backgrounds:
+                cts_model += self._scaled_backgrounds["scaled_background_spectrum"+str(s+1)]
+
             # apply a response gain correction if need be
             if ("gain_slope_spectrum"+str(s+1) in kwargs) or ("gain_offset_spectrum"+str(s+1) in kwargs):
                 cts_model = self._gain_energies(energies=kwargs["count_channel_mids"][s], 
@@ -1284,8 +1330,7 @@ class SunXspex(LoadSpec):
         
             cts_models.append(cts_model[None,:]) # need [None, :] these lines get rid of a dimension meaning later concatenation fails
         
-        return cts_models
-            
+        return cts_models        
     
     def _pseudo_model(self, free_params_list, tied_or_frozen_params_list, param_name_list_order, **other_inputs):
         """ Bridging method between the input args (free,other) and different ordered args for the model calculation.
@@ -1556,12 +1601,12 @@ class SunXspex(LoadSpec):
         
         # make sure only the free parameters are getting varied so put them first
         mu = self._pseudo_model(free_params_list, 
-                               tied_or_frozen_params_list, 
-                               param_name_list_order, 
-                               photon_channels=photon_channels,
-                               count_channel_mids=count_channel_mids, 
-                               total_responses=srm,
-                               **kwargs) 
+                                tied_or_frozen_params_list, 
+                                param_name_list_order, 
+                                photon_channels=photon_channels,
+                                count_channel_mids=count_channel_mids, 
+                                total_responses=srm,
+                                **kwargs) 
         
         ll = 0
         for m, o, e, l, err in zip(mu, observed_counts, e_binning, livetime, observed_count_errors):
@@ -1574,7 +1619,7 @@ class SunXspex(LoadSpec):
                 ll += self._choose_loglikelihood()(model_cts, o, err)
             elif maximize_or_minimize == "minimize":
                 ll += self._minus_2lnL()(model_cts, o, err)
-        
+
         return ll
         
     def _cut_srm(self, srms, spectrum=None):
@@ -1654,7 +1699,7 @@ class SunXspex(LoadSpec):
             srm.append(self.loaded_spec_data[k]['srm'])
             e_binning.append(self.loaded_spec_data[k]['count_channel_binning'])
             observed_counts.append(self.loaded_spec_data[k]['counts'])
-            observed_count_errors.append(self.loaded_spec_data[k]['count_rate_error'])
+            observed_count_errors.append(self.loaded_spec_data[k]['count_error'])
             livetime.append(self.loaded_spec_data[k]['effective_exposure'])
             
         return photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors
@@ -1772,6 +1817,33 @@ class SunXspex(LoadSpec):
                 update_fixed_params, update_free_params, update_free_bounds = self._gain_free_or_tie(update_fixed_params, update_free_params, update_free_bounds, s)
             
         return update_fixed_params, update_free_params, update_free_bounds
+
+    def _include_background(self, _for_plotting=False):
+        """ Inspect whether a background is in the extras entry to be added to the model.
+
+        Make the `_scaled_background_rates_cut` and `_scaled_background_rates_full` attributes which 
+        is a dictionary of all instrument backgrounds  cut to the fit range size (for fitting) and 
+        all of them (for plotting) respectively
+        
+        Parameters
+        ----------
+        _for_plotting : bool
+                If plotting then we don't need to cut the values like when fitting.
+                Default: False
+        
+        Returns
+        -------
+        None.
+        """
+        self._scaled_background_rates_cut, self._scaled_background_rates_full = {}, {}
+        # loop through both spectra to check the response parameters
+        for s in range(len(self.loaded_spec_data)):
+            # do not want to include bg spectrum if the data is structured to be event-background
+            if ("background_rate" in self.loaded_spec_data["spectrum"+str(s+1)]["extras"]) and (not self.loaded_spec_data["spectrum"+str(s+1)]["extras"]["counts=data-bg"]):
+                # turn the background rate (cts/keV/s) into just cts/s scaled to the event time
+                bg_cts = self.loaded_spec_data["spectrum"+str(s+1)]["extras"]["background_rate"]*self.loaded_spec_data["spectrum"+str(s+1)]["count_channel_binning"]
+                self._scaled_background_rates_cut["scaled_background_spectrum"+str(s+1)] = self._cut_counts(bg_cts, spectrum=s+1) if not _for_plotting else bg_cts
+                self._scaled_background_rates_full["scaled_background_spectrum"+str(s+1)] = bg_cts
     
     def _fit_stat_minimize(self, *args, **kwargs):
         """ Return the chosen fit statistic defined to minimise for the best fit.
@@ -1892,6 +1964,10 @@ class SunXspex(LoadSpec):
         free_params_list.extend(list(update_free_params.values()))
         tied_or_frozen_params_list.extend(list(update_fixed_params.values()))
         self._free_model_param_bounds.extend(update_free_bounds)
+
+        # check if a background is to be included and make the self._scaled_backgrounds attr
+        self._include_background()
+        self._scaled_backgrounds = self._scaled_background_rates_cut
         
         # only want values in energy range specified
         srm = self._cut_srm(srm) # saves a couple of seconds
@@ -1899,16 +1975,21 @@ class SunXspex(LoadSpec):
         observed_counts = self._cut_counts(observed_counts) # same with the observed counts
         observed_count_errors = self._cut_counts(observed_count_errors)
         e_binning = self._cut_counts(e_binning)
+
+        # cut the livetimes too if each channel bin is livetime dependent like rhessi
+        livetime = [self._cut_counts([lvt]) if not isnumber(lvt) else lvt for lvt in livetime]
         
         # don't waste time on full rows/columns of 0s in the srms
         photon_channel_bins, photon_channel_mids, srm = self._photon_space_reduce(ph_bins=photon_channel_bins, 
                                                                                   ph_mids=photon_channel_mids, 
                                                                                   srm=srm) # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
-        e_binning, count_channel_mids, observed_counts, observed_count_errors, srm = self._count_space_reduce(ct_binning=e_binning,
-                                                                                                              ct_mids=count_channel_mids, 
-                                                                                                              ct_obs=observed_counts,
-                                                                                                              ct_err=observed_count_errors, 
-                                                                                                              srm=srm) # this may not do anything if a fitting range has already cut away a lot across counts space
+        
+        # remove the count space reduce since this now needs to reduce the livetimes and baclgrounds if they are there
+        # e_binning, count_channel_mids, observed_counts, observed_count_errors, srm = self._count_space_reduce(ct_binning=e_binning,
+        #                                                                                                       ct_mids=count_channel_mids, 
+        #                                                                                                       ct_obs=observed_counts,
+        #                                                                                                       ct_err=observed_count_errors, 
+        #                                                                                                       srm=srm) # this may not do anything if a fitting range has already cut away a lot across counts space
 
         return free_params_list, (photon_channel_bins, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors, tied_or_frozen_params_list, param_name_list_order), self._free_model_param_bounds, orig_free_param_len
         
@@ -1928,7 +2009,7 @@ class SunXspex(LoadSpec):
         -------
         List of all parameter values after the fitting has taken place.
         """
-
+        
         free_params_list, stat_args, free_bounds, orig_free_param_len = self._fit_setup()
         
         kwargs["method"] = "Nelder-Mead" if "method" not in kwargs else kwargs["method"]
@@ -2001,7 +2082,7 @@ class SunXspex(LoadSpec):
                 else:
                     self.correlation_matrix[i,j] = cov / (np.sqrt(self._covariance_matrix[i,i]) * np.sqrt(self._covariance_matrix[j,j]))
         except LinAlgError:
-            warnings.warn(f"LinAlgError when calculating the hessian. No errors are calculated.")
+            warnings.warn(f"LinAlgError when calculating the hessian. Errors may not be calculated.")
         return self.sigmas
     
     def _calc_hessian(self, mod_without_x, fparams, step=0.01, _abs_step=None):
@@ -2039,8 +2120,11 @@ class SunXspex(LoadSpec):
 
             # step sized must be >0 but if using fractional step and parameter is 0 then try to get a good step size
             zero_steps = np.where(steps==0)
-            # use the last few params the minimizer used to get an order of magnitude for the step to be
-            replacement_steps = np.mean(self._minimize_solution.final_simplex[0][:,zero_steps], axis=0)*step
+            try:
+                # use the last few params the minimizer used to get an order of magnitude for the step to be
+                replacement_steps = np.mean(self._minimize_solution.final_simplex[0][:,zero_steps], axis=0)*step
+            except AttributeError:
+                replacement_steps = 0
             steps[zero_steps] = replacement_steps if replacement_steps>0 else step
         else:
             steps = _abs_step
@@ -2067,6 +2151,9 @@ class SunXspex(LoadSpec):
         # want all energies plotted, not just ones in fitting range so change for now and change back later
         _energy_fitting_indices_orig = copy(self._energy_fitting_indices)
         self._energy_fitting_indices = self._fit_range(count_channel_mids, dict(zip(self.loaded_spec_data.keys(), np.tile([0, np.inf], (len(self.loaded_spec_data.keys()), 1)))))
+
+        # make sure using full background counts, not cut version for fitting
+        self._scaled_backgrounds = self._scaled_background_rates_full
         
         # not sure if there are multiple spectra for args
         # if just one spectrum then its just the appropriate entries in the dict from LoadSpec
@@ -2100,7 +2187,7 @@ class SunXspex(LoadSpec):
         except ValueError:
             return [mu[i][0] for i in range(len(mu))]
     
-    def _calc_counts_model(self, photon_model, parameters=None, spectrum="spectrum1", **kwargs):
+    def _calc_counts_model(self, photon_model, parameters=None, spectrum="spectrum1", include_bg=False, **kwargs):
         """ Easily calculate a spectrum's count model from the parameter table and user photon model.
         
         Given a model (a calculated model array or a photon model function) then calcutes the counts 
@@ -2120,6 +2207,11 @@ class SunXspex(LoadSpec):
         spectrum : str
                 The spectrum identifier, e.g., "spectrum2".
                 Default: "spectrum1"
+
+        include_bg : bool
+                Determines whether the background should be added to the model if it is present.
+                Don't want it added to sub-models but will want it added to overall models.
+                Default: False
         
         **kwargs : 
                 Used to set the response parameters differently than what was calculated,
@@ -2148,11 +2240,16 @@ class SunXspex(LoadSpec):
             print("parameters needs to be a dictionary or list (or np.array) of the photon_model inputs (excluding energies input) or None if photon_model is values and not a function.")
             return
 
-        cts_model = nu_spec.make_model(energies=photon_channel_bins, 
-                                       photon_model=m * np.diff(photon_channel_bins).flatten(),
-                                       parameters=None, 
-                                       srm=srm) / np.diff(self.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
-            
+        cts_model = make_model(energies=photon_channel_bins, 
+                               photon_model=m * np.diff(photon_channel_bins).flatten(),
+                               parameters=None, 
+                               srm=srm) 
+
+        if include_bg and ("scaled_background_"+spectrum in self._scaled_backgrounds):
+                cts_model += self._scaled_backgrounds["scaled_background_"+spectrum]
+
+        cts_model /= np.diff(self.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
+
         # if the spectrum has been gain shifted then this will be done but if user provides their own values they will take priority
         if ("gain_slope_spectrum"+str(spec_no) in kwargs) and ("gain_offset_spectrum"+str(spec_no) in kwargs):
             cts_model = self._gain_energies(energies=self.loaded_spec_data[spectrum]['count_channel_mids'], 
@@ -2309,7 +2406,7 @@ class SunXspex(LoadSpec):
         same way (old_bins, old_bin_width), and the new bin channel "error" 
         (energy_channel_error).
         """
-        new_bins, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
+        new_bins, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
         old_bins = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
         old_bin_width = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_binning"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_binning"]
         energy_channel_error = new_bin_width/2
@@ -2547,6 +2644,20 @@ class SunXspex(LoadSpec):
         else:
             self._mcmc_mod_runs.append(_randcts)
 
+    def _no_mcmc_change(self):
+        """ Checks if the MCMC samples being plotted have changed since the last 
+        time this was run. E.g., return False if more runs have been burned, etc.
+        
+        Returns
+        -------
+        True if there has not been a change to the MCMC samples to plot since this 
+        was last run, False if there has been a change. 
+        """
+        try:
+            return np.array_equal(self.__mcmc_samples__, self.all_mcmc_samples[self._samp_inds])
+        except IndexError:
+            return False
+
     def _plot_mcmc_mods(self, ax, res_ax, res_info, spectrum="combined", num_of_samples=100, hex_grid=False, _rebin_info=None):
         """ Plots MCMC runs (and residuals) on the given axes.
         
@@ -2594,7 +2705,7 @@ class SunXspex(LoadSpec):
 
         # ensure same samples are used across all spectra (needs to be when combining spectra), only update if more runs have been added since __mcmc_samples__ was created
         # or if plotting lines then hexagons
-        if not hasattr(self, "__mcmc_samples__") or not np.array_equal(self.__mcmc_samples__, self.all_mcmc_samples[self._samp_inds]):
+        if not hasattr(self, "__mcmc_samples__") or not self._no_mcmc_change():
             self._randsamples_or_all(hex_grid, num_of_samples)
 
         _randcts = []
@@ -2603,7 +2714,7 @@ class SunXspex(LoadSpec):
             # take list of [1,0.1,3,par1,70] where par1 was sampled over and replace par1 a sample value
             _pars = [_params[mcmc_freepar_labels.index(p)] if type(p)==str else p for p in _spec_pars]
             _rpars = {name:(_params[mcmc_freepar_labels.index(val)] if type(val)==str else val) for name,val in _spec_rpars.items()}
-            e_mids, ctr = self._calc_counts_model(photon_model=self._model, parameters=_pars, spectrum="spectrum"+str(s+1), **_rpars)
+            e_mids, ctr = self._calc_counts_model(photon_model=self._model, parameters=_pars, spectrum="spectrum"+str(s+1), include_bg=True, **_rpars)
             _randcts.append(ctr)
             if _rebin_info is not None:
                 ctr = self._bin_model(ctr, *_rebin_info)
@@ -2753,8 +2864,8 @@ class SunXspex(LoadSpec):
         axs : axes objects
                 Axes for data.
 
-        param_str : str
-                One string with all formatted parameter names and values.
+        param_str : list of str
+                List of strings with all formatted parameter names and values.
 
         submod_param_cols : list of strings (hex colour codes)
                 Colours for each (sub-)model's parameters.
@@ -2841,7 +2952,7 @@ class SunXspex(LoadSpec):
         if type(rebin_val)!=type(None):
             if rebin_spec in list(self.loaded_spec_data.keys()):
                 new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_spec4plot(rebin_and_spec, 
-                                                                                                                                                                                count_rate_model)
+                                                                                                                                                                                count_rate_model)                                                                                                                                                       
             elif rebin_spec=='combined':
                 new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_comb4plot(rebin_and_spec, 
                                                                                                                                                                                 count_rate_model, 
@@ -2939,13 +3050,14 @@ class SunXspex(LoadSpec):
         axs.set_yscale('log')
         axs.xaxis.set_tick_params(labelbottom=False)
         axs.get_xaxis().set_visible(False)
-
+        
         # check if the plot is to produce rebinned data and models
         new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model, energy_channels_res = self._setup_rebin_plotting(rebin_and_spec, data_arrays)
+        self._plot_rebin_info = [old_bin_width, old_bins, new_bins, new_bin_width] # for background is needed
         
         residuals = [(count_rates[i] - count_rate_model[i])/count_rate_errors[i] if count_rate_errors[i]>0 else 0 for i in range(len(count_rate_errors))]
         residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
-        # print("(1086)",energy_channels, count_rates)
+        
         ## plot data
         axs.errorbar(energy_channels, 
                      count_rates, 
@@ -3221,7 +3333,7 @@ class SunXspex(LoadSpec):
         """
         # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined 
         _rebin_after_plot = False
-        if hasattr(self, "_rebin_setting"):
+        if hasattr(self, "_rebin_setting") and (len(self.loaded_spec_data)>1):
             # check if rebinning needs done to at least one spectrum
             # e.g., self._rebin_setting={'spectrum1': 8, 'spectrum2': None} -> yes, self._rebin_setting={'spectrum1': None, 'spectrum2': None} -> no
             _need_rebinning = [0 if type(s)==type(None) else s for s in self._rebin_setting.values()]
@@ -3233,6 +3345,70 @@ class SunXspex(LoadSpec):
                 _rebin_after_plot = True
         rebin = self._rebin_input_handler(_rebin_input=rebin) # get this as a dict, {"spectrum1":rebinValue1, "spectrum2":rebinValue2, ..., "combined":rebinValue}
         return _rebin_after_plot, rebin
+
+    def _plot_background(self, axes, spectrum, rebin=None):
+        """ Plot the background spectrum if there is one.
+        
+        If a background exists in the extras key in the `loaded_spec_data` entry for a given
+        spectrum then plot it in grey and behind all other lines. Add some useful annotation to 
+        the plot.
+
+        Parameters
+        ----------
+        axes : axes object
+                Axes for the data and model. 
+
+        spectrum : str
+                Spectrum identifier; e.g., "spectrum1". 
+
+        rebin : into or None
+                If it is a number, rebin the background to the same energy bins as the event time.
+                Default: None 
+
+        Returns
+        -------
+        None.
+        """
+        if 'background_rate' in self.loaded_spec_data[spectrum]['extras']:
+
+            if isnumber(rebin):
+                # self._plot_rebin_info defined as [old_bin_width, old_bins, new_bins, new_bin_width] purely for this method
+                energies = self._plot_rebin_info[2].flatten()
+                _bg_rate_binned = self._bin_model(self.loaded_spec_data[spectrum]['extras']['background_rate'], *self._plot_rebin_info)
+                bg_rate = np.concatenate((_bg_rate_binned[:,None],_bg_rate_binned[:,None]),axis=1).flatten()
+            else:
+                energies = self.loaded_spec_data[spectrum]['count_channel_bins'].flatten()
+                bg_rate = np.concatenate((self.loaded_spec_data[spectrum]['extras']['background_rate'][:,None],self.loaded_spec_data[spectrum]['extras']['background_rate'][:,None]),axis=1).flatten()
+
+            axes.plot(energies, bg_rate, color="grey", zorder=0)
+            self.plotting_info[spectrum]["background_rate"] = bg_rate
+
+            str_list, c_list = ["BG"], ["grey"]
+            # check if the data is actually the event-background
+            if self.loaded_spec_data[spectrum]["extras"]["counts=data-bg"]:
+                str_list.insert(0, "Counts=Evt-BG\n")
+                c_list.insert(0, "k")
+            rainbow_text_lines((0.01, 0.99), strings=str_list, colors=c_list, xycoords="axes fraction", verticalalignment="top", horizontalalignment="left", ax=axes, alpha=0.8, fontsize="small")
+
+    def _same_instruments(self, can_combine):
+        """ Only combine if all spectra are from the same instrument the now. 
+        
+        Obviously if the previous checks have revealed they can then False should be return 
+        regardless of the instruments.
+
+        Parameters
+        ----------
+        can_combine : bool
+                Result from previous checks to see if several spectra can be combined.
+
+        Returns
+        -------
+        Bool.
+        """
+        if (len(list(dict.fromkeys(list(self.instruments.values()))))==1) and (can_combine):
+            return True
+        else:
+            return False
                 
     def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, hex_grid=False, plot_final_result=True):
         """ Plots the latest fit or sampling result.
@@ -3285,12 +3461,19 @@ class SunXspex(LoadSpec):
         else:
             can_combine = False
             print("The energy channels and/or binning are different for at least one fitted spectrum. Not sure how to combine all spectra so won\'t show combined plot.")
+
+        # check for same instruments, no point in combining counts from different instruments?
+        can_combine = self._same_instruments(can_combine)
         
         if (self._model is None) and hasattr(self,"_plotting_info"):
             return self._plot_from_dict(subplot_axes_grid)
 
         number_of_plots = len(self.loaded_spec_data)+1 if (len(self.loaded_spec_data)>1) and (can_combine) else len(self.loaded_spec_data) # plus one for combined plot
         subplot_axes_grid = self._build_axes(subplot_axes_grid, number_of_plots)
+
+        # reset backgrounds for plotting
+        self._include_background(_for_plotting=True)
+        self._scaled_backgrounds = self._scaled_background_rates_full
 
         # only need enough axes for the number of spectra to plot so doesn't matter if more axes are given
         models = self._calculate_model()
@@ -3317,6 +3500,10 @@ class SunXspex(LoadSpec):
                 _count_rates.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"])
                 _count_rate_errors.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"])
                 axs.set_title('Spectrum '+str(s+1))
+
+                # do we have a background for this spectrum?
+                self._plot_background(axes=axs, spectrum='spectrum'+str(s+1), rebin=rebin["spectrum"+str(s+1)])
+
             else:
                 self.plotting_info['combined'] = {}
                 axs, res = self._plot_1spec((self.loaded_spec_data['spectrum'+str(s)]['count_channel_mids'], 
@@ -3875,6 +4062,20 @@ class SunXspex(LoadSpec):
         The pool of workers.
         """
         return Pool(workers)
+
+    def _mcmc_rerun_cleanup(self):
+        """ Deletes attributes that should be replaced if the MCMC is run again, 
+        either a brand new run or appending runs. 
+        
+        Returns
+        -------
+        None.
+        """
+        # if this method is run again then __mcmc_samples__ will need to change (for plotting)
+        if hasattr(self, "__mcmc_samples__"):
+            del self.__mcmc_samples__
+        if hasattr(self, "_lpc"):
+            del self._lpc
     
     def run_mcmc(self, 
                  code="emcee", 
@@ -3946,9 +4147,8 @@ class SunXspex(LoadSpec):
         if append_runs and ('backend' not in kwargs) and hasattr(self, 'mcmc_sampler'):
             kwargs['backend'], walker_pos = self.mcmc_sampler.backend, None
 
-        # if this method is run again then __mcmc_samples__ will need to change (for plotting)
-        if hasattr(self, "__mcmc_samples__"):
-            del self.__mcmc_samples__
+        # if this method is run again then some attrs need to be reset
+        self._mcmc_rerun_cleanup()
 
         self.mcmc_sampler = self._run_mcmc_core(mcmc_setups, probability_args, walker_pos, steps_per_walker=steps_per_walker, **kwargs)
         
@@ -4526,3 +4726,40 @@ def imports():
             # check for functions and their names being used to refer to them 
             _imps += "* from "+str(inspect.getmodule(val).__name__)+" import "+val.__name__+" as "+name + "\n"
     return _imps  
+
+
+def make_model(energies=None, photon_model=None, parameters=None, srm=None):
+    """ Takes a photon model array ( or function if you provide the pinputs with parameters), the spectral response matrix and returns a model count spectrum.
+    
+    Parameters
+    ----------
+    energies : array/list
+            List of energies.
+            Default : None
+
+    photon_model : function/array/list
+            Array -OR- function representing the photon model (if it's a function, provide the parameters of the function as a list, e.g. paramters = [energies, const, power]).
+            Default : None
+            
+    parameters : list
+            List representing the inputs a photon model function, if a function is provided, excludeing the energies the spectrum is over.
+            Default : None
+
+    srm : matrix/array
+            Spectral response matrix.
+            Default : None
+            
+    Returns
+    -------
+    A model count spectrum.
+    """
+
+    ## if parameters is None then assume the photon_model input is already a spectrum to test, else make the model spectrum from the funciton and parameters
+    if type(parameters) == type(None):
+        photon_spec = photon_model
+    else:
+        photon_spec = photon_model(energies, *parameters)
+
+    model_cts_spectrum = np.matmul(photon_spec, srm)
+    
+    return model_cts_spectrum

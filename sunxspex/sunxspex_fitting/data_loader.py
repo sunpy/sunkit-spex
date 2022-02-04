@@ -6,10 +6,10 @@ import numpy as np
 from copy import deepcopy
 from astropy.io import fits
 
-from .parameter_handler import _make_into_list # sunxspex.sunxspex_fitting.parameter_handler
+from .parameter_handler import _make_into_list, isnumber # sunxspex.sunxspex_fitting.parameter_handler
 from . import instruments as inst # sunxspex.sunxspex_fitting.instruments 
 
-__all__ = ["LoadSpec", "isnumber"]
+__all__ = ["LoadSpec"]
 
 
 class LoadSpec:
@@ -29,9 +29,12 @@ class LoadSpec:
             The PHA file or list of PHA files for the spectrum to be loaded.
 
     arf_file, rmf_file : string or list of strings
-            The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
-            that these are in the same directory with same filename as the PHA file(s) but with 
-            extensions '.arf' and '.rmf', respectively.
+            The ARF and RMF files associated with the PHA file(s). If none are given (e.g, with 
+            NuSTAR data) it is assumed that these are in the same directory with same filename 
+            as the PHA file(s) but with extensions '.arf' and '.rmf', respectively.
+
+    srm_file : string
+            The file that contains the spectral response matrix for the given spectrum.
 
     srm_custom : 2d array
             User defined spectral response matrix. This is accepted over the SRM created from any 
@@ -40,6 +43,9 @@ class LoadSpec:
     custom_channel_bins : 2d array
             User defined channel bins for the columns of the SRM matrix. 
             E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
+
+    **kwargs : 
+            Any kwargs will get passed to all instrument loaders.
 
     Properties
     ----------
@@ -69,10 +75,14 @@ class LoadSpec:
             after rebinning. Returns binned channels and the minimum group number if one exists.
 
     group_spec : spectrum (str), group_min (int), _orig_in_extras (bool)
-            Returns new bins and new binned counts for a given spectrum and minimun bin gorup number.
+            Returns new bins and new binned counts, count errors, and effective exposures for a given spectrum and 
+            minimun bin gorup number.
 
     Attributes
     ----------
+    instruments : dict
+            Spectrum identifiers as keys with the spectrum's instrument as a string for values.
+            
     intrument_loaders : dict
             Dictionary with keys of the supported instruments and values of their repsective loaders.
 
@@ -101,36 +111,41 @@ class LoadSpec:
     s.rebin = 10
     s.undo_rebin = 10
     """ 
-    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"LoadSpec(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
         
         # from sunxspex.sunxspex_fitting.instruments import * gives us the instrument specific loaders
         self.intrument_loaders = {"NuSTAR":inst.NustarLoader, "STIX":inst.StixLoader, "RHESSI":inst.RhessiLoader}
 
-        pha_file, arf_file, rmf_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file, 
-                                                                                                      arf_file=arf_file, 
-                                                                                                      rmf_file=rmf_file, 
-                                                                                                      srm_custom=srm_custom, 
-                                                                                                      custom_channel_bins=custom_channel_bins)
+        pha_file, arf_file, rmf_file, srm_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file, 
+                                                                                                                arf_file=arf_file, 
+                                                                                                                rmf_file=rmf_file, 
+                                                                                                                srm_file=srm_file, 
+                                                                                                                srm_custom=srm_custom, 
+                                                                                                                custom_channel_bins=custom_channel_bins)
         # get ready to load multiple spectra if needed
         num_of_files, num_of_custom = len(pha_file), len(args)
-        self.loaded_spec_data = {}
+        self.loaded_spec_data, self.instruments = {}, {}
         for s in range(num_of_files+num_of_custom):
             if s<num_of_custom:
-                self.loaded_spec_data["spectrum"+str(s+1)] = inst.CustomLoader(args[s])
+                self.loaded_spec_data["spectrum"+str(s+1)] = inst.CustomLoader(args[s], **kwargs)
+                self.instruments["spectrum"+str(s+1)] = "CustomLoader"
             else:
                 file_indx = s-num_of_custom
                 self.loaded_spec_data["spectrum"+str(s+1)] = self.intrument_loaders[instruments[s]](pha_file[file_indx], 
                                                                                                     arf_file=arf_file[file_indx], 
                                                                                                     rmf_file=rmf_file[file_indx], 
+                                                                                                    srm_file=srm_file[file_indx], 
                                                                                                     srm_custom=srm_custom[file_indx],
-                                                                                                    custom_channel_bins=custom_channel_bins[file_indx])
+                                                                                                    custom_channel_bins=custom_channel_bins[file_indx], 
+                                                                                                    **kwargs)
+                self.instruments["spectrum"+str(s+1)] = instruments[s]
 
         # Adding these classes should also yield {"spectrum1":..., "spectrum2":..., etc.}
 
-    def _sort_files(self, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+    def _sort_files(self, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None):
         """ Takes in spectral data files and turns then all into list.
 
         Parameters
@@ -139,9 +154,12 @@ class LoadSpec:
                 The PHA file or list of PHA files for the spectrum to be loaded.
 
         arf_file, rmf_file : string or list of strings
-                The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
-                that these are in the same directory with same filename as the PHA file(s) but with 
-                extensions '.arf' and '.rmf', respectively.
+                The ARF and RMF files associated with the PHA file(s). If none are given (e.g, with 
+                NuSTAR data) it is assumed that these are in the same directory with same filename 
+                as the PHA file(s) but with extensions '.arf' and '.rmf', respectively.
+
+        srm_file : string
+                The file that contains the spectral response matrix for the given spectrum.
 
         srm_custom : 2d array
                 User defined spectral response matrix. This is accepted over the SRM created from any 
@@ -157,10 +175,15 @@ class LoadSpec:
         arf_file, rmf_file, srm_custom, custom_channel_bins) along with a list of corresponding 
         instrument names.
         """
+        if type(pha_file)==type(None):
+            return [], [], [], [], [], [], []
+
         # if only one observation is given then it won't be a list so make it one
         file_pha = _make_into_list(pha_file)
         file_arf = _make_into_list(arf_file)
         file_rmf = _make_into_list(rmf_file) 
+        file_srm = _make_into_list(srm_file) 
+
         # the following should be numpy arrays so _make_into_list would turn the array to a list, not put it into a list
         custom_srm = srm_custom if type(srm_custom)==list else [srm_custom]
         custom_channel_bins = custom_channel_bins if type(custom_channel_bins)==list else [custom_channel_bins]
@@ -171,9 +194,12 @@ class LoadSpec:
         assert ((type(arf_file)==type(None)) and (type(arf_file)==type(None)) and (len(file_pha)>=1)) \
                 or \
                 ((len(file_arf)==len(file_pha)) and (len(file_rmf)==len(file_pha))), \
-                """Names can be taken from the \"pha_file\" input if your \"arf_file\" and \"rmf_file\" are not 
-                supplied. This means that if your \"arf_file\" and \"rmf_file\" are supplied then they can 
+                """Names can be taken from the \"pha_file\" input if your \"arf_file\", \"rmf_file\", and \"srm_file\" are not 
+                supplied. This means that if your \"arf_file\", \"rmf_file\", and \"srm_file\" are supplied then they can 
                 either be of list length==1 or the same number of entries as your \"pha_file\" input."""
+
+        assert (type(file_srm)==type(None)) or (len(file_srm)==1) or (len(file_srm)==len(file_pha)), \
+                """The \"file_srm\" should either be None, list length 1, or the same length as the \"pha_file\" input."""
         
         assert (type(srm_custom)==type(None)) or (len(custom_srm)==1) or (len(custom_srm)==len(file_pha)), \
                 """The \"srm_custom\" should either be None, list length 1, or the same length as the \"pha_file\" input."""
@@ -182,17 +208,36 @@ class LoadSpec:
                 """The \"custom_channel_bins\" should either be None, list length 1, or the same length as the \"pha_file\" input."""
         
         # make sure lists of None are same length for inputs to self.load1spec()
+        file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins = self._lists_same_length(file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins)
+
+        instruments = self._files2instruments(file_pha)
+
+        return file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins, instruments
+
+    def _lists_same_length(self, file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins):
+        """ Ensure all file_pha entries have corresponding entries in all other lists.
+
+        Parameters
+        ----------
+        blah : blah
+                .
+
+        Returns
+        -------
+        .
+        """
+        # make sure lists of None are same length for inputs to self.load1spec()
         if (len(file_arf)==1) and (len(file_rmf)==1) and (len(file_pha)>1):
             file_arf *= len(file_pha)
             file_rmf *= len(file_pha)
+        if (len(file_srm)==1):
+            file_srm *= len(file_pha)
         if (len(custom_srm)==1) and (len(file_pha)>1):
             custom_srm *= len(file_pha)
         if (len(custom_channel_bins)==1) and (len(file_pha)>1):
             custom_channel_bins *= len(file_pha)
 
-        instruments = self._files2instruments(file_pha)
-
-        return file_pha, file_arf, file_rmf, custom_srm, custom_channel_bins, instruments
+        return file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins
 
     def _files2instruments(self, pha_files):
         """ Finds the instruments that correspond to the list of input `pha_files` (list of fits files).
@@ -210,6 +255,7 @@ class LoadSpec:
         for pf in pha_files:
             with fits.open(pf) as hdul:
                 if "TELESCOP" in hdul[0].header:
+                    # works for 'NuSTAR' and 'RHESSI'
                     _instruments_names.append(hdul[0].header["TELESCOP"])
                 else:
                     print("How do I know the instument?")
@@ -279,13 +325,44 @@ class LoadSpec:
         # remember how it was rebinned
         self._rebin_setting = dict(zip(self.loaded_spec_data.keys(), group_mins))
 
+    def _rebin_effective_exposures(self, old_bins, new_bins, old_counts, new_counts, old_effective_exposures):
+        """ Rebin arrays of effective exposures.
+        
+        If (like RHESSI) we have a different effective exposure per channel bin then these need to be rebinned too.
+        This is done by rebinning the counts array and rebinning a calculated count rate array (counts/s that was in 
+        counts/s/keV), both being rebinned by summing across combined bins. Then to find the new "rebinned effective 
+        exposures we will just divide the counts array by the rebinned counts/s array. I.e.,
+
+        .. math::
+         new_rebinned_effective_exposures = rebinned_counts / rebinned_counts_per_second
+
+        Parameters
+        ----------
+        old_bins, new_bins, old_counts, new_counts, old_effective_exposures : np.array
+                Array of the original counts/bins, and effective exposures. New bins are needed and shuold already 
+                have new counts.
+
+        Returns
+        -------
+        Array of rebinned "effective exposures" or just the effective exposure if it was a single number.
+        """
+        # only rebin if different "exposures" per energy channel
+        if not isnumber(old_effective_exposures):
+            rebinned_counts_per_second = inst.rebin_any_array(data=old_counts/old_effective_exposures, 
+                                                            old_bins=old_bins, 
+                                                            new_bins=new_bins, 
+                                                            combine_by="sum")
+            return new_counts / rebinned_counts_per_second
+        else:
+            return old_effective_exposures
+
     def _rebin_list_and_one2one(self, group_mins):
         """ Check if the group minimum (minima) given is in a list form and with a one-to-one entry to the loaded stectra.
 
         Parameters
         ----------
         group_mins : string
-                Spectrum to be checked. E.g., \'spectrum1\'
+                Spectrum to be checked. E.g., \'spectrum1\'.
 
         Returns
         -------
@@ -335,9 +412,10 @@ class LoadSpec:
                 del self._rebin_setting[spec], self._rebinned_edges[spec]
                 # move original binning/counts/etc. into extras entry
                 for s_att in self.loaded_spec_data[spec]().keys():
-                    if s_att not in ("effective_exposure", "extras"):
+                    if s_att!="extras":
                         self.loaded_spec_data[spec][s_att] = self.loaded_spec_data[spec]["extras"]["original_"+s_att]
                         del self.loaded_spec_data[spec]["extras"]["original_"+s_att]
+                self._check_if_known_background_and_rebin(spectrum=spec, undo=True)
             else:
                 print(f"Nothing to undo in {spec} as data has not been rebinned.")
     
@@ -404,15 +482,16 @@ class LoadSpec:
         _orig_in_extras = self._rebin_check(spectrum=spectrum)
 
         # get new bins and binned counts
-        new_bins, new_counts = self.group_spec(spectrum=spectrum, group_min=group_min, _orig_in_extras=_orig_in_extras)
+        new_bins, new_counts, counts_error, new_effective_exposure = self.group_spec(spectrum=spectrum, group_min=group_min, _orig_in_extras=_orig_in_extras)
 
-        # calculate the new widths, centres, count rates and count rate errors
+        # calculate the new widths, centres, count errors, count rates and count rate errors
         new_binning = np.diff(new_bins).flatten()
         bin_mids = np.mean(new_bins, axis=1)
-        ctr = (new_counts / new_binning) / self.loaded_spec_data[spectrum]["effective_exposure"]
-        ctr_err = (np.sqrt(new_counts) / new_binning) / self.loaded_spec_data[spectrum]["effective_exposure"]
-        
-        return new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, _orig_in_extras
+        ctr = (new_counts / new_binning) / new_effective_exposure
+        #old way the now ctr_err = (np.sqrt(new_counts) / new_binning) / new_effective_exposure
+        ctr_err = counts_error / new_binning / new_effective_exposure # no guarentee always will have poisson errors
+
+        return new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, new_effective_exposure, _orig_in_extras
     
     def _rebin_loaded_spec(self, spectrum, group_min, axis="count"):
         """ Rebins all the relevant data for a spectrum and moves original information into the \'extras\' key in the loaded_spec_data attribute.
@@ -430,16 +509,16 @@ class LoadSpec:
 
         Returns
         -------
-        New bin edges from teh rebinning process.
+        New bin edges from the rebinning process.
         """
         
         if (axis=="count") or (axis=="photon_and_count"):
-            new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, _orig_in_extras = self._rebin_data(spectrum, group_min)
+            new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, new_effective_exposure, _orig_in_extras = self._rebin_data(spectrum, group_min)
         
         if not _orig_in_extras:
             # move original binning/counts/etc. into extras entry
             for s_att in self.loaded_spec_data[spectrum]().keys():
-                if s_att not in ("effective_exposure", "extras"):
+                if s_att!="extras":
                     # print("putting in extras", s_att)
                     self.loaded_spec_data[spectrum]["extras"]["original_"+s_att] = self.loaded_spec_data[spectrum][s_att]
         
@@ -452,9 +531,20 @@ class LoadSpec:
             self.loaded_spec_data[spectrum]["photon_channel_bins"] = new_bins
             self.loaded_spec_data[spectrum]["photon_channel_mids"] = bin_mids
             self.loaded_spec_data[spectrum]["photon_channel_binning"] = new_binning
-        self.loaded_spec_data[spectrum]["counts"] = new_counts
+        self.loaded_spec_data[spectrum]["counts"] = new_counts 
         self.loaded_spec_data[spectrum]["count_rate"] = ctr
         self.loaded_spec_data[spectrum]["count_rate_error"] = ctr_err
+        self.loaded_spec_data[spectrum]["effective_exposure"] = new_effective_exposure
+
+        # update the count errors
+        self.loaded_spec_data[spectrum]["count_error"] = inst.rebin_any_array(data=self.loaded_spec_data[spectrum]["extras"]["original_count_error"], 
+                                                                              old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
+                                                                              new_bins=new_bins, 
+                                                                              combine_by="quadrature")
+        self.loaded_spec_data[spectrum]["count_rate_error"] = self.loaded_spec_data[spectrum]["count_error"] / self.loaded_spec_data[spectrum]["effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
+
+        # if spec has a known background, (e.g.,RHESSI) then have it here
+        self._check_if_known_background_and_rebin(spectrum, new_bins)
          
         # https://heasarc.gsfc.nasa.gov/docs/rosat/ros_xselect_guide_v1.1/node7.html#SECTION00712000000000000000
         # https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/node94.html
@@ -466,6 +556,57 @@ class LoadSpec:
         self.loaded_spec_data[spectrum]["srm"] = self.loaded_spec_data[spectrum]._rebin_srm(axis="count")
         return new_bins
 
+    def _check_if_known_background_and_rebin(self, spectrum, new_bins=None, undo=False):
+        """ Checks if the spectrum has a known background component and rebins it. Looks for 'original_background' in 
+        the 'extras' key (units counts) and calculates the 'background_rate' (units counts/s).
+
+        Mainly for RHESSI stuff at the minute.
+
+        Parameters
+        ----------
+        spectrum : string
+                Spectrum identifier to be rebinned. E.g., \'spectrum1\'.
+
+        new_bins: 2d array
+                New bins for the background to be rebinned into.
+                Default: None
+
+        undo : bool
+                True to revert any rebinning, False to do the rebinning.
+
+        Returns
+        -------
+        None.
+        """
+        # so we can loop
+        _bg_entries = ["background_counts", "background_count_error", "background_rate", "background_rate_error", "background_effective_exposure"]
+        
+        if undo and ("original_background_counts" in self.loaded_spec_data[spectrum]["extras"]):
+            # undo the binning
+            for e in _bg_entries:
+                self.loaded_spec_data[spectrum]["extras"][e] = self.loaded_spec_data[spectrum]["extras"]["original_"+e] 
+                del self.loaded_spec_data[spectrum]["extras"]["original_"+e]
+
+        elif "background_counts" in self.loaded_spec_data[spectrum]["extras"]:
+            # do the binning
+            if "original_background_counts" not in self.loaded_spec_data[spectrum]["extras"]:
+                for e in _bg_entries:
+                    self.loaded_spec_data[spectrum]["extras"]["original_"+e] = self.loaded_spec_data[spectrum]["extras"][e] 
+
+            self.loaded_spec_data[spectrum]["extras"]["background_counts"] = inst.rebin_any_array(data=self.loaded_spec_data[spectrum]["extras"]["original_background_counts"], 
+                                                                                                  old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
+                                                                                                  new_bins=new_bins, 
+                                                                                                  combine_by="sum")
+                                                                   
+            self.loaded_spec_data[spectrum]["extras"]["background_effective_exposure"] = self._rebin_effective_exposures(old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
+                                                                                                                         new_bins=new_bins, 
+                                                                                                                         old_counts=self.loaded_spec_data[spectrum]["extras"]["original_background_counts"], 
+                                                                                                                         new_counts=self.loaded_spec_data[spectrum]["extras"]["background_counts"], 
+                                                                                                                         old_effective_exposures=self.loaded_spec_data[spectrum]["extras"]["original_background_effective_exposure"])
+            self.loaded_spec_data[spectrum]["extras"]["background_count_error"] = np.sqrt(self.loaded_spec_data[spectrum]["extras"]["background_counts"])
+            self.loaded_spec_data[spectrum]["extras"]["background_rate"] = self.loaded_spec_data[spectrum]["extras"]["background_counts"] / self.loaded_spec_data[spectrum]["extras"]["background_effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
+            self.loaded_spec_data[spectrum]["extras"]["background_rate_error"] = np.sqrt(self.loaded_spec_data[spectrum]["extras"]["background_counts"]) / self.loaded_spec_data[spectrum]["extras"]["background_effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
+        
     def group(self, channel_bins, counts, group_min):
         """ Groups bins so they have at least a `group_min` number of counts.
 
@@ -574,14 +715,21 @@ class LoadSpec:
 
         Returns
         -------
-        The bin edges and new counts for you minimum group number. Any bins left over are now included with zero counts.
+        The bin edges and new counts for you minimum group number. Also the count errors and effective exposures too.
+        Any bins left over are now included with zero counts.
         """
 
         counts = self.loaded_spec_data[spectrum]["counts"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_counts"]
+        count_error = self.loaded_spec_data[spectrum]["count_error"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_count_error"]
         channel_bins = self.loaded_spec_data[spectrum]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"]
+        old_effective_exposures = self.loaded_spec_data[spectrum]["effective_exposure"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_effective_exposure"]
+
+        new_bins, new_counts = self._group_cts(channel_bins, counts, group_min=group_min, spectrum=spectrum)
+        new_effective_exposure = self._rebin_effective_exposures(old_bins=channel_bins, new_bins=new_bins, old_counts=counts, new_counts=new_counts, old_effective_exposures=old_effective_exposures)
+
+        counts_error = inst.rebin_any_array(data=count_error, old_bins=channel_bins, new_bins=new_bins, combine_by="quadrature")
         
-        
-        return self._group_cts(channel_bins, counts, group_min=group_min, spectrum=spectrum)
+        return new_bins, new_counts, counts_error, new_effective_exposure
     
     def _group_cts(self, channel_bins, counts, group_min=None, spectrum=None, verbose=True):
         """ Takes the counts and bins and groups the counts to have a minimum number of group_min.
@@ -617,10 +765,12 @@ class LoadSpec:
         # any counts in these bins will be ignored, only 0s taken into consideration in photon space for these
         remainder_bins = channel_bins[np.where(channel_bins[:,1] > np.array(binned_channel)[-1,-1])]
         binned_counts += [0]*len(remainder_bins)
+        new_bins = np.concatenate((np.array(binned_channel), remainder_bins))
+        new_counts = np.array(binned_counts)
                     
         self._verbose_tries(spectrum, group_min, combin, verbose)
         
-        return np.concatenate((np.array(binned_channel), remainder_bins)), np.array(binned_counts)# np.unique(np.array(binned_channel).flatten())
+        return new_bins, new_counts# np.unique(np.array(binned_channel).flatten())
 
     def _valid_group_min_entry(self, group_min):
         """ Checks if a valid `group_min` entry has been given. An entry of None is valid but still returns False.
@@ -705,22 +855,3 @@ class LoadSpec:
             else:
                 _loadedspec += str(None)+"\n"+" "*len(tag)
         return f"No. of Spectra Loaded: {len(self.loaded_spec_data.keys())} \n{tag}{_loadedspec}"
-
-
-def isnumber(word):
-    """ Checks if a string is a string of a number.
-
-    Parameters
-    ----------
-    word : string
-            String of the possible number.
-
-    Returns
-    -------
-    Boolean.
-    """
-    try:
-        float(word)
-    except ValueError:
-        return False
-    return True
