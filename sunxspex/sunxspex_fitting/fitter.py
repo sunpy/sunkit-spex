@@ -55,6 +55,14 @@ from sunxspex.sunxspex_fitting.data_loader import LoadSpec, isnumber
 from sunxspex.sunxspex_fitting.instruments import rebin_any_array
 from sunxspex.sunxspex_fitting.parameter_handler import Parameters
 
+
+# passed to _fit_stat() as arg in someway then can pass to pseudo_model as a kwarg
+# def _include_known_bg(self, spectrum, channels, counts_model):
+#         # include known background counts here, just add bg count rate and it will be multiplied by Effect.Obs.time: https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/XSappendixStatistics.html
+#             # cts_model = _include_known_bg(kwargs["count_channel_mids"][s], cts_model, spectrum=s)
+#         self.loaded_spec_data[spectrum]["extras"]["background_rate"]
+
+
 __all__ = ["add_var", "del_var","add_photon_model", "del_photon_model", "SunXspex", "load"]
 
 DYNAMIC_FUNCTION_SOURCE = {}
@@ -280,6 +288,10 @@ class SunXspex(LoadSpec):
 
     Parameters
     ----------
+    *args : dict
+            Dictionaries for custom data to be passed to `sunxspex.sunxspex_fitting.instruments.CustomLoader`. 
+            These will be added before any instrument file entries from `pha_file`.
+
     pha_file : string or list of strings
             The PHA file or list of PHA files for the spectrum to be loaded.
             See LoadSpec class.
@@ -562,12 +574,12 @@ class SunXspex(LoadSpec):
     s_minimised_params = s.fit()
     """
 
-    def __init__(self, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
         """Construct the class and set up some defaults."""
         
-        LoadSpec.__init__(self, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins)
+        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins)
 
-        self._construction_string_sunxspex = f"SunXspex(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
             
         self.loglikelihood = "cstat"
         
@@ -1268,10 +1280,13 @@ class SunXspex(LoadSpec):
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1] 
             cts_model = nu_spec.make_model(energies=kwargs["photon_channels"][s], 
-                                       photon_model=m,
-                                       parameters=None, 
-                                       srm=kwargs["total_responses"][s]) 
+                                            photon_model=m,
+                                            parameters=None, 
+                                            srm=kwargs["total_responses"][s]) 
             
+            if "background_rate_spectrum"+str(s+1) in kwargs:
+                cts_model += kwargs["background_rate_spectrum"+str(s+1)]
+
             # apply a response gain correction if need be
             if ("gain_slope_spectrum"+str(s+1) in kwargs) or ("gain_offset_spectrum"+str(s+1) in kwargs):
                 cts_model = self._gain_energies(energies=kwargs["count_channel_mids"][s], 
@@ -1284,8 +1299,7 @@ class SunXspex(LoadSpec):
         
             cts_models.append(cts_model[None,:]) # need [None, :] these lines get rid of a dimension meaning later concatenation fails
         
-        return cts_models
-            
+        return cts_models        
     
     def _pseudo_model(self, free_params_list, tied_or_frozen_params_list, param_name_list_order, **other_inputs):
         """ Bridging method between the input args (free,other) and different ordered args for the model calculation.
@@ -1574,7 +1588,7 @@ class SunXspex(LoadSpec):
                 ll += self._choose_loglikelihood()(model_cts, o, err)
             elif maximize_or_minimize == "minimize":
                 ll += self._minus_2lnL()(model_cts, o, err)
-        
+
         return ll
         
     def _cut_srm(self, srms, spectrum=None):
@@ -1654,7 +1668,7 @@ class SunXspex(LoadSpec):
             srm.append(self.loaded_spec_data[k]['srm'])
             e_binning.append(self.loaded_spec_data[k]['count_channel_binning'])
             observed_counts.append(self.loaded_spec_data[k]['counts'])
-            observed_count_errors.append(self.loaded_spec_data[k]['count_rate_error'])
+            observed_count_errors.append(self.loaded_spec_data[k]['count_error'])
             livetime.append(self.loaded_spec_data[k]['effective_exposure'])
             
         return photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors
@@ -1928,8 +1942,10 @@ class SunXspex(LoadSpec):
         -------
         List of all parameter values after the fitting has taken place.
         """
-
+        
         free_params_list, stat_args, free_bounds, orig_free_param_len = self._fit_setup()
+
+        # add background rate to stat_args
         
         kwargs["method"] = "Nelder-Mead" if "method" not in kwargs else kwargs["method"]
         kwargs.pop("bounds", None) # handle the bounds in the Bounds column of the params table attribute
@@ -2039,8 +2055,11 @@ class SunXspex(LoadSpec):
 
             # step sized must be >0 but if using fractional step and parameter is 0 then try to get a good step size
             zero_steps = np.where(steps==0)
-            # use the last few params the minimizer used to get an order of magnitude for the step to be
-            replacement_steps = np.mean(self._minimize_solution.final_simplex[0][:,zero_steps], axis=0)*step
+            try:
+                # use the last few params the minimizer used to get an order of magnitude for the step to be
+                replacement_steps = np.mean(self._minimize_solution.final_simplex[0][:,zero_steps], axis=0)*step
+            except AttributeError:
+                replacement_steps = 0
             steps[zero_steps] = replacement_steps if replacement_steps>0 else step
         else:
             steps = _abs_step
@@ -2939,7 +2958,7 @@ class SunXspex(LoadSpec):
         axs.set_yscale('log')
         axs.xaxis.set_tick_params(labelbottom=False)
         axs.get_xaxis().set_visible(False)
-
+        
         # check if the plot is to produce rebinned data and models
         new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model, energy_channels_res = self._setup_rebin_plotting(rebin_and_spec, data_arrays)
         

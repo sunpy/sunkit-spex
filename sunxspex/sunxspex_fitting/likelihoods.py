@@ -21,7 +21,7 @@ class LogLikelihoods:
     gaussian_loglikelihood : model_counts (array), observed_counts (array), observed_count_errors (array)
             Gaussian log-likelihood function. Access via `log_likelihoods` attribute.
 
-    chi2_loglikelihood : model_counts (array), observed_counts (array), observed_count_errors (array)
+    chi2 : model_counts (array), observed_counts (array), observed_count_errors (array)
             Chi-squared fit statistic function. Access via `log_likelihoods` attribute.
 
     poisson_loglikelihood : model_counts (array), observed_counts (array), observed_count_errors (array)
@@ -55,7 +55,7 @@ class LogLikelihoods:
         self._construction_string = "LogLikelihoods()"
         # dictionary of all likelihood functions? E.g., 
         self.log_likelihoods = {"gaussian":self.gaussian_loglikelihood, 
-                                "chi2":self.chi2_loglikelihood,
+                                "chi2":self.chi2,
                                 "poisson":self.poisson_loglikelihood, 
                                 "cash":self.cash_loglikelihood, 
                                 "cstat":self.cstat_loglikelihood}
@@ -133,7 +133,7 @@ class LogLikelihoods:
         # best value is first whole term, if the chi squared section has any value then it is always subtracted
         return self._check_numbers_left(self.remove_non_numbers(likelihoods)) # =ln(L)
     
-    def chi2_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
+    def chi2(self, model_counts, observed_counts, observed_count_errors):
         """ Chi-squared fit statistic.
 
         .. math::
@@ -151,10 +151,10 @@ class LogLikelihoods:
         A float, the chi-squared fit statistic (to be maximised).
         """
         
-        likelihoods = -(np.array(observed_counts)-np.array(model_counts))**2 / np.array(observed_count_errors)**2
-
+        likelihoods = -( (np.array(observed_counts)-np.array(model_counts).flatten()) / np.array(observed_count_errors) )**2
+        
         # best value is 0, every other value is negative
-        return self._check_numbers_left(self.remove_non_numbers(likelihoods)) # =ln(L)
+        return self._check_numbers_left(self.remove_non_numbers(likelihoods)) #
     
     def poisson_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
         """ Poissonian log-likelihood.

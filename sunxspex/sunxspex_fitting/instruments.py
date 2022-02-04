@@ -24,6 +24,7 @@ class InstrumentBlueprint:
                       "count_channel_mids":Count Space Bin Mid-points (e.g., [keV,...]), 
                       "count_channel_binning":Count Space Binwidths (e.g., [keV,...]), 
                       "counts":counts (e.g., cts), 
+                      "count_error":Count Error for `counts`,
                       "count_rate":Count Rate (e.g., cts/keV/s), 
                       "count_rate_error":Count Rate Error for `count_rate`, 
                       "effective_exposure":Effective Exposure (e.g., s),
@@ -241,6 +242,7 @@ class NustarLoader(InstrumentBlueprint):
                                                                       "count_channel_mids":np.mean(channel_bins, axis=1), 
                                                                       "count_channel_binning":channel_binning, 
                                                                       "counts":counts, 
+                                                                      "count_error":count_error,
                                                                       "count_rate":count_rate, 
                                                                       "count_rate_error":count_rate_error, 
                                                                       "effective_exposure":eff_exp,
@@ -299,6 +301,7 @@ class NustarLoader(InstrumentBlueprint):
                 "count_channel_mids":np.mean(channel_bins, axis=1), 
                 "count_channel_binning":channel_binning, 
                 "counts":counts, 
+                "count_error":np.sqrt(counts),
                 "count_rate":count_rate, 
                 "count_rate_error":count_rate_error, 
                 "effective_exposure":eff_exp,
@@ -469,6 +472,7 @@ class CustomLoader(InstrumentBlueprint):
                                        "count_channel_mids":Count-space Bin Mid-points (e.g., [keV,...]), 
                                        "count_channel_binning":Count-space Binwidths (e.g., [keV,...]), 
                                        "counts":counts (e.g., cts), 
+                                       "count_error":count error (e.g., sqrt(cts)),
                                        "count_rate":Count Rate (e.g., cts/keV/s), 
                                        "count_rate_error":Count Rate Error for `count_rate`, 
                                        "effective_exposure":Effective Exposure (e.g., s),
@@ -481,7 +485,8 @@ class CustomLoader(InstrumentBlueprint):
     Parameters
     ----------
     spec_data_dict : dict
-            Dictionary for custom spectral data.
+            Dictionary for custom spectral data. Essential entries are 'count_channel_bins'
+            and 'counts'.
 
     Attributes
     ----------
@@ -503,6 +508,7 @@ class CustomLoader(InstrumentBlueprint):
                         "photon_channel_binning",
                         "count_channel_mids",
                         "count_channel_binning",
+                        "count_error",
                         "count_rate",
                         "count_rate_error",
                         "effective_exposure",
@@ -542,11 +548,13 @@ class CustomLoader(InstrumentBlueprint):
         """
         if len(nonessential_list)>0:
             _count_length_default = np.ones(len(count_channels))
+            _chan_mids_default = np.mean(count_channels, axis=1)
             defaults = {"photon_channel_bins":count_channels,
-                        "photon_channel_mids":_count_length_default,
+                        "photon_channel_mids":_chan_mids_default,
                         "photon_channel_binning":_count_length_default,
-                        "count_channel_mids":_count_length_default,
+                        "count_channel_mids":_chan_mids_default,
                         "count_channel_binning":_count_length_default,
+                        "count_error":_count_length_default,
                         "count_rate":counts,
                         "count_rate_error":_count_length_default,
                         "effective_exposure":1,

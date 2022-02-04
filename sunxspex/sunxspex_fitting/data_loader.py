@@ -104,7 +104,7 @@ class LoadSpec:
     def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"LoadSpec(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string = f"LoadSpec({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
         
         # from sunxspex.sunxspex_fitting.instruments import * gives us the instrument specific loaders
         self.intrument_loaders = {"NuSTAR":inst.NustarLoader, "STIX":inst.StixLoader, "RHESSI":inst.RhessiLoader}
@@ -157,6 +157,9 @@ class LoadSpec:
         arf_file, rmf_file, srm_custom, custom_channel_bins) along with a list of corresponding 
         instrument names.
         """
+        if type(pha_file)==type(None):
+            return [], [], [], [], [], []
+
         # if only one observation is given then it won't be a list so make it one
         file_pha = _make_into_list(pha_file)
         file_arf = _make_into_list(arf_file)
@@ -210,6 +213,7 @@ class LoadSpec:
         for pf in pha_files:
             with fits.open(pf) as hdul:
                 if "TELESCOP" in hdul[0].header:
+                    # works for 'NuSTAR' and 'RHESSI'
                     _instruments_names.append(hdul[0].header["TELESCOP"])
                 else:
                     print("How do I know the instument?")
@@ -338,6 +342,7 @@ class LoadSpec:
                     if s_att not in ("effective_exposure", "extras"):
                         self.loaded_spec_data[spec][s_att] = self.loaded_spec_data[spec]["extras"]["original_"+s_att]
                         del self.loaded_spec_data[spec]["extras"]["original_"+s_att]
+                self._check_if_known_background_and_rebin(spectrum=spec, undo=True)
             else:
                 print(f"Nothing to undo in {spec} as data has not been rebinned.")
     
@@ -406,7 +411,7 @@ class LoadSpec:
         # get new bins and binned counts
         new_bins, new_counts = self.group_spec(spectrum=spectrum, group_min=group_min, _orig_in_extras=_orig_in_extras)
 
-        # calculate the new widths, centres, count rates and count rate errors
+        # calculate the new widths, centres, count errors, count rates and count rate errors
         new_binning = np.diff(new_bins).flatten()
         bin_mids = np.mean(new_bins, axis=1)
         ctr = (new_counts / new_binning) / self.loaded_spec_data[spectrum]["effective_exposure"]
@@ -452,9 +457,18 @@ class LoadSpec:
             self.loaded_spec_data[spectrum]["photon_channel_bins"] = new_bins
             self.loaded_spec_data[spectrum]["photon_channel_mids"] = bin_mids
             self.loaded_spec_data[spectrum]["photon_channel_binning"] = new_binning
-        self.loaded_spec_data[spectrum]["counts"] = new_counts
+        self.loaded_spec_data[spectrum]["counts"] = new_counts 
         self.loaded_spec_data[spectrum]["count_rate"] = ctr
         self.loaded_spec_data[spectrum]["count_rate_error"] = ctr_err
+
+        # update the count errors
+        self.loaded_spec_data[spectrum]["count_error"] = inst.rebin_any_array(data=self.loaded_spec_data[spectrum]["extras"]["original_count_error"], 
+                                                                              old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
+                                                                              new_bins=new_bins, 
+                                                                              combine_by="quadrature")
+
+        # if spec has a known background, (e.g.,RHESSI) then have it here
+        self._check_if_known_background_and_rebin(spectrum, new_bins)
          
         # https://heasarc.gsfc.nasa.gov/docs/rosat/ros_xselect_guide_v1.1/node7.html#SECTION00712000000000000000
         # https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/node94.html
@@ -466,6 +480,45 @@ class LoadSpec:
         self.loaded_spec_data[spectrum]["srm"] = self.loaded_spec_data[spectrum]._rebin_srm(axis="count")
         return new_bins
 
+    def _check_if_known_background_and_rebin(self, spectrum, new_bins=None, undo=False):
+        """ Checks if the spectrum has a known background component and rebins it. Looks for 'original_background' in 
+        the 'extras' key (units counts) and calculates the 'background_rate' (units counts/s).
+
+        Mainly for RHESSI stuff at the minute.
+
+        Parameters
+        ----------
+        spectrum : string
+                SRM's spectrum identifier to be rebinned. E.g., \'spectrum1\'.
+
+        new_bins: 2d array
+                New bins for the background to be rebinned into.
+                Default: None
+
+        undo : bool
+                True to revert any rebinning, False to do the rebinning.
+
+        Returns
+        -------
+        None.
+        """
+        if undo and ("original_background" in self.loaded_spec_data[spectrum]["extras"]):
+            self.loaded_spec_data[spectrum]["extras"]["background"] = self.loaded_spec_data[spectrum]["extras"]["original_background"] 
+            self.loaded_spec_data[spectrum]["extras"]["background_rate"] = self.loaded_spec_data[spectrum]["extras"]["original_background_rate"] 
+            del self.loaded_spec_data[spectrum]["extras"]["original_background"]
+            del self.loaded_spec_data[spectrum]["extras"]["original_background_rate"]
+        elif "background" in self.loaded_spec_data[spectrum]["extras"]:
+            if "original_background" not in self.loaded_spec_data[spectrum]["extras"]:
+                self.loaded_spec_data[spectrum]["extras"]["original_background"] = self.loaded_spec_data[spectrum]["extras"]["background"]
+                self.loaded_spec_data[spectrum]["extras"]["original_background_rate"] = self.loaded_spec_data[spectrum]["extras"]["background_rate"]
+
+        
+            self.loaded_spec_data[spectrum]["extras"]["background"] = inst.rebin_any_array(data=self.loaded_spec_data[spectrum]["extras"]["original_background"], 
+                                                                                        old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
+                                                                                        new_bins=new_bins, 
+                                                                                        combine_by="sum")
+            self.loaded_spec_data[spectrum]["extras"]["background_rate"] = self.loaded_spec_data[spectrum]["extras"]["background"] / self.loaded_spec_data[spectrum]["extras"]["background_eff_exp"]
+        
     def group(self, channel_bins, counts, group_min):
         """ Groups bins so they have at least a `group_min` number of counts.
 
@@ -580,7 +633,6 @@ class LoadSpec:
         counts = self.loaded_spec_data[spectrum]["counts"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_counts"]
         channel_bins = self.loaded_spec_data[spectrum]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"]
         
-        
         return self._group_cts(channel_bins, counts, group_min=group_min, spectrum=spectrum)
     
     def _group_cts(self, channel_bins, counts, group_min=None, spectrum=None, verbose=True):
@@ -617,10 +669,11 @@ class LoadSpec:
         # any counts in these bins will be ignored, only 0s taken into consideration in photon space for these
         remainder_bins = channel_bins[np.where(channel_bins[:,1] > np.array(binned_channel)[-1,-1])]
         binned_counts += [0]*len(remainder_bins)
+        new_bins = np.concatenate((np.array(binned_channel), remainder_bins))
                     
         self._verbose_tries(spectrum, group_min, combin, verbose)
         
-        return np.concatenate((np.array(binned_channel), remainder_bins)), np.array(binned_counts)# np.unique(np.array(binned_channel).flatten())
+        return new_bins, np.array(binned_counts)# np.unique(np.array(binned_channel).flatten())
 
     def _valid_group_min_entry(self, group_min):
         """ Checks if a valid `group_min` entry has been given. An entry of None is valid but still returns False.
