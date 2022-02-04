@@ -1,31 +1,11 @@
 """
-The following code is used to read in NuSTAR spectral data and create spectral models.
+The following code is used to make the SRM/counts data in consistent units from NuSTAR spectral data.
 """
 
 import numpy as np
-from astropy.io import fits
+from . import io 
 
-__all__ = ["read_pha", "flux_cts_spec", "read_arf", "read_rmf", "col2arr_py", "vrmf2arr_py", "make_srm", "make_model"]
-
-
-def read_pha(file):
-    """ Takes a .pha file and extracts useful information from it.
-    
-    Parameters
-    ----------
-    file : Str
-            String for the .pha file of the spectrum under investigation.
-            
-    Returns
-    -------
-    The channel numbers, counts, and the livetime for the observation. 
-    """
-
-    with fits.open(file) as hdul:
-        data = hdul[1].data
-        header_for_livetime = hdul[0].header
-
-    return data['channel'], data['counts'], header_for_livetime['LIVETIME']
+__all__ = ["flux_cts_spec", "col2arr_py", "vrmf2arr_py", "make_srm"]
 
 def flux_cts_spec(file, bin_size):
     """ Takes a .pha file and returns plotting information.
@@ -40,52 +20,13 @@ def flux_cts_spec(file, bin_size):
     The count rate per keV (cts), and its error (cts_err). 
     """
 
-    _, counts, livetime = read_pha(file)
+    _, counts, livetime = io._read_pha(file)
 
     cts = (counts / bin_size) / livetime # now in cts keV^-1 s^-1
     
     cts_err = (np.sqrt(counts) / bin_size) / livetime
     
     return cts, cts_err
-
-
-def read_arf(file):
-    """ Takes a .arf file and extracts useful information from it.
-    
-    Parameters
-    ----------
-    file : Str
-            String for the .arf file of the spectrum under investigation.
-            
-    Returns
-    -------
-    The low and high boundary of energy bins, and the ancillary response [cm^2] (data['specresp']).  
-    """
-    with fits.open(file) as hdul:
-        data = hdul[1].data
-    
-    return data['energ_lo'], data['energ_hi'], data['specresp']
-
-
-def read_rmf(file):
-    """ Takes a .rmf file and extracts useful information from it.
-    
-    Parameters
-    ----------
-    file : Str
-            String for the .rmf file of the spectrum under investigation.
-            
-    Returns
-    -------
-    The low and high boundary of energy bins (data['energ_lo'], data['energ_hi']), number of sub-set channels in the energy 
-    bin (data['n_grp']), starting index of each sub-set of channels (data['f_chan']), 
-    number of channels in each sub-set (data['n_chan']), redistribution matrix [counts per photon] (data['matrix']). 
-    """
-
-    with fits.open(file) as hdul:
-        data = hdul[2].data
-    
-    return data['energ_lo'], data['energ_hi'], data['n_grp'], data['f_chan'], data['n_chan'], data['matrix']
 
 
 def col2arr_py(data):
@@ -157,7 +98,7 @@ def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None
     -------
     >>> d_rmf = 'directory/'
     >>> f_rmf = 'file.rmf'
-    >>> e_lo, e_hi, ngrp, fchan, nchan, matrix = nu_spec.read_rmf(d_rmf+f_rmf)
+    >>> e_lo, e_hi, ngrp, fchan, nchan, matrix = io._read_rmf(d_rmf+f_rmf)
 
     >>> fchan_array = nu_spec.col2arr_py(fchan)
     >>> nchan_array = nu_spec.col2arr_py(nchan)
@@ -274,40 +215,3 @@ def make_srm(rmf_matrix=(), arf_array=()):
     ## this line is >2x faster 
     srm = arf_array[:, None]*rmf_matrix
     return srm
-
-
-def make_model(energies=None, photon_model=None, parameters=None, srm=None):
-    """ Takes a photon model array ( or function if you provide the pinputs with parameters), the spectral response matrix and returns a model count spectrum.
-    
-    Parameters
-    ----------
-    energies : array/list
-            List of energies.
-            Default : None
-
-    photon_model : function/array/list
-            Array -OR- function representing the photon model (if it's a function, provide the parameters of the function as a list, e.g. paramters = [energies, const, power]).
-            Default : None
-            
-    parameters : list
-            List representing the inputs a photon model function, if a function is provided, excludeing the energies the spectrum is over.
-            Default : None
-
-    srm : matrix/array
-            Spectral response matrix.
-            Default : None
-            
-    Returns
-    -------
-    A model count spectrum.
-    """
-
-    ## if parameters is None then assume the photon_model input is already a spectrum to test, else make the model spectrum from the funciton and parameters
-    if type(parameters) == type(None):
-        photon_spec = photon_model
-    else:
-        photon_spec = photon_model(energies, *parameters)
-
-    model_cts_spectrum = np.matmul(photon_spec, srm)
-    
-    return model_cts_spectrum

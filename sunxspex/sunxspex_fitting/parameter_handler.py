@@ -7,6 +7,8 @@ import pandas as pd
 from astropy.table import Table
 from copy import copy
 
+__all__ = ["Parameters", "isnumber"]
+
 class Parameters:
     """
     This class's job is to handle parameter tables. 
@@ -249,7 +251,7 @@ class Parameters:
                 self.parameter_info.at[i, "Status"] = self._table_copy.at[i, "Status"]
         # check values
         for i, v in zip(list(self.param_value.index), list(self.param_value)):
-            if (type(v) not in (int, float)):
+            if not isnumber(v):#(type(v) not in (int, float)): 
                 print(_invalid_str, v, " for entry [Value, "+str(i)+"]. Must be type int or float. Changing back.")
                 self.parameter_info.at[i, "Value"] = self._table_copy.at[i, "Value"]
         # check Bounds
@@ -393,7 +395,7 @@ class Parameters:
         """
         key = None
         val, key = (self._frozen_free_or_tie(value=val), "Status") if (type(val) is str) else (val, key) # is value given a string for the Status?
-        val, key = (val, "Value") if (type(val) in (int, float)) else (val, key) # is value given a int/float for the Value?
+        val, key = (val, "Value") if isnumber(val) else (val, key)#(type(val) in (int, float)) else (val, key) # is value given a int/float for the Value?
         val, key = (val, "Bounds") if (type(val) is tuple) else (val, key) # is value given a tuple (length==2) for the Bounds?
         return val, key
 
@@ -517,3 +519,22 @@ def _make_into_list(possible_list):
         return list(possible_list)
     except TypeError:
         return [possible_list]
+
+
+def isnumber(word):
+    """ Checks if a string is a string of a number.
+
+    Parameters
+    ----------
+    word : string
+            String of the possible number.
+
+    Returns
+    -------
+    Boolean.
+    """
+    try:
+        float(word)
+    except (ValueError, TypeError):
+        return False
+    return True

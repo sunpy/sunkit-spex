@@ -40,7 +40,7 @@ def f_vth(temperature, emission_measure46, energies=None):
     Returns
     -------
     A 1d array of optically thin thermal bremsstrahlung radiation in units 
-    of ph s^-1 keV^-1.
+    of ph s^-1 cm^-2 keV^-1.
     """
             
     energies = np.unique(np.array(energies).flatten()) << u.keV # turn [[1,2],[2,3],[3,4]] into [1,2,3,4]
@@ -73,7 +73,7 @@ def thick_fn(total_eflux, index, e_c, energies=None):
     Returns
     -------
     A 1d array of thick-target bremsstrahlung radiation in units 
-    of ph s^-1 keV^-1.
+    of ph s^-1 cm^-2 keV^-1.
     """
     
     hack = np.round([total_eflux, index, e_c], 15)
@@ -128,7 +128,7 @@ def thick_warm(total_eflux, index, e_c, plasma_d, loop_temp, length, energies=No
     Returns
     -------
     A 1d array of the warm thick-target bremsstrahlung radiation in units 
-    of ph s^-1 keV^-1.
+    of ph s^-1 cm^-2 keV^-1.
     """
 
     ME_KEV = 511 #[keV]
