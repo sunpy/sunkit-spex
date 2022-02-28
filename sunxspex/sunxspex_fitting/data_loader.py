@@ -6,10 +6,10 @@ import numpy as np
 from copy import deepcopy
 from astropy.io import fits
 
-from .parameter_handler import _make_into_list # sunxspex.sunxspex_fitting.parameter_handler
+from .parameter_handler import _make_into_list, isnumber # sunxspex.sunxspex_fitting.parameter_handler
 from . import instruments as inst # sunxspex.sunxspex_fitting.instruments 
 
-__all__ = ["LoadSpec", "isnumber"]
+__all__ = ["LoadSpec"]
 
 
 class LoadSpec:
@@ -29,9 +29,12 @@ class LoadSpec:
             The PHA file or list of PHA files for the spectrum to be loaded.
 
     arf_file, rmf_file : string or list of strings
-            The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
-            that these are in the same directory with same filename as the PHA file(s) but with 
-            extensions '.arf' and '.rmf', respectively.
+            The ARF and RMF files associated with the PHA file(s). If none are given (e.g, with 
+            NuSTAR data) it is assumed that these are in the same directory with same filename 
+            as the PHA file(s) but with extensions '.arf' and '.rmf', respectively.
+
+    srm_file : string
+            The file that contains the spectral response matrix for the given spectrum.
 
     srm_custom : 2d array
             User defined spectral response matrix. This is accepted over the SRM created from any 
@@ -40,6 +43,9 @@ class LoadSpec:
     custom_channel_bins : 2d array
             User defined channel bins for the columns of the SRM matrix. 
             E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
+
+    **kwargs : 
+            Any kwargs will get passed to all instrument loaders.
 
     Properties
     ----------
@@ -101,36 +107,39 @@ class LoadSpec:
     s.rebin = 10
     s.undo_rebin = 10
     """ 
-    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"LoadSpec({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
         
         # from sunxspex.sunxspex_fitting.instruments import * gives us the instrument specific loaders
         self.intrument_loaders = {"NuSTAR":inst.NustarLoader, "STIX":inst.StixLoader, "RHESSI":inst.RhessiLoader}
 
-        pha_file, arf_file, rmf_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file, 
-                                                                                                      arf_file=arf_file, 
-                                                                                                      rmf_file=rmf_file, 
-                                                                                                      srm_custom=srm_custom, 
-                                                                                                      custom_channel_bins=custom_channel_bins)
+        pha_file, arf_file, rmf_file, srm_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file, 
+                                                                                                                arf_file=arf_file, 
+                                                                                                                rmf_file=rmf_file, 
+                                                                                                                srm_file=srm_file, 
+                                                                                                                srm_custom=srm_custom, 
+                                                                                                                custom_channel_bins=custom_channel_bins)
         # get ready to load multiple spectra if needed
         num_of_files, num_of_custom = len(pha_file), len(args)
         self.loaded_spec_data = {}
         for s in range(num_of_files+num_of_custom):
             if s<num_of_custom:
-                self.loaded_spec_data["spectrum"+str(s+1)] = inst.CustomLoader(args[s])
+                self.loaded_spec_data["spectrum"+str(s+1)] = inst.CustomLoader(args[s], **kwargs)
             else:
                 file_indx = s-num_of_custom
                 self.loaded_spec_data["spectrum"+str(s+1)] = self.intrument_loaders[instruments[s]](pha_file[file_indx], 
                                                                                                     arf_file=arf_file[file_indx], 
                                                                                                     rmf_file=rmf_file[file_indx], 
+                                                                                                    srm_file=srm_file[file_indx], 
                                                                                                     srm_custom=srm_custom[file_indx],
-                                                                                                    custom_channel_bins=custom_channel_bins[file_indx])
+                                                                                                    custom_channel_bins=custom_channel_bins[file_indx], 
+                                                                                                    **kwargs)
 
         # Adding these classes should also yield {"spectrum1":..., "spectrum2":..., etc.}
 
-    def _sort_files(self, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+    def _sort_files(self, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None):
         """ Takes in spectral data files and turns then all into list.
 
         Parameters
@@ -139,9 +148,12 @@ class LoadSpec:
                 The PHA file or list of PHA files for the spectrum to be loaded.
 
         arf_file, rmf_file : string or list of strings
-                The ARF and RMF files associated with the PHA file(s). If none are given it is assumed 
-                that these are in the same directory with same filename as the PHA file(s) but with 
-                extensions '.arf' and '.rmf', respectively.
+                The ARF and RMF files associated with the PHA file(s). If none are given (e.g, with 
+                NuSTAR data) it is assumed that these are in the same directory with same filename 
+                as the PHA file(s) but with extensions '.arf' and '.rmf', respectively.
+
+        srm_file : string
+                The file that contains the spectral response matrix for the given spectrum.
 
         srm_custom : 2d array
                 User defined spectral response matrix. This is accepted over the SRM created from any 
@@ -158,12 +170,14 @@ class LoadSpec:
         instrument names.
         """
         if type(pha_file)==type(None):
-            return [], [], [], [], [], []
+            return [], [], [], [], [], [], []
 
         # if only one observation is given then it won't be a list so make it one
         file_pha = _make_into_list(pha_file)
         file_arf = _make_into_list(arf_file)
         file_rmf = _make_into_list(rmf_file) 
+        file_srm = _make_into_list(srm_file) 
+
         # the following should be numpy arrays so _make_into_list would turn the array to a list, not put it into a list
         custom_srm = srm_custom if type(srm_custom)==list else [srm_custom]
         custom_channel_bins = custom_channel_bins if type(custom_channel_bins)==list else [custom_channel_bins]
@@ -174,9 +188,12 @@ class LoadSpec:
         assert ((type(arf_file)==type(None)) and (type(arf_file)==type(None)) and (len(file_pha)>=1)) \
                 or \
                 ((len(file_arf)==len(file_pha)) and (len(file_rmf)==len(file_pha))), \
-                """Names can be taken from the \"pha_file\" input if your \"arf_file\" and \"rmf_file\" are not 
-                supplied. This means that if your \"arf_file\" and \"rmf_file\" are supplied then they can 
+                """Names can be taken from the \"pha_file\" input if your \"arf_file\", \"rmf_file\", and \"srm_file\" are not 
+                supplied. This means that if your \"arf_file\", \"rmf_file\", and \"srm_file\" are supplied then they can 
                 either be of list length==1 or the same number of entries as your \"pha_file\" input."""
+
+        assert (type(file_srm)==type(None)) or (len(file_srm)==1) or (len(file_srm)==len(file_pha)), \
+                """The \"file_srm\" should either be None, list length 1, or the same length as the \"pha_file\" input."""
         
         assert (type(srm_custom)==type(None)) or (len(custom_srm)==1) or (len(custom_srm)==len(file_pha)), \
                 """The \"srm_custom\" should either be None, list length 1, or the same length as the \"pha_file\" input."""
@@ -185,17 +202,36 @@ class LoadSpec:
                 """The \"custom_channel_bins\" should either be None, list length 1, or the same length as the \"pha_file\" input."""
         
         # make sure lists of None are same length for inputs to self.load1spec()
+        file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins = self._lists_same_length(file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins)
+
+        instruments = self._files2instruments(file_pha)
+
+        return file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins, instruments
+
+    def _lists_same_length(self, file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins):
+        """ Ensure all file_pha entries have corresponding entries in all other lists.
+
+        Parameters
+        ----------
+        blah : blah
+                .
+
+        Returns
+        -------
+        .
+        """
+        # make sure lists of None are same length for inputs to self.load1spec()
         if (len(file_arf)==1) and (len(file_rmf)==1) and (len(file_pha)>1):
             file_arf *= len(file_pha)
             file_rmf *= len(file_pha)
+        if (len(file_srm)==1):
+            file_srm *= len(file_pha)
         if (len(custom_srm)==1) and (len(file_pha)>1):
             custom_srm *= len(file_pha)
         if (len(custom_channel_bins)==1) and (len(file_pha)>1):
             custom_channel_bins *= len(file_pha)
 
-        instruments = self._files2instruments(file_pha)
-
-        return file_pha, file_arf, file_rmf, custom_srm, custom_channel_bins, instruments
+        return file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins
 
     def _files2instruments(self, pha_files):
         """ Finds the instruments that correspond to the list of input `pha_files` (list of fits files).
@@ -489,7 +525,7 @@ class LoadSpec:
         Parameters
         ----------
         spectrum : string
-                SRM's spectrum identifier to be rebinned. E.g., \'spectrum1\'.
+                Spectrum identifier to be rebinned. E.g., \'spectrum1\'.
 
         new_bins: 2d array
                 New bins for the background to be rebinned into.
@@ -502,22 +538,23 @@ class LoadSpec:
         -------
         None.
         """
+        _bg_entries = ["background_counts", "background_count_error", "background_rate", "background_rate_error"]
         if undo and ("original_background" in self.loaded_spec_data[spectrum]["extras"]):
-            self.loaded_spec_data[spectrum]["extras"]["background"] = self.loaded_spec_data[spectrum]["extras"]["original_background"] 
-            self.loaded_spec_data[spectrum]["extras"]["background_rate"] = self.loaded_spec_data[spectrum]["extras"]["original_background_rate"] 
-            del self.loaded_spec_data[spectrum]["extras"]["original_background"]
-            del self.loaded_spec_data[spectrum]["extras"]["original_background_rate"]
+            for e in _bg_entries:
+                self.loaded_spec_data[spectrum]["extras"][e] = self.loaded_spec_data[spectrum]["extras"]["original_"+e] 
+                del self.loaded_spec_data[spectrum]["extras"]["original_"+e]
         elif "background" in self.loaded_spec_data[spectrum]["extras"]:
             if "original_background" not in self.loaded_spec_data[spectrum]["extras"]:
-                self.loaded_spec_data[spectrum]["extras"]["original_background"] = self.loaded_spec_data[spectrum]["extras"]["background"]
-                self.loaded_spec_data[spectrum]["extras"]["original_background_rate"] = self.loaded_spec_data[spectrum]["extras"]["background_rate"]
+                for e in _bg_entries:
+                    self.loaded_spec_data[spectrum]["extras"]["original_"+e] = self.loaded_spec_data[spectrum]["extras"][e] 
 
-        
-            self.loaded_spec_data[spectrum]["extras"]["background"] = inst.rebin_any_array(data=self.loaded_spec_data[spectrum]["extras"]["original_background"], 
-                                                                                        old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
-                                                                                        new_bins=new_bins, 
-                                                                                        combine_by="sum")
-            self.loaded_spec_data[spectrum]["extras"]["background_rate"] = self.loaded_spec_data[spectrum]["extras"]["background"] / self.loaded_spec_data[spectrum]["extras"]["background_eff_exp"]
+            self.loaded_spec_data[spectrum]["extras"]["background_counts"] = inst.rebin_any_array(data=self.loaded_spec_data[spectrum]["extras"]["original_background_counts"], 
+                                                                                                  old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
+                                                                                                  new_bins=new_bins, 
+                                                                                                  combine_by="sum")
+            self.loaded_spec_data[spectrum]["extras"]["background_count_error"] = np.sqrt(self.loaded_spec_data[spectrum]["extras"]["background_counts"])
+            self.loaded_spec_data[spectrum]["extras"]["background_rate"] = self.loaded_spec_data[spectrum]["extras"]["background_counts"] / self.loaded_spec_data[spectrum]["extras"]["background_effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
+            self.loaded_spec_data[spectrum]["extras"]["background_rate"] = np.sqrt(self.loaded_spec_data[spectrum]["extras"]["background_counts"]) / self.loaded_spec_data[spectrum]["extras"]["background_effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
         
     def group(self, channel_bins, counts, group_min):
         """ Groups bins so they have at least a `group_min` number of counts.
@@ -758,22 +795,3 @@ class LoadSpec:
             else:
                 _loadedspec += str(None)+"\n"+" "*len(tag)
         return f"No. of Spectra Loaded: {len(self.loaded_spec_data.keys())} \n{tag}{_loadedspec}"
-
-
-def isnumber(word):
-    """ Checks if a string is a string of a number.
-
-    Parameters
-    ----------
-    word : string
-            String of the possible number.
-
-    Returns
-    -------
-    Boolean.
-    """
-    try:
-        float(word)
-    except ValueError:
-        return False
-    return True
