@@ -295,6 +295,10 @@ class SunXspex(LoadSpec):
             extensions '.arf' and '.rmf', respectively.
             See LoadSpec class.
 
+    srm_file : string
+            The file that contains the spectral response matrix for the given spectrum.
+            See LoadSpec class.
+
     srm_custom : 2d array
             User defined spectral response matrix. This is accepted over the SRM created from any 
             ARF and RMF files given.
@@ -418,6 +422,10 @@ class SunXspex(LoadSpec):
             Fraction of the error confidence. I.e., 0.6827 is 1-sigma or 68.27%.
             Default = 0.6827
 
+    instruments : dict
+            Spectrum identifiers as keys with the spectrum's instrument as a string for values.
+            See LoadSpec class.
+
     intrument_loaders : dict
             Dictionary with keys of the supported instruments and values of their repsective loaders.
             See LoadSpec class.
@@ -447,6 +455,9 @@ class SunXspex(LoadSpec):
 
     params : Parameters object
             Parameter table for all model parameters. See Parameters class.
+
+    plotting_info : dict
+            Contains most arrays used for plotting.
 
     rParams : Parameters object
             Parameter table for all response parameters. See Parameters class.
@@ -519,6 +530,11 @@ class SunXspex(LoadSpec):
             Determines how the class is pickled, used for parallelisation.
             Default = "normal"
 
+    _plr : bool
+            Set through plot() method's `plot_final_result` entry. True will plot the final model fit 
+            result, False will leave it out.
+            Default: True
+
     _rebin_setting : See LoadSpec class.
 
     _rebinned_edges : See LoadSpec class.
@@ -527,7 +543,13 @@ class SunXspex(LoadSpec):
             All response parameter names in the one list.
 
     _scaled_backgrounds : dict
-            Holds each spectrum's scaled background counts if it has any.
+            Holds each spectrum's scaled background counts/s, if it has any.
+
+    _scaled_background_rates_cut : dict
+            Holds each spectrum's scaled background counts/s cut to the fitting range, if it has any.
+
+    _scaled_background_rates_full : dict
+            Holds each spectrum's full list scaled background counts/s, if it has any.
 
     _separate_models : list
             List of separated component models if models is given a string with >1 defined model.
@@ -570,12 +592,12 @@ class SunXspex(LoadSpec):
     s_minimised_params = s.fit()
     """
 
-    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None):
+    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None):
         """Construct the class and set up some defaults."""
         
-        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins)
+        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins)
 
-        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
             
         self.loglikelihood = "cstat"
         
@@ -1280,8 +1302,8 @@ class SunXspex(LoadSpec):
                                             parameters=None, 
                                             srm=kwargs["total_responses"][s]) 
             
-            if "background_rate_spectrum"+str(s+1) in self._scaled_backgrounds:
-                cts_model += self._scaled_backgrounds["background_rate_spectrum"+str(s+1)]
+            if "scaled_background_spectrum"+str(s+1) in self._scaled_backgrounds:
+                cts_model += self._scaled_backgrounds["scaled_background_spectrum"+str(s+1)]
 
             # apply a response gain correction if need be
             if ("gain_slope_spectrum"+str(s+1) in kwargs) or ("gain_offset_spectrum"+str(s+1) in kwargs):
@@ -1786,19 +1808,23 @@ class SunXspex(LoadSpec):
     def _include_background(self):
         """ Inspect whether a background is in the extras entry to be added to the model.
 
-        Make the `_scaled_backgrounds` attribute which is a dictionary of all instrument backgrounds.
+        Make the `_scaled_background_rates_cut` and `_scaled_background_rates_full` attributes which 
+        is a dictionary of all instrument backgrounds  cut to the fit range size (for fitting) and 
+        all of them (for plotting) respectively.
         
         Returns
         -------
         None.
         """
-        self._scaled_backgrounds = {}
+        self._scaled_background_rates_cut, self._scaled_background_rates_full = {}, {}
         # loop through both spectra to check the response parameters
         for s in range(len(self.loaded_spec_data)):
-            if "background_rate" in self.loaded_spec_data["spectrum"+str(s+1)]["extras"]:
-                # turn the background rate (cts/keV/s) into just cts scaled to the event time
-                bg_cts = self.loaded_spec_data["spectrum"+str(s+1)]["extras"]["background_rate"]*self.loaded_spec_data["spectrum"+str(s+1)]["count_channel_binning"]*self.loaded_spec_data["spectrum"+str(s+1)]["effective_exposure"]
-                self._scaled_backgrounds["scaled_background_spectrum"+str(s+1)] = self._cut_counts(bg_cts, spectrum=s+1)
+            # do not want to include bg spectrum if the data is structured to be event-background
+            if ("background_rate" in self.loaded_spec_data["spectrum"+str(s+1)]["extras"]) and (not self.loaded_spec_data["spectrum"+str(s+1)]["extras"]["counts=data-bg"]):
+                # turn the background rate (cts/keV/s) into just cts/s scaled to the event time
+                bg_cts = self.loaded_spec_data["spectrum"+str(s+1)]["extras"]["background_rate"]*self.loaded_spec_data["spectrum"+str(s+1)]["count_channel_binning"]
+                self._scaled_background_rates_cut["scaled_background_spectrum"+str(s+1)] = self._cut_counts(bg_cts, spectrum=s+1)
+                self._scaled_background_rates_full["scaled_background_spectrum"+str(s+1)] = bg_cts
     
     def _fit_stat_minimize(self, *args, **kwargs):
         """ Return the chosen fit statistic defined to minimise for the best fit.
@@ -1922,6 +1948,7 @@ class SunXspex(LoadSpec):
 
         # check if a background is to be included and make the self._scaled_backgrounds attr
         self._include_background()
+        self._scaled_backgrounds = self._scaled_background_rates_cut
         
         # only want values in energy range specified
         srm = self._cut_srm(srm) # saves a couple of seconds
@@ -2105,6 +2132,9 @@ class SunXspex(LoadSpec):
         # want all energies plotted, not just ones in fitting range so change for now and change back later
         _energy_fitting_indices_orig = copy(self._energy_fitting_indices)
         self._energy_fitting_indices = self._fit_range(count_channel_mids, dict(zip(self.loaded_spec_data.keys(), np.tile([0, np.inf], (len(self.loaded_spec_data.keys()), 1)))))
+
+        # make sure using full background counts, not cut version for fitting
+        self._scaled_backgrounds = self._scaled_background_rates_full
         
         # not sure if there are multiple spectra for args
         # if just one spectrum then its just the appropriate entries in the dict from LoadSpec
@@ -2805,8 +2835,8 @@ class SunXspex(LoadSpec):
         axs : axes objects
                 Axes for data.
 
-        param_str : str
-                One string with all formatted parameter names and values.
+        param_str : list of str
+                List of strings with all formatted parameter names and values.
 
         submod_param_cols : list of strings (hex colour codes)
                 Colours for each (sub-)model's parameters.
@@ -3285,6 +3315,58 @@ class SunXspex(LoadSpec):
                 _rebin_after_plot = True
         rebin = self._rebin_input_handler(_rebin_input=rebin) # get this as a dict, {"spectrum1":rebinValue1, "spectrum2":rebinValue2, ..., "combined":rebinValue}
         return _rebin_after_plot, rebin
+
+    def _plot_background(self, axes, spectrum):
+        """ Plot the background spectrum if there is one.
+        
+        If a background exists in the extras key in the `loaded_spec_data` entry for a given
+        spectrum then plot it in grey and behind all other lines. Add some useful annotation to 
+        the plot.
+
+        Parameters
+        ----------
+        axes : axes object
+                Axes for the data and model. 
+
+        spectrum : str
+                Spectrum identifier; e.g., "spectrum1". 
+
+        Returns
+        -------
+        None.
+        """
+        if 'background_rate' in self.loaded_spec_data[spectrum]['extras']:
+            energies = self.loaded_spec_data[spectrum]['count_channel_bins'].flatten()
+            bg_rate = np.concatenate((self.loaded_spec_data[spectrum]['extras']['background_rate'][:,None],self.loaded_spec_data[spectrum]['extras']['background_rate'][:,None]),axis=1).flatten()
+            axes.plot(energies, bg_rate, color="grey", zorder=0)
+            self.plotting_info[spectrum]["background_rate"] = bg_rate
+
+            str_list, c_list = ["BG"], ["grey"]
+            # check if the data is actually the event-background
+            if self.loaded_spec_data[spectrum]["extras"]["counts=data-bg"]:
+                str_list.insert(0, "Counts=Evt-BG\n")
+                c_list.insert(0, "k")
+            rainbow_text_lines((0.01, 0.99), strings=str_list, colors=c_list, xycoords="axes fraction", verticalalignment="top", horizontalalignment="left", ax=axes, alpha=0.8, fontsize="small")
+
+    def _same_instruments(self, can_combine):
+        """ Only combine if all spectra are from the same instrument the now. 
+        
+        Obviously if the previous checks have revealed they can then False should be return 
+        regardless of the instruments.
+
+        Parameters
+        ----------
+        can_combine : bool
+                Result from previous checks to see if several spectra can be combined.
+
+        Returns
+        -------
+        Bool.
+        """
+        if (len(list(dict.fromkeys(list(self.instruments.values()))))==1) and (can_combine):
+            return True
+        else:
+            return False
                 
     def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, hex_grid=False, plot_final_result=True):
         """ Plots the latest fit or sampling result.
@@ -3337,6 +3419,9 @@ class SunXspex(LoadSpec):
         else:
             can_combine = False
             print("The energy channels and/or binning are different for at least one fitted spectrum. Not sure how to combine all spectra so won\'t show combined plot.")
+
+        # check for same instruments, no point in combining counts from different instruments?
+        can_combine = self._same_instruments(can_combine)
         
         if (self._model is None) and hasattr(self,"_plotting_info"):
             return self._plot_from_dict(subplot_axes_grid)
@@ -3369,6 +3454,10 @@ class SunXspex(LoadSpec):
                 _count_rates.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"])
                 _count_rate_errors.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"])
                 axs.set_title('Spectrum '+str(s+1))
+
+                # do we have a background for this spectrum?
+                self._plot_background(axes=axs, spectrum='spectrum'+str(s+1))
+
             else:
                 self.plotting_info['combined'] = {}
                 axs, res = self._plot_1spec((self.loaded_spec_data['spectrum'+str(s)]['count_channel_mids'], 

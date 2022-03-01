@@ -79,6 +79,9 @@ class LoadSpec:
 
     Attributes
     ----------
+    instruments : dict
+            Spectrum identifiers as keys with the spectrum's instrument as a string for values.
+            
     intrument_loaders : dict
             Dictionary with keys of the supported instruments and values of their repsective loaders.
 
@@ -123,10 +126,11 @@ class LoadSpec:
                                                                                                                 custom_channel_bins=custom_channel_bins)
         # get ready to load multiple spectra if needed
         num_of_files, num_of_custom = len(pha_file), len(args)
-        self.loaded_spec_data = {}
+        self.loaded_spec_data, self.instruments = {}, {}
         for s in range(num_of_files+num_of_custom):
             if s<num_of_custom:
                 self.loaded_spec_data["spectrum"+str(s+1)] = inst.CustomLoader(args[s], **kwargs)
+                self.instruments["spectrum"+str(s+1)] = "CustomLoader"
             else:
                 file_indx = s-num_of_custom
                 self.loaded_spec_data["spectrum"+str(s+1)] = self.intrument_loaders[instruments[s]](pha_file[file_indx], 
@@ -136,6 +140,7 @@ class LoadSpec:
                                                                                                     srm_custom=srm_custom[file_indx],
                                                                                                     custom_channel_bins=custom_channel_bins[file_indx], 
                                                                                                     **kwargs)
+                self.instruments["spectrum"+str(s+1)] = instruments[s]
 
         # Adding these classes should also yield {"spectrum1":..., "spectrum2":..., etc.}
 

@@ -1,5 +1,9 @@
 """
 The following code is for instrument specific classes each using their own methods to create and edit their `_loaded_spec_data` attrbutes.
+
+Tips that I have been following: 
+    * None of the instrument loaders should have public attributes; ie., all attributes should be preceded with `_`
+    * Only obvious and useful methods and setters should be public, all else preceded with `_`
 """
 
 import numpy as np
@@ -213,6 +217,14 @@ class NustarLoader(InstrumentBlueprint):
     separately then used to construct the rebinned SRM.
 
     Superclass Override: _rebin_srm()
+
+    Attributes
+    ----------
+    _construction_string : string
+            String to show how class was constructed.
+
+    _loaded_spec_data : dict
+            Instrument loaded spectral data.
     """
     __doc__ += InstrumentBlueprint._UNIVERSAL_DOC_
     
@@ -445,21 +457,116 @@ class RhessiLoader(InstrumentBlueprint):
 
     RhessiLoader Specifics
     ----------------------
-    Short description of specifics.
-
-    Superclass Override:
+    Has methods to plot time series and perform time selection on the data. A background time can be added or removed and can fit 
+    the event data with the model+background (recommended) or fit a model to data-background using the `data2data_minus_background`
+    setter with False or True, respectively.
 
     Properties
     ----------
+    data2data_minus_background : bool
+            Returns True if the data to be fitted has been converted to event time minus background.
+
+    end_background_time : `astropy.Time`
+            Returns the set backgroun end time.
+
+    end_event_time : `astropy.Time`
+            Returns the set event end time.
+
+    start_background_time : `astropy.Time`
+            Returns the set background start time.
+
+    start_event_time : `astropy.Time`
+            Returns the set event start time.
 
     Setters
     -------
+    data2data_minus_background : bool
+            Change the way the data is fitted; either event time minus background is fitted with the model (True) or 
+            event time is fitted with background+model (False, recommended and default behaviour).
+
+    end_background_time : str, `astropy.Time`, None
+            Sets the end time for the background time spectrum. None (default behaviour) sets this to None and removes or 
+            doesn't add a background component. The `start_background_time` setter can be assigned separately but must also 
+            be set to produce a background time. 
+            See `select_time` method to set both end and/or start time(s) in just one line.
+    
+    end_event_time : str, `astropy.Time`, None
+            Sets the end time for the event time spectrum. None (default behaviour) sets this to the last time the loaded 
+            spectrum has data for.
+            See `select_time` method to set both end and/or start time(s) in just one line.
+
+    start_background_time : str, `astropy.Time`, None
+            Sets the start time for the background time spectrum. None (default behaviour) sets this to None and removes or 
+            doesn't add a background component. The `end_background_time` setter can be assigned separately but must also 
+            be set to produce a background time.
+            See `select_time` method to set both end and/or start time(s) in just one line.
+    
+    start_event_time : str, `astropy.Time`, None
+            Sets the start time for the event time spectrum. None (default behaviour) sets this to the first time the loaded 
+            spectrum has data for.
+            See `select_time` method to set both end and/or start time(s) in just one line.
 
     Methods
     -------
+    select_time : start (str, `astropy.Time`, None), end (str, `astropy.Time`, None), background (bool)
+            Set the start and end times for the event (background=False, default) or background (background=True) data. Both and 
+            end and a start time needs to be defined for the background, whereas the event time is assumed to commence/finish at the 
+            first/final data time if the start/end time is not given.
 
     Attributes
     ----------
+    _channel_bins_inds_perspec : 2d array
+            Array of channel bins (columns) per spectrum (rows).
+
+    _construction_string : string
+            String to show how class was constructed.
+
+    _count_rate_perspec : 2d array
+            Array of count rates per channel bin (columns) and spectrum (rows).
+
+    _count_rate_error_perspec 2d array
+            Array of count rate errors per channel bin (columns) and spectrum (rows).
+
+    _counts_perspec : 2d array
+            Array of counts per channel bin (columns) and spectrum (rows).
+
+    _end_background_time : `astropy.Time`
+            End time for the defined background.
+            Default: None
+
+    _end_event_time : `astropy.Time`
+            End time for the defined event.
+            Default: Last time in loaded data.
+
+    _full_obs_time : [`astropy.Time`, `astropy.Time`]
+            Start and end time of the data loaded in.
+
+    _loaded_spec_data : dict
+            Instrument loaded spectral data.
+
+    _lvt_perspec : 2d array
+            Array of livetimes per channel bin (columns) and spectrum (rows).
+
+    _start_background_time
+            Starting time for the defined background.
+            Default: None
+
+    _start_event_time
+            Starting time for the defined event.
+            Default: First time in loaded data.
+
+    _time_bins_perspec : 2d array
+            Array of time bins per spectrum.
+
+    _time_fmt
+            Format for astropy to convert teh times with.
+            Default: "isot"
+
+    _time_scale
+            Scale for astropy to convert teh times with.
+            Default: "utc"
+
+            self., self., self., self., self., self.
     """
     __doc__ += InstrumentBlueprint._UNIVERSAL_DOC_
 
@@ -508,32 +615,30 @@ class RhessiLoader(InstrumentBlueprint):
                                                                                 "srm.file":f_srm,
                                                                                 "srm.ngrp":ngrp,
                                                                                 "srm.fchan":fchan,
-                                                                                "srm.nchan":nchan} 
+                                                                                "srm.nchan":nchan,
+                                                                                "counts=data-bg":False} 
                                                                      }.
         """
-        
-        # what files might be needed 
-        f_srm = f_pha[:-3]+"arf" if type(f_srm)==type(None) else f_srm
-        
         # need effective exposure and energy binning since likelihood works on counts, not count rates etc.
-        obs_channel_bins, self.channel_bins_inds_perspec, self.time_bins_perspec, self.lvt_perspec, self.counts_perspec, self.count_rate_perspec, self.count_rate_error_perspec = self._get_spec_file_info(f_pha)
+        obs_channel_bins, self._channel_bins_inds_perspec, self._time_bins_perspec, self._lvt_perspec, self._counts_perspec, self._count_rate_perspec, self._count_rate_error_perspec = self._get_spec_file_info(f_pha)
         
         # now calculate the SRM or use a custom one if given
         if type(srm)==type(None):
             # rhessi needs an srm file load it in
             photon_bins, channel_bins, ngrp, fchan, nchan, srm = self._get_srm_file_info(f_srm)
         else:
-            photon_bins, srm_channel_bins, ngrp, fchan, nchan, srm = None, None, None, None, None, None  
+            photon_bins, ngrp, fchan, nchan, srm = None, None, None, None, None
         
         photon_bins = obs_channel_bins if type(photon_bins)==type(None) else photon_bins
         photon_binning = np.diff(photon_bins).flatten()  
         
         channel_bins = obs_channel_bins if type(channel_bins)==type(None) else channel_bins
+        # from the srm file #channel_binning = np.diff(channel_bins).flatten()
         
         # default is no background and all data is the spectrum to be fitted
-        self._full_obs_time = [self.time_bins_perspec[0,0], self.time_bins_perspec[-1,-1]]
-        counts = np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self.counts_perspec, etime=self._full_obs_time[1]), axis=0)
-        _livetimes = np.mean(self._data_time_select(stime=self._full_obs_time[0], full_data=self.lvt_perspec, etime=self._full_obs_time[1]), axis=0) # to convert a model count rate to counts, so need mean
+        self._full_obs_time = [self._time_bins_perspec[0,0], self._time_bins_perspec[-1,-1]]
+        counts = np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self._counts_perspec, etime=self._full_obs_time[1]), axis=0)
+        _livetimes = np.mean(self._data_time_select(stime=self._full_obs_time[0], full_data=self._lvt_perspec, etime=self._full_obs_time[1]), axis=0) # to convert a model count rate to counts, so need mean
         eff_exp = np.diff(self._full_obs_time)[0].to_value("s")*_livetimes
 
         channel_binning = np.diff(obs_channel_bins, axis=1).flatten()
@@ -557,95 +662,147 @@ class RhessiLoader(InstrumentBlueprint):
                           "srm.file":f_srm,
                           "srm.ngrp":ngrp,
                           "srm.fchan":fchan,
-                          "srm.nchan":nchan} 
+                          "srm.nchan":nchan,
+                          "counts=data-bg":False} 
                 } # this might make it easier to add different observations together
-    
-    def _req_time_fmt(self):
-        """ .
 
-        Parameters
-        ----------
-        blah : blah
-                .
+    @property
+    def data2data_minus_background(self):
+        """ ***Property*** States whether the the data is event-background or not.
 
         Returns
         -------
-        .
+        Bool.
+        """
+        return self._loaded_spec_data["extras"]["counts=data-bg"]
+
+    @data2data_minus_background.setter
+    def data2data_minus_background(self, boolean):
+        """ ***Property Setter*** Allows the data to be changed to be event-background.
+        
+        Original data is stroed in `_full_data` attribute. Default fitting will essentially have this as False and fit the event 
+        time data with model+background (recommended). If this is set to True then the data to be fitting will be converted to 
+        the event time data minus the background data and fitting with just model; this is the way RHESSI/OSPEX analysis has been 
+        done in the past but is not strictly correct.
+
+        To convert back to fitting the event time data with model+background then this setter need only be set to False again. 
+        
+        Everytime a background is set this is set to False.
+
+        Parameters
+        ----------
+        boolean : bool
+                If True then the event data is changed to event-background and the _loaded_spec_data["extras"]["counts=data-bg"] 
+                entry is changed to True. If False (recommended) then the event data to be fitted will remain as is or will be 
+                converted back with the _loaded_spec_data["extras"]["counts=data-bg"] entry changed to False.
+
+        Returns
+        -------
+        None.
+        """
+        # check you want to make data data-bg and that the data isn't already data-bg
+        if boolean:
+            # make sure to save the full data first (without background subtraction) if not already done
+            if not hasattr(self, "_full_data"):
+                 self._full_data = {"counts":self._loaded_spec_data["counts"], "count_error":self._loaded_spec_data["count_error"], "count_rate":self._loaded_spec_data["count_rate"], "count_rate_error":self._loaded_spec_data["count_rate_error"]}
+            
+            new_cts = self._full_data["counts"] - (self._loaded_spec_data["extras"]["background_rate"]*self._loaded_spec_data["effective_exposure"]*self._loaded_spec_data["count_channel_binning"])
+            new_cts_err = np.sqrt(self._full_data["count_error"]**2+(self._loaded_spec_data["extras"]["background_count_error"]*(self._loaded_spec_data["effective_exposure"]/self._loaded_spec_data["extras"]["background_effective_exposure"]))**2)
+            new_cts_rates = self._full_data["count_rate"] - self._loaded_spec_data["extras"]["background_rate"]
+            new_cts_rates_err = np.sqrt(self._full_data["count_rate_error"]**2 + self._loaded_spec_data["extras"]["background_rate_error"]**2)
+
+            self._loaded_spec_data.update({"counts":new_cts, "count_error":new_cts_err, "count_rate":new_cts_rates, "count_rate_error":new_cts_rates_err})
+            self._loaded_spec_data["extras"]["counts=data-bg"] = True
+        elif not boolean:
+            #reset
+            if hasattr(self, "_full_data"):
+                self._loaded_spec_data.update(self._full_data)
+                del self._full_data
+            self._loaded_spec_data["extras"]["counts=data-bg"] = False
+    
+    def _req_time_fmt(self):
+        """ Alert statement to tell user of the string time format needed to be given to astropy.Time.
+
+        Returns
+        -------
+        None.
         """
         print(f"Time format must be {self._time_fmt.upper()} with scale {self._time_scale.upper()}.")
         
     def _data_time_select(self, stime, full_data, etime):
-        """ .
+        """ Index and return data in time range stime<=data<=etime.
+
+        If stime/etime is None then they are assumed to be the first/last data time.
 
         Parameters
         ----------
-        blah : blah
-                .
+        stime, etime : `astropy.Time`
+                The start and end range (inclusive) of the data required.
+                
+        full_data : array
+                Array to be indexed along axis 0 such that the data returned in within the time range.
 
         Returns
         -------
-        .
+        Indexed array.
         """
         if (type(stime)==type(None)) and (type(etime)==type(None)):
             return full_data
         elif type(stime)==type(None):
-            return full_data[np.where(self.time_bins_perspec[:,1]<=etime)]
+            return full_data[np.where(self._time_bins_perspec[:,1]<=etime)]
         elif type(etime)==type(None):
-            return full_data[np.where(stime<=self.time_bins_perspec[:,0])]
+            return full_data[np.where(stime<=self._time_bins_perspec[:,0])]
         else:
-            return full_data[np.where((stime<=self.time_bins_perspec[:,0]) & (self.time_bins_perspec[:,1]<=etime))]
+            return full_data[np.where((stime<=self._time_bins_perspec[:,0]) & (self._time_bins_perspec[:,1]<=etime))]
         
     def _update_event_data_with_times(self):
-        """ .
+        """ Changes the data in `_loaded_spec_data` to the data in the defined event time range.
 
-        Parameters
-        ----------
-        blah : blah
-                .
+        Default time is the whole file time range.
 
         Returns
         -------
-        .
+        None.
         """
-    
-        self._loaded_spec_data["counts"] = np.sum(self._data_time_select(stime=self._start_event_time, full_data=self.counts_perspec, etime=self._end_event_time), axis=0)
+        # sum counts over time range
+        self._loaded_spec_data["counts"] = np.sum(self._data_time_select(stime=self._start_event_time, full_data=self._counts_perspec, etime=self._end_event_time), axis=0)
         self._loaded_spec_data["count_error"] = np.sqrt(self._loaded_spec_data["counts"])
         
-        _livetimes = np.mean(self._data_time_select(stime=self._start_event_time, full_data=self.lvt_perspec, etime=self._end_event_time), axis=0) # to convert a model count rate to counts, so need mean
-        _actual_first_bin = self._data_time_select(stime=self._start_event_time, full_data=self.time_bins_perspec[:,0], etime=self._end_event_time)[0]
-        _actual_last_bin = self._data_time_select(stime=self._start_event_time, full_data=self.time_bins_perspec[:,1], etime=self._end_event_time)[-1]
+        # isolate livetimes and time binning
+        _livetimes = np.mean(self._data_time_select(stime=self._start_event_time, full_data=self._lvt_perspec, etime=self._end_event_time), axis=0) # to convert a model count rate to counts, so need mean
+        _actual_first_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:,0], etime=self._end_event_time)[0]
+        _actual_last_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:,1], etime=self._end_event_time)[-1]
         self._loaded_spec_data["effective_exposure"] = np.diff([_actual_first_bin, _actual_last_bin])[0].to_value("s")*_livetimes
         
+        # calculate new count rates and errors
         self._loaded_spec_data["count_rate"] = self._loaded_spec_data["counts"]/self._loaded_spec_data["effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
         self._loaded_spec_data["count_rate_error"] = np.sqrt(self._loaded_spec_data["counts"])/self._loaded_spec_data["effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
         
     @property
     def start_event_time(self):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
+        """ ***Property*** States the set event starting time.
 
         Returns
         -------
-        .
+        Astropy.Time of the set event starting time.
         """
         return self._start_event_time
     
     @start_event_time.setter
     def start_event_time(self, evt_stime):
-        """ .
+        """ ***Property Setter*** Sets the event start time.
+
+        Default behaviour has this set to the first data time.
 
         Parameters
         ----------
-        blah : blah
-                .
+        evt_stime : str, `astropy.Time`, None
+                String to be given to astropy's Time, `astropy.Time` is used directly, None sets the 
+                start event time to be the first time of the data.
 
         Returns
         -------
-        .
+        None.
         """
         if type(evt_stime)==str:
             # string format
@@ -665,31 +822,29 @@ class RhessiLoader(InstrumentBlueprint):
         
     @property
     def end_event_time(self):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
+        """ ***Property*** States the set event end time.
 
         Returns
         -------
-        .
+        Astropy.Time of the set event end time.
         """
         return self._end_event_time
     
     @end_event_time.setter
     def end_event_time(self, evt_etime):
-        """ .
+        """ ***Property Setter*** Sets the event end time.
+
+        Default behaviour has this set to the last data time.
 
         Parameters
         ----------
-        blah : blah
-                .
+        evt_stime : str, `astropy.Time`, None
+                String to be given to astropy's Time, `astropy.Time` is used directly, None sets the 
+                start event time to be the last time of the data.
 
         Returns
         -------
-        .
+        None.
         """
         if type(evt_etime)==str:
             # string format
@@ -709,61 +864,68 @@ class RhessiLoader(InstrumentBlueprint):
         
         
     def _update_bg_data_with_times(self):
-        """ .
+        """ Changes/adds the background data in `_loaded_spec_data["extras"]` to the data in the defined background time range.
 
-        Parameters
-        ----------
-        blah : blah
-                .
+        Background data is removed from `_loaded_spec_data["extras"]` is either the start or end time is set to None.
+
+        Default is that there is no background.
 
         Returns
         -------
-        .
+        None.
         """
         if (type(self._start_background_time)!=type(None)) and (type(self._end_background_time)!=type(None)):
-            self._loaded_spec_data["extras"]["background_counts"] = np.sum(self._data_time_select(stime=self._start_background_time, full_data=self.counts_perspec, etime=self._end_background_time), axis=0)
+            # get background data, woo!
+            # sum counts over time range
+            self._loaded_spec_data["extras"]["background_counts"] = np.sum(self._data_time_select(stime=self._start_background_time, full_data=self._counts_perspec, etime=self._end_background_time), axis=0)
             self._loaded_spec_data["extras"]["background_count_error"] = np.sqrt(self._loaded_spec_data["extras"]["background_counts"])
 
-            _livetimes = np.mean(self._data_time_select(stime=self._start_background_time, full_data=self.lvt_perspec, etime=self._end_background_time), axis=0) # to convert a model count rate to counts, so need mean
-            _actual_first_bin = self._data_time_select(stime=self._start_background_time, full_data=self.time_bins_perspec[:,0], etime=self._end_background_time)[0]
-            _actual_last_bin = self._data_time_select(stime=self._start_background_time, full_data=self.time_bins_perspec[:,1], etime=self._end_background_time)[-1]
+            # isolate livetimes and time binning
+            _livetimes = np.mean(self._data_time_select(stime=self._start_background_time, full_data=self._lvt_perspec, etime=self._end_background_time), axis=0) # to convert a model count rate to counts, so need mean
+            _actual_first_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:,0], etime=self._end_background_time)[0]
+            _actual_last_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:,1], etime=self._end_background_time)[-1]
             self._loaded_spec_data["extras"]["background_effective_exposure"] = np.diff([_actual_first_bin, _actual_last_bin])[0].to_value("s")*_livetimes
 
+            # calculate new count rates and errors
             self._loaded_spec_data["extras"]["background_rate"] = self._loaded_spec_data["extras"]["background_counts"]/self._loaded_spec_data["extras"]["background_effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
             self._loaded_spec_data["extras"]["background_rate_error"] = np.sqrt(self._loaded_spec_data["extras"]["background_counts"])/self._loaded_spec_data["extras"]["background_effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
             
         else:
+            # if either the start or end background time is None, or set to None, then makes sure the background data is removed if it is there
             for key in self._loaded_spec_data["extras"].copy().keys():
                 if key.startswith("background"):
                     del self._loaded_spec_data["extras"][key]
         
     @property
     def start_background_time(self):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
+        """ ***Property*** States the set background starting time.
 
         Returns
         -------
-        .
+        Astropy.Time of the set background starting time.
         """
         return self._start_background_time
     
     @start_background_time.setter
     def start_background_time(self, bg_stime):
-        """ .
+        """ ***Property Setter*** Sets the background start time.
+
+        Default behaviour has this set to None, with no background data component added. 
+        
+        The `data2data_minus_background` setter is reset to False; if the `data2data_minus_background` setter 
+        was used by the user and they still want to fit the event time data minus the background then this 
+        must be set to True again. If you don't know what the `data2data_minus_background` setter is then 
+        don't worry about it.
 
         Parameters
         ----------
-        blah : blah
-                .
+        evt_stime : str, `astropy.Time`, None
+                String to be given to astropy's Time, `astropy.Time` is used directly, None doesn't 
+                add, or will remove, any background data in `_loaded_spec_data["extras"]`.
 
         Returns
         -------
-        .
+        None.
         """
         if type(bg_stime)==str:
             # string format
@@ -780,34 +942,38 @@ class RhessiLoader(InstrumentBlueprint):
             return
         
         self._update_bg_data_with_times()
+        self.data2data_minus_background = False
         
     @property
     def end_background_time(self):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
+        """ ***Property*** States the set background end time.
 
         Returns
         -------
-        .
+        Astropy.Time of the set background end time.
         """
         return self._end_background_time
     
     @end_background_time.setter
     def end_background_time(self, bg_etime):
-        """ .
+        """ ***Property Setter*** Sets the background end time.
+
+        Default behaviour has this set to None, with no background data component added.
+        
+        The `data2data_minus_background` setter is reset to False; if the `data2data_minus_background` setter 
+        was used by the user and they still want to fit the event time data minus the background then this 
+        must be set to True again. If you don't know what the `data2data_minus_background` setter is then 
+        don't worry about it.
 
         Parameters
         ----------
-        blah : blah
-                .
+        evt_stime : str, `astropy.Time`, None
+                String to be given to astropy's Time, `astropy.Time` is used directly, None doesn't 
+                add, or will remove, any background data in `_loaded_spec_data["extras"]`.
 
         Returns
         -------
-        .
+        None.
         """
         if type(bg_etime)==str:
             # string format
@@ -824,6 +990,7 @@ class RhessiLoader(InstrumentBlueprint):
             return
         
         self._update_bg_data_with_times()
+        self.data2data_minus_background = False
         
     def _atimes2mdates(self, datetimes):
         """ .
@@ -884,14 +1051,14 @@ class RhessiLoader(InstrumentBlueprint):
             return
             
         ax = axes if type(axes)!=type(None) else plt.gca()
-        _def_font = plt.rcParams['font.size']
+        _def_fs = plt.rcParams['font.size']
         
         for c,er in enumerate(energy_ranges):
             i = np.where((self._loaded_spec_data["count_channel_bins"][:,0]>=er[0]) & (self._loaded_spec_data["count_channel_bins"][:,-1]<=er[-1]))
-            time_binning = np.array([dt.to_value("s") for dt in np.diff(self.time_bins_perspec).flatten()])
-            e_range_cts = np.sum(self.counts_perspec[:,i].squeeze(), axis=1)/time_binning
+            time_binning = np.array([dt.to_value("s") for dt in np.diff(self._time_bins_perspec).flatten()])
+            e_range_cts = np.sum(self._counts_perspec[:,i].squeeze(), axis=1)/time_binning
             
-            ax.plot(self._atimes2mdates(self.time_bins_perspec.flatten()), np.concatenate((e_range_cts[:,None],e_range_cts[:,None]),axis=1).flatten(), label=f"{er[0]}$-${er[-1]} keV") # incase of uncommon time binning just plot cts/s per bin edge
+            ax.plot(self._atimes2mdates(self._time_bins_perspec.flatten()), np.concatenate((e_range_cts[:,None],e_range_cts[:,None]),axis=1).flatten(), label=f"{er[0]}$-${er[-1]} keV") # incase of uncommon time binning just plot cts/s per bin edge
             
         fmt = mdates.DateFormatter('%H:%M')
         ax.xaxis.set_major_formatter(fmt)
@@ -901,15 +1068,16 @@ class RhessiLoader(InstrumentBlueprint):
         ax.set_xlabel(f"Time (Start Time: {self._full_obs_time[0]})")
         ax.set_ylabel("Counts s$^{-1}$")
         ax.set_title("RHESSI Lightcurve")
-        plt.legend(fontsize=_def_font-5)
+        plt.legend(fontsize=_def_fs-5)
         
+        _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95 # stop region label overlapping axis spine
         if hasattr(self, "_start_background_time") and (type(self._start_background_time)!=type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time)!=type(None)):
             ax.axvspan(*self._atimes2mdates([self._start_background_time, self._end_background_time]), alpha=0.1, color='orange')
-            ax.annotate("BG", (self._atimes2mdates([self._start_background_time])[0], ax.get_ylim()[1]), color='orange', va="top", size=_def_font-8)
+            ax.annotate("BG", (self._atimes2mdates([self._start_background_time])[0], _y_pos), color='orange', va="top", size=_def_fs-8)
 
         if hasattr(self, "_start_event_time") and hasattr(self, "_end_event_time"):
             ax.axvspan(*self._atimes2mdates([self._start_event_time, self._end_event_time]), alpha=0.1, color='purple')
-            ax.annotate("Evt", (self._atimes2mdates([self._start_event_time])[0], ax.get_ylim()[1]), color='purple', va="top", size=_def_font-8)
+            ax.annotate("Evt", (self._atimes2mdates([self._start_event_time])[0], _y_pos), color='purple', va="top", size=_def_fs-8)
 
     def select_time(self, start=None, end=None, background=False):
         """ .
@@ -945,6 +1113,39 @@ class RhessiLoader(InstrumentBlueprint):
             for i in range(4):
                 rdict[str(i)] = [hdul[i].header, hdul[i].data]
         return rdict
+
+    def _spec_file_units_check(self, rhessi_dict, livetimes, time_dels, kev_binning):
+        """ .
+
+        Parameters
+        ----------
+        blah : blah
+                .
+
+        Returns
+        -------
+        .
+        """
+        # rhessi can be saved out with counts, counts/sec, or counts/sec/cm^2/keV using counts, rate, or flux, respectively
+        if "RATE" in rhessi_dict["1"][1]:
+            cts_rates = rhessi_dict["1"][1]["RATE"] # count rate for every time, (rows,columns) -> (times, channels) [counts/sec]
+            cts_rate_err = rhessi_dict["1"][1]["STAT_ERR"]# errors, (rows,columns) -> (times, channels)
+            counts = cts_rates * livetimes * time_dels[:,None]
+        elif "COUNTS" in rhessi_dict["1"][1]:
+            #### **** Not Tested ****
+            counts = rhessi_dict["1"][1]["COUNTS"] # counts for every time, (rows,columns) -> (times, channels) [counts]
+            cts_rates = counts / livetimes / time_dels[:,None]
+            cts_rate_err = np.sqrt(counts) / livetimes / time_dels[:,None]
+        elif "FLUX" in rhessi_dict["1"][1]:
+            #### **** Not Tested ****
+            _flux = rhessi_dict["1"][1]["FLUX"] # flux for every time, (rows,columns) -> (times, channels) [counts/sec/cm^2/keV]
+            cts_rates = _flux * rhessi_dict["1"][0]["GEOAREA"] * np.diff(kev_binning, axis=1).flatten()
+            counts = cts_rates * livetimes * time_dels[:,None]
+            cts_rate_err = np.sqrt(counts) / livetimes / time_dels[:,None]
+        else:
+            print("I don\'t know what units RHESSI is in.")
+
+        return counts, cts_rates, cts_rate_err
     
     def _get_spec_file_info(self, spec_file):
         """ .
@@ -959,16 +1160,19 @@ class RhessiLoader(InstrumentBlueprint):
         .
         """
         rdict = self._read_spec_file(spec_file)
+
+        if rdict["1"][0]["SUMFLAG"]!=1:
+            print("Apparently spectrum file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
+            return
         
         # Note that for rate, the units are per detector, i.e. counts sec-1 detector-1. https://hesperia.gsfc.nasa.gov/rhessi3/software/spectroscopy/spectrum-software/index.html
+        ##  -> I tnhink this is the default but false for the first simple case I tried. I think sum_flag=1 sums the detectors up for spectra and srm 
         
-        cts_rates = rdict["1"][1]["RATE"] # count rate for every time, (rows,columns) -> (times, channels)
         channel_bins_inds = rdict["1"][1]["CHANNEL"] # channel numbers, (rows,columns) -> (times, channels)
         lvt = rdict["1"][1]["LIVETIME"]# livetimes, (rows,columns) -> (times, channels)
         times_s = rdict["1"][1]["TIME"]# times of spectra, entries -> times. Times from start of the day of "DATE_OBS"; e.g.,"DATE_OBS"='2002-10-05T10:38:00.000' then times measured from '2002-10-05T00:00:00.000'
         time_deltas = rdict["1"][1]["TIMEDEL"]# times deltas of spectra, entries -> times
-        # spectrum number in the file, entries -> times ### spec_num = rdict["1"][1]["SPEC_NUM"]
-        stat_err = rdict["1"][1]["STAT_ERR"]# errors, (rows,columns) -> (times, channels)
+        # spectrum number in the file, entries -> times # spec_num = rdict["1"][1]["SPEC_NUM"]
         
         td = times_s-times_s[0]
         spec_stimes = [Time(rdict["0"][0]["DATE_OBS"], format='isot', scale='utc')+TimeDelta(dt * u.s) for dt in td]
@@ -978,9 +1182,10 @@ class RhessiLoader(InstrumentBlueprint):
         channels = rdict["2"][1] # [(chan, lowE, hiE), ...], rdict["2"][0] has units etc.
         channel_bins = np.concatenate((np.array(channels['E_MIN'])[:,None],np.array(channels['E_MAX'])[:,None]), axis=1)
         
-        counts = cts_rates * lvt * time_deltas[:,None]
+        # get counts [counts], count rate [counts/s], and error on count rate 
+        counts, cts_rates, cts_rate_err = self._spec_file_units_check(rhessi_dict=rdict, livetimes=lvt, time_dels=time_deltas, kev_binning=channel_bins)
         
-        return channel_bins, channel_bins_inds, time_bins, lvt, counts, cts_rates, stat_err
+        return channel_bins, channel_bins_inds, time_bins, lvt, counts, cts_rates, cts_rate_err
 
     def _read_srm_file(self, srm_file):
         """ .
@@ -1013,6 +1218,10 @@ class RhessiLoader(InstrumentBlueprint):
         .
         """
         srmfrdict = self._read_srm_file(srm_file)
+
+        if srmfrdict["1"][0]["SUMFLAG"]!=1:
+            print("Apparently srm file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
+            return
         
         photon_channels_elo = srmfrdict["1"][1]['ENERG_LO'] # photon channel edges, different to count channels
         photon_channels_ehi = srmfrdict["1"][1]['ENERG_HI'] 
@@ -1028,11 +1237,11 @@ class RhessiLoader(InstrumentBlueprint):
         channel_bins = np.concatenate((np.array(channels['E_MIN'])[:,None],np.array(channels['E_MAX'])[:,None]), axis=1)
         
         #srm units counts ph^(-1) kev^(-1); i.e., photons cm^(-2) go in and counts cm^(-2) kev^(-1) comes out # https://hesperia.gsfc.nasa.gov/ssw/hessi/doc/params/hsi_params_srm.htm#***
+        ## need srm units are counts ph^(-1) cm^(2)
         srm = srm * np.diff(channel_bins, axis=1).flatten() * geo_area
         
         return photon_bins, channel_bins, ngrp, fchan, nchan, srm
-
-
+        
 
 class CustomLoader(InstrumentBlueprint):
     """
