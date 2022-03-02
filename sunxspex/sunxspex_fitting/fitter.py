@@ -47,7 +47,6 @@ import warnings
 warnings.filterwarnings("ignore", category=RuntimeWarning) 
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning) 
 
-from sunxspex.sunxspex_fitting import nu_spec_code as nu_spec
 from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 from sunxspex.sunxspex_fitting.photon_models_for_fitting import (defined_photon_models, f_vth, thick_fn, thick_warm)
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
@@ -1297,10 +1296,10 @@ class SunXspex(LoadSpec):
             m = self._model(**sep_params, energies=kwargs["photon_channels"][s]) * np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1] 
-            cts_model = nu_spec.make_model(energies=kwargs["photon_channels"][s], 
-                                            photon_model=m,
-                                            parameters=None, 
-                                            srm=kwargs["total_responses"][s]) 
+            cts_model = make_model(energies=kwargs["photon_channels"][s], 
+                                   photon_model=m,
+                                   parameters=None, 
+                                   srm=kwargs["total_responses"][s]) 
             
             if "scaled_background_spectrum"+str(s+1) in self._scaled_backgrounds:
                 cts_model += self._scaled_backgrounds["scaled_background_spectrum"+str(s+1)]
@@ -2216,10 +2215,10 @@ class SunXspex(LoadSpec):
             print("parameters needs to be a dictionary or list (or np.array) of the photon_model inputs (excluding energies input) or None if photon_model is values and not a function.")
             return
 
-        cts_model = nu_spec.make_model(energies=photon_channel_bins, 
-                                       photon_model=m * np.diff(photon_channel_bins).flatten(),
-                                       parameters=None, 
-                                       srm=srm) / np.diff(self.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
+        cts_model = make_model(energies=photon_channel_bins, 
+                               photon_model=m * np.diff(photon_channel_bins).flatten(),
+                               parameters=None, 
+                               srm=srm) / np.diff(self.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
             
         # if the spectrum has been gain shifted then this will be done but if user provides their own values they will take priority
         if ("gain_slope_spectrum"+str(spec_no) in kwargs) and ("gain_offset_spectrum"+str(spec_no) in kwargs):
@@ -4680,3 +4679,40 @@ def imports():
             # check for functions and their names being used to refer to them 
             _imps += "* from "+str(inspect.getmodule(val).__name__)+" import "+val.__name__+" as "+name + "\n"
     return _imps  
+
+
+def make_model(energies=None, photon_model=None, parameters=None, srm=None):
+    """ Takes a photon model array ( or function if you provide the pinputs with parameters), the spectral response matrix and returns a model count spectrum.
+    
+    Parameters
+    ----------
+    energies : array/list
+            List of energies.
+            Default : None
+
+    photon_model : function/array/list
+            Array -OR- function representing the photon model (if it's a function, provide the parameters of the function as a list, e.g. paramters = [energies, const, power]).
+            Default : None
+            
+    parameters : list
+            List representing the inputs a photon model function, if a function is provided, excludeing the energies the spectrum is over.
+            Default : None
+
+    srm : matrix/array
+            Spectral response matrix.
+            Default : None
+            
+    Returns
+    -------
+    A model count spectrum.
+    """
+
+    ## if parameters is None then assume the photon_model input is already a spectrum to test, else make the model spectrum from the funciton and parameters
+    if type(parameters) == type(None):
+        photon_spec = photon_model
+    else:
+        photon_spec = photon_model(energies, *parameters)
+
+    model_cts_spectrum = np.matmul(photon_spec, srm)
+    
+    return model_cts_spectrum

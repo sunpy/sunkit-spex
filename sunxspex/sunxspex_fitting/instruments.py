@@ -10,13 +10,11 @@ import numpy as np
 from os import path as os_path
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from astropy.time import Time, TimeDelta
-from astropy import units as u
+from astropy.time import Time
 
-# functions that use this need tobe moved to a .io
-from astropy.io import fits
-
-from . import nu_spec_code as nu_spec # sunxspex.sunxspex_fitting
+from . import nu_spec_code as nu_spec 
+from . import rhes_spec_code as rhes_spec 
+from . import io 
 
 __all__ = ["NustarLoader", "StixLoader", "RhessiLoader", "CustomLoader", "rebin_any_array"]
 
@@ -71,7 +69,7 @@ class InstrumentBlueprint:
                                  NuSTAR data) it is assumed that these are in the same directory with same filename 
                                  as the PHA file(s) but with extensions '.arf' and '.rmf', respectively.
 
-                        srm_file : string
+                         srm_file : string
                                  The file that contains the spectral response matrix for the given spectrum.
 
                          srm_custom : 2d array
@@ -231,7 +229,7 @@ class NustarLoader(InstrumentBlueprint):
     def __init__(self, pha_file, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"NustarLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string = f"NustarLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},**{kwargs})"
         self._loaded_spec_data = self._load1spec(pha_file, f_arf=arf_file, f_rmf=rmf_file, srm=srm_custom, channel_bins=custom_channel_bins)
 
     def _load1spec(self, f_pha, f_arf=None, f_rmf=None, srm=None, channel_bins=None):
@@ -290,14 +288,14 @@ class NustarLoader(InstrumentBlueprint):
         f_rmf = f_pha[:-3]+"rmf" if type(f_rmf)==type(None) else f_rmf
         
         # need effective exposure and energy binning since likelihood works on counts, not count rates etc.
-        _, counts, eff_exp = nu_spec.read_pha(f_pha)
+        _, counts, eff_exp = io._read_pha(f_pha)
         
         # now calculate the SRM or use a custom one if given
         if type(srm)==type(None):
         
             # if there is an ARF file load it in
             if os_path.isfile(f_arf):
-                e_lo_arf, e_hi_arf, eff_area = nu_spec.read_arf(f_arf)
+                e_lo_arf, e_hi_arf, eff_area = io._read_arf(f_arf)
 
             # if there is an RMF file load it in and convert to a redistribution matrix
             if os_path.isfile(f_rmf):
@@ -359,7 +357,7 @@ class NustarLoader(InstrumentBlueprint):
         columns of counts channels, and in the units of counts/photon).
         """
         
-        e_lo_rmf, e_hi_rmf, ngrp, fchan, nchan, matrix = nu_spec.read_rmf(rmf_file)
+        e_lo_rmf, e_hi_rmf, ngrp, fchan, nchan, matrix = io._read_rmf(rmf_file)
         fchan_array = nu_spec.col2arr_py(fchan)
         nchan_array = nu_spec.col2arr_py(nchan)
         redist_m = nu_spec.vrmf2arr_py(data=matrix,  
@@ -447,7 +445,7 @@ class StixLoader(InstrumentBlueprint):
     def __init__(self, pha_file, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"StixLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string = f"StixLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},**{kwargs})"
         self._loaded_spec_data = {}
 
 
@@ -508,6 +506,10 @@ class RhessiLoader(InstrumentBlueprint):
 
     Methods
     -------
+    lightcurve : energy_ranges (list of length=2, lists of length=2 lists, or None), axes (axes object or None)
+            Plots the RHESSI time profile in the energy range given and on the axes provided. Default behaviour (energy_ranges=None) 
+            is to include all energies.
+
     select_time : start (str, `astropy.Time`, None), end (str, `astropy.Time`, None), background (bool)
             Set the start and end times for the event (background=False, default) or background (background=True) data. Both and 
             end and a start time needs to be defined for the background, whereas the event time is assumed to commence/finish at the 
@@ -565,15 +567,14 @@ class RhessiLoader(InstrumentBlueprint):
     _time_scale
             Scale for astropy to convert teh times with.
             Default: "utc"
-
-            self., self., self., self., self., self.
+            
     """
     __doc__ += InstrumentBlueprint._UNIVERSAL_DOC_
 
     def __init__(self, pha_file, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"RhessiLoader(pha_file={pha_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string = f"RhessiLoader(pha_file={pha_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},**{kwargs})"
         self._loaded_spec_data = self._load1spec(pha_file, srm_file, srm=srm_custom, channel_bins=custom_channel_bins)
 
         self._time_fmt, self._time_scale = "isot", "utc"
@@ -620,12 +621,12 @@ class RhessiLoader(InstrumentBlueprint):
                                                                      }.
         """
         # need effective exposure and energy binning since likelihood works on counts, not count rates etc.
-        obs_channel_bins, self._channel_bins_inds_perspec, self._time_bins_perspec, self._lvt_perspec, self._counts_perspec, self._count_rate_perspec, self._count_rate_error_perspec = self._get_spec_file_info(f_pha)
+        obs_channel_bins, self._channel_bins_inds_perspec, self._time_bins_perspec, self._lvt_perspec, self._counts_perspec, self._count_rate_perspec, self._count_rate_error_perspec = rhes_spec._get_spec_file_info(f_pha)
         
         # now calculate the SRM or use a custom one if given
         if type(srm)==type(None):
             # rhessi needs an srm file load it in
-            photon_bins, channel_bins, ngrp, fchan, nchan, srm = self._get_srm_file_info(f_srm)
+            photon_bins, channel_bins, ngrp, fchan, nchan, srm = rhes_spec._get_srm_file_info(f_srm)
         else:
             photon_bins, ngrp, fchan, nchan, srm = None, None, None, None, None
         
@@ -642,7 +643,7 @@ class RhessiLoader(InstrumentBlueprint):
         eff_exp = np.diff(self._full_obs_time)[0].to_value("s")*_livetimes
 
         channel_binning = np.diff(obs_channel_bins, axis=1).flatten()
-        count_rate = counts/eff_exp/channel_binning
+        count_rate = counts/eff_exp/channel_binning # count rates from here are counts/s/keV
         count_rate_error = np.sqrt(counts)/eff_exp/channel_binning
             
         # what spectral info you want to know from this observation
@@ -942,6 +943,7 @@ class RhessiLoader(InstrumentBlueprint):
             return
         
         self._update_bg_data_with_times()
+        # change back to separate event time and background data
         self.data2data_minus_background = False
         
     @property
@@ -990,33 +992,30 @@ class RhessiLoader(InstrumentBlueprint):
             return
         
         self._update_bg_data_with_times()
+        # change back to separate event time and background data
         self.data2data_minus_background = False
         
-    def _atimes2mdates(self, datetimes):
-        """ .
+    def _atimes2mdates(self, astrotimes):
+        """ Convert a list of `astropy.Time`s to matplotlib dates for plotting.
 
         Parameters
         ----------
-        blah : blah
-                .
+        astrotimes : list of `astropy.Time`
+                List of `astropy.Time`s to convert to list of matplotlib dates.
 
         Returns
         -------
-        .
+        List of matplotlib dates.
         """
-        return [mdates.date2num(dt.tt.datetime) for dt in datetimes]
+        # convert astro time to datetime then use list comprehension to convert to matplotlib dates
+        return [mdates.date2num(dt.tt.datetime) for dt in astrotimes]
     
     def _mdates_minute_locator(self):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
+        """ Try to determine a nice tick separation for time axis on the lightcurve.
 
         Returns
         -------
-        .
+        `mdates.MinuteLocator`.
         """
         obs_dt = np.diff(self._full_obs_time)[0].to_value("s")
         if obs_dt > 3600*0.5:
@@ -1030,18 +1029,47 @@ class RhessiLoader(InstrumentBlueprint):
         
 
     def lightcurve(self, energy_ranges=None, axes=None):
-        """ .
+        """ Creates a RHESSI lightcurve.
+
+        Helps the user see the RHESSI time profile. The defined event time (defined either through `start_event_time`, 
+        `end_event_time` setters, or `select_time(...)` method) is shown with a purple shaded region and if a background 
+        time (defined either through `start_background_time`, `end_background_time` setters, or 
+        `select_time(...,background=True)` method) is defined then it is shown with an orange shaded region.
 
         Parameters
         ----------
-        blah : blah
-                .
+        energy_ranges : list of length=2 or lists of length=2 lists
+                Energy ranges to plot. Default behaviour is full energy range.
+                Default: None
+
+        axes : axes object
+                Axes object to plot on. Default gets changed to matplotlib.pyplot.
+                Default: None
 
         Returns
         -------
-        .
+        The axes object.
+
+        Examples
+        --------
+        # use the class to load in data
+        ar = RhessiLoader(pha_file=spec_file, srm_file=srm_file)
+
+        # define a background range if we like; equivalent to ar.select_time(start="2002-10-05T10:38:32", end="2002-10-05T10:40:32", background=True)
+        ar.start_background_time = "2002-10-05T10:38:32"
+        ar.end_background_time = "2002-10-05T10:40:32"
+
+        # change the event time range to something other than the full time range; equivalent to ar.select_time(start="2002-10-05T10:41:20", end="2002-10-05T10:42:24")
+        ar.start_event_time = "2002-10-05T10:41:20"
+        ar.end_event_time = "2002-10-05T10:42:24"
+
+        # see the lightcurves for 5--10 keV, 10--30 keV, and 25--50 keV
+        plt.figure(figsize=(9,6))
+        ar.lightcurve(energy_ranges=[[5,10], [10,30], [25,50]])
+        plt.show()
+
         """
-        
+        # just make sure we have a list of lists for the energy ranges
         if type(energy_ranges)==type(None):
             energy_ranges = [[self._loaded_spec_data["count_channel_bins"][0,0], self._loaded_spec_data["count_channel_bins"][-1,-1]]]
         elif len(np.shape(energy_ranges))==1:
@@ -1053,7 +1081,8 @@ class RhessiLoader(InstrumentBlueprint):
         ax = axes if type(axes)!=type(None) else plt.gca()
         _def_fs = plt.rcParams['font.size']
         
-        for c,er in enumerate(energy_ranges):
+        # plot each energy range
+        for er in energy_ranges:
             i = np.where((self._loaded_spec_data["count_channel_bins"][:,0]>=er[0]) & (self._loaded_spec_data["count_channel_bins"][:,-1]<=er[-1]))
             time_binning = np.array([dt.to_value("s") for dt in np.diff(self._time_bins_perspec).flatten()])
             e_range_cts = np.sum(self._counts_perspec[:,i].squeeze(), axis=1)/time_binning
@@ -1070,178 +1099,44 @@ class RhessiLoader(InstrumentBlueprint):
         ax.set_title("RHESSI Lightcurve")
         plt.legend(fontsize=_def_fs-5)
         
+        # plot background time range if there is one
         _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95 # stop region label overlapping axis spine
         if hasattr(self, "_start_background_time") and (type(self._start_background_time)!=type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time)!=type(None)):
             ax.axvspan(*self._atimes2mdates([self._start_background_time, self._end_background_time]), alpha=0.1, color='orange')
             ax.annotate("BG", (self._atimes2mdates([self._start_background_time])[0], _y_pos), color='orange', va="top", size=_def_fs-8)
 
+        # plot event time range
         if hasattr(self, "_start_event_time") and hasattr(self, "_end_event_time"):
             ax.axvspan(*self._atimes2mdates([self._start_event_time, self._end_event_time]), alpha=0.1, color='purple')
             ax.annotate("Evt", (self._atimes2mdates([self._start_event_time])[0], _y_pos), color='purple', va="top", size=_def_fs-8)
 
+        return ax
+
     def select_time(self, start=None, end=None, background=False):
-        """ .
+        """ Provides method to set start and end time of the event or background in one line.
 
         Parameters
         ----------
-        blah : blah
-                .
+        start, end : str, `astropy.Time`, None
+                String to be given to astropy's Time, `astropy.Time` is used directly, None sets the 
+                start/end event time to be the first time of the data. None doesn't add, or will remove, 
+                any background data in `_loaded_spec_data["extras"]` if background is set to True.
+                Default: None
+
+        background : bool
+                Determines whether the start and end times are for the event (False) or background 
+                time (True).
+                Default: False
 
         Returns
         -------
-        .
+        None.
         """
         if background:
             self.start_background_time, self.end_background_time = start, end
         else:
             self.start_event_time, self.end_event_time = start, end
-
-    def _read_spec_file(self, spec_file):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
-
-        Returns
-        -------
-        .
-        """
-        rdict = {}
-        with fits.open(spec_file) as hdul:
-            for i in range(4):
-                rdict[str(i)] = [hdul[i].header, hdul[i].data]
-        return rdict
-
-    def _spec_file_units_check(self, rhessi_dict, livetimes, time_dels, kev_binning):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
-
-        Returns
-        -------
-        .
-        """
-        # rhessi can be saved out with counts, counts/sec, or counts/sec/cm^2/keV using counts, rate, or flux, respectively
-        if "RATE" in rhessi_dict["1"][1]:
-            cts_rates = rhessi_dict["1"][1]["RATE"] # count rate for every time, (rows,columns) -> (times, channels) [counts/sec]
-            cts_rate_err = rhessi_dict["1"][1]["STAT_ERR"]# errors, (rows,columns) -> (times, channels)
-            counts = cts_rates * livetimes * time_dels[:,None]
-        elif "COUNTS" in rhessi_dict["1"][1]:
-            #### **** Not Tested ****
-            counts = rhessi_dict["1"][1]["COUNTS"] # counts for every time, (rows,columns) -> (times, channels) [counts]
-            cts_rates = counts / livetimes / time_dels[:,None]
-            cts_rate_err = np.sqrt(counts) / livetimes / time_dels[:,None]
-        elif "FLUX" in rhessi_dict["1"][1]:
-            #### **** Not Tested ****
-            _flux = rhessi_dict["1"][1]["FLUX"] # flux for every time, (rows,columns) -> (times, channels) [counts/sec/cm^2/keV]
-            cts_rates = _flux * rhessi_dict["1"][0]["GEOAREA"] * np.diff(kev_binning, axis=1).flatten()
-            counts = cts_rates * livetimes * time_dels[:,None]
-            cts_rate_err = np.sqrt(counts) / livetimes / time_dels[:,None]
-        else:
-            print("I don\'t know what units RHESSI is in.")
-
-        return counts, cts_rates, cts_rate_err
     
-    def _get_spec_file_info(self, spec_file):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
-
-        Returns
-        -------
-        .
-        """
-        rdict = self._read_spec_file(spec_file)
-
-        if rdict["1"][0]["SUMFLAG"]!=1:
-            print("Apparently spectrum file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
-            return
-        
-        # Note that for rate, the units are per detector, i.e. counts sec-1 detector-1. https://hesperia.gsfc.nasa.gov/rhessi3/software/spectroscopy/spectrum-software/index.html
-        ##  -> I tnhink this is the default but false for the first simple case I tried. I think sum_flag=1 sums the detectors up for spectra and srm 
-        
-        channel_bins_inds = rdict["1"][1]["CHANNEL"] # channel numbers, (rows,columns) -> (times, channels)
-        lvt = rdict["1"][1]["LIVETIME"]# livetimes, (rows,columns) -> (times, channels)
-        times_s = rdict["1"][1]["TIME"]# times of spectra, entries -> times. Times from start of the day of "DATE_OBS"; e.g.,"DATE_OBS"='2002-10-05T10:38:00.000' then times measured from '2002-10-05T00:00:00.000'
-        time_deltas = rdict["1"][1]["TIMEDEL"]# times deltas of spectra, entries -> times
-        # spectrum number in the file, entries -> times # spec_num = rdict["1"][1]["SPEC_NUM"]
-        
-        td = times_s-times_s[0]
-        spec_stimes = [Time(rdict["0"][0]["DATE_OBS"], format='isot', scale='utc')+TimeDelta(dt * u.s) for dt in td]
-        spec_etimes = [st+TimeDelta(dt * u.s) for st,dt in zip(spec_stimes, time_deltas)]
-        time_bins = np.concatenate((np.array(spec_stimes)[:,None],np.array(spec_etimes)[:,None]), axis=1)
-        
-        channels = rdict["2"][1] # [(chan, lowE, hiE), ...], rdict["2"][0] has units etc.
-        channel_bins = np.concatenate((np.array(channels['E_MIN'])[:,None],np.array(channels['E_MAX'])[:,None]), axis=1)
-        
-        # get counts [counts], count rate [counts/s], and error on count rate 
-        counts, cts_rates, cts_rate_err = self._spec_file_units_check(rhessi_dict=rdict, livetimes=lvt, time_dels=time_deltas, kev_binning=channel_bins)
-        
-        return channel_bins, channel_bins_inds, time_bins, lvt, counts, cts_rates, cts_rate_err
-
-    def _read_srm_file(self, srm_file):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
-
-        Returns
-        -------
-        .
-        """
-        srmrdict = {}
-        with fits.open(srm_file) as hdul:
-            for i in range(4):
-                srmrdict[str(i)] = [hdul[i].header, hdul[i].data]
-        return srmrdict
-    
-    def _get_srm_file_info(self, srm_file):
-        """ .
-
-        Parameters
-        ----------
-        blah : blah
-                .
-
-        Returns
-        -------
-        .
-        """
-        srmfrdict = self._read_srm_file(srm_file)
-
-        if srmfrdict["1"][0]["SUMFLAG"]!=1:
-            print("Apparently srm file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
-            return
-        
-        photon_channels_elo = srmfrdict["1"][1]['ENERG_LO'] # photon channel edges, different to count channels
-        photon_channels_ehi = srmfrdict["1"][1]['ENERG_HI'] 
-        photon_bins = np.concatenate((np.array(photon_channels_elo)[:,None],np.array(photon_channels_ehi)[:,None]), axis=1)
-        
-        ngrp = srmfrdict["1"][1]['N_GRP'] # number of count groups along a photon bin to construct the SRM
-        fchan = srmfrdict["1"][1]['F_CHAN'] # starting index for each count group along a photon channel
-        nchan = srmfrdict["1"][1]['N_CHAN'] # number of matrix entries each count group along a photon channel
-        srm = srmfrdict["1"][1]['MATRIX'] # counts ph^-1 keV 
-        geo_area = srmfrdict["3"][0]['GEOAREA']
-        
-        channels = srmfrdict["2"][1] # [(chan, lowE, hiE), ...], srmfrdict["2"][0] has units etc. count channels for SRM
-        channel_bins = np.concatenate((np.array(channels['E_MIN'])[:,None],np.array(channels['E_MAX'])[:,None]), axis=1)
-        
-        #srm units counts ph^(-1) kev^(-1); i.e., photons cm^(-2) go in and counts cm^(-2) kev^(-1) comes out # https://hesperia.gsfc.nasa.gov/ssw/hessi/doc/params/hsi_params_srm.htm#***
-        ## need srm units are counts ph^(-1) cm^(2)
-        srm = srm * np.diff(channel_bins, axis=1).flatten() * geo_area
-        
-        return photon_bins, channel_bins, ngrp, fchan, nchan, srm
-        
 
 class CustomLoader(InstrumentBlueprint):
     """
@@ -1283,7 +1178,7 @@ class CustomLoader(InstrumentBlueprint):
 
     def __init__(self, spec_data_dict, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
-        self._construction_string = f"CustomLoader({spec_data_dict})"
+        self._construction_string = f"CustomLoader({spec_data_dict},**{kwargs})"
 
         # needed keys
         ess_keys = ["count_channel_bins",
