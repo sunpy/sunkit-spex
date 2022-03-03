@@ -75,7 +75,8 @@ class LoadSpec:
             after rebinning. Returns binned channels and the minimum group number if one exists.
 
     group_spec : spectrum (str), group_min (int), _orig_in_extras (bool)
-            Returns new bins and new binned counts for a given spectrum and minimun bin gorup number.
+            Returns new bins and new binned counts, count errors, and effective exposures for a given spectrum and 
+            minimun bin gorup number.
 
     Attributes
     ----------
@@ -324,13 +325,44 @@ class LoadSpec:
         # remember how it was rebinned
         self._rebin_setting = dict(zip(self.loaded_spec_data.keys(), group_mins))
 
+    def _rebin_effective_exposures(self, old_bins, new_bins, old_counts, new_counts, old_effective_exposures):
+        """ Rebin arrays of effective exposures.
+        
+        If (like RHESSI) we have a different effective exposure per channel bin then these need to be rebinned too.
+        This is done by rebinning the counts array and rebinning a calculated count rate array (counts/s that was in 
+        counts/s/keV), both being rebinned by summing across combined bins. Then to find the new "rebinned effective 
+        exposures we will just divide the counts array by the rebinned counts/s array. I.e.,
+
+        .. math::
+         new_rebinned_effective_exposures = rebinned_counts / rebinned_counts_per_second
+
+        Parameters
+        ----------
+        old_bins, new_bins, old_counts, new_counts, old_effective_exposures : np.array
+                Array of the original counts/bins, and effective exposures. New bins are needed and shuold already 
+                have new counts.
+
+        Returns
+        -------
+        Array of rebinned "effective exposures" or just the effective exposure if it was a single number.
+        """
+        # only rebin if different "exposures" per energy channel
+        if not isnumber(old_effective_exposures):
+            rebinned_counts_per_second = inst.rebin_any_array(data=old_counts/old_effective_exposures, 
+                                                            old_bins=old_bins, 
+                                                            new_bins=new_bins, 
+                                                            combine_by="sum")
+            return new_counts / rebinned_counts_per_second
+        else:
+            return old_effective_exposures
+
     def _rebin_list_and_one2one(self, group_mins):
         """ Check if the group minimum (minima) given is in a list form and with a one-to-one entry to the loaded stectra.
 
         Parameters
         ----------
         group_mins : string
-                Spectrum to be checked. E.g., \'spectrum1\'
+                Spectrum to be checked. E.g., \'spectrum1\'.
 
         Returns
         -------
@@ -380,7 +412,7 @@ class LoadSpec:
                 del self._rebin_setting[spec], self._rebinned_edges[spec]
                 # move original binning/counts/etc. into extras entry
                 for s_att in self.loaded_spec_data[spec]().keys():
-                    if s_att not in ("effective_exposure", "extras"):
+                    if s_att!="extras":
                         self.loaded_spec_data[spec][s_att] = self.loaded_spec_data[spec]["extras"]["original_"+s_att]
                         del self.loaded_spec_data[spec]["extras"]["original_"+s_att]
                 self._check_if_known_background_and_rebin(spectrum=spec, undo=True)
@@ -450,15 +482,16 @@ class LoadSpec:
         _orig_in_extras = self._rebin_check(spectrum=spectrum)
 
         # get new bins and binned counts
-        new_bins, new_counts = self.group_spec(spectrum=spectrum, group_min=group_min, _orig_in_extras=_orig_in_extras)
+        new_bins, new_counts, counts_error, new_effective_exposure = self.group_spec(spectrum=spectrum, group_min=group_min, _orig_in_extras=_orig_in_extras)
 
         # calculate the new widths, centres, count errors, count rates and count rate errors
         new_binning = np.diff(new_bins).flatten()
         bin_mids = np.mean(new_bins, axis=1)
-        ctr = (new_counts / new_binning) / self.loaded_spec_data[spectrum]["effective_exposure"]
-        ctr_err = (np.sqrt(new_counts) / new_binning) / self.loaded_spec_data[spectrum]["effective_exposure"]
-        
-        return new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, _orig_in_extras
+        ctr = (new_counts / new_binning) / new_effective_exposure
+        #old way the now ctr_err = (np.sqrt(new_counts) / new_binning) / new_effective_exposure
+        ctr_err = counts_error / new_binning / new_effective_exposure # no guarentee always will have poisson errors
+
+        return new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, new_effective_exposure, _orig_in_extras
     
     def _rebin_loaded_spec(self, spectrum, group_min, axis="count"):
         """ Rebins all the relevant data for a spectrum and moves original information into the \'extras\' key in the loaded_spec_data attribute.
@@ -476,16 +509,16 @@ class LoadSpec:
 
         Returns
         -------
-        New bin edges from teh rebinning process.
+        New bin edges from the rebinning process.
         """
         
         if (axis=="count") or (axis=="photon_and_count"):
-            new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, _orig_in_extras = self._rebin_data(spectrum, group_min)
+            new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, new_effective_exposure, _orig_in_extras = self._rebin_data(spectrum, group_min)
         
         if not _orig_in_extras:
             # move original binning/counts/etc. into extras entry
             for s_att in self.loaded_spec_data[spectrum]().keys():
-                if s_att not in ("effective_exposure", "extras"):
+                if s_att!="extras":
                     # print("putting in extras", s_att)
                     self.loaded_spec_data[spectrum]["extras"]["original_"+s_att] = self.loaded_spec_data[spectrum][s_att]
         
@@ -501,12 +534,14 @@ class LoadSpec:
         self.loaded_spec_data[spectrum]["counts"] = new_counts 
         self.loaded_spec_data[spectrum]["count_rate"] = ctr
         self.loaded_spec_data[spectrum]["count_rate_error"] = ctr_err
+        self.loaded_spec_data[spectrum]["effective_exposure"] = new_effective_exposure
 
         # update the count errors
         self.loaded_spec_data[spectrum]["count_error"] = inst.rebin_any_array(data=self.loaded_spec_data[spectrum]["extras"]["original_count_error"], 
                                                                               old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
                                                                               new_bins=new_bins, 
                                                                               combine_by="quadrature")
+        self.loaded_spec_data[spectrum]["count_rate_error"] = self.loaded_spec_data[spectrum]["count_error"] / self.loaded_spec_data[spectrum]["effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
 
         # if spec has a known background, (e.g.,RHESSI) then have it here
         self._check_if_known_background_and_rebin(spectrum, new_bins)
@@ -543,13 +578,18 @@ class LoadSpec:
         -------
         None.
         """
-        _bg_entries = ["background_counts", "background_count_error", "background_rate", "background_rate_error"]
-        if undo and ("original_background" in self.loaded_spec_data[spectrum]["extras"]):
+        # so we can loop
+        _bg_entries = ["background_counts", "background_count_error", "background_rate", "background_rate_error", "background_effective_exposure"]
+        
+        if undo and ("original_background_counts" in self.loaded_spec_data[spectrum]["extras"]):
+            # undo the binning
             for e in _bg_entries:
                 self.loaded_spec_data[spectrum]["extras"][e] = self.loaded_spec_data[spectrum]["extras"]["original_"+e] 
                 del self.loaded_spec_data[spectrum]["extras"]["original_"+e]
-        elif "background" in self.loaded_spec_data[spectrum]["extras"]:
-            if "original_background" not in self.loaded_spec_data[spectrum]["extras"]:
+
+        elif "background_counts" in self.loaded_spec_data[spectrum]["extras"]:
+            # do the binning
+            if "original_background_counts" not in self.loaded_spec_data[spectrum]["extras"]:
                 for e in _bg_entries:
                     self.loaded_spec_data[spectrum]["extras"]["original_"+e] = self.loaded_spec_data[spectrum]["extras"][e] 
 
@@ -557,9 +597,15 @@ class LoadSpec:
                                                                                                   old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
                                                                                                   new_bins=new_bins, 
                                                                                                   combine_by="sum")
+                                                                   
+            self.loaded_spec_data[spectrum]["extras"]["background_effective_exposure"] = self._rebin_effective_exposures(old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
+                                                                                                                         new_bins=new_bins, 
+                                                                                                                         old_counts=self.loaded_spec_data[spectrum]["extras"]["original_background_counts"], 
+                                                                                                                         new_counts=self.loaded_spec_data[spectrum]["extras"]["background_counts"], 
+                                                                                                                         old_effective_exposures=self.loaded_spec_data[spectrum]["extras"]["original_background_effective_exposure"])
             self.loaded_spec_data[spectrum]["extras"]["background_count_error"] = np.sqrt(self.loaded_spec_data[spectrum]["extras"]["background_counts"])
             self.loaded_spec_data[spectrum]["extras"]["background_rate"] = self.loaded_spec_data[spectrum]["extras"]["background_counts"] / self.loaded_spec_data[spectrum]["extras"]["background_effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
-            self.loaded_spec_data[spectrum]["extras"]["background_rate"] = np.sqrt(self.loaded_spec_data[spectrum]["extras"]["background_counts"]) / self.loaded_spec_data[spectrum]["extras"]["background_effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
+            self.loaded_spec_data[spectrum]["extras"]["background_rate_error"] = np.sqrt(self.loaded_spec_data[spectrum]["extras"]["background_counts"]) / self.loaded_spec_data[spectrum]["extras"]["background_effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
         
     def group(self, channel_bins, counts, group_min):
         """ Groups bins so they have at least a `group_min` number of counts.
@@ -669,13 +715,21 @@ class LoadSpec:
 
         Returns
         -------
-        The bin edges and new counts for you minimum group number. Any bins left over are now included with zero counts.
+        The bin edges and new counts for you minimum group number. Also the count errors and effective exposures too.
+        Any bins left over are now included with zero counts.
         """
 
         counts = self.loaded_spec_data[spectrum]["counts"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_counts"]
+        count_error = self.loaded_spec_data[spectrum]["count_error"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_count_error"]
         channel_bins = self.loaded_spec_data[spectrum]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"]
+        old_effective_exposures = self.loaded_spec_data[spectrum]["effective_exposure"] if not _orig_in_extras else self.loaded_spec_data[spectrum]["extras"]["original_effective_exposure"]
+
+        new_bins, new_counts = self._group_cts(channel_bins, counts, group_min=group_min, spectrum=spectrum)
+        new_effective_exposure = self._rebin_effective_exposures(old_bins=channel_bins, new_bins=new_bins, old_counts=counts, new_counts=new_counts, old_effective_exposures=old_effective_exposures)
+
+        counts_error = inst.rebin_any_array(data=count_error, old_bins=channel_bins, new_bins=new_bins, combine_by="quadrature")
         
-        return self._group_cts(channel_bins, counts, group_min=group_min, spectrum=spectrum)
+        return new_bins, new_counts, counts_error, new_effective_exposure
     
     def _group_cts(self, channel_bins, counts, group_min=None, spectrum=None, verbose=True):
         """ Takes the counts and bins and groups the counts to have a minimum number of group_min.
@@ -712,10 +766,11 @@ class LoadSpec:
         remainder_bins = channel_bins[np.where(channel_bins[:,1] > np.array(binned_channel)[-1,-1])]
         binned_counts += [0]*len(remainder_bins)
         new_bins = np.concatenate((np.array(binned_channel), remainder_bins))
+        new_counts = np.array(binned_counts)
                     
         self._verbose_tries(spectrum, group_min, combin, verbose)
         
-        return new_bins, np.array(binned_counts)# np.unique(np.array(binned_channel).flatten())
+        return new_bins, new_counts# np.unique(np.array(binned_channel).flatten())
 
     def _valid_group_min_entry(self, group_min):
         """ Checks if a valid `group_min` entry has been given. An entry of None is valid but still returns False.

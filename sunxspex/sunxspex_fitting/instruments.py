@@ -701,6 +701,11 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         None.
         """
+        # make sure a background is set
+        if not "background_rate" in self._loaded_spec_data["extras"]:
+            print("No background has been set. Nothing has been changed.")
+            return
+
         # check you want to make data data-bg and that the data isn't already data-bg
         if boolean:
             # make sure to save the full data first (without background subtraction) if not already done
@@ -1131,6 +1136,18 @@ class RhessiLoader(InstrumentBlueprint):
         Returns
         -------
         None.
+
+        Examples
+        --------
+        # use the class to load in data
+        ar = RhessiLoader(pha_file=spec_file, srm_file=srm_file)
+
+        # define a background range if we like; equivalent to doing ar.start_background_time = "2002-10-05T10:38:32" and ar.end_background_time = "2002-10-05T10:40:32"
+        ar.select_time(start="2002-10-05T10:38:32", end="2002-10-05T10:40:32", background=True)
+        
+        # change the event time range to something other than the full time range; equivalent to doing ar.start_event_time = "2002-10-05T10:41:20" and ar.end_event_time = "2002-10-05T10:42:24"
+        ar.select_time(start="2002-10-05T10:41:20", end="2002-10-05T10:42:24")
+
         """
         if background:
             self.start_background_time, self.end_background_time = start, end
