@@ -128,7 +128,7 @@ class LogLikelihoods:
         A float, the gaussian log-likelihood (to be maximised).
         """
         
-        likelihoods = -(len(observed_counts)/2) * np.log(2*np.pi*np.array(observed_count_errors)**2) + (1/2)* self.chi2_loglikelihood(model_counts, observed_counts, observed_count_errors)
+        likelihoods = -(len(observed_counts)/2) * np.log(2*np.pi*np.array(observed_count_errors)**2) + (1/2)* self.chi2(model_counts, observed_counts, observed_count_errors)
 
         # best value is first whole term, if the chi squared section has any value then it is always subtracted
         return self._check_numbers_left(self.remove_non_numbers(likelihoods)) # =ln(L)

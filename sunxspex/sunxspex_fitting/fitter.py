@@ -3057,7 +3057,7 @@ class SunXspex(LoadSpec):
         
         residuals = [(count_rates[i] - count_rate_model[i])/count_rate_errors[i] if count_rate_errors[i]>0 else 0 for i in range(len(count_rate_errors))]
         residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
-        # print("(1086)",energy_channels, count_rates)
+        
         ## plot data
         axs.errorbar(energy_channels, 
                      count_rates, 
