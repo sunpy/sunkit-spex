@@ -47,9 +47,9 @@ def _get_spec_file_info(spec_file):
     channel_bins = np.concatenate((np.array(channels['E_MIN'])[:,None],np.array(channels['E_MAX'])[:,None]), axis=1)
 
     # get counts [counts], count rate [counts/s], and error on count rate 
-    counts, cts_rates, cts_rate_err = _spec_file_units_check(rhessi_dict=rdict, livetimes=lvt, time_dels=time_deltas, kev_binning=channel_bins)
+    counts, counts_err, cts_rates, cts_rate_err = _spec_file_units_check(rhessi_dict=rdict, livetimes=lvt, time_dels=time_deltas, kev_binning=channel_bins)
 
-    return channel_bins, channel_bins_inds, time_bins, lvt, counts, cts_rates, cts_rate_err
+    return channel_bins, channel_bins_inds, time_bins, lvt, counts, counts_err, cts_rates, cts_rate_err
 
 def _spec_file_units_check(rhessi_dict, livetimes, time_dels, kev_binning):
     """ Make sure RHESSI count data is in the correct units.
@@ -72,29 +72,32 @@ def _spec_file_units_check(rhessi_dict, livetimes, time_dels, kev_binning):
 
     Returns
     -------
-    A 2d array of the counts [counts], count rates [counts/s], and the count rate errors (counts, 
-    cts_rates, cts_rate_err).
+    A 2d array of the counts [counts], count rates [counts/s], and the count and count 
+    rate errors (counts, counts_err, cts_rates, cts_rate_err).
     """
     # rhessi can be saved out with counts, counts/sec, or counts/sec/cm^2/keV using counts, rate, or flux, respectively
     if rhessi_dict["1"][0]["TTYPE1"]=="RATE":
         cts_rates = rhessi_dict["1"][1]["RATE"] # count rate for every time, (rows,columns) -> (times, channels) [counts/sec]
         cts_rate_err = rhessi_dict["1"][1]["STAT_ERR"]# errors, (rows,columns) -> (times, channels)
         counts = cts_rates * livetimes * time_dels[:,None]
+        counts_err = cts_rate_err * livetimes * time_dels[:,None]
     elif rhessi_dict["1"][0]["TTYPE1"]=="COUNTS":
         #### **** Not Tested ****
         counts = rhessi_dict["1"][1]["COUNTS"] # counts for every time, (rows,columns) -> (times, channels) [counts]
+        counts_err = rhessi_dict["1"][1]["STAT_ERR"]
         cts_rates = counts / livetimes / time_dels[:,None]
         cts_rate_err = np.sqrt(counts) / livetimes / time_dels[:,None]
     elif rhessi_dict["1"][0]["TTYPE1"]=="FLUX":
         #### **** Not Tested ****
         _flux = rhessi_dict["1"][1]["FLUX"] # flux for every time, (rows,columns) -> (times, channels) [counts/sec/cm^2/keV]
         cts_rates = _flux * rhessi_dict["1"][0]["GEOAREA"] * np.diff(kev_binning, axis=1).flatten()
+        cts_rate_err = rhessi_dict["1"][1]["STAT_ERR"] * rhessi_dict["1"][0]["GEOAREA"] * np.diff(kev_binning, axis=1).flatten()
         counts = cts_rates * livetimes * time_dels[:,None]
-        cts_rate_err = np.sqrt(counts) / livetimes / time_dels[:,None]
+        counts_err = cts_rate_err * livetimes * time_dels[:,None]
     else:
         print("I don\'t know what units RHESSI has.")
 
-    return counts, cts_rates, cts_rate_err
+    return counts, counts_err, cts_rates, cts_rate_err
 
 def _get_srm_file_info(srm_file):
     """ Return all RHESSI SRM data needed for fitting.

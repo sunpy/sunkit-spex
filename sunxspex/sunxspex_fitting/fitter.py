@@ -308,6 +308,8 @@ class SunXspex(LoadSpec):
             E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
             See LoadSpec class.
 
+    **kwargs : Passed to LoadSpec.
+
     Properties
     ---------- 
     burn_mcmc : Int
@@ -605,12 +607,12 @@ class SunXspex(LoadSpec):
     s_minimised_params = s.fit()
     """
 
-    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None):
+    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct the class and set up some defaults."""
         
-        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins)
+        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins, **kwargs)
 
-        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins})"
+        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},**{kwargs})"
             
         self.loglikelihood = "cstat"
         
