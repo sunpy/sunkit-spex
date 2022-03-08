@@ -4,7 +4,7 @@ The following code is used to read in instrument spectral data.
 
 from astropy.io import fits
 
-__all__ = ["_read_pha", "_read_arf", "_read_rmf", "_read_rspec_file", "_read_rsrm_file"]
+__all__ = ["_read_pha", "_read_arf", "_read_rmf", "_read_rspec_file", "_read_rsrm_file", "_read_sspec_file", "_read_ssrm_file"]
 
 
 def _read_pha(file):
@@ -101,3 +101,39 @@ def _read_rsrm_file(srm_file):
         for i in range(4):
             srmrdict[str(i)] = [hdul[i].header, hdul[i].data]
     return srmrdict
+
+def _read_sspec_file(spec_file):
+    """ Takes the STIX spectral file and extracts useful information from it.
+
+    Parameters
+    ----------
+    spec_file : str
+            String for the STIX spectral file under investigation.
+
+    Returns
+    -------
+    Dictionary of STIX information.
+    """
+    sdict = {}
+    with fits.open(spec_file) as hdul:
+        for i in range(5):
+            sdict[str(i)] = [hdul[i].header, hdul[i].data]
+    return sdict
+
+def _read_ssrm_file(srm_file):
+    """ Takes the STIX SRM spectral file and extracts useful information from it.
+
+    Parameters
+    ----------
+    srm_file : str
+            String for the STIX SRM spectral file under investigation.
+
+    Returns
+    -------
+    Dictionary of STIX SRM information.
+    """
+    srmsdict = {}
+    with fits.open(srm_file) as hdul:
+        for i in range(4):
+            srmsdict[str(i)] = [hdul[i].header, hdul[i].data]
+    return srmsdict
