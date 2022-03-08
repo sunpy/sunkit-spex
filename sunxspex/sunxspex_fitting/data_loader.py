@@ -117,7 +117,7 @@ class LoadSpec:
         self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
         
         # from sunxspex.sunxspex_fitting.instruments import * gives us the instrument specific loaders
-        self.intrument_loaders = {"NuSTAR":inst.NustarLoader, "STIX":inst.StixLoader, "RHESSI":inst.RhessiLoader}
+        self.intrument_loaders = {"NuSTAR":inst.NustarLoader, "SOLO/STIX":inst.StixLoader, "RHESSI":inst.RhessiLoader}
 
         pha_file, arf_file, rmf_file, srm_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file, 
                                                                                                                 arf_file=arf_file, 
@@ -491,7 +491,7 @@ class LoadSpec:
         #old way the now ctr_err = (np.sqrt(new_counts) / new_binning) / new_effective_exposure
         ctr_err = counts_error / new_binning / new_effective_exposure # no guarentee always will have poisson errors
 
-        return new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, new_effective_exposure, _orig_in_extras
+        return new_bins, new_counts, counts_error, new_binning, bin_mids, ctr, ctr_err, new_effective_exposure, _orig_in_extras
     
     def _rebin_loaded_spec(self, spectrum, group_min, axis="count"):
         """ Rebins all the relevant data for a spectrum and moves original information into the \'extras\' key in the loaded_spec_data attribute.
@@ -513,7 +513,7 @@ class LoadSpec:
         """
         
         if (axis=="count") or (axis=="photon_and_count"):
-            new_bins, new_counts, new_binning, bin_mids, ctr, ctr_err, new_effective_exposure, _orig_in_extras = self._rebin_data(spectrum, group_min)
+            new_bins, new_counts, count_error, new_binning, bin_mids, ctr, ctr_err, new_effective_exposure, _orig_in_extras = self._rebin_data(spectrum, group_min)
         
         if not _orig_in_extras:
             # move original binning/counts/etc. into extras entry
@@ -537,10 +537,7 @@ class LoadSpec:
         self.loaded_spec_data[spectrum]["effective_exposure"] = new_effective_exposure
 
         # update the count errors
-        self.loaded_spec_data[spectrum]["count_error"] = inst.rebin_any_array(data=self.loaded_spec_data[spectrum]["extras"]["original_count_error"], 
-                                                                              old_bins=self.loaded_spec_data[spectrum]["extras"]["original_count_channel_bins"], 
-                                                                              new_bins=new_bins, 
-                                                                              combine_by="quadrature")
+        self.loaded_spec_data[spectrum]["count_error"] = count_error
         self.loaded_spec_data[spectrum]["count_rate_error"] = self.loaded_spec_data[spectrum]["count_error"] / self.loaded_spec_data[spectrum]["effective_exposure"] / self.loaded_spec_data[spectrum]["count_channel_binning"]
 
         # if spec has a known background, (e.g.,RHESSI) then have it here
@@ -728,6 +725,7 @@ class LoadSpec:
         new_effective_exposure = self._rebin_effective_exposures(old_bins=channel_bins, new_bins=new_bins, old_counts=counts, new_counts=new_counts, old_effective_exposures=old_effective_exposures)
 
         counts_error = inst.rebin_any_array(data=count_error, old_bins=channel_bins, new_bins=new_bins, combine_by="quadrature")
+        counts_error[new_counts==0] = 0 # avoid plotting anything for bins that could not be combined
         
         return new_bins, new_counts, counts_error, new_effective_exposure
     
@@ -764,6 +762,7 @@ class LoadSpec:
         # since SRM is going to be binned, add the rest of the photon bins on at the end with native binning
         # any counts in these bins will be ignored, only 0s taken into consideration in photon space for these
         remainder_bins = channel_bins[np.where(channel_bins[:,1] > np.array(binned_channel)[-1,-1])]
+        
         binned_counts += [0]*len(remainder_bins)
         new_bins = np.concatenate((np.array(binned_channel), remainder_bins))
         new_counts = np.array(binned_counts)
@@ -817,7 +816,7 @@ class LoadSpec:
         """
         if combin>0 and verbose:
             if type(spectrum)!=type(None):
-                print("In "+spectrum+": ", end="")
+                print("In "+spectrum+", ", end="")
             print(combin,f' counts are left over from binning (bin min. {group_min}) and will not be included when fitting or shown when plotted.')
     
     def __add__(self, other):
