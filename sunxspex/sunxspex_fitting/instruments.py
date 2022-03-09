@@ -89,6 +89,12 @@ class InstrumentBlueprint:
 
                          _loaded_spec_data : dict
                                  Loaded spectral data.
+
+                         Methods
+                         -------
+                         lightcurve : energy_ranges (list of length=2, lists of length=2 lists, or None), axes (axes object or None)
+                                 Plots the RHESSI time profile in the energy range given and on the axes provided. Default behaviour (energy_ranges=None) 
+                                 is to include all energies.
                          """
 
     def _rebin_rmf(self, matrix, old_count_bins=None, new_count_bins=None, old_photon_bins=None, new_photon_bins=None, axis="count"):
@@ -180,7 +186,7 @@ class InstrumentBlueprint:
         old_count_bins, new_count_bins, old_photon_bins, new_photon_bins = self._channel_bin_info(axis)
         matrix = self._loaded_spec_data["srm"]
         return self._rebin_rmf(matrix, old_count_bins=old_count_bins, new_count_bins=new_count_bins, old_photon_bins=old_photon_bins, new_photon_bins=new_photon_bins, axis="count")
-
+    
     def __getitem__(self, item):
         """Index the entries in `_loaded_spec_data`"""
         return self._loaded_spec_data[item]
@@ -717,7 +723,6 @@ class RhessiLoader(InstrumentBlueprint):
         """
         # make sure a background is set
         if not "background_rate" in self._loaded_spec_data["extras"]:
-            print("No background has been set. Nothing has been changed.")
             return
 
         # check you want to make data data-bg and that the data isn't already data-bg

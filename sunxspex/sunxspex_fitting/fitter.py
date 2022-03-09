@@ -2429,7 +2429,7 @@ class SunXspex(LoadSpec):
         """
         return rebin_any_array(count_rate_model*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
 
-    def _bin_spec4plot(self, rebin_and_spec, count_rate_model):
+    def _bin_spec4plot(self, rebin_and_spec, count_rate_model, _return_cts_rate_mod=True):
         """ Bins the count model given based on the given spectrum's rebinning.
         
         Parameters
@@ -2441,6 +2441,11 @@ class SunXspex(LoadSpec):
         count_rate_model : array
                 The count model array.
 
+        _return_cts_rate_mod : bool
+                Defines whether the counts rate model or None should be returned. Only here so that the 
+                plot() method can be used before a model is even defined to allow the user to see the spectra.
+                Default: True
+
         Returns
         -------
         Nine arrays: the new count bins that have the minimum number of counts in them 
@@ -2451,7 +2456,8 @@ class SunXspex(LoadSpec):
         rate model.
         """
         new_bins, new_bin_width, energy_channels, count_rates, count_rate_errors, old_bins, old_bin_width, energy_channel_error = self._bin_data(rebin_and_spec)
-        count_rate_model = self._bin_model(count_rate_model, old_bin_width, old_bins, new_bins, new_bin_width)
+        
+        count_rate_model = self._bin_model(count_rate_model, old_bin_width, old_bins, new_bins, new_bin_width) if _return_cts_rate_mod else None
         
         return new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model
     
@@ -2469,7 +2475,7 @@ class SunXspex(LoadSpec):
             _counts.append(self.loaded_spec_data['spectrum'+str(s+1)]['counts']) 
         return np.mean(np.array(_counts), axis=0)
         
-    def _bin_comb4plot(self, rebin_and_spec, count_rate_model, energy_channels, energy_channel_error, count_rates, count_rate_errors):
+    def _bin_comb4plot(self, rebin_and_spec, count_rate_model, energy_channels, energy_channel_error, count_rates, count_rate_errors, _return_cts_rate_mod=True):
         """ Returns all information to rebin some counts data. 
         
         Mainly rebins the data to plot for the combined plot.
@@ -2486,6 +2492,11 @@ class SunXspex(LoadSpec):
         energy_channels, energy_channel_error, count_rates, count_rate_errors : 1d arrays
                 The energy channel mid-points, energy channel half bin widths, count rates, 
                 and count rate errors, respectively.
+
+        _return_cts_rate_mod : bool
+                Defines whether the counts rate model or None should be returned. Only here so that the 
+                plot() method can be used before a model is even defined to allow the user to see the spectra.
+                Default: True
 
         Returns
         -------
@@ -2506,7 +2517,7 @@ class SunXspex(LoadSpec):
         count_rates = (rebin_any_array(data=count_rates*old_bin_width, old_bins=old_bins, new_bins=new_bins, combine_by="sum") / new_bin_width) * mask
         count_rate_errors = (rebin_any_array(data=count_rate_errors*old_bin_width, old_bins=old_bins, new_bins=new_bins, combine_by="quadrature") / new_bin_width) * mask
         energy_channels = np.mean(new_bins, axis=1)
-        count_rate_model = rebin_any_array(count_rate_model*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width
+        count_rate_model = rebin_any_array(count_rate_model*old_bin_width, old_bins, new_bins, combine_by="sum") / new_bin_width if _return_cts_rate_mod else None
         energy_channel_error = new_bin_width/2
         
         return new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model
@@ -2928,7 +2939,7 @@ class SunXspex(LoadSpec):
                 
             res.annotate(self._fit_stat_str(), (0.99, 0.01), xycoords=_xycoords, verticalalignment="bottom", horizontalalignment="right", fontsize="small", color="navy", alpha=0.7)
 
-    def _setup_rebin_plotting(self, rebin_and_spec, data_arrays):
+    def _setup_rebin_plotting(self, rebin_and_spec, data_arrays, _return_cts_rate_mod=True):
         """ Checks if plot wants rebinned data/models and returns relevant information.
         
         Parameters
@@ -2942,6 +2953,11 @@ class SunXspex(LoadSpec):
                 List of the minimum counts in a group (int) and the spectrum identifier for the spectrum to 
                 be binned (str, e.g., "spectrum1").
 
+        _return_cts_rate_mod : bool
+                Defines whether the counts rate model or None should be returned. Only here so that the 
+                plot() method can be used before a model is even defined to allow the user to see the spectra.
+                Default: True
+
         Returns
         -------
         A 2d array of new bins (new_bins), 1d array of bin widths (new_bin_width), 2d array of old bins (old_bins), 
@@ -2954,20 +2970,58 @@ class SunXspex(LoadSpec):
         if type(rebin_val)!=type(None):
             if rebin_spec in list(self.loaded_spec_data.keys()):
                 new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_spec4plot(rebin_and_spec, 
-                                                                                                                                                                                count_rate_model)                                                                                                                                                       
+                                                                                                                                                                                count_rate_model, 
+                                                                                                                                                                                _return_cts_rate_mod=_return_cts_rate_mod)                                                                                                                                                       
             elif rebin_spec=='combined':
                 new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_comb4plot(rebin_and_spec, 
                                                                                                                                                                                 count_rate_model, 
                                                                                                                                                                                 energy_channels, 
                                                                                                                                                                                 energy_channel_error, 
                                                                                                                                                                                 count_rates, 
-                                                                                                                                                                                count_rate_errors)
+                                                                                                                                                                                count_rate_errors, 
+                                                                                                                                                                                _return_cts_rate_mod=_return_cts_rate_mod)
             energy_channels_res = new_bins.flatten() 
         else:
             old_bin_width, old_bins, new_bins, new_bin_width = None, None, None, None
             energy_channels_res = np.column_stack((energy_channels-energy_channel_error, energy_channels+energy_channel_error)).flatten()
         
         return new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model, energy_channels_res
+
+    def _get_xlims(self, energy_channels, count_rates):
+        """ Get sensible x-limits for plotting.
+        
+        Parameters
+        ----------
+        energy_channels, count_rates : 1d arrays
+                The energy channel mid-points (energy_channels) and count rates 
+                (count_rates), respectively.
+
+        Returns
+        -------
+        None. 
+        """
+        if not hasattr(self, 'plot_xlims'):
+            extrema_x = LL_CLASS.remove_non_numbers(np.where(count_rates!=0)[0])
+            minx, maxx = energy_channels[extrema_x[0]], energy_channels[extrema_x[-1]]  
+            self.plot_xlims = [0.9*minx, 1.1*maxx]
+
+    def _get_ylims(self, count_rates, count_rate_model):
+        """ Get sensible y-limits for plotting.
+        
+        Parameters
+        ----------
+        count_rates, count_rate_model : 1d arrays
+                Count rates (count_rates) and count rate model array (count_rate_model), 
+                respectively.
+
+        Returns
+        -------
+        None. 
+        """
+        if not hasattr(self, 'plot_ylims'):
+            miny = np.min(LL_CLASS.remove_non_numbers(count_rates[count_rates!=0]))
+            maxy = np.max([np.max(LL_CLASS.remove_non_numbers(count_rates[count_rates!=0])), np.max(LL_CLASS.remove_non_numbers(count_rate_model[count_rate_model!=0]))])
+            self.plot_ylims = [0.9*miny, 1.1*maxy]
 
     def _plot_1spec(self,
                     data_arrays, 
@@ -3025,7 +3079,7 @@ class SunXspex(LoadSpec):
 
         Returns
         -------
-        None. 
+        Spectrum axes and residuals axes. 
         """
         energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = data_arrays
         
@@ -3037,29 +3091,19 @@ class SunXspex(LoadSpec):
         axs.set_ylabel('Count Spectrum [cts s$^{-1}$ keV$^{-1}$]')
         
         # axes limits
-        if not hasattr(self, 'plot_xlims'):
-            extrema_x = LL_CLASS.remove_non_numbers(np.where(count_rates!=0)[0])
-            minx, maxx = energy_channels[extrema_x[0]], energy_channels[extrema_x[-1]]  
-            self.plot_xlims = [0.9*minx, 1.1*maxx]
+        self._get_xlims(energy_channels, count_rates)
         axs.set_xlim(self.plot_xlims)
         
-        if not hasattr(self, 'plot_ylims'):
-            miny = np.min(LL_CLASS.remove_non_numbers(count_rates[count_rates!=0]))
-            maxy = np.max([np.max(LL_CLASS.remove_non_numbers(count_rates[count_rates!=0])), np.max(LL_CLASS.remove_non_numbers(count_rate_model[count_rate_model!=0]))])
-            self.plot_ylims = [0.9*miny, 1.1*maxy]
+        self._get_ylims(count_rates, count_rate_model)
         axs.set_ylim(self.plot_ylims)
         
         axs.set_yscale('log')
-        axs.xaxis.set_tick_params(labelbottom=False)
-        axs.get_xaxis().set_visible(False)
-        
+
         # check if the plot is to produce rebinned data and models
-        new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model, energy_channels_res = self._setup_rebin_plotting(rebin_and_spec, data_arrays)
+        _return_cts_rate_mod = True if hasattr(self, "_model") else False
+        new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model, energy_channels_res = self._setup_rebin_plotting(rebin_and_spec, data_arrays, _return_cts_rate_mod=_return_cts_rate_mod)
         self._plot_rebin_info = [old_bin_width, old_bins, new_bins, new_bin_width] # for background is needed
-        
-        residuals = [(count_rates[i] - count_rate_model[i])/count_rate_errors[i] if count_rate_errors[i]>0 else 0 for i in range(len(count_rate_errors))]
-        residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
-        
+
         ## plot data
         axs.errorbar(energy_channels, 
                      count_rates, 
@@ -3070,6 +3114,15 @@ class SunXspex(LoadSpec):
                      markersize=0.01, 
                      label='Data', 
                      alpha=0.8)
+
+        if not hasattr(self, "_model"):
+            return axs, None
+
+        axs.xaxis.set_tick_params(labelbottom=False)
+        axs.get_xaxis().set_visible(False)
+        
+        residuals = [(count_rates[i] - count_rate_model[i])/count_rate_errors[i] if count_rate_errors[i]>0 else 0 for i in range(len(count_rate_errors))]
+        residuals = np.column_stack((residuals,residuals)).flatten() # non-uniform binning means we have to plot every channel edge instead of just using drawstyle='steps-mid'in .plot()
         
         # if we have submodels, plot them
         spec_submods, submod_param_cols = self._plot_submodels(axs, submod_spec, rebin_and_spec[0], (old_bin_width, old_bins, new_bins, new_bin_width, energy_channels))
@@ -3411,7 +3464,29 @@ class SunXspex(LoadSpec):
             return True
         else:
             return False
-                
+
+    def _get_models(self, number_of_models):
+        """ Get the total and sub-models of the fit.
+
+        If there is no attribute `_model`, or it is None, then return [0] as a model 
+        for all spectra.
+
+        Parameters
+        ----------
+        number_of_models : int
+                Number of models needed if no `_model` or it is None.
+
+        Returns
+        -------
+        Models or fake models.
+        """
+        if hasattr(self, "_model") and not (self._model is None):
+            self._prepare_submodels() # calculate all submodels if we have them
+            return self._calculate_model()
+        else:
+            self._param_groups = [None]*int(number_of_models)
+            return [np.array([1])]*int(number_of_models)
+        
     def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, hex_grid=False, plot_final_result=True):
         """ Plots the latest fit or sampling result.
 
@@ -3467,7 +3542,7 @@ class SunXspex(LoadSpec):
         # check for same instruments, no point in combining counts from different instruments?
         can_combine = self._same_instruments(can_combine)
         
-        if (self._model is None) and hasattr(self,"_plotting_info"):
+        if hasattr(self,"_model") and (self._model is None) and hasattr(self,"_plotting_info"):
             return self._plot_from_dict(subplot_axes_grid)
 
         number_of_plots = len(self.loaded_spec_data)+1 if (len(self.loaded_spec_data)>1) and (can_combine) else len(self.loaded_spec_data) # plus one for combined plot
@@ -3478,8 +3553,8 @@ class SunXspex(LoadSpec):
         self._scaled_backgrounds = self._scaled_background_rates_full
 
         # only need enough axes for the number of spectra to plot so doesn't matter if more axes are given
-        models = self._calculate_model()
-        self._prepare_submodels() # calculate all submodels if we have them
+        models = self._get_models(number_of_models=number_of_plots)
+
         axes, res_axes = [], []
         _count_rates, _count_rate_errors = [], []
         self.plotting_info = {}
