@@ -89,12 +89,6 @@ class InstrumentBlueprint:
 
                          _loaded_spec_data : dict
                                  Loaded spectral data.
-
-                         Methods
-                         -------
-                         lightcurve : energy_ranges (list of length=2, lists of length=2 lists, or None), axes (axes object or None)
-                                 Plots the RHESSI time profile in the energy range given and on the axes provided. Default behaviour (energy_ranges=None) 
-                                 is to include all energies.
                          """
 
     def _rebin_rmf(self, matrix, old_count_bins=None, new_count_bins=None, old_photon_bins=None, new_photon_bins=None, axis="count"):
@@ -491,6 +485,9 @@ class RhessiLoader(InstrumentBlueprint):
             Set the start and end times for the event (background=False, default) or background (background=True) data. Both and 
             end and a start time needs to be defined for the background, whereas the event time is assumed to commence/finish at the 
             first/final data time if the start/end time is not given.
+
+    spectrogram : axes (axes object or None) and any kwargs are passed to matplotlib.pyplot.imshow
+            Plots the RHESSI spectrogram of all the data. 
 
     Attributes
     ----------
@@ -1215,7 +1212,6 @@ class RhessiLoader(InstrumentBlueprint):
         
         # plot spectrogram
         etop = self._loaded_spec_data["count_channel_bins"][-1][-1]
-
         ax.imshow(_cts_rate.T, origin="lower",extent=[_t[0],_t[-1],self._loaded_spec_data["count_channel_bins"][0][0],etop],aspect=_aspect, cmap=_cmap, **kwargs)
 
         fmt = mdates.DateFormatter('%H:%M')
