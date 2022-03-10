@@ -2408,7 +2408,8 @@ class SunXspex(LoadSpec):
         same way (old_bins, old_bin_width), and the new bin channel "error" 
         (energy_channel_error).
         """
-        new_bins, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
+        print("Apply binning for plotting. ", end="")
+        new_bins, _, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
         old_bins = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
         old_bin_width = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_binning"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_binning"]
         energy_channel_error = new_bin_width/2
@@ -3388,14 +3389,13 @@ class SunXspex(LoadSpec):
         """
         # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined 
         _rebin_after_plot = False
-        if hasattr(self, "_rebin_setting") and (len(self.loaded_spec_data)>1):
+        if hasattr(self, "_rebin_setting") and type(rebin)!=type(None):# and (len(self.loaded_spec_data)>1):
             # check if rebinning needs done to at least one spectrum
             # e.g., self._rebin_setting={'spectrum1': 8, 'spectrum2': None} -> yes, self._rebin_setting={'spectrum1': None, 'spectrum2': None} -> no
             _need_rebinning = [0 if type(s)==type(None) else s for s in self._rebin_setting.values()]
             # if len(self._rebin_setting)>0:
             if np.sum(_need_rebinning)>0:
-                print("Undoing binning to check if spectra can be combined. They will be rebinned when plotting.")
-                rebin = copy(self._rebin_setting)
+                self._data_rebin_setting = copy(self._rebin_setting)
                 self.undo_rebin
                 _rebin_after_plot = True
         rebin = self._rebin_input_handler(_rebin_input=rebin) # get this as a dict, {"spectrum1":rebinValue1, "spectrum2":rebinValue2, ..., "combined":rebinValue}
@@ -3603,8 +3603,9 @@ class SunXspex(LoadSpec):
             
         # if the data was unbinned for plotting (to be binned in the plotting methods) then rebin the data here
         if _rebin_after_plot:
-            print("Applying the binning back to the data.")
-            self.rebin = rebin
+            print("Reapply original binning to data. ", end="")
+            self.rebin = self._data_rebin_setting
+            del self._data_rebin_setting
         
         return axes, res_axes
     
