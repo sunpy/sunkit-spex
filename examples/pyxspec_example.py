@@ -7,13 +7,13 @@ export HEADAS=/home/stix_public/Documents/heasoft-6.29/x86_64-pc-linux-gnu-libc2
 . $HEADAS/headas-init.sh
 
 
-run this script from the sunxspex/data directory of https://github.com/elastufka/sunxspex
+run this script from the sunxspex/examples/example_data directory of https://github.com/elastufka/sunxspex
 
 eg:
 %%bash
 conda activate py37 #scientific python environment
-cd ~/Solar/sunxspex/sunxspex/data
-python ../examples/pyxspec_example.py
+cd ~/Solar/sunxspex/examples/example_data
+python ../pyxspec_example.py
 
 """
 from astropy.io import fits

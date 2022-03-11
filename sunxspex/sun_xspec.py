@@ -4,14 +4,13 @@ Solar X-ray fit functions for use with XSPEC
 import numpy as np
 import pandas as pd
 #from scipy.special import lpmv
-#from sunxspex.emission import split_and_integrate
 from sunxspex.emission import split_and_integrate
 from sunxspex import thermal
 from sunxspex import constants
 from astropy import units as u
 import logging
 
-logging.basicConfig(filename='xspec.log', level=logging.DEBUG)
+logging.basicConfig(filename='xspec.log', level=logging.DEBUG) #for now this helps catch Python errors that are not printed to the terminal by XSPEC
 
 # Central constant management
 global const #whyyyyyy there has got to be a better way to do this
@@ -22,6 +21,7 @@ class XspecModel:
         self.ParInfo=''
         self.model=None
         self.description=None
+        #should I deal with constants here?
 
     def __repr__(self):
         return self.description
@@ -32,6 +32,10 @@ class XspecModel:
         partable=np.array([[p.split('  ') for p in self.ParInfo]]).reshape((len(self.ParInfo),8)).T
         df=pd.DataFrame({h:r for h,r in zip(headers,partable)}, index=range(1,len(self.ParInfo)+1))
         return df #prints nicely like this...
+        
+    def other_method(self):
+        '''such as: easily set parameter defaults from a tuple or dictionary, descriptions of parameters, etc'''
+        raise NotImplementedError
 
 
 class ThickTargetModel(XspecModel):
@@ -104,16 +108,13 @@ class ThickTargetModel(XspecModel):
             logging.info(f"PARAMS {params}")
             internal_flux[i]=internal_flux[i]*photon_energies[i]*a0*1e35
             
-#            j=i[:-1]
-#            print(i.shape,j.shape, i[-1],j[-1])
-#            flux[j]=internal_flux[j]
             #try usual list comprehension one more time... nope doesn't work
             #lf=len(flux)
             #flux=[f for j,f in enumerate(internal_flux) if j < lf]
-#            for j in i: #for some reason it really has to be in this form or else Xspec won't fit
+#            for j in i: #have to modify inplace, not return another pointer
 #                if j < len(flux):
 #                    flux[j]=internal_flux[j]
-            flux[:]=[internal_flux[j] for j in i if j!=i[-1]]
+            flux[:]=[internal_flux[j] for j in i if j!=i[-1]] #yay finally
                 
 class ThinTargetModel(XspecModel):
     def __init__(self):
