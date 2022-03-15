@@ -1,5 +1,14 @@
 """
-Solar X-ray fit functions for use with XSPEC
+Solar X-ray fit functions for use with XSPEC (see https://heasarc.gsfc.nasa.gov/xanadu/xspec/python/html/extended.html#local-models-in-python)
+
+Nothing in this module requires any existing XSPEC or pyxspec installation
+
+These models can be added via pyxspec:
+
+thick=sun_xspec.ThickTargetModel()
+xspec.AllModels.addPyMod(thick.model, thick.ParInfo, 'add')
+
+or XSPEC: (tbd but read the documentation)
 """
 import numpy as np
 import pandas as pd
@@ -8,6 +17,7 @@ from sunxspex.emission import split_and_integrate
 from sunxspex import thermal
 from sunxspex import constants
 from astropy import units as u
+import astropy.constants as c
 import logging
 
 logging.basicConfig(filename='xspec.log', level=logging.DEBUG) #for now this helps catch Python errors that are not printed to the terminal by XSPEC
@@ -90,8 +100,10 @@ class ThickTargetModel(XspecModel):
         # Create arrays for the photon flux and error flags.
         #flux = np.zeros_like(photon_energies, dtype=np.float64)
         iergq = np.zeros_like(photon_energies, dtype=np.float64)
-
-        a0,p, eebrk, q, eelow, eehigh,_=params
+        try:
+            a0,p, eebrk, q, eelow, eehigh,_=params #why is this not consistent within xspec?
+        except ValueError:
+            a0,p, eebrk, q, eelow, eehigh=params
         
         if eelow >= eehigh:
             return list(photon_energies)[1:]
@@ -235,9 +247,11 @@ class ThermalModel(XspecModel):
     def vth(energy_edges,params,flux):
         # Convert inputs to known units and confirm they are within range.
         emission_measure,temperature,abund,_=params
+        emission_measure*=1e49
         observer_distance=(1*u.AU).to(u.cm).value
 
-        energy_edges_keV, temperature_K = energy_edges, np.array([temperature]) #thermal._sanitize_inputs(energy_edges, temperature)
+        energy_edges_keV, temperature_K = np.array(energy_edges), np.array([((temperature*u.keV).to(u.J)/(c.k_B)).value])
+        
         energy_range = (min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
                         max(CONTINUUM_GRID["energy range keV"][1], LINE_GRID["energy range keV"][1]))
         #_error_if_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
@@ -248,59 +262,9 @@ class ThermalModel(XspecModel):
         abundances = thermal._calculate_abundances("sun_coronal_ext", None)
         # Calculate fluxes.
         continuum_flux = thermal._continuum_emission(energy_edges_keV, temperature_K, abundances) #get rid of units
-        #line_flux = thermal._line_emission(energy_edges_keV, temperature_K, abundances)
-        internal_flux = ((continuum_flux ) * emission_measure /
-                    (4 * np.pi * observer_distance**2))
-        print(internal_flux)
-        flux[:]=internal_flux
-        #if temperature.isscalar and emission_measure.isscalar:
-        #    flux = flux[0]
-        #return flux
-
-
-############ functions that return things for testing ###########
-
-def thick_2(photon_energies, params):
-    """
-    same but return flux for plotting purposes
-    """
-
-    photon_energies=np.array(photon_energies)
-    internal_flux=np.zeros(photon_energies.shape)
-
-    # Constants
-    mc2 = const.get_constant('mc2')
-    clight = const.get_constant('clight')
-    au = const.get_constant('au')
-    r0 = const.get_constant('r0')
-
-    # Max number of points
-    maxfcn = 2048
-
-    # Average atomic number
-    z = 1.2
-
-    # Relative error
-    rerr = 1e-4
-
-    # Numerical coefficient for photo flux
-    fcoeff = ((clight ** 2 / mc2 ** 4) / (4 * np.pi * au ** 2))
-    decoeff = 4.0 * np.pi * (r0 ** 2) * clight
-
-    # Create arrays for the photon flux and error flags.
-    #flux = np.zeros_like(photon_energies, dtype=np.float64)
-    iergq = np.zeros_like(photon_energies, dtype=np.float64)
-
-    a0,p, eebrk, q, eelow, eehigh=params
-    if eelow >= eehigh:
-        return list(photon_energies)[1:]
-
-    i, = np.where((photon_energies < eehigh) & (photon_energies > 0))
-
-    if i.size > 0:
-        internal_flux[i], iergq[i] = split_and_integrate(model='thick-target', photon_energies=photon_energies[i],maxfcn=maxfcn, rerr=rerr, eelow=eelow,eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,efd=False)
-
-        internal_flux = (fcoeff / decoeff) * internal_flux
-        flux=list(internal_flux*photon_energies*a0*1e35)[:-1] #for now
-        return flux
-
+        line_flux = thermal._line_emission(energy_edges_keV, temperature_K, abundances)
+        internal_flux = ((continuum_flux +line_flux) * emission_measure /
+                    (4 * np.pi * observer_distance**2)).flatten()
+        
+        logging.info(f"PARAMS: {params}")
+        flux[:]=internal_flux.value
