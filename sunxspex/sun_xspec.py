@@ -118,7 +118,7 @@ class ThickTargetModel(XspecModel):
                 return flux #same as previous... might not always want this however
 
             internal_flux = (fcoeff / decoeff) * internal_flux
-            logging.info(f"PARAMS {params}")
+            #logging.info(f"PARAMS {params}")
             internal_flux[i]=internal_flux[i]*photon_energies[i]*a0*1e35
             
             #try usual list comprehension one more time... nope doesn't work
