@@ -197,15 +197,14 @@ class ThickTargetModel(XspecModel):
                 return flux #same as previous... might not always want this however
 
             internal_flux = (fcoeff / decoeff) * internal_flux
-<<<<<<< HEAD
+
             #logging.info(f"PARAMS {params}")
-=======
             logging.info(f"{dt.now()} PARAMS {params}")
->>>>>>> 0f04dec331a309632194d7af21146219f687c404
+
             internal_flux[i]=internal_flux[i]*photon_energies[i]*a0*1e35
             #have to modify inplace, not return another pointer
             flux[:]=[internal_flux[j] if j in i and j!=i[-1] else prev for j,prev in enumerate(flux)]
-            logging.info(f"{flux[:20]}")
+            #logging.info(f"{flux[:20]}")
             
                 
 class ThinTargetModel(XspecModel):
