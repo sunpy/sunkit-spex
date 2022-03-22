@@ -1,7 +1,7 @@
 """
 Solar X-ray fit functions for use with XSPEC (see https://heasarc.gsfc.nasa.gov/xanadu/xspec/python/html/extended.html#local-models-in-python)
 
-Nothing in this module requires any existing XSPEC or pyxspec installation
+Nothing in this module requires any existing XSPEC or pyxspec installation. For Jupyter-friendly display and plot options for use with pyxspec, see https://raw.githubusercontent.com/elastufka/solar_all_purpose/main/xspec_utils.py
 
 These models can be added via pyxspec:
 
