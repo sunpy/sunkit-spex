@@ -63,6 +63,13 @@ class LogLikelihoods:
     def _remove_nans(self, _lhoods):
         """ Removes Nans in the output array from any /0 data entries.
 
+        This does not affect the fitting since this will be true for all models fitting the same data. 
+        This can only complicate things if your model gave out nans or infs for some reason which would 
+        break things anyway. If using certain statistics (e.g., cstat, etc.) and your model gives out 0s 
+        this can also be problematic; however, this shouldn't be the case when working with Poisson 
+        statistics anyway (i.e., the probability of seeing >0 events from a modelled system that produces 
+        0 events per time is 0).
+
         Parameters
         ----------
         _lhoods : 1d array
@@ -76,6 +83,13 @@ class LogLikelihoods:
     
     def remove_non_numbers(self, _lhoods):
         """ Removes Nans, infs, -infs in the output array from any /0 data entries.
+
+        This does not affect the fitting since this will be true for all models fitting the same data. 
+        This can only complicate things if your model gave out nans or infs for some reason which would 
+        break things anyway. If using certain statistics (e.g., cstat, etc.) and your model gives out 0s 
+        this can also be problematic; however, this shouldn't be the case when working with Poisson 
+        statistics (i.e., the probability of seeing >0 events from a modelled system that produces 
+        0 events per time is 0).
 
         Parameters
         ----------
@@ -92,7 +106,7 @@ class LogLikelihoods:
     def _check_numbers_left(self, remaining):
         """ Check if there are any numbers left after all Nans, infs, and -infs have been remove and return the sum.
         
-        If no numbers left then return -np.inf since it it a rubbish fit.
+        If no numbers left then return -np.inf since it is a rubbish fit.
 
         Parameters
         ----------

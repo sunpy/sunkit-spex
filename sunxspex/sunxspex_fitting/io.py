@@ -3,6 +3,7 @@ The following code is used to read in instrument spectral data.
 """
 
 from astropy.io import fits
+from sunpy.io.special.genx import read_genx
 
 __all__ = ["_read_pha", "_read_arf", "_read_rmf", "_read_rspec_file", "_read_rsrm_file", "_read_sspec_file", "_read_ssrm_file"]
 
@@ -130,10 +131,7 @@ def _read_ssrm_file(srm_file):
 
     Returns
     -------
-    Dictionary of STIX SRM information.
+    Dictionary of STIX SRM information (photon bins, count bins, and SRM in units of [counts/keV/photons]).
     """
-    srmsdict = {}
-    with fits.open(srm_file) as hdul:
-        for i in range(4):
-            srmsdict[str(i)] = [hdul[i].header, hdul[i].data]
-    return srmsdict
+    contents = read_genx(srm_file)
+    return {"photon_energy_bin_edges":contents["DRM"]['E_2D'],"count_energy_bin_edges":contents["DRM"]['EDGES_OUT'],"drm":contents['DRM']['SMATRIX']}
