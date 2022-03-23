@@ -61,7 +61,7 @@ class LoadSpec:
             Minimum number of counts in each bin. Changes data but saves original in "extras" key 
             in loaded_spec_data attribute. 
             
-    undo_rebin : int, specID, "all"
+    undo_rebin : int, str of specID, "all"
             Undo the rebinning. Move the original data from "extras" in loaded_spec_data attribute
             back to main part of the dict and set self._undo_rebin.
 
@@ -109,15 +109,15 @@ class LoadSpec:
                     arf_file=['filename1.arf', 'filename2.arf'],
                     rmf_file=['filename1.rmf', 'filename2.rmf'])
     s.rebin = 10
-    s.undo_rebin = 10
+    s.undo_rebin 
     """ 
     def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `loaded_spec_data` dictionary attribute."""
 
         self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
         
-        # from sunxspex.sunxspex_fitting.instruments import * gives us the instrument specific loaders
-        self.intrument_loaders = {"NuSTAR":inst.NustarLoader, "SOLO/STIX":inst.StixLoader, "RHESSI":inst.RhessiLoader}
+        # from sunxspex.sunxspex_fitting.instruments import * gives us the instrument specific loaders, keys should match up to the "TELESCOP" header entry in spec file
+        self.instrument_loaders = {"NuSTAR":inst.NustarLoader, "SOLO/STIX":inst.StixLoader, "RHESSI":inst.RhessiLoader}
 
         pha_file, arf_file, rmf_file, srm_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file, 
                                                                                                                 arf_file=arf_file, 
@@ -130,11 +130,17 @@ class LoadSpec:
         self.loaded_spec_data, self.instruments = {}, {}
         for s in range(num_of_files+num_of_custom):
             if s<num_of_custom:
-                self.loaded_spec_data["spectrum"+str(s+1)] = inst.CustomLoader(args[s], **kwargs)
-                self.instruments["spectrum"+str(s+1)] = "CustomLoader"
+                # if a custom dict is given or if the user has set up the instrument loader class themselves and just wants to pass it straight in
+                if type(args[s])==dict:
+                    self.loaded_spec_data["spectrum"+str(s+1)] = inst.CustomLoader(args[s], **kwargs)
+                    self.instruments["spectrum"+str(s+1)] = "CustomLoader"
+                elif issubclass(args[s], inst.InstrumentBlueprint) or issubclass(args[s].__class__, inst.InstrumentBlueprint):
+                    self.loaded_spec_data["spectrum"+str(s+1)] = args[s]
+                    _usr_loader_name = args[s].__class__.__name__ if issubclass(args[s].__class__, inst.InstrumentBlueprint) else args[s].__name__
+                    self.instruments["spectrum"+str(s+1)] = "UserLoader:"+_usr_loader_name
             else:
                 file_indx = s-num_of_custom
-                self.loaded_spec_data["spectrum"+str(s+1)] = self.intrument_loaders[instruments[s]](pha_file[file_indx], 
+                self.loaded_spec_data["spectrum"+str(s+1)] = self.instrument_loaders[instruments[s]](pha_file[file_indx], 
                                                                                                     arf_file=arf_file[file_indx], 
                                                                                                     rmf_file=rmf_file[file_indx], 
                                                                                                     srm_file=srm_file[file_indx], 
@@ -254,7 +260,7 @@ class LoadSpec:
         _instruments_names = []
         for pf in pha_files:
             with fits.open(pf) as hdul:
-                if "TELESCOP" in hdul[0].header:
+                if ("TELESCOP" in hdul[0].header):
                     # works for 'NuSTAR' and 'RHESSI'
                     _instruments_names.append(hdul[0].header["TELESCOP"])
                 else:

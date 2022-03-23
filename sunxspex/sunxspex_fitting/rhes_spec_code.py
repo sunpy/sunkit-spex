@@ -125,10 +125,11 @@ def _get_srm_file_info(srm_file):
     photon_channels_ehi = srmfrdict["1"][1]['ENERG_HI'] 
     photon_bins = np.concatenate((np.array(photon_channels_elo)[:,None],np.array(photon_channels_ehi)[:,None]), axis=1)
     
-    ngrp = srmfrdict["1"][1]['N_GRP'] # number of count groups along a photon bin to construct the SRM
-    fchan = srmfrdict["1"][1]['F_CHAN'] # starting index for each count group along a photon channel
-    nchan = srmfrdict["1"][1]['N_CHAN'] # number of matrix entries each count group along a photon channel
-    srm = srmfrdict["1"][1]['MATRIX'] # counts ph^-1 keV 
+    # other info but left out
+    # ngrp = srmfrdict["1"][1]['N_GRP'] # number of count groups along a photon bin to construct the SRM
+    # fchan = srmfrdict["1"][1]['F_CHAN'] # starting index for each count group along a photon channel
+    # nchan = srmfrdict["1"][1]['N_CHAN'] # number of matrix entries each count group along a photon channel
+    srm = srmfrdict["1"][1]['MATRIX'] # counts ph^-1 keV^-1
     geo_area = srmfrdict["3"][0]['GEOAREA']
     
     channels = srmfrdict["2"][1] # [(chan, lowE, hiE), ...], srmfrdict["2"][0] has units etc. count channels for SRM
@@ -138,4 +139,4 @@ def _get_srm_file_info(srm_file):
     ## need srm units are counts ph^(-1) cm^(2)
     srm = srm * np.diff(channel_bins, axis=1).flatten() * geo_area
     
-    return photon_bins, channel_bins, ngrp, fchan, nchan, srm
+    return photon_bins, channel_bins, srm

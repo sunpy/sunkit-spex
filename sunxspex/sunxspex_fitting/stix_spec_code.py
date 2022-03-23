@@ -37,8 +37,8 @@ def _get_spec_file_info(spec_file):
     _plus_half_bin_width = np.ceil(time_deltas/2)
     t_hi = times_mids + _plus_half_bin_width
     
-    spec_stimes = [Time(sdict["0"][0]["DATE_BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.s) for dt in t_lo]
-    spec_etimes = [Time(sdict["0"][0]["DATE_BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.s) for dt in t_hi]
+    spec_stimes = [Time(sdict["0"][0]["DATE_BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.ds) for dt in t_lo]
+    spec_etimes = [Time(sdict["0"][0]["DATE_BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.ds) for dt in t_hi]
     time_bins = np.concatenate((np.array(spec_stimes)[:,None],np.array(spec_etimes)[:,None]), axis=1) 
 
     channel_bins_inds, channel_bins = _return_masked_bins(sdict)
@@ -49,6 +49,20 @@ def _get_spec_file_info(spec_file):
     counts, counts_err, cts_rates, cts_rate_err = _spec_file_units_check(stix_dict=sdict, time_dels=time_deltas)
 
     return channel_bins, channel_bins_inds, time_bins, lvt, counts, counts_err, cts_rates, cts_rate_err
+
+def _ds_times2s_times(ds_times):
+    """ STIX time might be in ds (deci-seconds). Convert to seconds.
+
+    Parameters
+    ----------
+    ds_times : time bins
+            A 2D array of time bins.
+
+    Returns
+    -------
+    A 2d array of the time bin edges.
+    """
+    return ds_times
 
 def _return_masked_bins(sdict):
     """ Return the energy bins where there is data.
@@ -100,7 +114,7 @@ def _spec_file_units_check(stix_dict, time_dels):
     return counts, counts_err, cts_rates, cts_rate_err
 
 def _get_srm_file_info(srm_file):
-    """ Return all RSTIX SRM data needed for fitting.
+    """ Return all STIX SRM data needed for fitting.
 
     SRM units returned as counts ph^(-1) cm^(2).
 
@@ -116,26 +130,15 @@ def _get_srm_file_info(srm_file):
     sub-set (nchan), 2d array that is the spectral response (srm).
     """
     srmfsdict = io._read_ssrm_file(srm_file)
-
-    if srmfsdict["1"][0]["SUMFLAG"]!=1:
-        print("Apparently srm file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
-        return
     
-    photon_channels_elo = srmfsdict["1"][1]['ENERG_LO'] # photon channel edges, different to count channels
-    photon_channels_ehi = srmfsdict["1"][1]['ENERG_HI'] 
-    photon_bins = np.concatenate((np.array(photon_channels_elo)[:,None],np.array(photon_channels_ehi)[:,None]), axis=1)
+    photon_bins = srmfsdict["photon_energy_bin_edges"]
     
-    ngrp = srmfsdict["1"][1]['N_GRP'] # number of count groups along a photon bin to construct the SRM
-    fchan = srmfsdict["1"][1]['F_CHAN'] # starting index for each count group along a photon channel
-    nchan = srmfsdict["1"][1]['N_CHAN'] # number of matrix entries each count group along a photon channel
-    srm = srmfsdict["1"][1]['MATRIX'] # counts ph^-1 keV 
-    geo_area = srmfsdict["3"][0]['GEOAREA']
+    srm = srmfsdict["drm"] # counts ph^-1 keV^-1
     
-    channels = srmfsdict["2"][1] # [(chan, lowE, hiE), ...], srmfsdict["2"][0] has units etc. count channels for SRM
-    channel_bins = np.concatenate((np.array(channels['E_MIN'])[:,None],np.array(channels['E_MAX'])[:,None]), axis=1)
+    channel_bins = srmfsdict["count_energy_bin_edges"]
     
     #srm units counts ph^(-1) kev^(-1); i.e., photons cm^(-2) go in and counts cm^(-2) kev^(-1) comes out # https://hesperia.gsfc.nasa.gov/ssw/hessi/doc/params/hsi_params_srm.htm#***
     ## need srm units are counts ph^(-1) cm^(2)
-    srm = srm * np.diff(channel_bins, axis=1).flatten() * geo_area
+    srm = srm * np.diff(channel_bins, axis=1).flatten()
     
-    return photon_bins, channel_bins, ngrp, fchan, nchan, srm
+    return photon_bins, channel_bins, srm

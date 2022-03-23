@@ -303,8 +303,8 @@ class SunXspex(LoadSpec):
             ARF and RMF files given.
             See LoadSpec class.
 
-    custom_channel_bins : 2d array
-            User defined channel bins for the columns of the SRM matrix. 
+    custom_channel_bins, custom_photon_bins : 2d array
+            User defined channel bins for the columns and rows of the SRM matrix. 
             E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
             See LoadSpec class.
 
@@ -607,12 +607,12 @@ class SunXspex(LoadSpec):
     s_minimised_params = s.fit()
     """
 
-    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
+    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
         """Construct the class and set up some defaults."""
         
-        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins, **kwargs)
+        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
 
-        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},**{kwargs})"
+        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
             
         self.loglikelihood = "cstat"
         
@@ -969,7 +969,7 @@ class SunXspex(LoadSpec):
         """
         if 0<conf_range<=1:
             self.error_confidence_range = conf_range 
-            if hasattr(self, "all_mcmc_samples") and hasattr(self, "_latest_fit_run") and (self._latest_fit_run=="emcee"):
+            if hasattr(self, "all_mcmc_samples") and hasattr(self, "_latest_fit_run") and (self._latest_fit_run=="mcmc"):
                 self._update_tables_mcmc(orig_free_param_len=self._fpl)
         else:
             warnings.warn("Need 0<confidence_range<=1. Setting back to default: 0.6827")
@@ -1002,7 +1002,7 @@ class SunXspex(LoadSpec):
             ind_and_mod += [(i,mn) for i in np.cumsum(inds+len(mn)*np.arange(len(inds)))[:-1]]
         model_order_in_model_string = [m[1] for m in sorted(ind_and_mod)] # use indices of where the models are in the original string to order the component models correctly
         
-        if len(model_order_in_model_string)>1:
+        if len(model_order_in_model_string)>0:
             diag = np.diag(model_order_in_model_string) # now each row is the replacement for mods_removed, meaning we can plot each model spearately
             diag[diag==""] = "0"
 
@@ -1994,7 +1994,42 @@ class SunXspex(LoadSpec):
         #                                                                                                       srm=srm) # this may not do anything if a fitting range has already cut away a lot across counts space
 
         return free_params_list, (photon_channel_bins, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors, tied_or_frozen_params_list, param_name_list_order), self._free_model_param_bounds, orig_free_param_len
+
+    def _run_minimiser_core(self, minimise_func, free_parameter_list, statistic_args, free_param_bounds, **kwargs):
+        """ Allows user (or us) to define their own (different) minimiser easily.
+
+        This should return the same type of output as Scipy's minimize at the minute. This just passes 
+        the inputs straight to Scipy's minimiser.
         
+        Parameters
+        ----------
+        minimise_func : fun, callable
+                The fit statistic function that returns value to be minimised.
+
+        free_parameter_list : list of floats
+                List of the free parameter float values.
+
+        statistic_args : list of arrays
+                All info need to produce model and fitting [i.e., photon_channel_bins (list of 2d array), 
+                count_channel_mids (list of 1d arrays), srm (list of 2d arrays), livetime (list of floats), 
+                e_binning (list of 1d arrays), observed_counts (list of 1d arrays), observed_count_errors 
+                (list of 1d arrays), tied_or_frozen_params_list (list of floats), param_name_list_order 
+                (list of strings)].
+
+        free_param_bounds : list of tuples
+                The correspsonding bounds for each parameter's parameter space.
+
+        **kwargs : 
+                Passed to Scipy's minimize funciton.
+                The `bounds` entry should be handled in the parameter table (.params) and is not 
+                        passed to minimize.
+
+        Returns
+        -------
+        Minimiser result as a Scipy OptimizeResult object. Effectively as long as the result.x returns 
+        the parameter results in the order of `free_parameter_list`.
+        """
+        return minimize(minimise_func, free_parameter_list, args=statistic_args, bounds=free_param_bounds, **kwargs)
         
     def fit(self, **kwargs):
         """ Runs the fitting process and returns all found parameter values.
@@ -2002,7 +2037,7 @@ class SunXspex(LoadSpec):
         Parameters
         ----------
         **kwargs : 
-                Passed to Scipy's minimize funciton.
+                Passed to Scipy's minimize funciton (default).
                 The `bounds` entry should be handled in the parameter table (.params) and is not 
                         passed to minimize.
                 A `_hess_step` input can be provided to be passed to the _calc_minimize_error method.
@@ -2026,11 +2061,17 @@ class SunXspex(LoadSpec):
         _abs_hess_step = None if "_abs_hess_step" not in kwargs else kwargs["_abs_hess_step"]
         kwargs.pop("_abs_hess_step", None)
         
-        soltn = minimize(self._fit_stat_minimize,
-                         free_params_list, 
-                         args=stat_args,
-                         bounds=free_bounds,
-                         **kwargs)
+        # this has been replaced by a `_run_minimiser_core` so that this can be swapped out easily down the line
+        # soltn = minimize(self._fit_stat_minimize,
+        #                  free_params_list, 
+        #                  args=stat_args,
+        #                  bounds=free_bounds,
+        #                  **kwargs)
+        soltn = self._run_minimiser_core(minimise_func=self._fit_stat_minimize, 
+                                         free_parameter_list=free_params_list, 
+                                         statistic_args=stat_args, 
+                                         free_param_bounds=free_bounds, 
+                                         **kwargs)
         
         self._minimize_solution = soltn
         
@@ -2043,7 +2084,7 @@ class SunXspex(LoadSpec):
         self._update_free(table=self.rParams, updated_free=soltn.x[orig_free_param_len:], errors=std_err[orig_free_param_len:])
         self._update_tied(self.rParams)
         
-        self._latest_fit_run = "scipy"
+        self._latest_fit_run = "minimiser"# "scipy"
         
         return list(self.params.param_value)#self.model_params
     
@@ -2363,10 +2404,10 @@ class SunXspex(LoadSpec):
         Float.
         """
         if hasattr(self, "_latest_fit_run"):
-            if self._latest_fit_run=="scipy":
+            if self._latest_fit_run=="minimiser":
                 # minimize minimises -2ln(L), so -0.5* to get ln(L)
                 return  -0.5*self._minimize_solution.fun 
-            elif self._latest_fit_run=="emcee":
+            elif self._latest_fit_run=="mcmc":
                 return  self._max_prob
         return 0
     
@@ -2384,10 +2425,10 @@ class SunXspex(LoadSpec):
         """
         if hasattr(self, "_latest_fit_run"):
             string = self.loglikelihood.lower()+" Max. Total ln(L): "+str(round(self._get_max_fit_stat(), 1))
-            if self._latest_fit_run=="scipy":
-                return  "Scipy " + string
-            elif self._latest_fit_run=="emcee":
-                return  "Emcee " + string
+            if self._latest_fit_run=="minimiser":
+                return  "Minimiser " + string
+            elif self._latest_fit_run=="mcmc":
+                return  "MCMC " + string
         return ""
     
     def _bin_data(self, rebin_and_spec):
@@ -3143,7 +3184,7 @@ class SunXspex(LoadSpec):
             axs.plot(energy_channels, count_rate_model, linewidth=2, color="k")
             res.plot(energy_channels_res, residuals, color='k', alpha=0.8)#, drawstyle='steps-mid'
 
-        if self._latest_fit_run=="emcee":
+        if self._latest_fit_run=="mcmc":
             _rebin_info = [old_bin_width, old_bins, new_bins, new_bin_width] if type(rebin_and_spec[0])!=type(None) else None
             self._plot_mcmc_mods(axs, res, [count_rates, count_rate_errors, energy_channels_res], spectrum=submod_spec, num_of_samples=num_of_samples, hex_grid=hex_grid, _rebin_info=_rebin_info)
 
@@ -3979,16 +4020,11 @@ class SunXspex(LoadSpec):
         """
         return self._fit_stat(*args, maximize_or_minimize="maximize", **kwargs)
     
-    def _run_mcmc_setup(self, code="emcee", number_of_walkers=None, walker_spread="mixed"):
+    def _run_mcmc_setup(self, number_of_walkers=None, walker_spread="mixed"):
         """ Sets up the MCMC run specific variables.
         
         Parameters
         ----------
-        code : str 
-                Indicates the MCMC sampler being used. Eventually to make 
-                it easier to give user options.
-                Default: "emcee"
-        
         number_of_walkers : int
                 The number of walkers to set for the MCMC run.
         
@@ -4121,7 +4157,7 @@ class SunXspex(LoadSpec):
         # update the model parameters from the mcmc
         self._update_tables_mcmc(orig_free_param_len)
         
-        self._latest_fit_run = "emcee"
+        self._latest_fit_run = "mcmc"#"emcee"
         
         return self.mcmc_sampler.chain.reshape((-1, self._ndim))
     
@@ -4171,10 +4207,12 @@ class SunXspex(LoadSpec):
                 Indicates the MCMC sampler being used. Eventually to make 
                 it easier to give user options.
                 Default: "emcee"
+
         number_of_walkers : int
                 The number of walkers to set for the MCMC run. Set to 2*`_ndim` 
                 if None is given.
                 Default: None
+
         walker_spread : str
                 Dictates how the walkers are spread out over the parameter 
                 space with respect to the starting values. If "mag_order" 
@@ -4184,18 +4222,22 @@ class SunXspex(LoadSpec):
                 "mixed" then half will be "mag_order" and half will be
                 "over_bounds".
                 Default: "mixed"
+
         steps_per_walker : int
                 The number of steps each walker will take to sample the 
                 parameter space.
                 Default: 1200
+
         mp_workers : int or None
                 The number of parallel workers that split up the walker's 
                 steps for the MCMC.
                 Default: None
+
         append_runs : bool
                 Set to False to run new chains, set to True to start where the 
                 last run ended and append the runs.
                 Default: False
+
         **kwargs :
                 Passed to the MCMC sampler.
 
@@ -4213,8 +4255,7 @@ class SunXspex(LoadSpec):
         `_run_mcmc_post()` method with 0 burned samples).
         """
         
-        mcmc_setups, probability_args, walker_pos, orig_free_param_len = self._run_mcmc_setup(code=code, 
-                                                                                              number_of_walkers=number_of_walkers,
+        mcmc_setups, probability_args, walker_pos, orig_free_param_len = self._run_mcmc_setup(number_of_walkers=number_of_walkers,
                                                                                               walker_spread=walker_spread)
         
         if type(mp_workers)!=type(None):
@@ -4473,7 +4514,7 @@ class SunXspex(LoadSpec):
         None. 
         """
 
-        mcmc_setups, probability_args, _, _ = self._run_mcmc_setup(code=code)
+        mcmc_setups, probability_args, _, _ = self._run_mcmc_setup()
 
         ndims = mcmc_setups[1]       # number of parameters
 
