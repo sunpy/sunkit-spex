@@ -716,7 +716,7 @@ class SunXspex(LoadSpec):
         if isinstance(model_function, (types.FunctionType, types.BuiltinFunctionType)):
             self._model = deconstruct_lambda(model_function)#model_function
         elif type(model_function) is str:
-            self._model = self._mod_from_str(model_string=model_function)
+            self._model = self._mod_from_str(model_string=model_function, _create_separate_models_for_one=True)
         else:
             print("Model not set.")
             return False
@@ -975,7 +975,7 @@ class SunXspex(LoadSpec):
             warnings.warn("Need 0<confidence_range<=1. Setting back to default: 0.6827")
             self.error_confidence_range = 0.6827
         
-    def _component_mods_from_str(self, model_string):
+    def _component_mods_from_str(self, model_string, _create_separate_models_for_one=False):
         """ Deconstructs a given model string into its component models.
         
         Returns a list of lists with each model isolated and its counter.
@@ -986,6 +986,13 @@ class SunXspex(LoadSpec):
         ----------
         model_string : str
                 String of the model.
+        
+        _create_separate_models_for_one : bool
+                If True then even if only one sub-model in total model it will be "separated"
+                out anyway and the `_separate_models` attribute will be created. If False then 
+                the `_separate_models` attribute will only be created if there are multiple 
+                sub-models in the model.
+                Default: False
                 
         Returns
         -------
@@ -1002,7 +1009,8 @@ class SunXspex(LoadSpec):
             ind_and_mod += [(i,mn) for i in np.cumsum(inds+len(mn)*np.arange(len(inds)))[:-1]]
         model_order_in_model_string = [m[1] for m in sorted(ind_and_mod)] # use indices of where the models are in the original string to order the component models correctly
         
-        if len(model_order_in_model_string)>0:
+        # only create the separate model strings if we have (multiple sub-models) or (only have one sub-model but if from the original user input string and not a previously determined sub-model string)
+        if len(model_order_in_model_string)>1 or (_create_separate_models_for_one and len(model_order_in_model_string)==1):
             diag = np.diag(model_order_in_model_string) # now each row is the replacement for mods_removed, meaning we can plot each model spearately
             diag[diag==""] = "0"
 
@@ -1019,7 +1027,7 @@ class SunXspex(LoadSpec):
             self._separate_models = _isolated_model_strings
         
             
-    def _mod_from_str(self, model_string, custom_param_number=None):
+    def _mod_from_str(self, model_string, custom_param_number=None, _create_separate_models_for_one=False):
         """ Construct a named function object from a given string.
 
         Function name is made up of the string and model inputs.
@@ -1035,6 +1043,13 @@ class SunXspex(LoadSpec):
                 number can be provide for all parameter for the string 
                 (helps when plotting component models).
                 Default : None
+
+        _create_separate_models_for_one : bool
+                If True then even if only one sub-model in total model it will be "separated"
+                out anyway and the `_separate_models` attribute will be created. If False then 
+                the `_separate_models` attribute will only be created if there are multiple 
+                sub-models in the model.
+                Default: False
                 
         Returns
         -------
@@ -1044,7 +1059,7 @@ class SunXspex(LoadSpec):
         if check_allowed_names(model_string=model_string):
             _mod = copy(model_string)
             _params = []
-            self._component_mods_from_str(model_string=model_string) # try to break down into separate models and assign them to self._separate_models, need >1 sub-model
+            self._component_mods_from_str(model_string=model_string, _create_separate_models_for_one=_create_separate_models_for_one) # try to break down into separate models and assign them to self._separate_models, need >1 sub-model
             for mn, mp in defined_photon_models.items():
                 # how many of this model are in the string
                 number_of_this_model = _mod.count(mn)
@@ -2669,8 +2684,7 @@ class SunXspex(LoadSpec):
 
         Returns
         -------
-        Two lists (_spec_pars, _spec_rpars). Either fixed value entries in the list or names of the MCMC 
-        sample to go in that entry. 
+        None. 
         """
         if not hex_grid:
             self._samp_inds = np.random.randint(len(self.all_mcmc_samples), size=num_of_samples)
@@ -2693,11 +2707,15 @@ class SunXspex(LoadSpec):
         -------
         None. 
         """
-        if not hasattr(self, "_mcmc_mod_runs"):
-            self._mcmc_mod_runs = [_randcts]
-            self._mcmc_mod_runs_emids = e_mids
-        else:
+        # can only have a run for each loaded spectrum, if there is more then it must be from this being run multiple times
+        if hasattr(self, "_mcmc_mod_runs") and len(self._mcmc_mod_runs)>=len(self.loaded_spec_data):
+            del self._mcmc_mod_runs
+
+        if hasattr(self, "_mcmc_mod_runs"):
             self._mcmc_mod_runs.append(_randcts)
+        else:
+            self._mcmc_mod_runs = [_randcts]
+        self._mcmc_mod_runs_emids = e_mids
 
     def _no_mcmc_change(self):
         """ Checks if the MCMC samples being plotted have changed since the last 
@@ -2712,6 +2730,32 @@ class SunXspex(LoadSpec):
             return np.array_equal(self.__mcmc_samples__, self.all_mcmc_samples[self._samp_inds])
         except IndexError:
             return False
+
+    def _recalc_plotting_mcmc_samples(self, hex_grid, num_of_samples):
+        """ Decides whether to recalculate information to plot MCMC runs.
+
+        This is based on whether the MCMC samples have changed since the last time they were plotted, if 
+        all samples are needed for a hexagonal grid, or if the number of samples to use has changed. This 
+        method helps to reproduce the same plots if the user doesn't change anything rather than just new 
+        samples being randomly chosen everytime a plot is created.
+        
+        Parameters
+        ----------
+        num_of_samples : int
+                Number of random sample entries to use for MCMC model run plotting.
+                Default: 100
+
+        hex_grid : bool
+                Indicates whether separate model lines should be drawn for MCMC runs or produce hexagonal 
+                histogram grid for all runs. If True `num_of_samples` is ignored.
+                Default: False
+                
+        Returns
+        -------
+        None. 
+        """
+        if not hasattr(self, "__mcmc_samples__") or not self._no_mcmc_change() or (hasattr(self, "_samp_inds") and len(self._samp_inds)!=num_of_samples):
+            self._randsamples_or_all(hex_grid, num_of_samples)
 
     def _plot_mcmc_mods(self, ax, res_ax, res_info, spectrum="combined", num_of_samples=100, hex_grid=False, _rebin_info=None):
         """ Plots MCMC runs (and residuals) on the given axes.
@@ -2760,8 +2804,7 @@ class SunXspex(LoadSpec):
 
         # ensure same samples are used across all spectra (needs to be when combining spectra), only update if more runs have been added since __mcmc_samples__ was created
         # or if plotting lines then hexagons
-        if not hasattr(self, "__mcmc_samples__") or not self._no_mcmc_change():
-            self._randsamples_or_all(hex_grid, num_of_samples)
+        self._recalc_plotting_mcmc_samples(hex_grid, num_of_samples)
 
         _randcts = []
         _randctsres = []
