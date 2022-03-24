@@ -217,7 +217,7 @@ class ThinTargetModel(XspecModel):
          "eelow  keV  20.0  0.0  1.0  100.  1e3  1.0" ,
          "eehigh  keV  3200.0  1.0  10.0  1e6  1e7  1.0"
         ) #default parameters from OSPEX
-        self.model=self.thin
+        self.model=self.bremsstrahlung_thin_target
         self.description=f"Thin-target bremsstrahlung '{self.model.__name__}'"
 
     @staticmethod
