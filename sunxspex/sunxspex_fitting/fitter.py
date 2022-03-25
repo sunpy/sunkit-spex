@@ -1299,6 +1299,7 @@ class SunXspex(LoadSpec):
 
         **kwargs used & named: 
                 photon_channels
+                photon_channel_widths
                 total_response
 
         **kwargs needed for gain (optional): 
@@ -1310,7 +1311,7 @@ class SunXspex(LoadSpec):
         -------
         List of count rate models (counts s^-1) for all loaded spectra.
         """
-        # return counts s^-1 (keV^-1 has been multiplied out)
+        # return counts s^-1 (keV^-1 has been multiplied out) photon_channel_widths=ph_e_binning
         
         cts_models = []
         # loop through the parameter groups (params for spectrum1, then for spectrum2, etc)
@@ -1324,7 +1325,7 @@ class SunXspex(LoadSpec):
             sep_params = dict(zip(self._orig_params, ordered_kwarg_values)) 
 
             # calculate the [photon s^-1 cm^-2]
-            m = self._model(**sep_params, energies=kwargs["photon_channels"][s]) * np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
+            m = self._model(**sep_params, energies=kwargs["photon_channels"][s]) * kwargs["photon_channel_widths"][s]# np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1] 
             cts_model = make_model(energies=kwargs["photon_channels"][s], 
@@ -1338,9 +1339,9 @@ class SunXspex(LoadSpec):
             # apply a response gain correction if need be
             if ("gain_slope_spectrum"+str(s+1) in kwargs) or ("gain_offset_spectrum"+str(s+1) in kwargs):
                 cts_model = self._gain_energies(energies=kwargs["count_channel_mids"][s], 
-                                               array=cts_model, 
-                                               gain_slope=kwargs["gain_slope_spectrum"+str(s+1)],
-                                               gain_offset=kwargs["gain_offset_spectrum"+str(s+1)])
+                                                array=cts_model, 
+                                                gain_slope=kwargs["gain_slope_spectrum"+str(s+1)],
+                                                gain_offset=kwargs["gain_offset_spectrum"+str(s+1)])
         
             # if the model returns nans then it's a rubbish fit so change to zeros, just to be sure
             cts_model = cts_model if len(LL_CLASS.remove_non_numbers(cts_model[cts_model!=0]))!=0 else np.zeros(cts_model.shape)
@@ -1374,6 +1375,7 @@ class SunXspex(LoadSpec):
 
         **other_inputs: 
                 photon_channels
+                photon_channel_widths
                 total_response
                 count_channel_mids
                 
@@ -1555,7 +1557,7 @@ class SunXspex(LoadSpec):
                   count_channel_mids, 
                   srm, 
                   livetime, 
-                  e_binning,
+                  ph_e_binning,
                   observed_counts,
                   observed_count_errors,
                   tied_or_frozen_params_list,
@@ -1586,8 +1588,8 @@ class SunXspex(LoadSpec):
                 List of spectra effective exposures 
                 (s.t., count s^-1 * livetime = counts).
 
-        e_binning : 1d array or list of 1d arrays
-                The energy binning widths for all loaded spectra.
+        ph_e_binning : 1d array or list of 1d arrays
+                The photon energy binning widths for all loaded spectra.
         
         observed_counts : 1d array or list of 1d arrays
                 The observed counts for all loaded spectra.
@@ -1620,13 +1622,14 @@ class SunXspex(LoadSpec):
         mu = self._pseudo_model(free_params_list, 
                                 tied_or_frozen_params_list, 
                                 param_name_list_order, 
-                                photon_channels=photon_channels,
+                                photon_channels=photon_channels, 
+                                photon_channel_widths=ph_e_binning,
                                 count_channel_mids=count_channel_mids, 
                                 total_responses=srm,
                                 **kwargs) 
         
         ll = 0
-        for m, o, e, l, err in zip(mu, observed_counts, e_binning, livetime, observed_count_errors):
+        for m, o, l, err in zip(mu, observed_counts, livetime, observed_count_errors):
 
             # calculate the count rate model for each spectrum
             model_cts = self._count_rate2count(m, l)
@@ -1704,22 +1707,24 @@ class SunXspex(LoadSpec):
         Photon channel bins (hoton_channel_bins), photon channel mid-points 
         (photon_channel_mids), count channel mid-points (count_channel_mids), 
         spectral response matrices (srm), effective exposures (livetime), 
-        count channel bin widths (e_binning), observed count data (observed_counts), 
-        observed count data errors (observed_count_errors).
+        count channel bin widths (e_binning), photon channel bin widths 
+        (ph_e_binning), observed count data (observed_counts), observed 
+        count data errors (observed_count_errors).
         """
         
-        photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors = [], [], [], [], [], [], [], []
+        photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, ph_e_binning, observed_counts, observed_count_errors = [], [], [], [], [], [], [], [], []
         for k in self.loaded_spec_data:
             photon_channel_bins.append(self.loaded_spec_data[k]['photon_channel_bins'])
             photon_channel_mids.append(self.loaded_spec_data[k]['photon_channel_mids'])
             count_channel_mids.append(self.loaded_spec_data[k]['count_channel_mids'])
             srm.append(self.loaded_spec_data[k]['srm'])
             e_binning.append(self.loaded_spec_data[k]['count_channel_binning'])
+            ph_e_binning.append(self.loaded_spec_data[k]['photon_channel_binning'])
             observed_counts.append(self.loaded_spec_data[k]['counts'])
             observed_count_errors.append(self.loaded_spec_data[k]['count_error'])
             livetime.append(self.loaded_spec_data[k]['effective_exposure'])
             
-        return photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors
+        return photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, ph_e_binning, observed_counts, observed_count_errors
 
     def _tied2frozen(self, spectrum_num):
         """ Checks if any gain parameters are tied to another frozen rparameter.
@@ -1878,7 +1883,7 @@ class SunXspex(LoadSpec):
         """
         return self._fit_stat(*args, maximize_or_minimize="minimize", **kwargs)
         
-    def _photon_space_reduce(self, ph_bins, ph_mids, srm):
+    def _photon_space_reduce(self, ph_bins, ph_mids, ph_widths, srm):
         """ Cuts out photon bins that only include rows of 0s at the top and bottom in the SRM. 
         
         Returns the new photon bins, mid-points, and SRMs.
@@ -1890,6 +1895,9 @@ class SunXspex(LoadSpec):
         
         ph_mids : list of 1d arrays
                 A list of the photon energy mid-points for all loaded spectra.
+            
+        ph_widths : list of 1d arrays
+                A list of the photon energy bin widths for all loaded spectra.
         
         srm : list of SRMs
                 A list of the SRMS for all loaded spectra.
@@ -1898,16 +1906,17 @@ class SunXspex(LoadSpec):
         -------
         The 2d (nx2) arrays (photon bins), 1d (n) arrays (mid-points), and 2d (nxm) arrays (SRMs).
         """
-        _ph_bins, _ph_mids, _srm = [], [], []
+        _ph_bins, _ph_mids, _ph_widths, _srm = [], [], [], []
         for i in range(len(srm)):
             non_zero_rows = np.where(np.sum(srm[i], axis=1)!=0)[0] # remove photon energy bins that only have zeros in the srm
             # can't have gaps in the srm rows so only remove from the first or last row in, any zero rows in the middle will stay
             non_zero_rows = np.arange(non_zero_rows[0],non_zero_rows[-1]+1)
             _ph_bins.append(ph_bins[i][non_zero_rows])
             _ph_mids.append(ph_mids[i][non_zero_rows])
+            _ph_widths.append(ph_widths[i][non_zero_rows])
             _srm.append(srm[i][non_zero_rows])
-        del ph_bins, ph_mids, srm
-        return _ph_bins, _ph_mids, _srm
+        del ph_bins, ph_mids, ph_widths, srm
+        return _ph_bins, _ph_mids, _ph_widths, _srm
     
     def _count_space_reduce(self, ct_binning, ct_mids, ct_obs, ct_err, srm):
         """ Cuts out count bins that only include columns of 0s from the left and right in the SRM. 
@@ -1956,14 +1965,14 @@ class SunXspex(LoadSpec):
         -------
         List of the free parameter float values (free_params_list). All info need to produce model 
         and fitting [i.e., photon_channel_bins (list of 2d array), count_channel_mids (list of 
-        1d arrays), srm (list of 2d arrays), livetime (list of floats), e_binning (list of 1d 
-        arrays), observed_counts (list of 1d arrays), observed_count_errors (list of 1d arrays), 
+        1d arrays), srm (list of 2d arrays), livetime (list of floats), photon_channel_widths (list 
+        of 1d arrays), observed_counts (list of 1d arrays), observed_count_errors (list of 1d arrays), 
         tied_or_frozen_params_list (list of floats), param_name_list_order (list of strings)].
         The correspsonding bounds for each parameter's parameter space (free_bounds, list of tuples), 
         and finally the number of free parameters (excluding rParams, orig_free_param_len, int).
         """
-
-        photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors = self._loadSpec4fit()
+        
+        photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, _, photon_e_binning, observed_counts, observed_count_errors = self._loadSpec4fit()
         
         self._energy_fitting_indices = self._fit_range(count_channel_mids, self.energy_fitting_range) # get fitting indices from the bin midpoints
         
@@ -1991,15 +2000,16 @@ class SunXspex(LoadSpec):
         count_channel_mids = self._cut_counts(count_channel_mids)
         observed_counts = self._cut_counts(observed_counts) # same with the observed counts
         observed_count_errors = self._cut_counts(observed_count_errors)
-        e_binning = self._cut_counts(e_binning)
 
         # cut the livetimes too if each channel bin is livetime dependent like rhessi
         livetime = [self._cut_counts([lvt]) if not isnumber(lvt) else lvt for lvt in livetime]
         
         # don't waste time on full rows/columns of 0s in the srms
-        photon_channel_bins, photon_channel_mids, srm = self._photon_space_reduce(ph_bins=photon_channel_bins, 
-                                                                                  ph_mids=photon_channel_mids, 
-                                                                                  srm=srm) # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+        photon_channel_bins, photon_channel_mids, photon_channel_widths, srm = self._photon_space_reduce(ph_bins=photon_channel_bins, 
+                                                                                                         ph_mids=photon_channel_mids, 
+                                                                                                         ph_widths=photon_e_binning, 
+                                                                                                         srm=srm) # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+        #photon_e_binning
         
         # remove the count space reduce since this now needs to reduce the livetimes and baclgrounds if they are there
         # e_binning, count_channel_mids, observed_counts, observed_count_errors, srm = self._count_space_reduce(ct_binning=e_binning,
@@ -2007,8 +2017,8 @@ class SunXspex(LoadSpec):
         #                                                                                                       ct_obs=observed_counts,
         #                                                                                                       ct_err=observed_count_errors, 
         #                                                                                                       srm=srm) # this may not do anything if a fitting range has already cut away a lot across counts space
-
-        return free_params_list, (photon_channel_bins, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors, tied_or_frozen_params_list, param_name_list_order), self._free_model_param_bounds, orig_free_param_len
+        # return free_params_list, (photon_channel_bins, count_channel_mids, srm, livetime, e_binning, observed_counts, observed_count_errors, tied_or_frozen_params_list, param_name_list_order), self._free_model_param_bounds, orig_free_param_len
+        return free_params_list, (photon_channel_bins, count_channel_mids, srm, livetime, photon_channel_widths, observed_counts, observed_count_errors, tied_or_frozen_params_list, param_name_list_order), self._free_model_param_bounds, orig_free_param_len
 
     def _run_minimiser_core(self, minimise_func, free_parameter_list, statistic_args, free_param_bounds, **kwargs):
         """ Allows user (or us) to define their own (different) minimiser easily.
@@ -2204,7 +2214,7 @@ class SunXspex(LoadSpec):
         """
         
         # let's get all the info needed from LoadSpec for the fit if not provided
-        photon_channel_bins, _, count_channel_mids, srm, _, e_binning, _, _ = self._loadSpec4fit()
+        photon_channel_bins, _, count_channel_mids, srm, _, e_binning, ph_e_binning, _, _ = self._loadSpec4fit()
 
         # want all energies plotted, not just ones in fitting range so change for now and change back later
         _energy_fitting_indices_orig = copy(self._energy_fitting_indices)
@@ -2228,12 +2238,13 @@ class SunXspex(LoadSpec):
         
         # make sure only the free parameters are getting varied
         mu = self._pseudo_model(free_params_list, 
-                               tied_or_frozen_params_list, 
-                               param_name_list_order, 
-                               photon_channels=photon_channel_bins,
-                               count_channel_mids=count_channel_mids, 
-                               total_responses=srm,
-                               **kwargs) 
+                                tied_or_frozen_params_list, 
+                                param_name_list_order, 
+                                photon_channels=photon_channel_bins, 
+                                photon_channel_widths=ph_e_binning,
+                                count_channel_mids=count_channel_mids, 
+                                total_responses=srm,
+                                **kwargs) 
         # turn counts s^-1 into counts s^-1 keV^-1
         for m, e in enumerate(e_binning):
             mu[m][0] /= e
@@ -2283,9 +2294,10 @@ class SunXspex(LoadSpec):
         spec_no = int(spectrum.split("spectrum")[1])
 
         # don't waste time on full rows/columns of 0s in the srms
-        photon_channel_bins, _, srm = self._photon_space_reduce(ph_bins=[self.loaded_spec_data[spectrum]['photon_channel_bins']], 
-                                                                ph_mids=[self.loaded_spec_data[spectrum]['photon_channel_bins']], 
-                                                                srm=[self.loaded_spec_data[spectrum]['srm']]) # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+        photon_channel_bins, _, _, srm = self._photon_space_reduce(ph_bins=[self.loaded_spec_data[spectrum]['photon_channel_bins']], 
+                                                                   ph_mids=[self.loaded_spec_data[spectrum]['photon_channel_bins']], 
+                                                                   ph_widths=[self.loaded_spec_data[spectrum]['photon_channel_binning']], 
+                                                                   srm=[self.loaded_spec_data[spectrum]['srm']]) # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
         photon_channel_bins, srm = photon_channel_bins[0], srm[0]
         
         if type(parameters)==type(None):
