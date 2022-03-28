@@ -10,15 +10,15 @@ __all__ = ["_read_pha", "_read_arf", "_read_rmf", "_read_rspec_file", "_read_rsr
 
 def _read_pha(file):
     """ Takes a .pha file and extracts useful information from it.
-    
+
     Parameters
     ----------
     file : Str
             String for the .pha file of the spectrum under investigation.
-            
+
     Returns
     -------
-    The channel numbers, counts, and the livetime for the observation. 
+    The channel numbers, counts, and the livetime for the observation.
     """
 
     with fits.open(file) as hdul:
@@ -30,40 +30,40 @@ def _read_pha(file):
 
 def _read_arf(file):
     """ Takes a .arf file and extracts useful information from it.
-    
+
     Parameters
     ----------
     file : Str
             String for the .arf file of the spectrum under investigation.
-            
+
     Returns
     -------
-    The low and high boundary of energy bins, and the ancillary response [cm^2] (data['specresp']).  
+    The low and high boundary of energy bins, and the ancillary response [cm^2] (data['specresp']).
     """
     with fits.open(file) as hdul:
         data = hdul[1].data
-    
+
     return data['energ_lo'], data['energ_hi'], data['specresp']
 
 
 def _read_rmf(file):
     """ Takes a .rmf file and extracts useful information from it.
-    
+
     Parameters
     ----------
     file : Str
             String for the .rmf file of the spectrum under investigation.
-            
+
     Returns
     -------
-    The low and high boundary of energy bins (data['energ_lo'], data['energ_hi']), number of sub-set channels in the energy 
-    bin (data['n_grp']), starting index of each sub-set of channels (data['f_chan']), 
-    number of channels in each sub-set (data['n_chan']), redistribution matrix [counts per photon] (data['matrix']). 
+    The low and high boundary of energy bins (data['energ_lo'], data['energ_hi']), number of sub-set channels in the energy
+    bin (data['n_grp']), starting index of each sub-set of channels (data['f_chan']),
+    number of channels in each sub-set (data['n_chan']), redistribution matrix [counts per photon] (data['matrix']).
     """
 
     with fits.open(file) as hdul:
         data = hdul[2].data
-    
+
     return data['energ_lo'], data['energ_hi'], data['n_grp'], data['f_chan'], data['n_chan'], data['matrix']
 
 

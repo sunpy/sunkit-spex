@@ -11,8 +11,8 @@ __all__ = ["Parameters", "isnumber"]
 
 class Parameters:
     """
-    This class's job is to handle parameter tables. 
-    
+    This class's job is to handle parameter tables.
+
     I.e., store status, value, bounds, and errors of each model variable.
 
     Parameters
@@ -31,16 +31,16 @@ class Parameters:
 
     param_status : pandas.core.series.Series
             Displays the parameters and their Status (i.e., if the are free, frozen, or tied).
-    
+
     param_value : pandas.core.series.Series
             Displays the parameters and their Value (i.e., float).
-    
+
     param_bounds : pandas.core.series.Series
             Displays the parameters and their Bounds (i.e., (float,float)).
-    
+
     param_error : pandas.core.series.Series
             Displays the parameters and their Error (i.e., (float-,float+)).
-    
+
     to_astropy : astropy.table.table.Table
             Converts the pandas table into an astropy table while adding a 0th columns of the parameter names.
 
@@ -48,15 +48,15 @@ class Parameters:
     -------
     method : arg1 (type), arg2 (type), ...
             .
-            
+
     Attributes
     ----------
     parameter_info : pandas.DataFrame
             Parameter table. This is the object that is indexed when the class is indexed.
-    
+
     states : list of strings
             Parameter fields ["Status", "Value", "Bounds", "Error"].
-    
+
     param_names : list of strings
             List of parameter names.
 
@@ -71,7 +71,7 @@ class Parameters:
     p1_spectrum2    tie_p1_spectrum1    1.0  (0.0, None)  (0.0, 0.0)
     p2_spectrum2    tie_p2_spectrum1    1.0  (0.0, None)  (0.0, 0.0)
 
-    pt["p1_spectrum1"] = "fixed" 
+    pt["p1_spectrum1"] = "fixed"
     # <equivalent> pt["Status", "p1_spectrum1"] = "fixed"
     # <equivalent> pt["p1_spectrum1", "Status"] = "fixed"
     # <equivalent> pt["Status"] = {"p1_spectrum1":"fixed"}
@@ -81,15 +81,15 @@ class Parameters:
     p1_spectrum1  frozen    1.0  (0.0, None)  (0.0, 0.0)
                             ...
 
-    # Freeze parameters with ("frozen", "freeze", "chill", "fix", "fixed", "secure", "stick", "glue", "preserve", "restrain", "restrained", "cannot_move", "cant_move", "canny_move", "married")    
-    # Free parameters with ("free", "thaw", "loose", "unrestrained", "release", "released", "can_move", "single")   
-    # Tie parameters with ("tie", "tied", "bind", "tether", "join", "joined", "in_a_relationship_with") followed by "_p1_spectrum1" or set to pt["p1_spectrum1"]        
+    # Freeze parameters with ("frozen", "freeze", "chill", "fix", "fixed", "secure", "stick", "glue", "preserve", "restrain", "restrained", "cannot_move", "cant_move", "canny_move", "married")
+    # Free parameters with ("free", "thaw", "loose", "unrestrained", "release", "released", "can_move", "single")
+    # Tie parameters with ("tie", "tied", "bind", "tether", "join", "joined", "in_a_relationship_with") followed by "_p1_spectrum1" or set to pt["p1_spectrum1"]
 
     # To set value, change "Status" to "Value" and set to a float instead of string
     # To set bounds, change "Status" to "Bounds" and set to a tuple (minfloat,maxfloat) instead of string
 
     # To change multiple entries for one parameter
-    pt["p1_spectrum1"] = {"Status":"fixed", "Value":4, "Bounds":(1, 50)} 
+    pt["p1_spectrum1"] = {"Status":"fixed", "Value":4, "Bounds":(1, 50)}
     # <equivalent>  pt["p1_spectrum1"] = ["fixed", 4, (1, 50)])
     >>> pt
                     Status  Value       Bounds       Error
@@ -104,7 +104,7 @@ class Parameters:
         # Ordinary params, default spec1 free, rest are tied, value 1. Response params, default frozen and value 1 (gain) and 0 (offset)
         spec1_param_num = sum(1 for i in parameter_names if "spectrum1" in i)
         if not rparams:
-            stat_s1 = ["free"]*spec1_param_num 
+            stat_s1 = ["free"]*spec1_param_num
             tied_stats = ["tie_"+s1 for s1 in parameter_names[:spec1_param_num]]*int((len(parameter_names)/spec1_param_num) - 1)
             stat = stat_s1 + tied_stats
             params = np.ones(len(parameter_names))
@@ -115,7 +115,7 @@ class Parameters:
             params = [1.0, 0.0]*int(len(parameter_names)/2)
             param_bounds = [(0.8, 1.2), (-0.1, 0.1)]*int(len(parameter_names)/2)
             param_errors = [(0.0, 0.0)]*len(parameter_names)
-        
+
         self.states = ["Status", "Value", "Bounds", "Error"] # attributes of each param
         # make the columns of the parameter table
         self.param_names = parameter_names
@@ -125,8 +125,7 @@ class Parameters:
         errors = dict(zip(self.param_names, param_errors))
         # create table
         self.parameter_info = pd.DataFrame(dict(zip(self.states, [status, values, bounds, errors])))
-        
-        
+
     @property
     def param_name(self):
         """ ***Property*** Easily see the parameters located in the table.
@@ -136,7 +135,7 @@ class Parameters:
         List of parameters.
         """
         return list(self.parameter_info.index)
-    
+
     @property
     def param_status(self):
         """ ***Property*** Easily see the parameter statuses (free, frozen, tied) located in the table.
@@ -146,7 +145,7 @@ class Parameters:
         pandas.core.series.Series.
         """
         return self.parameter_info["Status"]
-    
+
     @property
     def param_value(self):
         """ ***Property*** Easily see the parameter values located in the table.
@@ -156,7 +155,7 @@ class Parameters:
         pandas.core.series.Series.
         """
         return self.parameter_info["Value"]
-    
+
     @property
     def param_bounds(self):
         """ ***Property*** Easily see the parameter bounds for fitting located in the table.
@@ -166,7 +165,7 @@ class Parameters:
         pandas.core.series.Series.
         """
         return self.parameter_info["Bounds"]
-    
+
     @property
     def param_error(self):
         """ ***Property*** Easily see the parameter errors located in the table.
@@ -176,7 +175,7 @@ class Parameters:
         pandas.core.series.Series.
         """
         return self.parameter_info["Error"]
-    
+
     @property
     def to_astropy(self):
         """ ***Property*** Converts and returns the pandas data table (self.parameter_info) as an stropy table.
@@ -189,7 +188,7 @@ class Parameters:
         astropy_table.add_column(self.param_name, name="Param", index=0)
         astropy_table["Bounds"].unit, astropy_table["Error"].unit = "(min, max)", "(-, +)"
         return astropy_table
-    
+
     def _alternative_name(self, _for):
         """ Stores the accepted synonyms for the Status state in the parameter table.
 
@@ -210,10 +209,10 @@ class Parameters:
             return ["free", "thaw", "loose", "unrestrained", "release", "released", "can_move", "single"]
         elif _for=="tie":
             return ["tie", "tied", "bind", "tether", "join", "joined", "in_a_relationship_with"]
-        
+
     def _frozen_free_or_tie(self, value):
         """ Checks the value of the Status state, determines if it is a synonym of frozen, free, or is a tied parameter.
-        
+
         The standard value of the Status is then returned. E.g., value="fixed" then return "frozen".
 
         Parameters
@@ -235,7 +234,7 @@ class Parameters:
                 value = "tie"+value[len(tie_syn):]
                 break
         return value
-    
+
     def _check_valid_table(self):
         """ Checks that all table values are valid and if not revert back to the original value.
 
@@ -251,7 +250,7 @@ class Parameters:
                 self.parameter_info.at[i, "Status"] = self._table_copy.at[i, "Status"]
         # check values
         for i, v in zip(list(self.param_value.index), list(self.param_value)):
-            if not isnumber(v):#(type(v) not in (int, float)): 
+            if not isnumber(v):#(type(v) not in (int, float)):
                 print(_invalid_str, v, " for entry [Value, "+str(i)+"]. Must be type int or float. Changing back.")
                 self.parameter_info.at[i, "Value"] = self._table_copy.at[i, "Value"]
         # check Bounds
@@ -273,7 +272,7 @@ class Parameters:
         ----------
         item : str
                 Parameter name, state, or both. the entry(ies) to be changed
-        
+
         new_value : pandas.core.series.Series
                 Parameter table entry that the item parameter is to bve tied to.
 
@@ -294,7 +293,7 @@ class Parameters:
             print("Tying parameter", item, "to itself (", new_value.name, ") would be equivalent to fixing this parameter. Nothing is being changed.")
         else:
             print("I don\'t know what you've set this to but nothing is being changed, sorry (", item, "=", new_value, ").")
-    
+
     def _change_state(self, item, new_value):
         """ Handles what to do if a state column in the param table is set to a list or dictionary.
 
@@ -302,9 +301,9 @@ class Parameters:
         ----------
         item : str
                 State column in the param table to be changed.
-        
+
         new_value : list or dict
-                If dict then the keys need to be the parameters to be changed. 
+                If dict then the keys need to be the parameters to be changed.
                 If list then the an entry needs to be provided for every parameter.
 
         Returns
@@ -333,19 +332,19 @@ class Parameters:
 
     def _change_param(self, item, new_value):
         """ Handles parameter table row changes.
-        
-        Handles what to do if a parameter row in the param table is set to a list, 
-        dictionary, string (change Status state), int/float (change Value state), or 
+
+        Handles what to do if a parameter row in the param table is set to a list,
+        dictionary, string (change Status state), int/float (change Value state), or
         tuple length==2 (change Bounds state).
 
         Parameters
         ----------
         item : str
                 Parameter row in the param table to be changed.
-        
+
         new_value : list or dict or str or int/float or tuple
-                If dict then the keys need to be the states to be changed. 
-                If list then any string, int/float, and tuple will change their 
+                If dict then the keys need to be the states to be changed.
+                If list then any string, int/float, and tuple will change their
                 respective states.
 
         Returns
@@ -356,12 +355,12 @@ class Parameters:
         -------
         # If you want to change multiple entries in a parameter row
         #  with dict:
-        self.parameter_info["param1"] = {"Status":"fixed", "Value":4} 
+        self.parameter_info["param1"] = {"Status":"fixed", "Value":4}
         #  with list:
         self.parameter_info["param1"]=["fixed", 4]
-        #  entries separately: 
-        self.parameter_info["param1"]="fixed" 
-        self.parameter_info["param1"]=4 
+        #  entries separately:
+        self.parameter_info["param1"]="fixed"
+        self.parameter_info["param1"]=4
         """
         if type(new_value) is dict:
             for key, val in new_value.items():
@@ -379,8 +378,8 @@ class Parameters:
 
     def _str_num_or_tuple(self, val):
         """ To return the state in the parameter table to which the input value corresponds.
-        
-        A string should go in the "Status" state, number in the "Value" state, and tuple in 
+
+        A string should go in the "Status" state, number in the "Value" state, and tuple in
         the "Bounds" state.
 
         Parameters
@@ -390,7 +389,7 @@ class Parameters:
 
         Returns
         -------
-        Value (corrected if it is string indicated a tied parameter) and String or None for 
+        Value (corrected if it is string indicated a tied parameter) and String or None for
         the corresponding state.
         """
         key = None
@@ -405,9 +404,9 @@ class Parameters:
         Parameters
         ----------
         item : [str,str]
-                [Parameter, State] or [State, Parameter] of the specific entry in the 
+                [Parameter, State] or [State, Parameter] of the specific entry in the
                 param table to be changed.
-        
+
         new_value : str or int/float or tuple
                 The new value of the specific entry indicated by the item indices.
 
@@ -425,49 +424,49 @@ class Parameters:
         if (item[0] in self.param_names+self.states) and (item[1] in self.param_names+self.states):
             # if first index isn't the param name, assume the second one is
             index = item[0] if (item[0] in self.param_names) else item[1]
-            col = list(item) 
+            col = list(item)
 
             # remove the suspected param name from the indices
-            col.remove(index) 
+            col.remove(index)
 
             # now get default string for the state if it is for the Status, else just leave it
             new_value = self._frozen_free_or_tie(value=new_value) if (type(new_value) is str) else new_value
             try:
                 self.parameter_info.at[index, col[0]] = new_value # try to update the specific entry with .at[param_name,state]
             except KeyError:
-                print("Indices need to be one from a row and one a column if two are given.")  
+                print("Indices need to be one from a row and one a column if two are given.")
 
     def __setitem__(self, item, new_value):
-        """ The point in this class. 
-        
+        """ The point in this class.
+
         Allows the parameter table entries to be set a large number of ways as is convenient to the user.
         """
         # create a table copy to store all original values
         self._table_copy = copy(self.parameter_info)
-        
+
         # if you want to tie it to another param by setting one param entry to another (e.g., self.parameter_info["param1"]=self.parameter_info["param2"])
         if (type(new_value)==type(self["Status"])):
             self._set_to_another_entry(item, new_value)
-        
+
         # set param vals by state (e.g., self.parameter_info["Status"]={"param1":"fixed", "param2":"free"} or self.parameter_info["Value"]=[5, 8] for 2 params)
         elif item in self.states:
             self._change_state(item, new_value)
-            
+
         # set param vals by param name (e.g., self.parameter_info["param1"]={"Status":"fixed", "Value":4} or self.parameter_info["param1"]=["fixed", 4, (2,10)])
-        # also e.g., self.parameter_info["param1"]="fixed" or self.parameter_info["param1"]=4, if set to str -> update Status, set to int/float -> update Value, etc. 
+        # also e.g., self.parameter_info["param1"]="fixed" or self.parameter_info["param1"]=4, if set to str -> update Status, set to int/float -> update Value, etc.
         elif item in self.param_names:
             self._change_param(item, new_value)
-        
+
         # index a specific entry in the table, e.g., self.parameter_info["param1", "Status"]="free" or elf.parameter_info["Status", "param1"]="free"
         elif len(set(item))==2:
-            self._change_specfic_entry(item, new_value)  
-                    
+            self._change_specfic_entry(item, new_value)
+
         else:
             print("Invalid index ", item, ". Valid rows and column names are: ", self.param_names, " and ", self.states, ", respectively.")
             print("Or invalid value ", new_value, ". You have not set the parameter to a list, dict, string, integer, float, tuple (len==2), or row of itself.")
         self._check_valid_table() # check all entries are valid, if not then change back to original
         del self._table_copy # remove original table copy
-        
+
     def __getitem__(self, item):
         """ Allow the parameter table to be indexed by the state, parameter name, or both."""
         if item in self.states:
@@ -483,12 +482,12 @@ class Parameters:
             except KeyError:
                 print("Indices need to be one from a row and one a column if two are given.")
         print("Invalid index: ", item)
-            
+
     def __repr__(self):
-        """Usually provide a representation to construct the class from scratch. 
-        
-        However, when doing .params in the child class we actually want to see the table itself. The 
-        user isn't expected to use this class directly but if they do they can look at 
+        """Usually provide a representation to construct the class from scratch.
+
+        However, when doing .params in the child class we actually want to see the table itself. The
+        user isn't expected to use this class directly but if they do they can look at
         self._construction_string_parameters."""
         # default for __str__() too if it's not here
         return f"{self.parameter_info}"
@@ -503,8 +502,8 @@ def _make_into_list(possible_list):
     Parameters
     ----------
     possible_list : optional
-            Object to be turned into a list. If string or tuple then this will just 
-            return [string] or [tuple], respectively. If not string or tuple but 
+            Object to be turned into a list. If string or tuple then this will just
+            return [string] or [tuple], respectively. If not string or tuple but
             iterable then returns list(possible_list) else [possible_list].
 
     Returns
