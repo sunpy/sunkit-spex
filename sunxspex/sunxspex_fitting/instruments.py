@@ -1288,7 +1288,7 @@ class RhessiLoader(InstrumentBlueprint):
 
         return ax
 
-    def spectrogram(self, axes=None, rebin_time=1, rebin_rate=1, **kwargs):
+    def spectrogram(self, axes=None, rebin_time=1, rebin_energy=1, **kwargs):
         """ Creates a RHESSI spectrogram.
 
         Helps the user see the RHESSI time and energy evolution. The defined event time (defined either through 
@@ -1347,23 +1347,29 @@ class RhessiLoader(InstrumentBlueprint):
         
         # get cts/s, and times and energy bin ranges
         time_binning = np.array([dt.to_value("s") for dt in np.diff(self._time_bins_perspec).flatten()])
+        e_range_cts = self._counts_perspec
+        _times = self._time_bins_perspec
 
         # check if the times are being rebinned
-        e_range_cts = self._rebin_lc(self._counts_perspec, rebin_time) if type(rebin_time)==int and rebin_time>1 else self._counts_perspec
-        time_binning = self._rebin_lc(time_binning, rebin_time) if type(rebin_time)==int and rebin_time>1 else time_binning
+        if type(rebin_time)==int and rebin_time>1:
+            e_range_cts = self._rebin_lc(e_range_cts, rebin_time)
+            time_binning = self._rebin_lc(time_binning, rebin_time)
+            _times = self._rebin_ts(_times, rebin_time)
+            
         _cts_rate = e_range_cts/time_binning[:,None]
+        _e_bins = self._loaded_spec_data["count_channel_bins"]
 
-        # rebin the rate if needed
-        _cts_rate = self._rebin_lc(_cts_rate.T, rebin_rate).T if type(rebin_rate)==int and rebin_rate>1 else _cts_rate
+        # rebin the energies if needed
+        if type(rebin_energy)==int and rebin_energy>1:
+            _cts_rate = self._rebin_lc(_cts_rate.T, rebin_energy).T
+            _e_bins = self._rebin_ts(self._loaded_spec_data["count_channel_bins"], rebin_energy)
 
         # check if the time bins need combined
-        _times = self._time_bins_perspec
-        _times = self._rebin_ts(_times, rebin_time) if type(rebin_time)==int and rebin_time>1 else _times
         _t = self._atimes2mdates(_times.flatten())
         
         # plot spectrogram
-        etop = self._loaded_spec_data["count_channel_bins"][-1][-1]
-        _ext = [_t[0],_t[-1],self._loaded_spec_data["count_channel_bins"][0][0],etop]
+        etop = _e_bins[-1][-1]
+        _ext = [_t[0],_t[-1],_e_bins[0][0],etop]
         _spect = _cts_rate.T
         ax.imshow(_spect, origin="lower",extent=_ext,aspect=_aspect, cmap=_cmap, **kwargs)
 
