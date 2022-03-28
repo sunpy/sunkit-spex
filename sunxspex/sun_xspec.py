@@ -1,7 +1,7 @@
 """
 Solar X-ray fit functions for use with XSPEC (see https://heasarc.gsfc.nasa.gov/xanadu/xspec/python/html/extended.html#local-models-in-python)
 
-Nothing in this module requires any existing XSPEC or pyxspec installation
+Nothing in this module requires any existing XSPEC or pyxspec installation. For Jupyter-friendly display and plot options for use with pyxspec, see https://raw.githubusercontent.com/elastufka/solar_all_purpose/main/xspec_utils.py
 
 These models can be added via pyxspec:
 
@@ -197,15 +197,14 @@ class ThickTargetModel(XspecModel):
                 return flux #same as previous... might not always want this however
 
             internal_flux = (fcoeff / decoeff) * internal_flux
-<<<<<<< HEAD
+
             #logging.info(f"PARAMS {params}")
-=======
             logging.info(f"{dt.now()} PARAMS {params}")
->>>>>>> 0f04dec331a309632194d7af21146219f687c404
+
             internal_flux[i]=internal_flux[i]*photon_energies[i]*a0*1e35
             #have to modify inplace, not return another pointer
             flux[:]=[internal_flux[j] if j in i and j!=i[-1] else prev for j,prev in enumerate(flux)]
-            logging.info(f"{flux[:20]}")
+            #logging.info(f"{flux[:20]}")
             
                 
 class ThinTargetModel(XspecModel):
@@ -218,7 +217,7 @@ class ThinTargetModel(XspecModel):
          "eelow  keV  20.0  0.0  1.0  100.  1e3  1.0" ,
          "eehigh  keV  3200.0  1.0  10.0  1e6  1e7  1.0"
         ) #default parameters from OSPEX
-        self.model=self.thin
+        self.model=self.bremsstrahlung_thin_target
         self.description=f"Thin-target bremsstrahlung '{self.model.__name__}'"
 
     @staticmethod
