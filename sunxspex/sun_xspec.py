@@ -37,14 +37,14 @@ class XspecModel:
 
     def __repr__(self):
         return self.description
-    
+
     def print_ParInfo(self):
         '''print parameter info in a readable format with headers '''
         headers="Parameter,Unit,Default,Hard Min,Soft Min,Soft Max,Hard Max,Delta".split(',')
         partable=np.array([[p.split('  ') for p in self.ParInfo]]).reshape((len(self.ParInfo),8)).T
         df=pd.DataFrame({h:r for h,r in zip(headers,partable)}, index=range(1,len(self.ParInfo)+1))
         return df #prints nicely like this...
-        
+
     def other_method(self):
         '''such as: easily set parameter defaults from a tuple or dictionary, descriptions of parameters, etc'''
         raise NotImplementedError
@@ -68,17 +68,17 @@ class ThickTargetModel0(XspecModel): #original integration for comparison
         """
         tuples or lists containing photon energies, params
               flux is empty list of length nE-1
-              
+
               The input array of energy bins gives the boundaries of the energy bins
               and hence has one more entry than the output flux arrays.
-              
+
               The output flux array for an additive model should be in terms of photons/cm$^2$/s
               (not photons/cm$^2$/s/keV) i.e. it is the model spectrum integrated over the energy bin.
         """
-        
+
         photon_energies=np.array(photon_energies)
         internal_flux=np.zeros(photon_energies.shape)
-        
+
         # Constants
         #const=constants.Constants()
         mc2 = const.get_constant('mc2')
@@ -106,7 +106,7 @@ class ThickTargetModel0(XspecModel): #original integration for comparison
             a0,p, eebrk, q, eelow, eehigh,_=params #why is this not consistent within xspec?
         except ValueError:
             a0,p, eebrk, q, eelow, eehigh=params
-        
+
         if eelow >= eehigh:
             return list(photon_energies)[1:]
 
@@ -145,17 +145,17 @@ class ThickTargetModel(XspecModel):
         """
         tuples or lists containing photon energies, params
               flux is empty list of length nE-1
-              
+
               The input array of energy bins gives the boundaries of the energy bins
               and hence has one more entry than the output flux arrays.
-              
+
               The output flux array for an additive model should be in terms of photons/cm$^2$/s
               (not photons/cm$^2$/s/keV) i.e. it is the model spectrum integrated over the energy bin.
         """
-        
+
         photon_energies=np.array(photon_energies)
         internal_flux=np.zeros(photon_energies.shape)
-        
+
         # Constants
         #const=constants.Constants()
         mc2 = const.get_constant('mc2')
@@ -183,7 +183,7 @@ class ThickTargetModel(XspecModel):
             a0,p, eebrk, q, eelow, eehigh,_=params #why is this not consistent within xspec?
         except ValueError:
             a0,p, eebrk, q, eelow, eehigh=params
-        
+
         #if eelow >= eehigh:
         #    return list(photon_energies)[1:]
 
@@ -205,8 +205,8 @@ class ThickTargetModel(XspecModel):
             #have to modify inplace, not return another pointer
             flux[:]=[internal_flux[j] if j in i and j!=i[-1] else prev for j,prev in enumerate(flux)]
             #logging.info(f"{flux[:20]}")
-            
-                
+
+
 class ThinTargetModel(XspecModel):
     def __init__(self):
         self.ParInfo=(
@@ -330,7 +330,7 @@ class ThermalModel(XspecModel):
         observer_distance=(1*u.AU).to(u.cm).value
 
         energy_edges_keV, temperature_K = np.array(energy_edges), np.array([((temperature*u.keV).to(u.J)/(c.k_B)).value])
-        
+
         energy_range = (min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
                         max(CONTINUUM_GRID["energy range keV"][1], LINE_GRID["energy range keV"][1]))
         #_error_if_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
@@ -344,7 +344,6 @@ class ThermalModel(XspecModel):
         line_flux = thermal._line_emission(energy_edges_keV, temperature_K, abundances)
         internal_flux = ((continuum_flux +line_flux) * emission_measure /
                     (4 * np.pi * observer_distance**2)).flatten()
-        
+
         logging.info(f"PARAMS: {params}")
         flux[:]=internal_flux.value
-

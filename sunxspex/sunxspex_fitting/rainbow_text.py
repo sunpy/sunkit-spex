@@ -11,9 +11,9 @@ def rainbow_text_lines(xy, strings, colors, orientation='horizontal',
     """
     *** NOT MY FUNCTION. ADAPTED FROM: https://matplotlib.org/stable/gallery/text_labels_and_annotations/rainbow_text.html ***
     *** USES ANNOTATE INSTEAD OF TEXT AND DELTA_X/Y UPDATE FOR TEXT IS APPLIED DIFFERENTLY. ***
-    
+
     Take a list of *strings* and *colors* and place them next to each
-    other, with text strings[i] being shown in colors[i]. Each entry 
+    other, with text strings[i] being shown in colors[i]. Each entry
     is its own line.
 
     Parameters

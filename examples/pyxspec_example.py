@@ -93,4 +93,3 @@ print()
 #plot in matplotlib...eventually
 
 print(f"Script run time: {time.time()-tstart:.3f} seconds")
-

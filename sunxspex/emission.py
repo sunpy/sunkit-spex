@@ -284,7 +284,7 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     return cross_section
 
 
-def integrate_part(*, model, photon_energies,electron_dist, maxfcn, rerr, z,a_lg, b_lg, ll, efd): #3x faster than original
+def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_lg, b_lg, ll, efd): #3x faster than original
     """
     Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
 
@@ -333,13 +333,13 @@ def integrate_part(*, model, photon_energies,electron_dist, maxfcn, rerr, z,a_lg
     intsum = np.zeros_like(photon_energies, dtype=np.float64)
     ier = np.zeros_like(photon_energies)
     lastsum = np.array(intsum) #faster than copy
-   
+
     mc2 = const.get_constant('mc2')
     nlim=12
     lims=np.stack([a_lg,b_lg])
-   
+
     photon_energy=photon_energies[ll]
-    
+
     def model_func(y): #basically emission.get_integrand()
         electron_energy=10**y
 
@@ -350,7 +350,7 @@ def integrate_part(*, model, photon_energies,electron_dist, maxfcn, rerr, z,a_lg
         density=electron_dist.density(electron_energy)
         integrand=10**y*np.log(10)* density * brem_cross * pc / collision_loss / gamma
         return integrand
-   
+
     for ires in range(2, nlim + 1):
         npoint = 2 ** ires
         if npoint > maxfcn:
@@ -363,7 +363,7 @@ def integrate_part(*, model, photon_energies,electron_dist, maxfcn, rerr, z,a_lg
         if (err < rerr*np.abs(intsum)).all():
             break
         return intsum, ier
-    
+
 def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z,
                     efd): #10x faster than original
     """
@@ -433,24 +433,24 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
     intsum = np.zeros_like(photon_energies, dtype=np.float64)
     ier = np.zeros_like(photon_energies, dtype=np.float64)
     total_integral,total_ier=0,0
-    
+
     eparams=[eelow,eebrk,eehigh]
-    
+
     electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,eehigh=eehigh) #actually just need density, pass that in instead?
-    
+
     for n, (llim, ulim) in enumerate(zip([0,eelow,eebrk],eparams)): #un-loop this eventually, or throw multiprocessing at it since they're independent
         #if n == 2:
         #part=np.where(np.logical_and(photon_energies > llim, photon_energies <= ulim))[0] #shouldn't it just always be <=
         if n==0 and model == 'thin-target': #skip first iteration of loop
             continue
-            
+
         part=np.where(photon_energies < ulim)[0]
-        
+
         if part.size > 0:
             aa = np.array(photon_energies)
             if n > 0:
                 aa[photon_energies < eparams[n-1]] = eparams[n-1]
-            
+
             a_lg = np.log10(aa[part])
             b_lg = np.log10(np.full_like(a_lg, ulim))
 
@@ -458,7 +458,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
                 photon_energies=photon_energies,
                 electron_dist=electron_dist, z=z,
                 a_lg=a_lg, b_lg=b_lg, ll=part, efd=efd)
-            
+
             total_integral=np.add(total_integral,intsum)
             total_ier=np.add(total_ier,ier)
             # ier = 1 indicates no convergence.
@@ -927,7 +927,7 @@ def split_and_integrate0(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
         raise ValueError(f'Condition eelow <= eebrek <= eehigh not satisfied '
                          f'({eelow}<={eebrk}<={eehigh}).')
         #want to return something clearly false instead...
-        
+
 
     # Create arrays for integral sums and error flags.
     intsum1 = np.zeros_like(photon_energies, dtype=np.float64)
@@ -1008,4 +1008,3 @@ def split_and_integrate0(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
         Dmlin = (intsum2 + intsum3)
         ier = ier2 + ier3
         return Dmlin, ier
-

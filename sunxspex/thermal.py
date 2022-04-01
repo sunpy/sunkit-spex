@@ -751,7 +751,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 # # load in everything for the chianti_kev_cont code of "mine". This only needs done once so do it here.
 
 # def chianti_kev_units(spectrum, funits, wedg, kev=False, earth=False, date=None):
-#     """ 
+#     """
 #     An IDL routine to convert to the correct units. Making sure we are in keV^-1 and cm^-2 using the Sun-to-Earth distance.
 #     I feel this is almost useless now but I wrote it to be consistent with IDL.
 
@@ -763,7 +763,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #         A list of energy bin edges.
 
 #     funits: int
-#         Is you want to input a custom distance from the Sun rather than letting it be the Earth then this could be set 
+#         Is you want to input a custom distance from the Sun rather than letting it be the Earth then this could be set
 #         to the distnace in cm squared..
 
 #     wedg: 1-D array
@@ -780,12 +780,12 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #     date: `astropy.time.Time`
 #         If earth=True and you want the distance to be on a certain date then pass an astrpy time here.
 #         Default: None
-    
+
 #     Returns
 #     -------
 #     Flux: Dimensionless list only because I just return the value, but the units should be ph s^-1 cm^-2 keV^-1
 #     """
-    
+
 #     # date is an `astropy.time.Time`
 #     if kev:
 #         if earth:
@@ -835,7 +835,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 
 
 # def chianti_kev_cont(energy=None, temperature=None, use_interpol=True):
-#     """ 
+#     """
 #     Returns the continuum contribution from a plasma of a given temperature and emission measure.
 
 #     From: https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/chianti_kev_cont.pro
@@ -850,22 +850,22 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #         Default: 5 MK
 
 #     use_interpol: bool
-#         Set to True if you want to interpolate to your energy values in the grid. The alternative is not set up yet so this 
+#         Set to True if you want to interpolate to your energy values in the grid. The alternative is not set up yet so this
 #         can only be True at the minute.
-    
+
 #     Returns
 #     -------
 #     Flux: Dimensionless list but the units should be ph s^-1 cm^-2 keV^-1. The output will be scaled by 1e49.
 #     """
 #     # temp is a temperature in MK. E.g., temp=5
 #     # energy is a list of energy bin boundaries in keV. E.g., [[1,1.5], [1.5,2], [2,2.5], ...]
-    
+
 #     # Need a default temperature?
 #     if type(temperature)==type(None):
 #         temperature = 5 # MK
 #     else:
 #         temperature = temperature.value
-        
+
 #     # Need default energies?
 #     if type(energy)==type(None):
 #         width = 0.006
@@ -874,18 +874,18 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #         energy = np.concatenate((en_lo, en_hi), axis=1)
 #     else:
 #         energy = energy.value
-    
+
 #     # set up all grid information that was loaded when the class was initialised
 #     continuum_info = CONTINUUM_INFO# chianti_kev_cont_common_load()
 #     abundance = ABUNDANCE #load_xray_abundances(abundance_type="sun_coronal")
 
 #     conversion = CONVERSION # keV to A conversion, ~12.39854
-    
+
 #     mgtemp = temperature * 1e6
 #     u = np.log10(mgtemp)
 
 #     #Add in continuum
-#     wedg  = np.diff(energy).reshape((len(energy))) 
+#     wedg  = np.diff(energy).reshape((len(energy)))
 #     ewvl  = EWVL # wavelengths from A to keV
 #     wwvl  = WWVL # 'wavestep' in IDL
 #     nwvl  = NWVL # number of grid wavelengths
@@ -904,9 +904,9 @@ def _calculate_abundances(abundance_type, relative_abundances):
 
 #     ewvl_exp = ewvl.reshape((1,len(ewvl))) # reshape for matrix multiplication
 
-#     # all wavelengths divided by corresponding temp[0] (first row), then exvl/temp[1] second row, exvl/temp[2] third row 
+#     # all wavelengths divided by corresponding temp[0] (first row), then exvl/temp[1] second row, exvl/temp[2] third row
 #     # inverse boltzmann factor of hv/kT and 11.6e6 from keV-to-J conversion over k = 1.6e-16 / 1.381e-23 ~ 11.6e6
-#     exponential = (np.ones((3,1)) @ ewvl_exp) / ((10**logt[indx]/11.6e6) @ np.ones((1,nwvl))) 
+#     exponential = (np.ones((3,1)) @ ewvl_exp) / ((10**logt[indx]/11.6e6) @ np.ones((1,nwvl)))
 #     exponential = np.exp(np.clip(exponential, None, 80)) #  not sure why clipping at 80
 #     # this is just from dE/dA = E/A from E=hc/A (A=wavelength) for change of variables from Angstrom to keV: dE = dA * (E/A)
 #     # have this repeated for 3 rows since this is the form of the expontial's different temps
@@ -916,7 +916,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #     # We include default_abundance because it will have zeroes for elements not included
 #     # and ones for those included
 #     default_abundance = abundance * 0.0
-#     zindex = continuum_info[0] 
+#     zindex = continuum_info[0]
 #     default_abundance[zindex] = 1.0
 #     select = np.where(default_abundance>0)
 #     tcont = gmean_en * 0.0
@@ -929,10 +929,10 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #     # if keyword_set( rel_abun) then $
 #     #     abundance_ratio[rel_abun[0,*]-1] = rel_abun[1,*]
 
-#     abundance_ratio = (default_abundance*abundance*abundance_ratio) # this is just "abundance", not sure how necessary the abundance lines down to here are in this situation in Python. 
+#     abundance_ratio = (default_abundance*abundance*abundance_ratio) # this is just "abundance", not sure how necessary the abundance lines down to here are in this situation in Python.
 #     # Maybe to double check the files match up? Since "select" should == "np.sort(zindex)"
 #     # first index is for abundance elements, middle index for totcont stuff is temp, third is for the wavelengths
-#     # the wavelength dimension is weird because it is split into totcont_lo and totcont. 
+#     # the wavelength dimension is weird because it is split into totcont_lo and totcont.
 #     # totcont_lo is the continuum <1 keV I think and totcont is >=1 keV, so adding the wavelength dimension of each of these you get the number of wavlengths provided by continuum_info[1]['edge_str']['WVL']
 #     # look here for more info on how the CHIANTI file is set-up **** https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/setup_chianti_cont.pro ****
 #     # this exact script won't create the folder Python is using the now since some of the wavelengths and deltas don't match-up
@@ -942,10 +942,10 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #     tcdbase = totcontindx # double(totcontindx[*, *, *])
 #     tcd     = totcontindx[0,:,:] #get the first abundances continuum info #double(totcontindx[*, *, 0])
 
-    
+
 #     # for each temperature, multiply through by the abundances
-#     tcd = np.tensordot(abundance_ratio[select],tcdbase,axes=([0],[0])) 
-    
+#     tcd = np.tensordot(abundance_ratio[select],tcdbase,axes=([0],[0]))
+
 #     # work in log space for the temperatures
 #     u = np.log(u)
 #     x1, x0, x2 = np.log(x1), np.log(x0), np.log(x2)
@@ -954,7 +954,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #     gaunt = tcd/deltae * exponential # the 3 temps and all wavelengths
 
 
-#     #     use_interpol = True # False # 
+#     #     use_interpol = True # False #
 #     # define valid range
 #     vrange = np.where(gaunt[0,:]>0) # no. of entries = nrange, temp1 ranges
 #     nrange = len(vrange[0])
@@ -997,7 +997,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 
 #         # work in log space with the temperatures
 #         cont0, cont1, cont2 = np.log(cont0), np.log(cont1), np.log(cont2)
-#         # now find weighted average of the continuum values at each temperature 
+#         # now find weighted average of the continuum values at each temperature
 #         # i.e., weight_in_relation_to_u_for_cont0_which_is_at_x0 = w0 = (u-x1) * (u-x2) / ((x0-x1) * (x0-x2))
 #         # also w0+w1+w2=1, so the weights are normalised which is why we don't divide by the sum of the weights for the average
 #         ynew = np.exp( cont0 * (u-x1) * (u-x2) / ((x0-x1) * (x0-x2)) +

@@ -3,7 +3,7 @@ The following code is used to make SRM/counts data in consistent units from STIX
 """
 
 import numpy as np
-from . import io 
+from . import io
 from astropy.time import Time, TimeDelta
 from astropy import units as u
 
@@ -19,8 +19,8 @@ def _get_spec_file_info(spec_file):
 
     Returns
     -------
-    A 2d array of the channel bin edges (channel_bins), 2d array of the channel bins (channel_bins_inds), 
-    2d array of the time bins for each spectrum (time_bins), 2d array of livetimes/counts/count rates/count 
+    A 2d array of the channel bin edges (channel_bins), 2d array of the channel bins (channel_bins_inds),
+    2d array of the time bins for each spectrum (time_bins), 2d array of livetimes/counts/count rates/count
     rate errors per channel bin and spectrum (lvt/counts/cts_rates/cts_rate_err, respectively).
     """
     sdict = io._read_sspec_file(spec_file)
@@ -36,10 +36,10 @@ def _get_spec_file_info(spec_file):
     t_lo = times_mids - _minus_half_bin_width
     _plus_half_bin_width = np.ceil(time_deltas/2)
     t_hi = times_mids + _plus_half_bin_width
-    
+
     spec_stimes = [Time(sdict["0"][0]["DATE_BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.ds) for dt in t_lo]
     spec_etimes = [Time(sdict["0"][0]["DATE_BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.ds) for dt in t_hi]
-    time_bins = np.concatenate((np.array(spec_stimes)[:,None],np.array(spec_etimes)[:,None]), axis=1) 
+    time_bins = np.concatenate((np.array(spec_stimes)[:,None],np.array(spec_etimes)[:,None]), axis=1)
 
     channel_bins_inds, channel_bins = _return_masked_bins(sdict)
 
@@ -93,13 +93,13 @@ def _spec_file_units_check(stix_dict, time_dels):
     ----------
     stix_dict : dict
             Dictionary containing all STIX spectral file information.
-    
+
     time_dels : 1d array
             The time duration of each recorded spectrum.
 
     Returns
     -------
-    A 2d array of the counts [counts], count rates [counts/s], and the count and count 
+    A 2d array of the counts [counts], count rates [counts/s], and the count and count
     rate errors (counts, counts_err, cts_rates, cts_rate_err).
     """
     # stix can be saved out with counts, counts/sec, or counts/sec/cm^2/keV using counts, rate, or flux, respectively
@@ -125,20 +125,20 @@ def _get_srm_file_info(srm_file):
 
     Returns
     -------
-    A 2d array of the photon and channel bin edges (photon_bins, channel_bins), number of sub-set channels 
-    in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each 
+    A 2d array of the photon and channel bin edges (photon_bins, channel_bins), number of sub-set channels
+    in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
     sub-set (nchan), 2d array that is the spectral response (srm).
     """
     srmfsdict = io._read_ssrm_file(srm_file)
-    
+
     photon_bins = srmfsdict["photon_energy_bin_edges"]
-    
+
     srm = srmfsdict["drm"] # counts ph^-1 keV^-1
-    
+
     channel_bins = srmfsdict["count_energy_bin_edges"]
-    
+
     #srm units counts ph^(-1) kev^(-1); i.e., photons cm^(-2) go in and counts cm^(-2) kev^(-1) comes out # https://hesperia.gsfc.nasa.gov/ssw/hessi/doc/params/hsi_params_srm.htm#***
     ## need srm units are counts ph^(-1) cm^(2)
     srm = srm * np.diff(channel_bins, axis=1).flatten()
-    
+
     return photon_bins, channel_bins, srm
