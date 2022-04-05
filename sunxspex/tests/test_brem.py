@@ -119,7 +119,7 @@ def test_integrate_part():
     res_idl_thick = [1.7838076641732560e-27, 9.9894296899783751e-29, 5.2825655485310581e-30,
                      2.1347233135651843e-31, 2.9606798379782830e-33]
     assert np.allclose(res_thick, res_idl_thick, atol=0, rtol=1e-10)
-    
+
 def test_integrate_part_original():
     eph = np.array([10.0, 20.0, 40.0, 80.0, 150.0])
     params = {'model': 'thin-target',
@@ -195,7 +195,7 @@ def test_split_and_integrate():
                     6.7446378797836118e-39, 1.1835467661486555e-40, 4.3612071662677236e-42,
                     2.3851948333528724e-43, 3.2244753187594343e-44]
     np.allclose(res_thin, res_idl_thin, atol=0, rtol=1e-10)
-    
+
 def test_split_and_integrate_original():
     photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
     params = {

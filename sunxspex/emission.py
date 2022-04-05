@@ -336,7 +336,7 @@ def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_l
 
     mc2 = const.get_constant('mc2')
     clight = const.get_constant('clight')
-    
+
     nlim=12
     lims=np.stack([a_lg,b_lg])
     intidx=list(ll)
@@ -451,9 +451,9 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
         #part=np.where(np.logical_and(photon_energies > llim, photon_energies <= ulim))[0] #shouldn't it just always be <=
         if n==0 and model == 'thin-target': #skip first iteration of loop
             continue
-            
+
         part=np.where(photon_energies < ulim)[0] #should it be <= here?
-        
+
         if part.size > 0:
             aa = np.array(photon_energies) #check that photon_energies is NOT being modified at all
             #print((aa==original_photonenergies).all()) #True
