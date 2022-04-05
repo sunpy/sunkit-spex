@@ -80,24 +80,24 @@ def test_get_integrand():
                           0.0000000000000000]
     assert np.array_equal(res_thin_noefd, res_idl_thin_noefd)
 
-
 def test_integrate_part():
     eph = np.array([10.0, 20.0, 40.0, 80.0, 150.0])
     params = {'model': 'thin-target',
               'maxfcn': 2048,
               'rerr': 1e-4,
               'z': 1.2,
-              'p': 5.0,
-              'q': 7.0,
-              'eebrk': 200,
-              'eelow': 1.0,
-              'eehigh': 200.0,
+#              'p': 5.0,
+#              'q': 7.0,
+#              'eebrk': 200,
+#              'eelow': 1.0,
+#              'eehigh': 200.0,
               'photon_energies': eph,
               'a_lg': np.log10(eph),
               'b_lg': np.full_like(eph, np.log10(200)),
               'll': [0, 1, 2, 3, 4],
               'efd': True}
-
+    p,q,eebrk,eelow,eehigh=5.0,7.0,200,1.0,200.
+    params['electron_dist']=emission.BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,eehigh=eehigh)
     res_thin, _ = emission.integrate_part(**params)
     # IDL code to generate values - constructed so it only cover a singe continuous part
     # brm2_dmlin([10.0d, 20.0d, 40.0d, 80.0d, 150.0], [200.0d, 200.0d, 200.0d, 200.0d, 200.0d],
@@ -119,7 +119,45 @@ def test_integrate_part():
     res_idl_thick = [1.7838076641732560e-27, 9.9894296899783751e-29, 5.2825655485310581e-30,
                      2.1347233135651843e-31, 2.9606798379782830e-33]
     assert np.allclose(res_thick, res_idl_thick, atol=0, rtol=1e-10)
+    
+def test_integrate_part_original():
+    eph = np.array([10.0, 20.0, 40.0, 80.0, 150.0])
+    params = {'model': 'thin-target',
+              'maxfcn': 2048,
+              'rerr': 1e-4,
+              'z': 1.2,
+              'p': 5.0,
+              'q': 7.0,
+              'eebrk': 200,
+              'eelow': 1.0,
+              'eehigh': 200.0,
+              'photon_energies': eph,
+              'a_lg': np.log10(eph),
+              'b_lg': np.full_like(eph, np.log10(200)),
+              'll': [0, 1, 2, 3, 4],
+              'efd': True}
 
+    res_thin, _ = emission.integrate_part0(**params)
+    # IDL code to generate values - constructed so it only cover a singe continuous part
+    # brm2_dmlin([10.0d, 20.0d, 40.0d, 80.0d, 150.0], [200.0d, 200.0d, 200.0d, 200.0d, 200.0d],
+    # 2048, 1e-4, [10.0d, 20.0d, 40.0d, 80.0d, 150.0], 1.0, 200.0d, 200.0d, 5.0d, 7.0d, 1.2d, 1)
+    # Brm2_ThinTarget([10.0d, 20.0d, 40.0d, 80.0d, 150.0], [1.0d, 5.0d, 200.0d, 7.0d, 1.0d, 200.0d])
+    res_idl_thin = [7.9163611801477292e-36, 1.1718303039579161e-37, 1.7710210625358297e-39,
+                    2.6699438088131420e-41, 3.6688281208262375e-43]
+    assert np.allclose(res_thin, res_idl_thin, atol=0, rtol=1e-10)
+
+    params['model'] = 'thick-target'
+    res_thick, _ = emission.integrate_part0(**params)
+    # IDL code to generate values - constructed so it only cover a singe continuous part
+    # out = dblarr(5)
+    # IDL> ier = dblarr(5)
+    # IDL> brm2_dmlino_int, 2048, 1e-4, [10.0d, 20.0d, 40.0d, 80.0d, 150.0], 1.0, 200.0d, 200.0d,
+    # 5.0d, 7.0d, 1.2d, alog10([10.0d, 20.0d, 40.0d, 80.0d, 150.0]), alog10([200.0d, 200.0d,
+    # 200.0d, 200.0d, 200.0d]), [0, 1, 2, 3, 4], out, ier
+    # print, out
+    res_idl_thick = [1.7838076641732560e-27, 9.9894296899783751e-29, 5.2825655485310581e-30,
+                     2.1347233135651843e-31, 2.9606798379782830e-33]
+    assert np.allclose(res_thick, res_idl_thick, atol=0, rtol=1e-10)
 
 def test_split_and_integrate():
     photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
@@ -157,7 +195,43 @@ def test_split_and_integrate():
                     6.7446378797836118e-39, 1.1835467661486555e-40, 4.3612071662677236e-42,
                     2.3851948333528724e-43, 3.2244753187594343e-44]
     np.allclose(res_thin, res_idl_thin, atol=0, rtol=1e-10)
+    
+def test_split_and_integrate_original():
+    photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
+    params = {
+        'model': 'thick-target',
+        'photon_energies': photon_energies,
+        'maxfcn': 2048,
+        'rerr': 1e-4,
+        'eelow': 10.0,
+        'eebrk': 500.0,
+        'eehigh': 1000.0,
+        'p': 5.0,
+        'q': 7.0,
+        'z': 1.2,
+        'efd': True
+    }
 
+    res_thick = emission.split_and_integrate0(**params)
+    params['model'] = 'thin-target'
+    res_thin = emission.split_and_integrate0(**params)
+    # IDL code to generate values
+    # Brm2_DmlinO, [5.0d, 10.0d, 50.0d, 150.0d, 300.0d, 500.0d, 750.0d, 1000.0d], $
+    # [10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.000], 2048, $
+    # 1e-4, [5.0d, 10.0d, 50.0d, 150.0d, 300.0d, 500.0d, 750.0d, 1000.0d], $
+    # 10.0d, 500.0d, 10000.000, 5.0d, 7.0d, 1.2d
+    res_idl_thick = [2.2515963597937766e-30, 3.0443768835060635e-31, 3.7297617183535930e-34,
+                     3.3249346002544473e-36, 1.2639820076797306e-37, 6.9618972578770903e-39,
+                     6.2232553253478841e-40, 1.1626170413561901e-40]
+    np.allclose(res_thick, res_idl_thick, atol=0, rtol=1e-10)
+    # Brm2_Dmlin( [5.0d, 10.0d, 50.0d, 150.0d, 300.0d, 500.0d, 750.0d, 1000.0d], $
+    # [10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.000], 2048, $
+    # 1e-4, [5.0d, 10.0d, 50.0d, 150.0d, 300.0d, 500.0d, 750.0d, 1000.0d], $
+    # 10.0d, 500.0d, 10000.000, 5.0d, 7.0d, 1.2d, 1, ier2)
+    res_idl_thin = [3.3783188543550312e-31, 7.9163900936296962e-32, 4.6308051717377875e-36,
+                    6.7446378797836118e-39, 1.1835467661486555e-40, 4.3612071662677236e-42,
+                    2.3851948333528724e-43, 3.2244753187594343e-44]
+    np.allclose(res_thin, res_idl_thin, atol=0, rtol=1e-10)
 
 def test_brem_thicktarget1():
     photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
