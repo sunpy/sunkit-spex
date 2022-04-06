@@ -312,7 +312,7 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
 def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_lg, b_lg, ll, efd,multi=False):
     """
     to speed up: transform integral so limits are -1,1 (difficult w computation of bremsstrahlung cross-section)? then gauss-legendre xi,wi are the same for npoints=4 to npoints=12 and most of the integrand can be turned into a LUT
-    
+
     Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
 
     This integration is intended to be performed over continuous portions of the electron
@@ -385,12 +385,12 @@ def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_l
     ## test - faster to use multiprocessing over the entire npoints range rather than do the for loop?
     if multi:
         pool=mp.Pool(4) #or nCPUs
-        
+
         all_npoints=np.array(2**np.arange(2,nlim+1))
         all_npoints[all_npoints<=maxfcn] #won't put anything in ier this way (yet)
-        
+
         all_integrands=pool.map(model_func)
-    
+
     else:
         for ires in range(2, nlim + 1):
             npoint = 2 ** ires
@@ -468,7 +468,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
     intsum = np.zeros_like(photon_energies, dtype=np.float64)
     ier = np.zeros_like(photon_energies, dtype=np.float64)
     total_integral,total_ier=0,0
-    
+
     eparams=[eelow,eebrk,eehigh]
 
     if eparams != sorted(eparams): #is monotonic increasing
