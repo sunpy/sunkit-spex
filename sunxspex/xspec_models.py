@@ -29,7 +29,7 @@ const = constants.Constants() #will this work even inside the objects? or does i
 
 class XspecModel:
     '''Base class for Xspec models. Must include the model function and initial parameters
-    
+
     These models can be added via pyxspec:
     import xspec
     thick=ThickTargetModel()
@@ -130,10 +130,10 @@ class ThickTargetModel(XspecModel):
             #interpolate to bin centers as proxy for integral...for now
             f=interp1d(photon_energies,internal_flux)
             internal_flux=f(photon_energy_bin_centers)*a0*1e35
-            
+
             #have to modify inplace, not return another pointer
             flux[:]=[internal_flux[j] if j in i else prev for j,prev in enumerate(flux)]*photon_energy_bins
-            
+
 class ThickTargetModel0(XspecModel):
     '''Thick-target bremsstrahlung model for use in Xspec. Uses original IDL-based integration. Default parameters are taken from OSPEX [link]()'''
     def __init__(self):
@@ -210,7 +210,7 @@ class ThickTargetModel0(XspecModel):
             #interpolate to bin centers as proxy for integral...for now
             f=interp1d(photon_energies,internal_flux)
             internal_flux=f(photon_energy_bin_centers)*a0*1e35
-            
+
             #have to modify inplace, not return another pointer
             flux[:]=[internal_flux[j] if j in i else prev for j,prev in enumerate(flux)]*photon_energy_bins
 
@@ -282,7 +282,7 @@ class ThinTargetModel(XspecModel):
         photon_energy_bins=photon_energies[1:]-photon_energies[:-1]
         photon_energy_bin_centers=(photon_energies[1:]-photon_energies[:-1])/2+photon_energies[:-1] #assumes linear spacing...
         internal_flux=np.zeros(photon_energies.shape)
-        
+
         mc2 = const.get_constant('mc2')
         clight = const.get_constant('clight')
         au = const.get_constant('au')
@@ -310,7 +310,7 @@ class ThinTargetModel(XspecModel):
 #            raise ValueError('eehigh must be larger than eelow!')
 
         i, = np.where(np.logical_and(photon_energies < eehigh,photon_energies > 0))
-        
+
         if i.size > 0:
             try:
                 internal_flux[i], iergq[i] = split_and_integrate(model='thin-target',
@@ -320,7 +320,7 @@ class ThinTargetModel(XspecModel):
             #interpolate to bin centers as proxy for integral...for now
             f=interp1d(photon_energies,internal_flux)
             internal_flux=f(photon_energy_bin_centers)*a0*1e35
-            
+
             #have to modify inplace, not return another pointer
             flux[:]=[internal_flux[j] if j in i else prev for j,prev in enumerate(flux)]*photon_energy_bins
 
