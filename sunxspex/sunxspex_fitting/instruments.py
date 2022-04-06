@@ -6,24 +6,27 @@ Tips that I have been following:
     * Only obvious and useful methods and setters should be public, all else preceded with `_`
 """
 
-import sre_compile
-import numpy as np
-from os import path as os_path
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from astropy.time import Time
 import warnings
+from os import path as os_path
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import numpy as np
+
+from astropy.time import Time
+
+from . import io
 from . import nu_spec_code as nu_spec
 from . import rhes_spec_code as rhes_spec
 from . import stix_spec_code as stix_spec
-from . import io
 
 __all__ = ["NustarLoader", "StixLoader", "RhessiLoader", "CustomLoader", "rebin_any_array"]
 
 # Get a default class for the instrument specfic loaders
 # Once the instrument specific loaders inherit from this then all they really have to do is get the spectral
 #    data they want to fit in the correct dictionary form and assigned to `self._loaded_spec_data`.
+
+
 class InstrumentBlueprint:
     """ The blueprint class for an instruemnt to be given to the `DataLoader` class in data_loader.py.
 
@@ -121,12 +124,12 @@ class InstrumentBlueprint:
         """
         # across channel bins, we sum. across energy bins, we average
         # appears to be >2x faster to average first then sum if needing to do both
-        if (axis=="photon") or (axis=="photon_and_count"):
+        if (axis == "photon") or (axis == "photon_and_count"):
             # very slight difference to rbnrmf when binning across photon axis, <2% of entries have a ratio (my way/rbnrmf) >1 (up to 11)
             # all come from where the original rmf has zeros originally so might be down to precision being worked in, can't expect the exact same numbers essentially
             matrix = rebin_any_array(data=matrix, old_bins=old_photon_bins, new_bins=new_photon_bins, combine_by="mean")
-        if (axis=="count") or (axis=="photon_and_count"):
-            matrix = rebin_any_array(data=matrix.T, old_bins=old_count_bins, new_bins=new_count_bins, combine_by="sum").T # need to go along columns so .T then .T back
+        if (axis == "count") or (axis == "photon_and_count"):
+            matrix = rebin_any_array(data=matrix.T, old_bins=old_count_bins, new_bins=new_count_bins, combine_by="sum").T  # need to go along columns so .T then .T back
 
         return matrix
 
@@ -144,10 +147,10 @@ class InstrumentBlueprint:
         Arrays of old_count_bins, new_count_bins, old_photon_bins, new_photon_bins or Nones.
         """
         old_count_bins, new_count_bins, old_photon_bins, new_photon_bins = None, None, None, None
-        if (axis=="count") or (axis=="photon_and_count"):
+        if (axis == "count") or (axis == "photon_and_count"):
             old_count_bins = self._loaded_spec_data["extras"]["original_count_channel_bins"]
             new_count_bins = self._loaded_spec_data["count_channel_bins"]
-        if (axis=="photon") or (axis=="photon_and_count"):
+        if (axis == "photon") or (axis == "photon_and_count"):
             old_photon_bins = self._loaded_spec_data["extras"]["orignal_photon_channel_bins"]
             new_photon_bins = self._loaded_spec_data["photon_channel_bins"]
         return old_count_bins, new_count_bins, old_photon_bins, new_photon_bins
@@ -287,14 +290,14 @@ class NustarLoader(InstrumentBlueprint):
         """
 
         # what files might be needed (for NuSTAR)
-        f_arf = f_pha[:-3]+"arf" if type(f_arf)==type(None) else f_arf
-        f_rmf = f_pha[:-3]+"rmf" if type(f_rmf)==type(None) else f_rmf
+        f_arf = f_pha[:-3]+"arf" if type(f_arf) == type(None) else f_arf
+        f_rmf = f_pha[:-3]+"rmf" if type(f_rmf) == type(None) else f_rmf
 
         # need effective exposure and energy binning since likelihood works on counts, not count rates etc.
         _, counts, eff_exp = io._read_pha(f_pha)
 
         # now calculate the SRM or use a custom one if given
-        if type(srm)==type(None):
+        if type(srm) == type(None):
 
             # if there is an ARF file load it in
             if os_path.isfile(f_arf):
@@ -309,42 +312,42 @@ class NustarLoader(InstrumentBlueprint):
             e_lo_arf, e_hi_arf, eff_area = None, None, None
             e_lo_rmf, e_hi_rmf, ngrp, fchan, nchan, matrix, redist_m = None, None, None, None, None, None, None
 
-        channel_bins = self._calc_channel_bins(e_lo_rmf, e_hi_rmf) if type(channel_bins)==type(None) else channel_bins
+        channel_bins = self._calc_channel_bins(e_lo_rmf, e_hi_rmf) if type(channel_bins) == type(None) else channel_bins
         channel_binning = np.diff(channel_bins).flatten()
 
-        phot_channels = channel_bins if type(photon_bins)==type(None) else photon_bins
+        phot_channels = channel_bins if type(photon_bins) == type(None) else photon_bins
         phot_binning = np.diff(phot_channels).flatten()
 
         # get the count rate information
         count_rate, count_rate_error = nu_spec.flux_cts_spec(f_pha, bin_size=channel_binning)
 
         # what spectral info you want to know from this observation
-        return {"photon_channel_bins":phot_channels,
-                "photon_channel_mids":np.mean(phot_channels, axis=1),
-                "photon_channel_binning":phot_binning,
-                "count_channel_bins":channel_bins,
-                "count_channel_mids":np.mean(channel_bins, axis=1),
-                "count_channel_binning":channel_binning,
-                "counts":counts,
-                "count_error":np.sqrt(counts),
-                "count_rate":count_rate,
-                "count_rate_error":count_rate_error,
-                "effective_exposure":eff_exp,
-                "srm":srm,
-                "extras":{"pha.file":f_pha,
-                          "arf.file":f_arf,
-                          "arf.e_lo":e_lo_arf,
-                          "arf.e_hi":e_hi_arf,
-                          "arf.effective_area":eff_area,
-                          "rmf.file":f_rmf,
-                          "rmf.e_lo":e_lo_rmf,
-                          "rmf.e_hi":e_hi_rmf,
-                          "rmf.ngrp":ngrp,
-                          "rmf.fchan":fchan,
-                          "rmf.nchan":nchan,
-                          "rmf.matrix":matrix,
-                          "rmf.redistribution_matrix":redist_m}
-                } # this might make it easier to add different observations together
+        return {"photon_channel_bins": phot_channels,
+                "photon_channel_mids": np.mean(phot_channels, axis=1),
+                "photon_channel_binning": phot_binning,
+                "count_channel_bins": channel_bins,
+                "count_channel_mids": np.mean(channel_bins, axis=1),
+                "count_channel_binning": channel_binning,
+                "counts": counts,
+                "count_error": np.sqrt(counts),
+                "count_rate": count_rate,
+                "count_rate_error": count_rate_error,
+                "effective_exposure": eff_exp,
+                "srm": srm,
+                "extras": {"pha.file": f_pha,
+                           "arf.file": f_arf,
+                           "arf.e_lo": e_lo_arf,
+                           "arf.e_hi": e_hi_arf,
+                           "arf.effective_area": eff_area,
+                           "rmf.file": f_rmf,
+                           "rmf.e_lo": e_lo_rmf,
+                           "rmf.e_hi": e_hi_rmf,
+                           "rmf.ngrp": ngrp,
+                           "rmf.fchan": fchan,
+                           "rmf.nchan": nchan,
+                           "rmf.matrix": matrix,
+                           "rmf.redistribution_matrix": redist_m}
+                }  # this might make it easier to add different observations together
 
     def _load_rmf(self, rmf_file):
         """ Extracts all information, mainly the redistribution matrix ([counts/photon]) from a given RMF file.
@@ -368,7 +371,7 @@ class NustarLoader(InstrumentBlueprint):
         redist_m = nu_spec.vrmf2arr_py(data=matrix,
                                        n_grp_list=ngrp,
                                        f_chan_array=fchan_array,
-                                       n_chan_array=nchan_array) # 1.5 s of the total 2.4 s (1spec) is spent here
+                                       n_chan_array=nchan_array)  # 1.5 s of the total 2.4 s (1spec) is spent here
 
         return e_lo_rmf, e_hi_rmf, ngrp, fchan, nchan, matrix, redist_m
 
@@ -412,14 +415,14 @@ class NustarLoader(InstrumentBlueprint):
 
         # checked with ftrbnrmf
         new_rmf = self._rebin_rmf(matrix=old_rmf,
-                                    old_count_bins=old_count_bins,
-                                    new_count_bins=new_count_bins,
-                                    old_photon_bins=old_photon_bins,
-                                    new_photon_bins=new_photon_bins,
-                                    axis=axis)
+                                  old_count_bins=old_count_bins,
+                                  new_count_bins=new_count_bins,
+                                  old_photon_bins=old_photon_bins,
+                                  new_photon_bins=new_photon_bins,
+                                  axis=axis)
 
         # average eff_area, checked with ftrbnarf
-        new_eff_area = rebin_any_array(data=old_eff_area, old_bins=old_photon_bins, new_bins=new_photon_bins, combine_by="mean") if (axis!="count") else old_eff_area
+        new_eff_area = rebin_any_array(data=old_eff_area, old_bins=old_photon_bins, new_bins=new_photon_bins, combine_by="mean") if (axis != "count") else old_eff_area
         return nu_spec.make_srm(rmf_matrix=new_rmf, arf_array=new_eff_area)
 
 
@@ -654,53 +657,56 @@ class RhessiLoader(InstrumentBlueprint):
                                                                      }.
         """
         # need effective exposure and energy binning since likelihood works on counts, not count rates etc.
-        obs_channel_bins, self._channel_bins_inds_perspec, self._time_bins_perspec, self._lvt_perspec, self._counts_perspec, self._counts_err_perspec, self._count_rate_perspec, self._count_rate_error_perspec = self._getspec(f_pha)
+        obs_channel_bins, self._channel_bins_inds_perspec, self._time_bins_perspec, self._lvt_perspec, self._counts_perspec, self._counts_err_perspec, self._count_rate_perspec, self._count_rate_error_perspec = self._getspec(
+            f_pha)
 
         # now calculate the SRM or use a custom one if given
-        if type(srm)==type(None):
+        if type(srm) == type(None):
             # needs an srm file load it in
             srm_photon_bins, srm_channel_bins, srm = self._getsrm(f_srm)
             # make sure the SRM will only produce counts to match the data
-            data_inds2match = np.where((obs_channel_bins[0,0]<=srm_channel_bins[:,0]) & (srm_channel_bins[:,1]<=obs_channel_bins[-1,-1]))
-            srm = srm[:,data_inds2match[0]]
+            data_inds2match = np.where((obs_channel_bins[0, 0] <= srm_channel_bins[:, 0]) & (srm_channel_bins[:, 1] <= obs_channel_bins[-1, -1]))
+            srm = srm[:, data_inds2match[0]]
         else:
             srm_photon_bins = None
 
-        photon_bins = srm_photon_bins if type(photon_bins)==type(None) else photon_bins
+        photon_bins = srm_photon_bins if type(photon_bins) == type(None) else photon_bins
         photon_binning = np.diff(photon_bins).flatten()
 
         # from the srm file #channel_binning = np.diff(channel_bins).flatten()
-        channel_bins = obs_channel_bins if type(channel_bins)==type(None) else channel_bins
+        channel_bins = obs_channel_bins if type(channel_bins) == type(None) else channel_bins
 
         # default is no background and all data is the spectrum to be fitted
-        self._full_obs_time = [self._time_bins_perspec[0,0], self._time_bins_perspec[-1,-1]]
+        self._full_obs_time = [self._time_bins_perspec[0, 0], self._time_bins_perspec[-1, -1]]
         counts = np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self._counts_perspec, etime=self._full_obs_time[1]), axis=0)
-        counts_err = np.sqrt(np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self._counts_err_perspec, etime=self._full_obs_time[1])**2, axis=0)) # sum errors in quadrature, Poisson still sqrt(N)
+        counts_err = np.sqrt(np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self._counts_err_perspec,
+                             etime=self._full_obs_time[1])**2, axis=0))  # sum errors in quadrature, Poisson still sqrt(N)
 
-        _livetimes = np.mean(self._data_time_select(stime=self._full_obs_time[0], full_data=self._lvt_perspec, etime=self._full_obs_time[1]), axis=0) # to convert a model count rate to counts, so need mean
+        _livetimes = np.mean(self._data_time_select(stime=self._full_obs_time[0], full_data=self._lvt_perspec,
+                             etime=self._full_obs_time[1]), axis=0)  # to convert a model count rate to counts, so need mean
         eff_exp = np.diff(self._full_obs_time)[0].to_value("s")*_livetimes
 
         channel_binning = np.diff(obs_channel_bins, axis=1).flatten()
-        count_rate = counts/eff_exp/channel_binning # count rates from here are counts/s/keV
-        count_rate_error = counts_err/eff_exp/channel_binning# was np.sqrt(counts)/eff_exp/channel_binning
+        count_rate = counts/eff_exp/channel_binning  # count rates from here are counts/s/keV
+        count_rate_error = counts_err/eff_exp/channel_binning  # was np.sqrt(counts)/eff_exp/channel_binning
 
         # what spectral info you want to know from this observation
-        return {"photon_channel_bins":photon_bins,
-                "photon_channel_mids":np.mean(photon_bins, axis=1),
-                "photon_channel_binning":photon_binning,
-                "count_channel_bins":channel_bins,
-                "count_channel_mids":np.mean(channel_bins, axis=1),
-                "count_channel_binning":channel_binning,
-                "counts":counts,
-                "count_error":counts_err,
-                "count_rate":count_rate,
-                "count_rate_error":count_rate_error,
-                "effective_exposure":eff_exp,
-                "srm":srm,
-                "extras":{"pha.file":f_pha,
-                          "srm.file":f_srm,
-                          "counts=data-bg":False}
-                } # this might make it easier to add different observations together
+        return {"photon_channel_bins": photon_bins,
+                "photon_channel_mids": np.mean(photon_bins, axis=1),
+                "photon_channel_binning": photon_binning,
+                "count_channel_bins": channel_bins,
+                "count_channel_mids": np.mean(channel_bins, axis=1),
+                "count_channel_binning": channel_binning,
+                "counts": counts,
+                "count_error": counts_err,
+                "count_rate": count_rate,
+                "count_rate_error": count_rate_error,
+                "effective_exposure": eff_exp,
+                "srm": srm,
+                "extras": {"pha.file": f_pha,
+                           "srm.file": f_srm,
+                           "counts=data-bg": False}
+                }  # this might make it easier to add different observations together
 
     @property
     def data2data_minus_background(self):
@@ -744,17 +750,19 @@ class RhessiLoader(InstrumentBlueprint):
         if boolean:
             # make sure to save the full data first (without background subtraction) if not already done
             if not hasattr(self, "_full_data"):
-                self._full_data = {"counts":self._loaded_spec_data["counts"], "count_error":self._loaded_spec_data["count_error"], "count_rate":self._loaded_spec_data["count_rate"], "count_rate_error":self._loaded_spec_data["count_rate_error"]}
+                self._full_data = {"counts": self._loaded_spec_data["counts"], "count_error": self._loaded_spec_data["count_error"],
+                                   "count_rate": self._loaded_spec_data["count_rate"], "count_rate_error": self._loaded_spec_data["count_rate_error"]}
 
             new_cts = self._full_data["counts"] - (self._loaded_spec_data["extras"]["background_rate"]*self._loaded_spec_data["effective_exposure"]*self._loaded_spec_data["count_channel_binning"])
-            new_cts_err = np.sqrt(self._full_data["count_error"]**2+(self._loaded_spec_data["extras"]["background_count_error"]*(self._loaded_spec_data["effective_exposure"]/self._loaded_spec_data["extras"]["background_effective_exposure"]))**2)
+            new_cts_err = np.sqrt(self._full_data["count_error"]**2+(self._loaded_spec_data["extras"]["background_count_error"] *
+                                  (self._loaded_spec_data["effective_exposure"]/self._loaded_spec_data["extras"]["background_effective_exposure"]))**2)
             new_cts_rates = self._full_data["count_rate"] - self._loaded_spec_data["extras"]["background_rate"]
             new_cts_rates_err = np.sqrt(self._full_data["count_rate_error"]**2 + self._loaded_spec_data["extras"]["background_rate_error"]**2)
 
-            self._loaded_spec_data.update({"counts":new_cts, "count_error":new_cts_err, "count_rate":new_cts_rates, "count_rate_error":new_cts_rates_err})
+            self._loaded_spec_data.update({"counts": new_cts, "count_error": new_cts_err, "count_rate": new_cts_rates, "count_rate_error": new_cts_rates_err})
             self._loaded_spec_data["extras"]["counts=data-bg"] = True
         elif not boolean:
-            #reset
+            # reset
             if hasattr(self, "_full_data"):
                 self._loaded_spec_data.update(self._full_data)
                 del self._full_data
@@ -786,14 +794,14 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         Indexed array.
         """
-        if (type(stime)==type(None)) and (type(etime)==type(None)):
+        if (type(stime) == type(None)) and (type(etime) == type(None)):
             return full_data
-        elif type(stime)==type(None):
-            return full_data[np.where(self._time_bins_perspec[:,1]<=etime)]
-        elif type(etime)==type(None):
-            return full_data[np.where(stime<=self._time_bins_perspec[:,0])]
+        elif type(stime) == type(None):
+            return full_data[np.where(self._time_bins_perspec[:, 1] <= etime)]
+        elif type(etime) == type(None):
+            return full_data[np.where(stime <= self._time_bins_perspec[:, 0])]
         else:
-            return full_data[np.where((stime<=self._time_bins_perspec[:,0]) & (self._time_bins_perspec[:,1]<=etime))]
+            return full_data[np.where((stime <= self._time_bins_perspec[:, 0]) & (self._time_bins_perspec[:, 1] <= etime))]
 
     def _update_event_data_with_times(self):
         """ Changes the data in `_loaded_spec_data` to the data in the defined event time range.
@@ -806,7 +814,7 @@ class RhessiLoader(InstrumentBlueprint):
         """
 
         # check that evt_start<evt_end
-        if (self._start_event_time>=self._end_event_time):
+        if (self._start_event_time >= self._end_event_time):
             if self.__warn:
                 self.__time_warning()
             return
@@ -816,9 +824,10 @@ class RhessiLoader(InstrumentBlueprint):
         self._loaded_spec_data["count_error"] = np.sqrt(self._loaded_spec_data["counts"])
 
         # isolate livetimes and time binning
-        _livetimes = np.mean(self._data_time_select(stime=self._start_event_time, full_data=self._lvt_perspec, etime=self._end_event_time), axis=0) # to convert a model count rate to counts, so need mean
-        _actual_first_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:,0], etime=self._end_event_time)[0]
-        _actual_last_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:,1], etime=self._end_event_time)[-1]
+        _livetimes = np.mean(self._data_time_select(stime=self._start_event_time, full_data=self._lvt_perspec,
+                             etime=self._end_event_time), axis=0)  # to convert a model count rate to counts, so need mean
+        _actual_first_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:, 0], etime=self._end_event_time)[0]
+        _actual_last_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:, 1], etime=self._end_event_time)[-1]
         self._loaded_spec_data["effective_exposure"] = np.diff([_actual_first_bin, _actual_last_bin])[0].to_value("s")*_livetimes
 
         # calculate new count rates and errors
@@ -851,14 +860,14 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         None.
         """
-        if type(evt_stime)==str:
+        if type(evt_stime) == str:
             # string format
             _t = Time(evt_stime, format=self._time_fmt, scale=self._time_scale)
             self._start_event_time = Time(evt_stime, format=self._time_fmt, scale=self._time_scale)
-        elif type(evt_stime)==type(self._full_obs_time[0]):
+        elif type(evt_stime) == type(self._full_obs_time[0]):
             # if user has provided an astropy time already
             _t = evt_stime
-        elif type(evt_stime)==type(None):
+        elif type(evt_stime) == type(None):
             # set to None to reset
             _t = self._full_obs_time[0]
         else:
@@ -866,7 +875,7 @@ class RhessiLoader(InstrumentBlueprint):
             self._req_time_fmt()
             return
 
-        _set_evt_stime = (not hasattr(self, "_end_event_time")) or (hasattr(self, "_end_event_time") and _t<self._end_event_time)
+        _set_evt_stime = (not hasattr(self, "_end_event_time")) or (hasattr(self, "_end_event_time") and _t < self._end_event_time)
         if _set_evt_stime:
             self._start_event_time = _t
         elif self.__warn:
@@ -900,13 +909,13 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         None.
         """
-        if type(evt_etime)==str:
+        if type(evt_etime) == str:
             # string format
             _t = Time(evt_etime, format=self._time_fmt, scale=self._time_scale)
-        elif type(evt_etime)==type(self._full_obs_time[1]):
+        elif type(evt_etime) == type(self._full_obs_time[1]):
             # if user has provided an astropy time already
             _t = evt_etime
-        elif type(evt_etime)==type(None):
+        elif type(evt_etime) == type(None):
             # set to None to reset
             _t = self._full_obs_time[1]
         else:
@@ -914,7 +923,7 @@ class RhessiLoader(InstrumentBlueprint):
             self._req_time_fmt()
             return
 
-        _set_evt_etime = (not hasattr(self, "_start_event_time")) or (hasattr(self, "_start_event_time") and self._start_event_time<_t)
+        _set_evt_etime = (not hasattr(self, "_start_event_time")) or (hasattr(self, "_start_event_time") and self._start_event_time < _t)
         if _set_evt_etime:
             self._end_event_time = _t
         elif self.__warn:
@@ -933,28 +942,32 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         None.
         """
-        if (type(self._start_background_time)!=type(None)) and (type(self._end_background_time)!=type(None)):
+        if (type(self._start_background_time) != type(None)) and (type(self._end_background_time) != type(None)):
 
             # check that bg_start<bg_end
-            if (self._start_background_time>=self._end_background_time):
+            if (self._start_background_time >= self._end_background_time):
                 if self.__warn:
                     self.__time_warning()
                 return
 
             # get background data, woo!
             # sum counts over time range
-            self._loaded_spec_data["extras"]["background_counts"] = np.sum(self._data_time_select(stime=self._start_background_time, full_data=self._counts_perspec, etime=self._end_background_time), axis=0)
+            self._loaded_spec_data["extras"]["background_counts"] = np.sum(self._data_time_select(
+                stime=self._start_background_time, full_data=self._counts_perspec, etime=self._end_background_time), axis=0)
             self._loaded_spec_data["extras"]["background_count_error"] = np.sqrt(self._loaded_spec_data["extras"]["background_counts"])
 
             # isolate livetimes and time binning
-            _livetimes = np.mean(self._data_time_select(stime=self._start_background_time, full_data=self._lvt_perspec, etime=self._end_background_time), axis=0) # to convert a model count rate to counts, so need mean
-            _actual_first_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:,0], etime=self._end_background_time)[0]
-            _actual_last_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:,1], etime=self._end_background_time)[-1]
+            _livetimes = np.mean(self._data_time_select(stime=self._start_background_time, full_data=self._lvt_perspec,
+                                 etime=self._end_background_time), axis=0)  # to convert a model count rate to counts, so need mean
+            _actual_first_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:, 0], etime=self._end_background_time)[0]
+            _actual_last_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:, 1], etime=self._end_background_time)[-1]
             self._loaded_spec_data["extras"]["background_effective_exposure"] = np.diff([_actual_first_bin, _actual_last_bin])[0].to_value("s")*_livetimes
 
             # calculate new count rates and errors
-            self._loaded_spec_data["extras"]["background_rate"] = self._loaded_spec_data["extras"]["background_counts"]/self._loaded_spec_data["extras"]["background_effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
-            self._loaded_spec_data["extras"]["background_rate_error"] = np.sqrt(self._loaded_spec_data["extras"]["background_counts"])/self._loaded_spec_data["extras"]["background_effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
+            self._loaded_spec_data["extras"]["background_rate"] = self._loaded_spec_data["extras"]["background_counts"] / \
+                self._loaded_spec_data["extras"]["background_effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
+            self._loaded_spec_data["extras"]["background_rate_error"] = np.sqrt(self._loaded_spec_data["extras"]["background_counts"]) / \
+                self._loaded_spec_data["extras"]["background_effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
 
         else:
             # if either the start or end background time is None, or set to None, then makes sure the background data is removed if it is there
@@ -993,13 +1006,13 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         None.
         """
-        if type(bg_stime)==str:
+        if type(bg_stime) == str:
             # string format
             _t = Time(bg_stime, format=self._time_fmt, scale=self._time_scale)
-        elif type(bg_stime)==type(self._full_obs_time[0]):
+        elif type(bg_stime) == type(self._full_obs_time[0]):
             # if user has provided an astropy time already
             _t = bg_stime
-        elif type(bg_stime)==type(None):
+        elif type(bg_stime) == type(None):
             # set to None to reset
             _t = None
         else:
@@ -1007,7 +1020,8 @@ class RhessiLoader(InstrumentBlueprint):
             self._req_time_fmt()
             return
 
-        _set_bg_stime = (not hasattr(self, "_end_background_time")) or (type(_t)==type(None)) or (hasattr(self, "_end_background_time") and ((type(self._end_background_time)==type(None)) or (_t<self._end_background_time)))
+        _set_bg_stime = (not hasattr(self, "_end_background_time")) or (type(_t) == type(None)) or (
+            hasattr(self, "_end_background_time") and ((type(self._end_background_time) == type(None)) or (_t < self._end_background_time)))
         if _set_bg_stime:
             self._start_background_time = _t
         elif self.__warn:
@@ -1048,13 +1062,13 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         None.
         """
-        if type(bg_etime)==str:
+        if type(bg_etime) == str:
             # string format
             _t = Time(bg_etime, format=self._time_fmt, scale=self._time_scale)
-        elif type(bg_etime)==type(self._full_obs_time[1]):
+        elif type(bg_etime) == type(self._full_obs_time[1]):
             # if user has provided an astropy time already
             _t = bg_etime
-        elif type(bg_etime)==type(None):
+        elif type(bg_etime) == type(None):
             # set to None to reset
             _t = None
         else:
@@ -1062,7 +1076,8 @@ class RhessiLoader(InstrumentBlueprint):
             self._req_time_fmt()
             return
 
-        _set_bg_etime = (not hasattr(self, "_start_background_time")) or (type(_t)==type(None)) or (hasattr(self, "_start_background_time") and ((type(self._start_background_time)==type(None)) or (self._start_background_time<_t)))
+        _set_bg_etime = (not hasattr(self, "_start_background_time")) or (type(_t) == type(None)) or (hasattr(self, "_start_background_time")
+                                                                                                      and ((type(self._start_background_time) == type(None)) or (self._start_background_time < _t)))
         if _set_bg_etime:
             self._end_background_time = _t
         elif self.__warn:
@@ -1109,21 +1124,21 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         `mdates.MinuteLocator`.
         """
-        obs_dt = np.diff(self._full_obs_time)[0].to_value("s") if type(_obs_dt)==type(None) else _obs_dt
+        obs_dt = np.diff(self._full_obs_time)[0].to_value("s") if type(_obs_dt) == type(None) else _obs_dt
         if obs_dt > 3600*12:
-            return mdates.MinuteLocator(byminute=[0], interval = 1)
+            return mdates.MinuteLocator(byminute=[0], interval=1)
         elif 3600*3 < obs_dt <= 3600*12:
-            return mdates.MinuteLocator(byminute=[0, 30], interval = 1)
+            return mdates.MinuteLocator(byminute=[0, 30], interval=1)
         elif 3600 < obs_dt <= 3600*3:
-            return mdates.MinuteLocator(byminute=[0, 20, 40], interval = 1)
+            return mdates.MinuteLocator(byminute=[0, 20, 40], interval=1)
         elif 3600*0.5 < obs_dt <= 3600:
-            return mdates.MinuteLocator(byminute=[0, 10, 20, 30, 40, 50], interval = 1)
+            return mdates.MinuteLocator(byminute=[0, 10, 20, 30, 40, 50], interval=1)
         elif 600 < obs_dt <= 3600*0.5:
-            return mdates.MinuteLocator(byminute=[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55], interval = 1)
+            return mdates.MinuteLocator(byminute=[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55], interval=1)
         elif 240 < obs_dt <= 600:
-            return mdates.MinuteLocator(interval = 2)
+            return mdates.MinuteLocator(interval=2)
         else:
-            return mdates.SecondLocator(bysecond=[0, 20, 40], interval = 1)
+            return mdates.SecondLocator(bysecond=[0, 20, 40], interval=1)
 
     def _instrument(self):
         """ Determine the instrument of the class.
@@ -1177,9 +1192,9 @@ class RhessiLoader(InstrumentBlueprint):
         Rebinned 2D array.
         """
         _t_to_clump, _endt_to_clump = times[0::clump_bins], times[clump_bins-1::clump_bins]
-        _clumped_start_ts = _t_to_clump[:,0]
-        _clumped_end_ts =np.concatenate((_t_to_clump[1:,0], [_endt_to_clump[-1,-1]]))
-        return np.concatenate((_clumped_start_ts[:,None],_clumped_end_ts[:,None]), axis=1)
+        _clumped_start_ts = _t_to_clump[:, 0]
+        _clumped_end_ts = np.concatenate((_t_to_clump[1:, 0], [_endt_to_clump[-1, -1]]))
+        return np.concatenate((_clumped_start_ts[:, None], _clumped_end_ts[:, None]), axis=1)
 
     def lightcurve(self, energy_ranges=None, axes=None, rebin_time=1):
         """ Creates a RHESSI lightcurve.
@@ -1227,38 +1242,38 @@ class RhessiLoader(InstrumentBlueprint):
 
         """
         # just make sure we have a list of lists for the energy ranges
-        if type(energy_ranges)==type(None):
-            energy_ranges = [[self._loaded_spec_data["count_channel_bins"][0,0], self._loaded_spec_data["count_channel_bins"][-1,-1]]]
-        elif len(np.shape(energy_ranges))==1:
+        if type(energy_ranges) == type(None):
+            energy_ranges = [[self._loaded_spec_data["count_channel_bins"][0, 0], self._loaded_spec_data["count_channel_bins"][-1, -1]]]
+        elif len(np.shape(energy_ranges)) == 1:
             energy_ranges = [energy_ranges]
-        elif len(np.shape(energy_ranges))==0:
+        elif len(np.shape(energy_ranges)) == 0:
             print("The `energy_ranges` input should be a range of two energy values (e.g., [4,8] meaning 4-8 keV inclusive) or a list of these ranges.")
             return
 
-        ax = axes if type(axes)!=type(None) else plt.gca()
+        ax = axes if type(axes) != type(None) else plt.gca()
         _def_fs = plt.rcParams['font.size']
 
         _lcs, _lcs_err = [], []
         _times = self._time_bins_perspec
-        _times = self._rebin_ts(_times, rebin_time) if type(rebin_time)==int and rebin_time>1 else _times
+        _times = self._rebin_ts(_times, rebin_time) if type(rebin_time) == int and rebin_time > 1 else _times
         _ts = self._atimes2mdates(_times.flatten())
 
         # plot each energy range
         for er in energy_ranges:
-            i = np.where((self._loaded_spec_data["count_channel_bins"][:,0]>=er[0]) & (self._loaded_spec_data["count_channel_bins"][:,-1]<=er[-1]))
+            i = np.where((self._loaded_spec_data["count_channel_bins"][:, 0] >= er[0]) & (self._loaded_spec_data["count_channel_bins"][:, -1] <= er[-1]))
             time_binning = np.array([dt.to_value("s") for dt in np.diff(self._time_bins_perspec).flatten()])
-            e_range_cts = np.sum(self._counts_perspec[:,i].reshape((len(time_binning),-1)), axis=1)
+            e_range_cts = np.sum(self._counts_perspec[:, i].reshape((len(time_binning), -1)), axis=1)
 
-            if type(rebin_time)==int and rebin_time>1:
+            if type(rebin_time) == int and rebin_time > 1:
                 e_range_cts = self._rebin_lc(e_range_cts, rebin_time)
                 time_binning = self._rebin_lc(time_binning, rebin_time)
 
             e_range_ctr, e_range_ctr_err = e_range_cts/time_binning, np.sqrt(e_range_cts)/time_binning
-            lc = np.concatenate((e_range_ctr[:,None],e_range_ctr[:,None]),axis=1).flatten()
+            lc = np.concatenate((e_range_ctr[:, None], e_range_ctr[:, None]), axis=1).flatten()
             _lcs.append(lc)
             _lcs_err.append(e_range_ctr_err)
-            _p = ax.plot(_ts, lc, label=f"{er[0]}$-${er[-1]} keV") # incase of uncommon time binning just plot cts/s per bin edge
-            ax.errorbar(np.mean(np.reshape(_ts, (int(len(_ts)/2),-1)), axis=1), e_range_ctr, yerr=e_range_ctr_err, c=_p[0].get_color(), ls="") # error bar in middle of the bin
+            _p = ax.plot(_ts, lc, label=f"{er[0]}$-${er[-1]} keV")  # incase of uncommon time binning just plot cts/s per bin edge
+            ax.errorbar(np.mean(np.reshape(_ts, (int(len(_ts)/2), -1)), axis=1), e_range_ctr, yerr=e_range_ctr_err, c=_p[0].get_color(), ls="")  # error bar in middle of the bin
 
         fmt = mdates.DateFormatter('%H:%M')
         ax.xaxis.set_major_formatter(fmt)
@@ -1272,8 +1287,8 @@ class RhessiLoader(InstrumentBlueprint):
         plt.legend(fontsize=_def_fs-5)
 
         # plot background time range if there is one
-        _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95 # stop region label overlapping axis spine
-        if hasattr(self, "_start_background_time") and (type(self._start_background_time)!=type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time)!=type(None)):
+        _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95  # stop region label overlapping axis spine
+        if hasattr(self, "_start_background_time") and (type(self._start_background_time) != type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time) != type(None)):
             ax.axvspan(*self._atimes2mdates([self._start_background_time, self._end_background_time]), alpha=0.1, color='orange')
             ax.annotate("BG", (self._atimes2mdates([self._start_background_time])[0], _y_pos), color='orange', va="top", size=_def_fs-8)
 
@@ -1282,7 +1297,7 @@ class RhessiLoader(InstrumentBlueprint):
             ax.axvspan(*self._atimes2mdates([self._start_event_time, self._end_event_time]), alpha=0.1, color='purple')
             ax.annotate("Evt", (self._atimes2mdates([self._start_event_time])[0], _y_pos), color='purple', va="top", size=_def_fs-8)
 
-        self._lightcurve_data = {"mdtimes":_ts, "lightcurves":_lcs, "lightcurve_error":_lcs_err, "energy_ranges":energy_ranges}
+        self._lightcurve_data = {"mdtimes": _ts, "lightcurves": _lcs, "lightcurve_error": _lcs_err, "energy_ranges": energy_ranges}
 
         return ax
 
@@ -1334,7 +1349,7 @@ class RhessiLoader(InstrumentBlueprint):
 
         """
 
-        ax = axes if type(axes)!=type(None) else plt.gca()
+        ax = axes if type(axes) != type(None) else plt.gca()
 
         _cmap = "plasma" if "cmap" not in kwargs else kwargs["cmap"]
         kwargs.pop("cmap", None)
@@ -1349,16 +1364,16 @@ class RhessiLoader(InstrumentBlueprint):
         _times = self._time_bins_perspec
 
         # check if the times are being rebinned
-        if type(rebin_time)==int and rebin_time>1:
+        if type(rebin_time) == int and rebin_time > 1:
             e_range_cts = self._rebin_lc(e_range_cts, rebin_time)
             time_binning = self._rebin_lc(time_binning, rebin_time)
             _times = self._rebin_ts(_times, rebin_time)
 
-        _cts_rate = e_range_cts/time_binning[:,None]
+        _cts_rate = e_range_cts/time_binning[:, None]
         _e_bins = self._loaded_spec_data["count_channel_bins"]
 
         # rebin the energies if needed
-        if type(rebin_energy)==int and rebin_energy>1:
+        if type(rebin_energy) == int and rebin_energy > 1:
             _cts_rate = self._rebin_lc(_cts_rate.T, rebin_energy).T
             _e_bins = self._rebin_ts(self._loaded_spec_data["count_channel_bins"], rebin_energy)
 
@@ -1367,9 +1382,9 @@ class RhessiLoader(InstrumentBlueprint):
 
         # plot spectrogram
         etop = _e_bins[-1][-1]
-        _ext = [_t[0],_t[-1],_e_bins[0][0],etop]
+        _ext = [_t[0], _t[-1], _e_bins[0][0], etop]
         _spect = _cts_rate.T
-        ax.imshow(_spect, origin="lower",extent=_ext,aspect=_aspect, cmap=_cmap, **kwargs)
+        ax.imshow(_spect, origin="lower", extent=_ext, aspect=_aspect, cmap=_cmap, **kwargs)
 
         fmt = mdates.DateFormatter('%H:%M')
         ax.xaxis.set_major_formatter(fmt)
@@ -1381,17 +1396,17 @@ class RhessiLoader(InstrumentBlueprint):
         ax.set_title(self._instrument()+"Spectrogram [Counts s$^{-1}$]")
 
         # plot background time range if there is one
-        _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95 # stop region label overlapping axis spine
-        if hasattr(self, "_start_background_time") and (type(self._start_background_time)!=type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time)!=type(None)):
-            ax.plot(self._atimes2mdates([self._start_background_time, self._end_background_time]), [etop,etop], alpha=0.9, color='orange', lw=10)
+        _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95  # stop region label overlapping axis spine
+        if hasattr(self, "_start_background_time") and (type(self._start_background_time) != type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time) != type(None)):
+            ax.plot(self._atimes2mdates([self._start_background_time, self._end_background_time]), [etop, etop], alpha=0.9, color='orange', lw=10)
             ax.annotate("BG", (self._atimes2mdates([self._start_background_time])[0], _y_pos), color='orange', va="top", size=_def_fs-8)
 
         # plot event time range
         if hasattr(self, "_start_event_time") and hasattr(self, "_end_event_time"):
-            ax.plot(self._atimes2mdates([self._start_event_time, self._end_event_time]), [etop,etop], alpha=0.9, color='#F37AFF', lw=10)
+            ax.plot(self._atimes2mdates([self._start_event_time, self._end_event_time]), [etop, etop], alpha=0.9, color='#F37AFF', lw=10)
             ax.annotate("Evt", (self._atimes2mdates([self._start_event_time])[0], _y_pos), color='#F37AFF', va="top", size=_def_fs-8)
 
-        self._spectrogram_data = {"spectrogram":_spect, "extent":_ext}
+        self._spectrogram_data = {"spectrogram": _spect, "extent": _ext}
 
         return ax
 
@@ -1427,7 +1442,7 @@ class RhessiLoader(InstrumentBlueprint):
         ar.select_time(start="2002-10-05T10:41:20", end="2002-10-05T10:42:24")
 
         """
-        self.__warn = False if (type(start)!=type(None)) and (type(end)!=type(None)) else True
+        self.__warn = False if (type(start) != type(None)) and (type(end) != type(None)) else True
 
         if background:
             self.start_background_time, self.end_background_time = start, end
@@ -1510,6 +1525,7 @@ class StixLoader(RhessiLoader):
         """
         return stix_spec._get_srm_file_info(f_srm)
 
+
 class CustomLoader(InstrumentBlueprint):
     """
     Loader specifically for custom spectral data.
@@ -1569,11 +1585,11 @@ class CustomLoader(InstrumentBlueprint):
 
         # check essential keys are given
         essentials_not_present = set(ess_keys)-set(list(spec_data_dict.keys()))
-        assert len(essentials_not_present)==0, f"Essential dict. entries are not present: {essentials_not_present}"
+        assert len(essentials_not_present) == 0, f"Essential dict. entries are not present: {essentials_not_present}"
 
         # check non-essential keys are given, if not then defaults are 1s
         nonessentials_not_present = set(non_ess_keys)-set(list(spec_data_dict.keys()))
-        _def = self._nonessential_defaults(nonessentials_not_present,spec_data_dict["count_channel_bins"],spec_data_dict["counts"])
+        _def = self._nonessential_defaults(nonessentials_not_present, spec_data_dict["count_channel_bins"], spec_data_dict["counts"])
         _def.update(spec_data_dict)
 
         self._loaded_spec_data = _def
@@ -1598,20 +1614,20 @@ class CustomLoader(InstrumentBlueprint):
         Defaults of all "non-essential" `_loaded_spec_data` values as a dictionary if
         needed, else an empty dictionary.
         """
-        if len(nonessential_list)>0:
+        if len(nonessential_list) > 0:
             _count_length_default = np.ones(len(count_channels))
             _chan_mids_default = np.mean(count_channels, axis=1)
-            defaults = {"photon_channel_bins":count_channels,
-                        "photon_channel_mids":_chan_mids_default,
-                        "photon_channel_binning":_count_length_default,
-                        "count_channel_mids":_chan_mids_default,
-                        "count_channel_binning":_count_length_default,
-                        "count_error":_count_length_default,
-                        "count_rate":counts,
-                        "count_rate_error":_count_length_default,
-                        "effective_exposure":1,
-                        "srm":np.identity(len(counts)),
-                        "extras":{}}
+            defaults = {"photon_channel_bins": count_channels,
+                        "photon_channel_mids": _chan_mids_default,
+                        "photon_channel_binning": _count_length_default,
+                        "count_channel_mids": _chan_mids_default,
+                        "count_channel_binning": _count_length_default,
+                        "count_error": _count_length_default,
+                        "count_rate": counts,
+                        "count_rate_error": _count_length_default,
+                        "effective_exposure": 1,
+                        "srm": np.identity(len(counts)),
+                        "extras": {}}
             return defaults
         else:
             return {}
@@ -1640,10 +1656,10 @@ def rebin_any_array(data, old_bins, new_bins, combine_by="sum"):
     new_binned_data = []
     for nb in new_bins:
         # just loop through new bins and bin data from between new_bin_lower<=old_bin_lowers and old_bin_highers<new_bin_higher
-        if combine_by=="sum":
-            new_binned_data.append(np.sum(data[np.where((nb[0]<=old_bins[:,0]) & (nb[-1]>=old_bins[:,-1]))], axis=0))
-        elif combine_by=="mean":
-            new_binned_data.append(np.mean(data[np.where((nb[0]<=old_bins[:,0]) & (nb[-1]>=old_bins[:,-1]))], axis=0))
-        elif combine_by=="quadrature":
-            new_binned_data.append(np.sqrt(np.sum(data[np.where((nb[0]<=old_bins[:,0]) & (nb[-1]>=old_bins[:,-1]))]**2, axis=0)))
+        if combine_by == "sum":
+            new_binned_data.append(np.sum(data[np.where((nb[0] <= old_bins[:, 0]) & (nb[-1] >= old_bins[:, -1]))], axis=0))
+        elif combine_by == "mean":
+            new_binned_data.append(np.mean(data[np.where((nb[0] <= old_bins[:, 0]) & (nb[-1] >= old_bins[:, -1]))], axis=0))
+        elif combine_by == "quadrature":
+            new_binned_data.append(np.sqrt(np.sum(data[np.where((nb[0] <= old_bins[:, 0]) & (nb[-1] >= old_bins[:, -1]))]**2, axis=0)))
     return np.array(new_binned_data)

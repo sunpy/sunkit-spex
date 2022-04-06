@@ -14,7 +14,7 @@ import numpy as np
 from scipy.special import lpmv
 
 from sunxspex import constants as const
-
+import logging
 # Central constant management
 const = const.Constants()
 

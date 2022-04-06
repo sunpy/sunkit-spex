@@ -3,6 +3,7 @@ The following code is used to read in instrument spectral data.
 """
 
 from astropy.io import fits
+
 from sunpy.io.special.genx import read_genx
 
 __all__ = ["_read_pha", "_read_arf", "_read_rmf", "_read_rspec_file", "_read_rsrm_file", "_read_sspec_file", "_read_ssrm_file"]
@@ -85,6 +86,7 @@ def _read_rspec_file(spec_file):
             rdict[str(i)] = [hdul[i].header, hdul[i].data]
     return rdict
 
+
 def _read_rsrm_file(srm_file):
     """ Takes the RHESSI SRM spectral file and extracts useful information from it.
 
@@ -102,6 +104,7 @@ def _read_rsrm_file(srm_file):
         for i in range(4):
             srmrdict[str(i)] = [hdul[i].header, hdul[i].data]
     return srmrdict
+
 
 def _read_sspec_file(spec_file):
     """ Takes the STIX spectral file and extracts useful information from it.
@@ -121,6 +124,7 @@ def _read_sspec_file(spec_file):
             sdict[str(i)] = [hdul[i].header, hdul[i].data]
     return sdict
 
+
 def _read_ssrm_file(srm_file):
     """ Takes the STIX SRM spectral file and extracts useful information from it.
 
@@ -134,4 +138,4 @@ def _read_ssrm_file(srm_file):
     Dictionary of STIX SRM information (photon bins, count bins, and SRM in units of [counts/keV/photons]).
     """
     contents = read_genx(srm_file)
-    return {"photon_energy_bin_edges":contents["DRM"]['E_2D'],"count_energy_bin_edges":contents["DRM"]['EDGES_OUT'],"drm":contents['DRM']['SMATRIX']}
+    return {"photon_energy_bin_edges": contents["DRM"]['E_2D'], "count_energy_bin_edges": contents["DRM"]['EDGES_OUT'], "drm": contents['DRM']['SMATRIX']}

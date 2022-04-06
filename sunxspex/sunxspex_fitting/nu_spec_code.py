@@ -3,9 +3,11 @@ The following code is used to make the SRM/counts data in consistent units from 
 """
 
 import numpy as np
+
 from . import io
 
 __all__ = ["flux_cts_spec", "col2arr_py", "vrmf2arr_py", "make_srm"]
+
 
 def flux_cts_spec(file, bin_size):
     """ Takes a .pha file and returns plotting information.
@@ -22,7 +24,7 @@ def flux_cts_spec(file, bin_size):
 
     _, counts, livetime = io._read_pha(file)
 
-    cts = (counts / bin_size) / livetime # now in cts keV^-1 s^-1
+    cts = (counts / bin_size) / livetime  # now in cts keV^-1 s^-1
 
     cts_err = (np.sqrt(counts) / bin_size) / livetime
 
@@ -58,9 +60,9 @@ def col2arr_py(data):
     ## max row length of 2 so 2 columns, each row is an energy channel.
     """
 
-    ## this is the quicker way I have chosen to do in Python (this may be revised later but is ~30x faster than way below in Python)
-    max_len = np.max([len(r) for r in data]) # find max row length
-    chan_array_py = np.array([[*r, *(max_len-len(r))*[0]] for r in data]) # make each row that length (padding with 0)
+    # this is the quicker way I have chosen to do in Python (this may be revised later but is ~30x faster than way below in Python)
+    max_len = np.max([len(r) for r in data])  # find max row length
+    chan_array_py = np.array([[*r, *(max_len-len(r))*[0]] for r in data])  # make each row that length (padding with 0)
 
     return chan_array_py
 
@@ -147,7 +149,7 @@ def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None
     """
     # this was is about >6x quicker in than the IDL code written in Python
 
-    n_grp_list = n_grp_list.astype("<i2") # change from ‘big-endian’ (">i2") to ‘little-endian’ ("<i2")
+    n_grp_list = n_grp_list.astype("<i2")  # change from ‘big-endian’ (">i2") to ‘little-endian’ ("<i2")
 
     # find the non-zero entries in Nchan, this is the number to counts channels
     #  in a row that contribute so will have a value if it is useful
@@ -174,10 +176,10 @@ def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None
 
     # where starting_inds==-1 that value should be 0, i.e. starting from the first
     #  value in the rmf matrix
-    new_e = np.where(starting_inds!=-1, start_inds, 0)
+    new_e = np.where(starting_inds != -1, start_inds, 0)
 
     # initialise the rmf matrix
-    mat_array_py = np.zeros((len(data),len(n_grp_list)))
+    mat_array_py = np.zeros((len(data), len(n_grp_list)))
 
     # now go through row by row (this is the slowest part and needs to be made faster).
     #  Here we go through each photon channel's number of discrete rows of counts channels.
@@ -212,6 +214,6 @@ def make_srm(rmf_matrix=(), arf_array=()):
         return
 
     # srm = np.array([rmf_matrix[r, :] * arf_array[r] for r in range(len(arf_array))]) # each energy bin row in the rmf is multiplied the arf value for the same energy bin
-    ## this line is >2x faster
+    # this line is >2x faster
     srm = arf_array[:, None]*rmf_matrix
     return srm
