@@ -13,7 +13,6 @@ References
 import numpy as np
 from scipy.special import lpmv
 from quadpy.c1 import gauss_legendre
-import multiprocessing as mp
 
 from sunxspex import constants as const
 import logging
@@ -382,29 +381,19 @@ def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_l
             else:
                 return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*pc/((electron_energy / mc2) + 1.0)
 
-    ## test - faster to use multiprocessing over the entire npoints range rather than do the for loop?
-    if multi:
-        pool=mp.Pool(4) #or nCPUs
-        
-        all_npoints=np.array(2**np.arange(2,nlim+1))
-        all_npoints[all_npoints<=maxfcn] #won't put anything in ier this way (yet)
-        
-        all_integrands=pool.map(model_func)
-    
-    else:
-        for ires in range(2, nlim + 1):
-            npoint = 2 ** ires
-            if npoint > maxfcn:
-                ier[intidx] = 1 #might be a built-in way in quadpy to check for convergence
-                break
-            lastsum = np.array(intsum)
-            photon_energy=photon_energies[intidx]
-            scheme=gauss_legendre(npoint)
-            intsum[intidx]=scheme.integrate(model_func, lims[:,intidx])
-            err = np.abs(intsum - lastsum)
-            intidx=list(np.where(err > rerr*np.abs(intsum))[0]) #indices where no convergence
-            if len(intidx)==0:
-                break
+    for ires in range(2, nlim + 1):
+        npoint = 2 ** ires
+        if npoint > maxfcn:
+            ier[intidx] = 1 #might be a built-in way in quadpy to check for convergence
+            break
+        lastsum = np.array(intsum)
+        photon_energy=photon_energies[intidx]
+        scheme=gauss_legendre(npoint)
+        intsum[intidx]=scheme.integrate(model_func, lims[:,intidx])
+        err = np.abs(intsum - lastsum)
+        intidx=list(np.where(err > rerr*np.abs(intsum))[0]) #indices where no convergence
+        if len(intidx)==0:
+            break
     return intsum, ier
 
 def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z,
