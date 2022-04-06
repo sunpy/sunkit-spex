@@ -7,6 +7,7 @@ from scipy.special import factorial
 
 __all__ = ["LogLikelihoods"]
 
+
 class LogLikelihoods:
     """
     This class's job is to hold all the log-likelihoods/fit statistics in the one place.
@@ -49,16 +50,17 @@ class LogLikelihoods:
     model_counts, observed_counts, observed_count_errors = modelled_counts, counts_data, count_error
     log_likelihoods_or_fit_statistic = ll.loglikelihoods["cstat"](model_counts, observed_counts, observed_count_errors)
     """
+
     def __init__(self):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `log_likelihoods` dictionary attribute."""
 
         self._construction_string = "LogLikelihoods()"
         # dictionary of all likelihood functions? E.g.,
-        self.log_likelihoods = {"gaussian":self.gaussian_loglikelihood,
-                                "chi2":self.chi2,
-                                "poisson":self.poisson_loglikelihood,
-                                "cash":self.cash_loglikelihood,
-                                "cstat":self.cstat_loglikelihood}
+        self.log_likelihoods = {"gaussian": self.gaussian_loglikelihood,
+                                "chi2": self.chi2,
+                                "poisson": self.poisson_loglikelihood,
+                                "cash": self.cash_loglikelihood,
+                                "cstat": self.cstat_loglikelihood}
 
     def _remove_nans(self, _lhoods):
         """ Removes Nans in the output array from any /0 data entries.
@@ -118,7 +120,7 @@ class LogLikelihoods:
         -------
         Sum of the bin fit statistics, or -np.inf if nothing to sum.
         """
-        if len(remaining)==0:
+        if len(remaining) == 0:
             return -np.inf
         else:
             return np.sum(remaining)
@@ -142,10 +144,10 @@ class LogLikelihoods:
         A float, the gaussian log-likelihood (to be maximised).
         """
 
-        likelihoods = -(len(observed_counts)/2) * np.log(2*np.pi*np.array(observed_count_errors)**2) + (1/2)* self.chi2(model_counts, observed_counts, observed_count_errors)
+        likelihoods = -(len(observed_counts)/2) * np.log(2*np.pi*np.array(observed_count_errors)**2) + (1/2) * self.chi2(model_counts, observed_counts, observed_count_errors)
 
         # best value is first whole term, if the chi squared section has any value then it is always subtracted
-        return self._check_numbers_left(self.remove_non_numbers(likelihoods)) # =ln(L)
+        return self._check_numbers_left(self.remove_non_numbers(likelihoods))  # =ln(L)
 
     def chi2(self, model_counts, observed_counts, observed_count_errors):
         """ Chi-squared fit statistic.
@@ -165,10 +167,10 @@ class LogLikelihoods:
         A float, the chi-squared fit statistic (to be maximised).
         """
 
-        likelihoods = -( (np.array(observed_counts)-np.array(model_counts).flatten()) / np.array(observed_count_errors) )**2
+        likelihoods = -((np.array(observed_counts)-np.array(model_counts).flatten()) / np.array(observed_count_errors))**2
 
         # best value is 0, every other value is negative
-        return self._check_numbers_left(self.remove_non_numbers(likelihoods)) #
+        return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 
     def poisson_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
         """ Poissonian log-likelihood.
@@ -251,7 +253,7 @@ class LogLikelihoods:
         # C-stat (XSPEC) - has data term in it so the lower the -2*ln(L) number the better the fit, this is the ln(L) though
         # Best value is 0, if obs_counts>mod_counts or obs_counts<mod_counts then likelihoods<0
         # Obvious since e^0=1
-        likelihoods = np.array(observed_counts) * ( np.log(np.array(model_counts)/np.array(observed_counts)) + 1 ) - np.array(model_counts)
+        likelihoods = np.array(observed_counts) * (np.log(np.array(model_counts)/np.array(observed_counts)) + 1) - np.array(model_counts)
 
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 

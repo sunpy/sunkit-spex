@@ -51,7 +51,7 @@ def rainbow_text_lines(xy, strings, colors, orientation='horizontal',
         # Need to draw to update the text position.
         text.draw(canvas.get_renderer())
         ex = text.get_window_extent()
-        bbox_width, bbox_height = ax.get_window_extent().width, ax.get_window_extent().height # box size of plot
+        bbox_width, bbox_height = ax.get_window_extent().width, ax.get_window_extent().height  # box size of plot
         if orientation == 'horizontal':
             xy = [xy[0], xy[1]-ex.height/bbox_height]
         else:
