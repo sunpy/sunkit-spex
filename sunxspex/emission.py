@@ -13,6 +13,7 @@ References
 import numpy as np
 from scipy.special import lpmv
 from quadpy.c1 import gauss_legendre
+import multiprocessing as mp
 
 from sunxspex import constants as const
 import logging
@@ -165,6 +166,30 @@ class BrokenPowerLawElectronDistribution:
 
 def collisional_loss(electron_energy):
     """
+    Compute the energy dependent terms of the collisional energy loss rate for energetic electrons.
+
+    Parameters
+    ----------
+    electron_energy : `numpy.array`
+        Array of electron energies at which to evaluate loss
+
+    Returns
+    -------
+    `numpy.array`
+        Energy loss rate
+
+    Notes
+    -----
+    Initial version modified from SSW
+    `Brm_ELoss <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_eloss.pro>`_
+    """
+    electron_rest_mass = const.get_constant('mc2')  # * u.keV #c.m_e * c.c**2
+    gamma = (electron_energy / electron_rest_mass) + 1.0
+    return np.log(6.9447e+9 * electron_energy) / np.sqrt(1.0 - (1.0 / gamma ** 2))
+
+
+def collisional_loss0(electron_energy):
+    """
     Compute the energy dependant terms of the collisional energy loss rate for energetic electrons.
 
     Parameters
@@ -284,8 +309,10 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     return cross_section
 
 
-def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_lg, b_lg, ll, efd): #3x faster than original
+def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_lg, b_lg, ll, efd,multi=False):
     """
+    to speed up: transform integral so limits are -1,1 (difficult w computation of bremsstrahlung cross-section)? then gauss-legendre xi,wi are the same for npoints=4 to npoints=12 and most of the integrand can be turned into a LUT
+    
     Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
 
     This integration is intended to be performed over continuous portions of the electron
@@ -343,32 +370,41 @@ def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_l
 
     def model_func(y): #basically emission.get_integrand()
         electron_energy=10**y
-        gamma = (electron_energy / mc2) + 1.0
         brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
         collision_loss = collisional_loss(electron_energy)
         pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
         density=electron_dist.density(electron_energy)
         if model == 'thick-target':
-            return 10**y*np.log(10)* density * brem_cross * pc / collision_loss / gamma
+            return 10**y*np.log(10)* density * brem_cross * pc / collision_loss / ((electron_energy / mc2) + 1.0)
         elif model == 'thin-target':
             if efd:
                 return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*(mc2/clight)
             else:
-                return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*pc/gamma
+                return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*pc/((electron_energy / mc2) + 1.0)
 
-    for ires in range(2, nlim + 1):
-        npoint = 2 ** ires
-        if npoint > maxfcn:
-            ier[intidx] = 1 #might be a built-in way in quadpy to check for convergence
-            break
-        lastsum = np.array(intsum)
-        photon_energy=photon_energies[intidx]
-        scheme=gauss_legendre(npoint)
-        intsum[intidx]=scheme.integrate(model_func, lims[:,intidx])
-        err = np.abs(intsum - lastsum)
-        intidx=list(np.where(err > rerr*np.abs(intsum))[0]) #indices where no convergence
-        if len(intidx)==0:
-            break
+    ## test - faster to use multiprocessing over the entire npoints range rather than do the for loop?
+    if multi:
+        pool=mp.Pool(4) #or nCPUs
+        
+        all_npoints=np.array(2**np.arange(2,nlim+1))
+        all_npoints[all_npoints<=maxfcn] #won't put anything in ier this way (yet)
+        
+        all_integrands=pool.map(model_func)
+    
+    else:
+        for ires in range(2, nlim + 1):
+            npoint = 2 ** ires
+            if npoint > maxfcn:
+                ier[intidx] = 1 #might be a built-in way in quadpy to check for convergence
+                break
+            lastsum = np.array(intsum)
+            photon_energy=photon_energies[intidx]
+            scheme=gauss_legendre(npoint)
+            intsum[intidx]=scheme.integrate(model_func, lims[:,intidx])
+            err = np.abs(intsum - lastsum)
+            intidx=list(np.where(err > rerr*np.abs(intsum))[0]) #indices where no convergence
+            if len(intidx)==0:
+                break
     return intsum, ier
 
 def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z,
@@ -425,26 +461,23 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
     `Brm2_Dmlin <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlin.pro>`_.
 
     """
-    mc2 = const.get_constant('mc2') #pass in as kwarg?
+    mc2 = const.get_constant('mc2')
     clight = const.get_constant('clight')
-
-    if not eelow <= eebrk <= eehigh:
-        logging.debug(f'Condition eelow <= eebrk <= eehigh not satisfied '
-        f'({eelow}<={eebrk}<={eehigh}).')
-        raise ValueError(f'Condition eelow <= eebrk <= eehigh not satisfied '
-                         f'({eelow}<={eebrk}<={eehigh}).')
-
-        #for Xspec, just return the photon energies or something, Python errors will not show up there
 
     # Create arrays for integral sums and error flags.
     intsum = np.zeros_like(photon_energies, dtype=np.float64)
     ier = np.zeros_like(photon_energies, dtype=np.float64)
     total_integral,total_ier=0,0
-
+    
     eparams=[eelow,eebrk,eehigh]
-    #original_photonenergies=np.copy(photon_energies)
 
-    electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,eehigh=eehigh) #actually just need density, pass that in instead?
+    if eparams != sorted(eparams): #is monotonic increasing
+        logging.debug(f'Condition eelow <= eebrk <= eehigh not satisfied '
+        f'({eelow}<={eebrk}<={eehigh}).')
+        raise ValueError(f'Condition eelow <= eebrk <= eehigh not satisfied '
+                         f'({eelow}<={eebrk}<={eehigh}).')
+
+    electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,eehigh=eehigh)
 
     for n, (llim, ulim) in enumerate(zip([0,eelow,eebrk],eparams)): #un-loop this eventually, or throw multiprocessing at it since they're independent
         #if n == 2:
@@ -455,8 +488,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
         part=np.where(photon_energies < ulim)[0] #should it be <= here?
         
         if part.size > 0:
-            aa = np.array(photon_energies) #check that photon_energies is NOT being modified at all
-            #print((aa==original_photonenergies).all()) #True
+            aa = np.array(photon_energies)
             if n > 0:
                 aa[photon_energies < eparams[n-1]] = eparams[n-1]
 
@@ -474,7 +506,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
 
             if sum(ier):
                 logging.debug(f'Part {n} integral did not converge for some photon energies.')
-                #raise ValueError(f'Part {n} integral did not converge for some photon energies.')
+                raise ValueError(f'Part {n} integral did not converge for some photon energies.')
 
     if model == 'thick-target':
         total_integral *= (mc2 / clight)
