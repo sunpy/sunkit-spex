@@ -132,7 +132,7 @@ class LoadSpec:
             if s<num_of_custom:
                 # if a custom dict is given or if the user has set up the instrument loader class themselves and just wants to pass it straight in
                 if type(args[s])==dict:
-                    self.loaded_spec_data["spectrum"+str(s+1)] = inst.CustomLoader(args[s], **kwargs)
+                    self.loaded_spec_data[f"spectrum{s+1}"] = inst.CustomLoader(args[s], **kwargs)
                     self.instruments["spectrum"+str(s+1)] = "CustomLoader"
                 elif issubclass(args[s], inst.InstrumentBlueprint) or issubclass(args[s].__class__, inst.InstrumentBlueprint):
                     self.loaded_spec_data["spectrum"+str(s+1)] = args[s]
