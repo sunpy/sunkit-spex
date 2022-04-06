@@ -12,23 +12,26 @@ or XSPEC: (tbd but read the documentation)
 """
 import numpy as np
 import pandas as pd
-#from scipy.special import lpmv
 from sunxspex.emission import split_and_integrate,split_and_integrate0
 from sunxspex import thermal
 from sunxspex import constants
 from astropy import units as u
-#import astropy.constants as c
-#from datetime import datetime as dt
 from scipy.interpolate import interp1d
 
-#import logging
-#logging.basicConfig(filename='xspec.log', level=logging.DEBUG) #for now this helps catch Python errors that are not printed to the terminal by XSPEC
+import logging
+logging.basicConfig(filename='xspec.log', level=logging.DEBUG) #for now this helps catch Python errors that are not printed to the terminal by XSPEC
 
 # Central constant management
-global const #maybe re-write with astropy constants to keep so many globals from floating around
-const = constants.Constants()
+#global const #maybe re-write with astropy constants to keep so many globals from floating around
+const = constants.Constants() #will this work even inside the objects? or does it need to be a global
 
 class XspecModel:
+    '''Base class for Xspec models. Must include the model function and initial parameters
+    
+    These models can be added via pyxspec:
+    import xspec
+    thick=ThickTargetModel()
+    xspec.AllModels.addPyMod(thick.model, thick.ParInfo, 'add')'''
     def __init__(self):
         self.ParInfo=''
         self.model=None
@@ -50,6 +53,7 @@ class XspecModel:
         raise NotImplementedError
 
 class ThickTargetModel(XspecModel):
+    '''Thick-target bremsstrahlung model for use in Xspec. Default parameters are taken from OSPEX [link]()'''
     def __init__(self):
         self.ParInfo=(
         "a0  1e-35  100.0  1.0  10.0  1e6  1e7  1.0",
@@ -58,7 +62,7 @@ class ThickTargetModel(XspecModel):
          "q  \"\"  6.0  0.0  1.5  15.0  20.0  0.1",
          "eelow  keV  20.0  0.0  1.0  100.  1e3  1.0" ,
          "eehigh  keV  3200.0  1.0  10.0  1e6  1e7  1.0"
-        ) #default parameters from OSPEX
+        )
         self.model=self.thick2
         self.description=f"Thick-target bremsstrahlung '{self.model.__name__}'"
 
@@ -129,6 +133,7 @@ class ThickTargetModel(XspecModel):
             flux[:]=[internal_flux[j] if j in i else prev for j,prev in enumerate(flux)]*photon_energy_bins
             
 class ThickTargetModel0(XspecModel):
+    '''Thick-target bremsstrahlung model for use in Xspec. Uses original IDL-based integration. Default parameters are taken from OSPEX [link]()'''
     def __init__(self):
         self.ParInfo=(
         "a0  1e-35  100.0  1.0  10.0  1e6  1e7  1.0",
@@ -208,6 +213,7 @@ class ThickTargetModel0(XspecModel):
             flux[:]=[internal_flux[j] if j in i else prev for j,prev in enumerate(flux)]*photon_energy_bins
 
 class ThinTargetModel(XspecModel):
+    '''Thin-target bremsstrahlung model for use in Xspec. Default parameters are taken from OSPEX [link]()'''
     def __init__(self):
         self.ParInfo=(
         "a0  1e-35  100.0  1e-10  1e-9  1e14  1e15  1.0",
@@ -318,6 +324,7 @@ class ThinTargetModel(XspecModel):
 
 
 class ThermalModel(XspecModel):
+    '''Thermal bremsstrahlung model for use in Xspec. Default parameters are taken from OSPEX [link](). Untested, probably unnecessary as well'''
     def __init__(self):
         self.ParInfo=(
         "EM  1e49  1.0  1e-20  1e-19  1e19  1e20  1.0",
