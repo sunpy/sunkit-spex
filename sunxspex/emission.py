@@ -326,7 +326,7 @@ def integrand(y,photon_energy, electron_dist, model='thick-target',z=1.2, efd=Fa
 def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_lg, b_lg, ll, efd,multi=False):
     """
     to speed up: transform integral so limits are -1,1 (difficult w computation of bremsstrahlung cross-section)? then gauss-legendre xi,wi are the same for npoints=4 to npoints=12 and most of the integrand can be turned into a LUT
-    
+
     Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
 
     This integration is intended to be performed over continuous portions of the electron
@@ -409,6 +409,30 @@ def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_l
         intidx=list(np.where(err > rerr*np.abs(intsum))[0]) #indices where no convergence
         if len(intidx)==0:
             break
+
+    ## test - faster to use multiprocessing over the entire npoints range rather than do the for loop?
+    if multi:
+        pool=mp.Pool(4) #or nCPUs
+
+        all_npoints=np.array(2**np.arange(2,nlim+1))
+        all_npoints[all_npoints<=maxfcn] #won't put anything in ier this way (yet)
+
+        all_integrands=pool.map(model_func)
+
+    else:
+        for ires in range(2, nlim + 1):
+            npoint = 2 ** ires
+            if npoint > maxfcn:
+                ier[intidx] = 1 #might be a built-in way in quadpy to check for convergence
+                break
+            lastsum = np.array(intsum)
+            photon_energy=photon_energies[intidx]
+            scheme=gauss_legendre(npoint)
+            intsum[intidx]=scheme.integrate(model_func, lims[:,intidx])
+            err = np.abs(intsum - lastsum)
+            intidx=list(np.where(err > rerr*np.abs(intsum))[0]) #indices where no convergence
+            if len(intidx)==0:
+                break
     return intsum, ier
 
 def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z,
@@ -472,7 +496,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
     intsum = np.zeros_like(photon_energies, dtype=np.float64)
     ier = np.zeros_like(photon_energies, dtype=np.float64)
     total_integral,total_ier=0,0
-    
+
     eparams=[eelow,eebrk,eehigh]
 
     if eparams != sorted(eparams): #is monotonic increasing
