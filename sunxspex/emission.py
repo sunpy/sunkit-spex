@@ -13,6 +13,7 @@ References
 #import numpy as np
 from autoray import numpy as np
 from numpy import pi, inf
+#from numpy import float64 as npfloat64
 from scipy.special import lpmv
 from quadpy.c1 import gauss_legendre
 
@@ -374,7 +375,7 @@ def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_l
     and
     `brm2_dmlin.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlin.pro>`_.
     """
-    intsum = np.zeros_like(photon_energies, dtype=np.float64)
+    intsum = np.zeros_like(photon_energies)#, dtype=npfloat64)
     ier = np.zeros_like(photon_energies)
     lastsum = np.array(intsum) #faster than copy
 
@@ -496,8 +497,8 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
     clight = const.get_constant('clight')
 
     # Create arrays for integral sums and error flags.
-    intsum = np.zeros_like(photon_energies, dtype=np.float64)
-    ier = np.zeros_like(photon_energies, dtype=np.float64)
+    intsum = np.zeros_like(photon_energies)#, dtype=npfloat64)
+    ier = np.zeros_like(photon_energies)#, dtype=np.float64)
     total_integral,total_ier=0,0
 
     eparams=[eelow,eebrk,eehigh]
@@ -611,8 +612,8 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
     fcoeff = (clight / (4 * pi * au ** 2)) / mc2 ** 2.
 
     # Create arrays for the photon flux and error flags.
-    flux = np.zeros_like(photon_energies, dtype=np.float64)
-    iergq = np.zeros_like(photon_energies, dtype=np.float64)
+    flux = np.zeros_like(photon_energies)#, dtype=np.float64)
+    iergq = np.zeros_like(photon_energies)#, dtype=np.float64)
 
     if eelow >= eehigh:
         raise ValueError('eehigh must be larger than eelow!')
@@ -695,8 +696,8 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh):
     decoeff = 4.0 * pi * (r0 ** 2) * clight
 
     # Create arrays for the photon flux and error flags.
-    flux = np.zeros_like(photon_energies, dtype=np.float64)
-    iergq = np.zeros_like(photon_energies, dtype=np.float64)
+    flux = np.zeros_like(photon_energies)#, dtype=np.float64)
+    iergq = np.zeros_like(photon_energies)#, dtype=np.float64)
 
     if eelow >= eehigh:
         return flux
@@ -903,7 +904,7 @@ def integrate_part0(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehig
     """
     nlim = 12
 
-    intsum = np.zeros_like(photon_energies, dtype=np.float64)
+    intsum = np.zeros_like(photon_energies)#, dtype=np.float64)
     ier = np.zeros_like(photon_energies)
 
     # Copy indices over which to carry out the integration
