@@ -112,16 +112,16 @@ class BrokenPowerLawElectronDistribution:
         res = np.zeros_like(electron_energy)
 
         index = np.where(electron_energy < self.eelow)
-        if index[0].size > 0:
+        if index[0].shape[0] > 0:
             res[index] = 0.
 
         index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
-        if index[0].size > 0:
+        if index[0].shape[0] > 0:
             res[index] = self._norm_factor * self._n0 * (self.p - 1.) \
                          * electron_energy[index] ** (-self.p) * self.eelow ** (self.p - 1.)
 
         index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
-        if index[0].size > 0:
+        if index[0].shape[0] > 0:
             res[index] = self._norm_factor * (self.q - 1.) \
                          * electron_energy[index] ** (-self.q) * self.eebrk ** (self.q - 1.)
 
@@ -144,17 +144,17 @@ class BrokenPowerLawElectronDistribution:
         res = np.zeros_like(electron_energy)
 
         index = np.where(electron_energy < self.eelow)
-        if index[0].size > 0:
+        if index[0].shape[0] > 0:
             res[index] = 1.0
 
         index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
-        if index[0].size > 0:
+        if index[0].shape[0] > 0:
             res[index] = self._norm_factor * (self._n0 * self.eelow ** (self.p - 1) *
                                               electron_energy[index] ** (1.0 - self.p) -
                                               (self.q - 1.0) / (self.p - 1.0) + self._n2)
 
         index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
-        if index[0].size > 0:
+        if index[0].shape[0] > 0:
             res[index] = self._norm_factor * (self.eebrk ** (self.q - 1)
                                               * electron_energy[index] ** (1.0 - self.q)
                                               - (1.0 - self._n2))
@@ -518,7 +518,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
 
         part=np.where(photon_energies < ulim)[0] #should it be <= here?
 
-        if part.size > 0:
+        if part.shape[0] > 0:
             aa = np.array(photon_energies)
             if n > 0:
                 aa[photon_energies < eparams[n-1]] = eparams[n-1]
@@ -618,7 +618,7 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
         raise ValueError('eehigh must be larger than eelow!')
 
     l, = np.where((photon_energies < eehigh) & (photon_energies > 0))
-    if l.size > 0:
+    if l.shape[0] > 0:
         flux[l], iergq[l] = split_and_integrate(model='thin-target',
                                                 photon_energies=photon_energies[l], maxfcn=maxfcn,
                                                 rerr=rerr, eelow=eelow, eebrk=eebrk, eehigh=eehigh,
@@ -703,7 +703,7 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh):
 
     i, = np.where((photon_energies < eehigh) & (photon_energies > 0))
 
-    if i.size > 0:
+    if i.shape[0] > 0:
         flux[i], iergq[i] = split_and_integrate(model='thick-target',
                                                 photon_energies=photon_energies[i],
                                                 maxfcn=maxfcn, rerr=rerr, eelow=eelow,
@@ -813,8 +813,8 @@ def gauss_legendre0(x1, x2, npoints):
     eps = 3e-14
     m = (npoints + 1) // 2
 
-    x = np.zeros((x1.shape[0], npoints))
-    w = np.zeros((x1.shape[0], npoints))
+    x = np.zeros((x1.size, npoints))
+    w = np.zeros((x1.size, npoints))
 
     # Normalise from -1 to +1 as Legendre polynomial only valid in this range
     xm = 0.5 * (x2 + x1)
@@ -932,7 +932,7 @@ def integrate_part0(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehig
         i = np.where(l1 > l2)[0]
 
         # If all point have reached criterion return value and flags
-        if i.size == 0:
+        if i.shape[0] == 0:
             return intsum, ier
 
 
@@ -1014,7 +1014,7 @@ def split_and_integrate0(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
 
     # Part 1, below en_val[0] (usually eelow)
     if model == 'thick-target':
-        if P1.size > 0:
+        if P1.shape[0] > 0:
             #print('Part1')
             a_lg = np.log10(photon_energies[P1])
             b_lg = np.log10(np.full_like(a_lg, eelow))
@@ -1032,10 +1032,10 @@ def split_and_integrate0(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
     # Part 2, between enval[0] and en_val[1](usually eelow and eebrk)
 
     aa = np.copy(photon_energies)
-    if (P2.size > 0) and (eebrk > eelow):
+    if (P2.shape[0] > 0) and (eebrk > eelow):
         # TODO check if necessary as integration should only be carried out over point P2 which
         # by definition are not in P1
-        if P1.size > 0:
+        if P1.shape[0] > 0:
             aa[P1] = eelow
 
         #print('Part2')
@@ -1054,7 +1054,7 @@ def split_and_integrate0(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
     # Part 3: between eebrk and eehigh(usually eebrk and eehigh)
     aa = np.copy(photon_energies)
     if (P3.sum() > 0) and (eehigh > eebrk):
-        if P2.size > 0:
+        if P2.shape[0] > 0:
             aa[P2] = eebrk
 
         #print('Part3')
