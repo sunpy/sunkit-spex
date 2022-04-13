@@ -272,7 +272,9 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
 
     # Calculate normalised photon and total electron energies.
     if electron_energy.ndim == 2:
-        k = np.expand_dims(photon_energy / mc2, axis=1)
+        #k = np.expand_dims(photon_energy / mc2, axis=1)
+        k=photon_energy / mc2
+        k = k.reshape(k.shape + (1,)) #will this work with tensors too?
     else:
         k = photon_energy / mc2
     e1 = (electron_energy / mc2) + 1.0
