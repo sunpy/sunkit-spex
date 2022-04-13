@@ -10,7 +10,8 @@ References
 .. [2] Thin-Target: https://hesperia.gsfc.nasa.gov/hessi/flarecode/bremdoc.pdf
 
 """
-import numpy as np
+#import numpy as np
+from autoray import numpy as np
 from scipy.special import lpmv
 from quadpy.c1 import gauss_legendre
 
@@ -307,6 +308,20 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
 
     return cross_section
 
+def integrand(y,photon_energy, electron_dist, model='thick-target',z=1.2, efd=False, mc2=510.98, clight=29979000000.0):
+    """docstring"""
+    electron_energy=10**y
+    #brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
+    collision_loss = collisional_loss(electron_energy)
+    pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
+    density=electron_dist.density(electron_energy)
+    if model == 'thick-target':
+        return 10**y*np.log(10)* density  * pc / collision_loss / ((electron_energy / mc2) + 1.0)
+    elif model == 'thin-target':
+        if efd:
+            return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*(mc2/clight)
+        else:
+            return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*pc/((electron_energy / mc2) + 1.0)
 
 def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_lg, b_lg, ll, efd,multi=False):
     """
@@ -374,7 +389,7 @@ def integrate_part(*, model, photon_energies, electron_dist, maxfcn, rerr, z,a_l
         pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
         density=electron_dist.density(electron_energy)
         if model == 'thick-target':
-            return 10**y*np.log(10)* density * brem_cross * pc / collision_loss / ((electron_energy / mc2) + 1.0)
+            return 10**y*np.log(10)* density *brem_cross * pc / collision_loss / ((electron_energy / mc2) + 1.0)
         elif model == 'thin-target':
             if efd:
                 return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*(mc2/clight)
@@ -730,7 +745,7 @@ def get_integrand(*, model, electron_energy, photon_energy, eelow, eebrk, eehigh
                                                        eehigh=eehigh)
 
     if model == 'thick-target':
-        return electron_dist.density(electron_energy) * brem_cross * pc / collision_loss / gamma
+        return electron_dist.density(electron_energy)  *brem_cross * pc / collision_loss / gamma
     elif model == 'thin-target':
         if efd:
             # if electron flux distribution is assumed (default)
