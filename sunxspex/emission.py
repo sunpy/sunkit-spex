@@ -12,6 +12,7 @@ References
 """
 #import numpy as np
 from autoray import numpy as np
+from numpy import pi, inf
 from scipy.special import lpmv
 from quadpy.c1 import gauss_legendre
 
@@ -301,7 +302,7 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     a1 = alpha * z * e1 / p1
     a2 = alpha * z * e2 / p2
 
-    fe = (a2 / a1) * (1.0 - np.exp(-2.0 * np.pi * a1)) / (1.0 - np.exp(-2.0 * np.pi * a2))
+    fe = (a2 / a1) * (1.0 - np.exp(-2.0 * pi * a1)) / (1.0 - np.exp(-2.0 * pi * a2))
 
     # Compute the differential cross section (units cm^2).
     cross_section = twoar02 * fe * crtmp
@@ -605,7 +606,7 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
     rerr = 1e-4
 
     # Numerical coefficient for photo flux
-    fcoeff = (clight / (4 * np.pi * au ** 2)) / mc2 ** 2.
+    fcoeff = (clight / (4 * pi * au ** 2)) / mc2 ** 2.
 
     # Create arrays for the photon flux and error flags.
     flux = np.zeros_like(photon_energies, dtype=np.float64)
@@ -687,9 +688,9 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh):
     rerr = 1e-4
 
     # Numerical coefficient for photo flux
-    fcoeff = ((clight ** 2 / mc2 ** 4) / (4 * np.pi * au ** 2))
+    fcoeff = ((clight ** 2 / mc2 ** 4) / (4 * pi * au ** 2))
 
-    decoeff = 4.0 * np.pi * (r0 ** 2) * clight
+    decoeff = 4.0 * pi * (r0 ** 2) * clight
 
     # Create arrays for the photon flux and error flags.
     flux = np.zeros_like(photon_energies, dtype=np.float64)
@@ -819,9 +820,9 @@ def gauss_legendre0(x1, x2, npoints):
 
     for i in range(1, m + 1):
 
-        z = np.cos(np.pi * (i - 0.25) / (npoints + 0.5))
+        z = np.cos(pi * (i - 0.25) / (npoints + 0.5))
         # Init to np.inf so loop runs at least once
-        z1 = np.inf
+        z1 = inf
 
         # Some kind of integration/update loop
         while np.abs(z - z1) > eps:
