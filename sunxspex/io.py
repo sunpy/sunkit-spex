@@ -1,23 +1,22 @@
-import os.path
-import glob
 from collections import OrderedDict
 
-import astropy.units as u
 import numpy as np
 import scipy.io
 import xarray
-from astropy.table import Table, Column
-from sunpy.io.special.genx import read_genx
-from sunpy.time import parse_time
-from sunpy.data import manager
 
-__all__  = ['load_chianti_lines_lite', 'load_chianti_continuum',
-            'read_abundance_genx', 'load_xray_abundances']
+import astropy.units as u
+from astropy.table import Table
+
+from sunpy.data import manager
+from sunpy.io.special.genx import read_genx
+
+__all__ = ['load_chianti_lines_lite', 'load_chianti_continuum',
+           'read_abundance_genx', 'load_xray_abundances']
 
 
 @manager.require('chianti_lines',
                  ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav'],
-                  '2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677')
+                 '2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677')
 def load_chianti_lines_lite():
     """
     Read X-ray emission line info from an IDL sav file produced by CHIANTI.
@@ -85,7 +84,7 @@ def load_chianti_lines_lite():
     line_peak_energies = []
     for j, lines in enumerate(out["lines"]):
         # Extract line element index and peak energy.
-        line_elements.append(lines["IZ"] + 1)  #TODO: Confirm lines["IZ"] is indeed atomic number - 1
+        line_elements.append(lines["IZ"] + 1)  # TODO: Confirm lines["IZ"] is indeed atomic number - 1
         line_peak_energies.append(u.Quantity(lines["WVL"], unit=wvl_units).to(
             energy_unit, equivalencies=u.spectral()))
         # Sort line info in ascending energy.
@@ -220,9 +219,9 @@ def load_xray_abundances(abundance_type=None):
     contents = read_abundance_genx(xray_abundance_file)
     # Restructure data into an easier form.
     try:
-        header = contents.pop("header")
+        contents.pop("header")
     except KeyError:
-        header = None
+        pass
     n_elements = len(contents[list(contents.keys())[0]])
     columns = [np.arange(1, n_elements+1)] + list(contents.values())
     names = ["atomic number"] + list(contents.keys())

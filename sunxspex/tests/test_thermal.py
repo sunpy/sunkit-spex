@@ -1,8 +1,9 @@
 import warnings
 
-import astropy.units as u
 import numpy as np
 import pytest
+
+import astropy.units as u
 
 from sunxspex import thermal
 
@@ -312,7 +313,7 @@ def chianti_kev_lines_Fe2():
     inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances,
               observer_distance)
     ssw_output = [
-          0.073248975,   0.014247916,  0.0044440511, 0.00067793718,
+        0.073248975,   0.014247916,  0.0044440511, 0.00067793718,
         2.3333176e-05, 5.1462595e-10, 6.8084722e-05, 4.2806998e-05,
         1.0074133e-06, 1.6740345e-11, 5.5473790e-12, 3.0992380e-13,
         1.9522283e-17, 1.3281716e-20, 1.0493879e-21, 0.0000000e+00,
@@ -329,9 +330,9 @@ def chianti_kev_lines_Fe2():
 
 
 @pytest.mark.parametrize("ssw",
-                            (
-                                fvth_simple,
-                            ))
+                         (
+                             fvth_simple,
+                         ))
 def test_thermal_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.thermal_emission(*input_args)
@@ -340,10 +341,10 @@ def test_thermal_emission_against_ssw(ssw):
 
 
 @pytest.mark.parametrize("ssw",
-                            (
-                                chianti_kev_cont_simple,
-                                chianti_kev_cont_Fe2
-                            ))
+                         (
+                             chianti_kev_cont_simple,
+                             chianti_kev_cont_Fe2
+                         ))
 def test_continuum_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.continuum_emission(*input_args)
@@ -352,10 +353,10 @@ def test_continuum_emission_against_ssw(ssw):
 
 
 @pytest.mark.parametrize("ssw",
-                            (
-                                chianti_kev_lines_simple,
-                                chianti_kev_lines_Fe2
-                            ))
+                         (
+                             chianti_kev_lines_simple,
+                             chianti_kev_lines_Fe2
+                         ))
 def test_line_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.line_emission(*input_args)
@@ -400,6 +401,6 @@ def test_energy_out_of_range_warning():
         # Cause all warnings to always be triggered.
         warnings.simplefilter("always")
         # Trigger a warning.
-        output = thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6*u.MK, 1e44/u.cm**3)
+        thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6*u.MK, 1e44/u.cm**3)
         print(w[0].category)
         assert issubclass(w[0].category, UserWarning)
