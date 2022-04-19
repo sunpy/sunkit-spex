@@ -1,6 +1,7 @@
 import numpy as np
 
 from sunxspex import emission
+from sunxspex.integrate import fixed_quad, gauss_legendre
 
 
 def test_broken_power_law_electron_distribution():
@@ -118,6 +119,29 @@ def test_integrate_part():
     res_idl_thick = [1.7838076641732560e-27, 9.9894296899783751e-29, 5.2825655485310581e-30,
                      2.1347233135651843e-31, 2.9606798379782830e-33]
     assert np.allclose(res_thick, res_idl_thick, atol=0, rtol=1e-10)
+
+
+def test_new_integrate():
+    eph = np.array([10.0, 20.0, 40.0, 80.0, 150.0])
+    params = {'model': 'thick-target',
+              'z': 1.2,
+              'p': 5.0,
+              'q': 7.0,
+              'eebrk': 200,
+              'eelow': 1.0,
+              'eehigh': 200.0,
+              'photon_energy': eph,
+              'efd': True}
+    a_lg = np.log10(eph)
+    b_lg = np.full_like(eph, np.log10(200))
+
+    def ff(x, **kwargs):
+        kwargs['electron_energy'] = 10 ** x
+        return emission.get_integrand(**kwargs)
+
+    r1 = gauss_legendre(ff, a_lg, b_lg, func_kwargs=params, n=10)
+    r2 = fixed_quad(ff, a_lg, b_lg, n=10, func_kwargs=params)
+    np.allclose(np.array(r1), np.array(r2))
 
 
 def test_split_and_integrate():
