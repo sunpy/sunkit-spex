@@ -10,13 +10,16 @@ References
 .. [2] Thin-Target: https://hesperia.gsfc.nasa.gov/hessi/flarecode/bremdoc.pdf
 
 """
+import logging
+
 import numpy as np
-from scipy.special import lpmv
 
 from sunxspex import constants as const
+from sunxspex.integrate import gauss_legendre
 
-# Central constant management
 const = const.Constants()
+
+logging = logging.getLogger(__name__)
 
 
 class BrokenPowerLawElectronDistribution:
@@ -353,67 +356,8 @@ def get_integrand(*, model, electron_energy, photon_energy, eelow, eebrk, eehigh
                          f"'thick-target', 'thin-target'")
 
 
-def gauss_legendre(x1, x2, npoints):
-    """
-    Calculate the positions and weights for a Gauss-Legendre integration scheme.
-
-    Parameters
-    ----------
-    x1 : `numpy.array`
-
-    x2 : `numpy.array`
-
-    npoints : `int`
-        Degree or number of points to create
-    Returns
-    -------
-    `tuple` :
-        (x, w) The positions and weights for the integration.
-
-    Notes
-    -----
-
-    Adapted from SSW
-    `Brm_GauLeg54.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_gauleg54.pro>`_
-    """
-    eps = 3e-14
-    m = (npoints + 1) // 2
-
-    x = np.zeros((x1.shape[0], npoints))
-    w = np.zeros((x1.shape[0], npoints))
-
-    # Normalise from -1 to +1 as Legendre polynomial only valid in this range
-    xm = 0.5 * (x2 + x1)
-    xl = 0.5 * (x2 - x1)
-
-    for i in range(1, m + 1):
-
-        z = np.cos(np.pi * (i - 0.25) / (npoints + 0.5))
-        # Init to np.inf so loop runs at least once
-        z1 = np.inf
-
-        # Some kind of integration/update loop
-        while np.abs(z - z1) > eps:
-            # Evaluate Legendre polynomial of degree npoints at z points P_m^l(z) m=0, l=npoints
-            p1 = lpmv(0, npoints, z)
-            p2 = lpmv(0, npoints - 1, z)
-
-            pp = npoints * (z * p1 - p2) / (z ** 2 - 1.0)
-
-            z1 = np.copy(z)
-            z = z1 - p1 / pp
-
-        # Update ith components
-        x[:, i - 1] = xm - xl * z
-        x[:, npoints - i] = xm + xl * z
-        w[:, i - 1] = 2.0 * xl / ((1.0 - z ** 2) * pp ** 2)
-        w[:, npoints - i] = w[:, i - 1]
-
-    return x, w
-
-
 def integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh,
-                   p, q, z, a_lg, b_lg, ll, efd):
+                   p, q, z, a_lg, b_lg, ll, efd, integrator=None):
     """
     Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
 
@@ -472,8 +416,32 @@ def integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh
     intsum = np.zeros_like(photon_energies, dtype=np.float64)
     ier = np.zeros_like(photon_energies)
 
+    if integrator is None:
+        integrator = gauss_legendre
+    elif not callable(integrator):
+        raise TypeError('integrator must ba a callable')
+
     # Copy indices over which to carry out the integration
     i = ll[:]
+
+    def model_func(y, *, model, photon_energy, p, q, eelow, eebrk, eehigh, z, efd):
+        mc2 = const.get_constant('mc2')
+        clight = const.get_constant('clight')
+
+        electron_energy = 10**y
+        brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
+        collision_loss = collisional_loss(electron_energy)
+        pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
+        electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,
+                                                           eehigh=eehigh)
+        density = electron_dist.density(electron_energy)
+        if model == 'thick-target':
+            return 10**y*np.log(10) * density * brem_cross * pc / collision_loss / ((electron_energy / mc2) + 1.0)
+        elif model == 'thin-target':
+            if efd:
+                return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*(mc2/clight)
+            else:
+                return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*pc/((electron_energy / mc2) + 1.0)
 
     for ires in range(2, nlim + 1):
         npoint = 2 ** ires
@@ -481,17 +449,12 @@ def integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh
             ier[i] = 1
             return intsum, ier
 
-        eph1 = photon_energies[i]
-
-        # generate positions and weights
-        xi, wi, = gauss_legendre(a_lg[i], b_lg[i], npoint)
         lastsum = np.copy(intsum)
 
-        # Perform integration sum w_i * f(x_i)  i=1 to npoints
-        intsum[i] = np.sum((10.0 ** xi * np.log(10.0) * wi *
-                            get_integrand(model=model, electron_energy=10.0 ** xi,
-                                          photon_energy=eph1, eelow=eelow, eebrk=eebrk,
-                                          eehigh=eehigh, p=p, q=q, z=z, efd=efd)), axis=1)
+        intsum[i] = integrator(model_func, a_lg[i], b_lg[i], n=npoint, func_kwargs={
+            'model': model, 'photon_energy': photon_energies[i], 'eelow': eelow, 'eebrk': eebrk,
+            'eehigh': eehigh, 'p': p, 'q': q, 'z': z, 'efd': efd})
+
         # Convergence criterion
         l1 = np.abs(intsum - lastsum)
         l2 = rerr * np.abs(intsum)
@@ -503,7 +466,7 @@ def integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh
 
 
 def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z,
-                        efd):
+                        efd, integrator=None):
     """
     Split and integrate the continuous parts of the electron spectrum.
 
@@ -578,14 +541,14 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
     # Part 1, below en_val[0] (usually eelow)
     if model == 'thick-target':
         if P1.size > 0:
-            # print('Part1')
+            logging.debug('Part1')
             a_lg = np.log10(photon_energies[P1])
             b_lg = np.log10(np.full_like(a_lg, eelow))
             i = np.copy(P1)
             intsum1, ier1 = integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
                                            photon_energies=photon_energies,
                                            eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                           a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd)
+                                           a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
 
             # ier = 1 indicates no convergence.
             if sum(ier1):
@@ -600,14 +563,14 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
         if P1.size > 0:
             aa[P1] = eelow
 
-        # print('Part2')
+        logging.debug('Part2')
         a_lg = np.log10(aa[P2])
         b_lg = np.log10(np.full_like(a_lg, eebrk))
         i = np.copy(P2)
         intsum2, ier2 = integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
                                        photon_energies=photon_energies,
                                        eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                       a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd)
+                                       a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
 
         if sum(ier2) > 0:
             raise ValueError('Part 2 integral did not converge for some photon energies.')
@@ -618,14 +581,14 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
         if P2.size > 0:
             aa[P2] = eebrk
 
-        # print('Part3')
+        logging.debug('Part3')
         a_lg = np.log10(aa[P3])
         b_lg = np.log10(np.full_like(a_lg, eehigh))
         i = np.copy(P3)
         intsum3, ier3 = integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
                                        photon_energies=photon_energies,
                                        eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                       a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd)
+                                       a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
         if sum(ier3) > 0:
             raise ValueError('Part 3 integral did not converge for some photon energies.')
 
@@ -641,7 +604,7 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
         return Dmlin, ier
 
 
-def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=True):
+def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=True, integrator=None):
     """
     Computes the thin-target bremsstrahlung x-ray/gamma-ray spectrum from an isotropic electron
     distribution function provided in `broken_powerlaw`. The units of the computed flux is photons
@@ -670,6 +633,9 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
         False - input electron distribution is electron density distribution.
         (unit electrons cm^-3 keV^-1),
         This input is not used in the main routine, but is passed to brm2_dmlin and Brm2_Fthin
+    integrator : callable
+        A Python function or method to integrate must support vector limits and match signture
+        `fun(x, a, b, n, *args, **kwargs)`
 
     Returns
     -------
@@ -718,7 +684,7 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
         flux[l], iergq[l] = split_and_integrate(model='thin-target',
                                                 photon_energies=photon_energies[l], maxfcn=maxfcn,
                                                 rerr=rerr, eelow=eelow, eebrk=eebrk, eehigh=eehigh,
-                                                p=p, q=q, z=z, efd=efd)
+                                                p=p, q=q, z=z, efd=efd, integrator=integrator)
 
         flux *= fcoeff
 
@@ -728,7 +694,7 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
                       'greater than zero')
 
 
-def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh):
+def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, integrator=None):
     """
     Computes the thick-target bremsstrahlung x-ray/gamma-ray spectrum from an isotropic electron
     distribution function provided in `broken_powerlaw_f`. The units of the computed flux is photons
@@ -751,6 +717,9 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh):
         Low energy electron cut off
     eehigh : `float`
         High energy electron cut off
+    integrator : callable
+        A Python function or method to integrate must support vector limits and match signture
+        `fun(x, a, b, n, *args, **kwargs)`
 
     Returns
     -------
@@ -804,7 +773,7 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh):
                                                 photon_energies=photon_energies[i],
                                                 maxfcn=maxfcn, rerr=rerr, eelow=eelow,
                                                 eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                                efd=False)
+                                                efd=False, integrator=integrator)
 
         flux = (fcoeff / decoeff) * flux
 

@@ -28,7 +28,7 @@ def _legendre_roots(a, b, npoints, eps=3e-14):
     Notes
     -----
 
-    Adapted from SSW
+    Adapted from SSWIDL
     `Brm_GauLeg54.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_gauleg54.pro>`_
     """
     m = (npoints + 1) // 2
