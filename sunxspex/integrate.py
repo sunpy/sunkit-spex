@@ -2,6 +2,8 @@ import numpy as np
 from scipy.integrate._quadrature import _cached_roots_legendre
 from scipy.special import lpmv
 
+__all__ = ['gauss_legendre', 'fixed_quad']
+
 
 def _legendre_roots(a, b, npoints, eps=3e-14):
     """

@@ -21,6 +21,10 @@ const = const.Constants()
 
 logging = logging.getLogger(__name__)
 
+__all__ = ['BrokenPowerLawElectronDistribution', 'collisional_loss', 'get_integrand',
+           'integrate_part', 'split_and_integrate', 'bremsstrahlung_thin_target',
+           'bremsstrahlung_thick_target']
+
 
 class BrokenPowerLawElectronDistribution:
     """
