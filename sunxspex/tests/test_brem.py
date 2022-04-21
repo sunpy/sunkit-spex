@@ -1,6 +1,5 @@
 import numpy as np
 
-
 from sunxspex import emission
 
 
@@ -43,7 +42,7 @@ def test_brem_cross_section():
     # Brm_BremCross, [1.0, 10.0, 100.0, 1000.0] + 1, [1.0, 10.0, 100.0, 1000.0], 1.2d, cross
     res_idl = [5.7397846333146957e-22, 4.3229680566443978e-24, 1.6053226238077600e-26,
                1.0327252400755748e-28]
-    assert np.array_equal(res, res_idl)
+    assert np.allclose(res, res_idl, rtol=1e-10)
 
 
 def test_get_integrand():
@@ -66,19 +65,19 @@ def test_get_integrand():
     # 1000.0d, 5.0d, 7.0d, 1.2d)
     res_idl_thick = [6.1083381554006209e-24, 2.5108068464643281e-28, 8.1522892779571421e-34,
                      0.0000000000000000]
-    assert np.array_equal(res_thick, res_idl_thick)
+    assert np.allclose(res_thick, res_idl_thick, rtol=1e-10)
     # IDL code to generate values
     # Brm2_FThin([1.0, 10.0, 100.0, 1000.0]+1.0d, [1.0, 10.0, 100.0, 1000.0], 1.0d,  150.0d,
     # 1000.0d, 5.0d, 7.0d, 1.2d, 1)
     res_idl_thin_efd = [1.2229040135854787e-30, 1.8300600988388983e-36, 1.0413631578198003e-43,
                         0.0000000000000000]
-    assert np.array_equal(res_thin_efd, res_idl_thin_efd)
+    assert np.allclose(res_thin_efd, res_idl_thin_efd, rtol=1e-10)
     # IDL code to generate values
     # Brm2_FThin([1.0, 10.0, 100.0, 1000.0]+1.0d, [1.0, 10.0, 100.0, 1000.0], 1.0d,  150.0d,
     # 1000.0d, 5.0d, 7.0d, 1.2d, 0)
     res_idl_thin_noefd = [3.2341903200820362e-21, 1.1203835558833694e-26, 1.7180070908135551e-33,
                           0.0000000000000000]
-    assert np.array_equal(res_thin_noefd, res_idl_thin_noefd)
+    assert np.allclose(res_thin_noefd, res_idl_thin_noefd, rtol=1e-10)
 
 
 def test_integrate_part():
