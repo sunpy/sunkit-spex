@@ -2,7 +2,6 @@
 # test infrastructure.
 
 
-
 # Uncomment the following line to treat all DeprecationWarnings as
 # exceptions. For Astropy v2.0 or later, there are 2 additional keywords,
 # as follow (although default should work for most cases).
