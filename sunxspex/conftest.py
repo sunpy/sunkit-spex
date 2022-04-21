@@ -1,19 +1,6 @@
 # This file is used to configure the behavior of pytest when using the Astropy
 # test infrastructure.
 
-# from astropy.version import version as astropy_version
-
-# if astropy_version < '3.0':
-#     # With older versions of Astropy, we actually need to import the pytest
-#     # plugins themselves in order to make them discoverable by pytest.
-#     pass
-# else:
-#     # As of Astropy 3.0, the pytest plugins provided by Astropy are
-#     # automatically made available when Astropy is installed. This means it's
-#     # not necessary to import them here, but we still need to import global
-#     # variables that are used for configuration.
-#     pass
-
 
 # Uncomment the following line to treat all DeprecationWarnings as
 # exceptions. For Astropy v2.0 or later, there are 2 additional keywords,
