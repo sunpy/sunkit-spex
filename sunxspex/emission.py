@@ -115,13 +115,13 @@ class BrokenPowerLawElectronDistribution:
 
         index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
         if index[0].size > 0:
-            res[index] = self._norm_factor * self._n0 * (self.p - 1.) \
-                * electron_energy[index] ** (-self.p) * self.eelow ** (self.p - 1.)
+            res[index] = (self._norm_factor * self._n0 * (self.p - 1.)
+                          * electron_energy[index] ** (-self.p) * self.eelow ** (self.p - 1.))
 
         index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
         if index[0].size > 0:
-            res[index] = self._norm_factor * (self.q - 1.) \
-                * electron_energy[index] ** (-self.q) * self.eebrk ** (self.q - 1.)
+            res[index] = (self._norm_factor * (self.q - 1.)
+                          * electron_energy[index] ** (-self.q) * self.eebrk ** (self.q - 1.))
 
         return res
 

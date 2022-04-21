@@ -401,6 +401,6 @@ def test_energy_out_of_range_warning():
         # Cause all warnings to always be triggered.
         warnings.simplefilter("always")
         # Trigger a warning.
-        thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6*u.MK, 1e44/u.cm**3)
+        output = thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6*u.MK, 1e44/u.cm**3)  # noqa
         print(w[0].category)
         assert issubclass(w[0].category, UserWarning)

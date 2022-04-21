@@ -53,3 +53,6 @@ repos:
         exclude: ".*(.fits|.fts|.fit|.txt|tca.*)$"
       - id: mixed-line-ending
         exclude: ".*(.fits|.fts|.fit|.txt|tca.*)$"
+
+ci:
+    autofix_prs: false
