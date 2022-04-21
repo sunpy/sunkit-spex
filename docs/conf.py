@@ -9,12 +9,12 @@
 
 # -- Project information -----------------------------------------------------
 
+from sunxspex import __version__
 project = 'sunxspex'
 copyright = '2020, The SunPy Community'
 author = 'The SunPy Community'
 
 # The full version, including alpha/beta/rc tags
-from sunxspex import __version__
 release = __version__
 is_development = '.dev' in __version__
 

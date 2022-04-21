@@ -65,6 +65,7 @@ class BrokenPowerLawElectronDistribution:
                2.68419888e-22, 0.00000000e+00])
 
     """
+
     def __init__(self, *, p, q, eelow, eebrk, eehigh, norm=True):
         """
 
@@ -89,8 +90,8 @@ class BrokenPowerLawElectronDistribution:
 
     def __eq__(self, other):
         return all([getattr(self, name) == getattr(other, name)
-                for name in ['p', 'q', 'eelow', 'eebrk', 'eehigh']]) and isinstance(other,
-                                                                                    self.__class__)
+                    for name in ['p', 'q', 'eelow', 'eebrk', 'eehigh']]) and isinstance(other,
+                                                                                        self.__class__)
 
     def flux(self, electron_energy):
         """
@@ -114,13 +115,13 @@ class BrokenPowerLawElectronDistribution:
 
         index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
         if index[0].size > 0:
-            res[index] = self._norm_factor * self._n0 * (self.p - 1.) \
-                         * electron_energy[index] ** (-self.p) * self.eelow ** (self.p - 1.)
+            res[index] = (self._norm_factor * self._n0 * (self.p - 1.)
+                          * electron_energy[index] ** (-self.p) * self.eelow ** (self.p - 1.))
 
         index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
         if index[0].size > 0:
-            res[index] = self._norm_factor * (self.q - 1.) \
-                         * electron_energy[index] ** (-self.q) * self.eebrk ** (self.q - 1.)
+            res[index] = (self._norm_factor * (self.q - 1.)
+                          * electron_energy[index] ** (-self.q) * self.eebrk ** (self.q - 1.))
 
         return res
 

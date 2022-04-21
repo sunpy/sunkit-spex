@@ -1,11 +1,12 @@
 import copy
 import warnings
 
-import astropy.units as u
 import numpy as np
 from scipy import interpolate, stats
-from sunpy.data import manager
 
+import astropy.units as u
+
+from sunpy.data import manager
 from sunxspex.io import load_chianti_continuum, load_chianti_lines_lite, load_xray_abundances
 
 __all__ = ['thermal_emission', 'continuum_emission', 'line_emission',
@@ -59,6 +60,7 @@ Returns
 flux: `astropy.units.Quantity`
     The photon flux as a function of temperature and energy.
 """
+
 
 def setup_continuum_parameters(filename=None):
     """
@@ -147,8 +149,8 @@ def setup_line_parameters(filename=None):
         "It (and its unit) therefore must be multipled by emission measure and "
         "divided by 4 * pi * observer_distance**2 to get observed values.")
     line_grid["line peaks keV"] = (
-            line_info.peak_energy.data * line_info.attrs["units"]["peak_energy"]).to_value(
-                u.keV, equivalencies=u.spectral())
+        line_info.peak_energy.data * line_info.attrs["units"]["peak_energy"]).to_value(
+        u.keV, equivalencies=u.spectral())
     line_grid["log10T"] = line_info.logT.data
     line_grid["abundance index"] = line_info.attrs["element_index"]
     line_grid["line atomic numbers"] = line_info.atomic_number.data
@@ -177,6 +179,7 @@ def setup_default_abundances(filename=None):
             return load_xray_abundances()
     else:
         return load_xray_abundances()
+
 
 # Read line, continuum and abundance data into global variables.
 CONTINUUM_GRID = setup_continuum_parameters()
@@ -217,7 +220,7 @@ def thermal_emission(energy_edges,
     continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
     line_flux = _line_emission(energy_edges_keV, temperature_K, abundances)
     flux = ((continuum_flux + line_flux) * emission_measure /
-                (4 * np.pi * observer_distance**2))
+            (4 * np.pi * observer_distance**2))
     if temperature.isscalar and emission_measure.isscalar:
         flux = flux[0]
     return flux
@@ -262,11 +265,11 @@ def continuum_emission(energy_edges,
                   emission_measure=(u.cm**(-3), u.cm**(-5)),
                   observer_distance=u.cm)
 def line_emission(energy_edges,
-         temperature,
-         emission_measure,
-         abundance_type=DEFAULT_ABUNDANCE_TYPE,
-         relative_abundances=None,
-         observer_distance=(1*u.AU).to(u.cm)):
+                  temperature,
+                  emission_measure,
+                  abundance_type=DEFAULT_ABUNDANCE_TYPE,
+                  relative_abundances=None,
+                  observer_distance=(1*u.AU).to(u.cm)):
     """
     Calculate thermal line emission from the solar corona.
 
@@ -319,7 +322,7 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
     abundance_mask[CONTINUUM_GRID["abundance index"]] = 1.
     abundances *= abundance_mask
 
-    #####  Calculate Continuum Intensity Summed Over All Elements
+    # Calculate Continuum Intensity Summed Over All Elements
     #####  For Each Temperature as a function of Energy/Wavelength ######
     # Before looping over temperatures, let's perform the calculations that are
     # used over again in the for loop.
@@ -362,8 +365,8 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
             intensity_per_em_at_source = intensity_per_em_at_source_allT[tband_idx[j]]
 
         ##### Calculate Continuum Intensity at Input Temperature  ######
-        ##### Do this by interpolating the normalized temperature component
-        ##### of the intensity grid to input temperature(s) and then rescaling.
+        # Do this by interpolating the normalized temperature component
+        # of the intensity grid to input temperature(s) and then rescaling.
         # Calculate normalized temperature component of the intensity grid.
         exponent = (repeat_E_grid / repeat_T_grid[tband_idx[j]])
         exponential = np.exp(np.clip(exponent, None, 80))
@@ -477,10 +480,10 @@ def _interpolate_continuum_intensities(data_grid, log10T_grid, energy_grid_keV, 
         # temperature component of intensity.
         logelog10T = np.log(log10T)
         x0, x1, x2 = np.log(log10T_grid)
-        flux[energy_idx]  = np.exp(
+        flux[energy_idx] = np.exp(
             np.log(cont0) * (logelog10T - x1) * (logelog10T - x2) / ((x0 - x1) * (x0 - x2)) +
             np.log(cont1) * (logelog10T - x0) * (logelog10T - x2) / ((x1 - x0) * (x1 - x2)) +
-            np.log(cont2) * (logelog10T - x0) * (logelog10T - x1) / ((x2 - x0) * (x2 - x1)) )
+            np.log(cont2) * (logelog10T - x0) * (logelog10T - x1) / ((x2 - x0) * (x2 - x1)))
     return flux
 
 
@@ -707,7 +710,7 @@ def _error_if_input_outside_valid_range(input_values, grid_range, param_name, pa
             grid_range = u.Quantity(grid_range, unit=param_unit).to_value(message_unit)
             param_unit = message_unit
         message = (f"All input {param_name} values must be within the range "
-               f"{grid_range[0]}--{grid_range[1]} {param_unit}. ")
+                   f"{grid_range[0]}--{grid_range[1]} {param_unit}. ")
         raise ValueError(message)
 
 
@@ -730,7 +733,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
         min_abundance_z = DEFAULT_ABUNDANCES["atomic number"].min()
         max_abundance_z = DEFAULT_ABUNDANCES["atomic number"].max()
         if (rel_abund_array[0].min() < min_abundance_z or
-            rel_abund_array[0].max() > max_abundance_z):
+                rel_abund_array[0].max() > max_abundance_z):
             raise ValueError("Relative abundances can only be set for elements with "
                              f"atomic numbers in range {min_abundance_z} -- {min_abundance_z}")
         if rel_abund_array[1].min() < 0:
