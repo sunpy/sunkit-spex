@@ -21,8 +21,8 @@ const = const.Constants()
 
 logging = logging.getLogger(__name__)
 
-__all__ = ['BrokenPowerLawElectronDistribution', 'collisional_loss', 'get_integrand',
-           'integrate_part', 'split_and_integrate', 'bremsstrahlung_thin_target',
+__all__ = ['BrokenPowerLawElectronDistribution', 'collisional_loss', '_get_integrand',
+           '_integrate_part', '_split_and_integrate', 'bremsstrahlung_thin_target',
            'bremsstrahlung_thick_target']
 
 
@@ -291,8 +291,8 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     return cross_section
 
 
-def get_integrand(*, model, electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2,
-                  efd=True):
+def _get_integrand(*, model, electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2,
+                   efd=True):
     """
     Return the value of the integrand for the thick- or thin-target bremsstrahlung models.
 
@@ -360,8 +360,8 @@ def get_integrand(*, model, electron_energy, photon_energy, eelow, eebrk, eehigh
                          f"'thick-target', 'thin-target'")
 
 
-def integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh,
-                   p, q, z, a_lg, b_lg, ll, efd, integrator=None):
+def _integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh,
+                    p, q, z, a_lg, b_lg, ll, efd, integrator=None):
     """
     Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
 
@@ -428,24 +428,29 @@ def integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh
     # Copy indices over which to carry out the integration
     i = ll[:]
 
-    def model_func(y, *, model, photon_energy, p, q, eelow, eebrk, eehigh, z, efd):
+    electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,
+                                                       eehigh=eehigh)
+
+    def model_func(x_log, *, model, electron_dist, photon_energy, p, q, eelow, eebrk, eehigh, z, efd):
         mc2 = const.get_constant('mc2')
         clight = const.get_constant('clight')
 
-        electron_energy = 10**y
+        electron_energy = 10**x_log
         brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
         collision_loss = collisional_loss(electron_energy)
         pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
-        electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,
-                                                           eehigh=eehigh)
+
         density = electron_dist.density(electron_energy)
         if model == 'thick-target':
-            return 10**y*np.log(10) * density * brem_cross * pc / collision_loss / ((electron_energy / mc2) + 1.0)
+            return (electron_energy * np.log(10) * density * brem_cross * pc
+                    / collision_loss / ((electron_energy / mc2) + 1.0))
         elif model == 'thin-target':
             if efd:
-                return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*(mc2/clight)
+                return (electron_energy * np.log(10) * electron_dist.flux(electron_energy)
+                        * brem_cross*(mc2/clight))
             else:
-                return 10**y*np.log(10)*electron_dist.flux(electron_energy)*brem_cross*pc/((electron_energy / mc2) + 1.0)
+                return (electron_energy * np.log(10) * electron_dist.flux(electron_energy)
+                        * brem_cross * pc/((electron_energy / mc2) + 1.0))
 
     for ires in range(2, nlim + 1):
         npoint = 2 ** ires
@@ -456,8 +461,8 @@ def integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh
         lastsum = np.copy(intsum)
 
         intsum[i] = integrator(model_func, a_lg[i], b_lg[i], n=npoint, func_kwargs={
-            'model': model, 'photon_energy': photon_energies[i], 'eelow': eelow, 'eebrk': eebrk,
-            'eehigh': eehigh, 'p': p, 'q': q, 'z': z, 'efd': efd})
+            'model': model, 'electron_dist': electron_dist, 'photon_energy': photon_energies[i],
+            'eelow': eelow, 'eebrk': eebrk, 'eehigh': eehigh, 'p': p, 'q': q, 'z': z, 'efd': efd})
 
         # Convergence criterion
         l1 = np.abs(intsum - lastsum)
@@ -469,8 +474,8 @@ def integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh
             return intsum, ier
 
 
-def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z,
-                        efd, integrator=None):
+def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z,
+                         efd, integrator=None):
     """
     Split and integrate the continuous parts of the electron spectrum.
 
@@ -549,10 +554,10 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
             a_lg = np.log10(photon_energies[P1])
             b_lg = np.log10(np.full_like(a_lg, eelow))
             i = np.copy(P1)
-            intsum1, ier1 = integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
-                                           photon_energies=photon_energies,
-                                           eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                           a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
+            intsum1, ier1 = _integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
+                                            photon_energies=photon_energies,
+                                            eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
+                                            a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
 
             # ier = 1 indicates no convergence.
             if sum(ier1):
@@ -571,10 +576,10 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
         a_lg = np.log10(aa[P2])
         b_lg = np.log10(np.full_like(a_lg, eebrk))
         i = np.copy(P2)
-        intsum2, ier2 = integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
-                                       photon_energies=photon_energies,
-                                       eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                       a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
+        intsum2, ier2 = _integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
+                                        photon_energies=photon_energies,
+                                        eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
+                                        a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
 
         if sum(ier2) > 0:
             raise ValueError('Part 2 integral did not converge for some photon energies.')
@@ -589,10 +594,10 @@ def split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, e
         a_lg = np.log10(aa[P3])
         b_lg = np.log10(np.full_like(a_lg, eehigh))
         i = np.copy(P3)
-        intsum3, ier3 = integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
-                                       photon_energies=photon_energies,
-                                       eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                       a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
+        intsum3, ier3 = _integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
+                                        photon_energies=photon_energies,
+                                        eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
+                                        a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
         if sum(ier3) > 0:
             raise ValueError('Part 3 integral did not converge for some photon energies.')
 
@@ -685,10 +690,10 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
 
     l, = np.where((photon_energies < eehigh) & (photon_energies > 0))
     if l.size > 0:
-        flux[l], iergq[l] = split_and_integrate(model='thin-target',
-                                                photon_energies=photon_energies[l], maxfcn=maxfcn,
-                                                rerr=rerr, eelow=eelow, eebrk=eebrk, eehigh=eehigh,
-                                                p=p, q=q, z=z, efd=efd, integrator=integrator)
+        flux[l], iergq[l] = _split_and_integrate(model='thin-target',
+                                                 photon_energies=photon_energies[l], maxfcn=maxfcn,
+                                                 rerr=rerr, eelow=eelow, eebrk=eebrk, eehigh=eehigh,
+                                                 p=p, q=q, z=z, efd=efd, integrator=integrator)
 
         flux *= fcoeff
 
@@ -773,11 +778,11 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, int
     i, = np.where((photon_energies < eehigh) & (photon_energies > 0))
 
     if i.size > 0:
-        flux[i], iergq[i] = split_and_integrate(model='thick-target',
-                                                photon_energies=photon_energies[i],
-                                                maxfcn=maxfcn, rerr=rerr, eelow=eelow,
-                                                eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                                efd=False, integrator=integrator)
+        flux[i], iergq[i] = _split_and_integrate(model='thick-target',
+                                                 photon_energies=photon_energies[i],
+                                                 maxfcn=maxfcn, rerr=rerr, eelow=eelow,
+                                                 eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
+                                                 efd=False, integrator=integrator)
 
         flux = (fcoeff / decoeff) * flux
 

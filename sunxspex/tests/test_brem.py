@@ -58,9 +58,9 @@ def test_get_integrand():
               'q': 7.0,
               'z': 1.2}
 
-    res_thick = emission.get_integrand(model='thick-target', **params)
-    res_thin_efd = emission.get_integrand(model='thin-target', **params)
-    res_thin_noefd = emission.get_integrand(model='thin-target', **params, efd=False)
+    res_thick = emission._get_integrand(model='thick-target', **params)
+    res_thin_efd = emission._get_integrand(model='thin-target', **params)
+    res_thin_noefd = emission._get_integrand(model='thin-target', **params, efd=False)
     # IDL code to generate values
     # Brm2_Fouter([1.0, 10.0, 100.0, 1000.0] + 1, [1.0, 10.0, 100.0, 1000.0], 10.0d,  150.0d,
     # 1000.0d, 5.0d, 7.0d, 1.2d)
@@ -98,7 +98,7 @@ def test_integrate_part():
               'll': [0, 1, 2, 3, 4],
               'efd': True}
 
-    res_thin, _ = emission.integrate_part(**params)
+    res_thin, _ = emission._integrate_part(**params)
     # IDL code to generate values - constructed so it only cover a singe continuous part
     # brm2_dmlin([10.0d, 20.0d, 40.0d, 80.0d, 150.0], [200.0d, 200.0d, 200.0d, 200.0d, 200.0d],
     # 2048, 1e-4, [10.0d, 20.0d, 40.0d, 80.0d, 150.0], 1.0, 200.0d, 200.0d, 5.0d, 7.0d, 1.2d, 1)
@@ -108,7 +108,7 @@ def test_integrate_part():
     #assert np.allclose(res_thin, res_idl_thin, atol=0, rtol=1e-10)
 
     params['model'] = 'thick-target'
-    res_thick, _ = emission.integrate_part(**params)
+    res_thick, _ = emission._integrate_part(**params)
     # IDL code to generate values - constructed so it only cover a singe continuous part
     # out = dblarr(5)
     # IDL> ier = dblarr(5)
@@ -137,7 +137,7 @@ def test_new_integrate():
 
     def ff(x, **kwargs):
         kwargs['electron_energy'] = 10 ** x
-        return emission.get_integrand(**kwargs)
+        return emission._get_integrand(**kwargs)
 
     r1 = gauss_legendre(ff, a_lg, b_lg, func_kwargs=params, n=10)
     r2 = fixed_quad(ff, a_lg, b_lg, n=10, func_kwargs=params)
@@ -160,9 +160,9 @@ def test_split_and_integrate():
         'efd': True
     }
 
-    res_thick = emission.split_and_integrate(**params)
+    res_thick = emission._split_and_integrate(**params)
     params['model'] = 'thin-target'
-    res_thin = emission.split_and_integrate(**params)
+    res_thin = emission._split_and_integrate(**params)
     # IDL code to generate values
     # Brm2_DmlinO, [5.0d, 10.0d, 50.0d, 150.0d, 300.0d, 500.0d, 750.0d, 1000.0d], $
     # [10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.0d, 10000.000], 2048, $

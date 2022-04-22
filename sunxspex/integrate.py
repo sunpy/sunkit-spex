@@ -1,15 +1,12 @@
 import numpy as np
 from scipy.integrate._quadrature import _cached_roots_legendre
-from scipy.special import lpmv
 
 __all__ = ['gauss_legendre', 'fixed_quad']
 
 
-def _legendre_roots(a, b, npoints, eps=3e-14):
+def _legendre_roots(a, b, n=5):
     """
-    Calculate the positions and weights for a Gauss-Legendre integration scheme.
-
-    Specifically for use with `gauss_legendre`
+    Calculate the positions and weights for a Gauss-Legendre integration scheme with limits [a, b].
 
     Parameters
     ----------
@@ -17,55 +14,24 @@ def _legendre_roots(a, b, npoints, eps=3e-14):
         Lower integration limits
     b : `numpy.array`
         Upper integration limits
-    npoints : `int`
-        Degree or number of points to create
-    eps : `float`, optional
-        Tolerance for calculating the roots
+    n : `int`, optional
+        Order of quadrature integration. Default is 5.
 
     Returns
     -------
     `tuple` :
         (x, w) The positions and weights for the integration.
 
-    Notes
-    -----
-
-    Adapted from SSWIDL
-    `Brm_GauLeg54.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_gauleg54.pro>`_
     """
-    m = (npoints + 1) // 2
+    # Legendre points and weights over interval [-1, 1]
+    x, w = _cached_roots_legendre(n)
 
-    x = np.zeros((a.shape[0], npoints))
-    w = np.zeros((a.shape[0], npoints))
-
-    # Normalise from -1 to +1 as Legendre polynomial only valid in this range
+    # map x, w to interval [a, b]
     xm = 0.5 * (b + a)
     xl = 0.5 * (b - a)
-
-    for i in range(1, m + 1):
-
-        z = np.cos(np.pi * (i - 0.25) / (npoints + 0.5))
-        # Init to np.inf so loop runs at least once
-        z1 = np.inf
-
-        # Some kind of integration/update loop
-        while np.abs(z - z1) > eps:
-            # Evaluate Legendre polynomial of degree npoints at z points P_m^l(z) m=0, l=npoints
-            p1 = lpmv(0, npoints, z)
-            p2 = lpmv(0, npoints - 1, z)
-
-            pp = npoints * (z * p1 - p2) / (z ** 2 - 1.0)
-
-            z1 = np.copy(z)
-            z = z1 - p1 / pp
-
-        # Update ith components
-        x[:, i - 1] = xm - xl * z
-        x[:, npoints - i] = xm + xl * z
-        w[:, i - 1] = 2.0 * xl / ((1.0 - z ** 2) * pp ** 2)
-        w[:, npoints - i] = w[:, i - 1]
-
-    return x, w
+    xab = xm.reshape(a.shape[0], 1) + xl.reshape(a.shape[0], 1) * x.reshape(1, x.shape[0])
+    wab = w.reshape(1, w.shape[0]) * xl.reshape(a.shape[0], 1)
+    return xab, wab
 
 
 def gauss_legendre(func, a, b, n=5, args=(), func_kwargs={}):
