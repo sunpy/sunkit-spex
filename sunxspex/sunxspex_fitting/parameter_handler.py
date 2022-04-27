@@ -67,7 +67,7 @@ class Parameters:
     --------
     # load in 2 spectra, rebin the count channels to have a minimum of 10 counts then undo that rebinning
     pt = Parameters(["p1_spectrum1", "p2_spectrum1", "p1_spectrum2", "p2_spectrum2"])
-    >>> pt
+     pt
                     Status  Value       Bounds       Error
     p1_spectrum1    free    1.0  (0.0, None)  (0.0, 0.0)
     p2_spectrum1    free    1.0  (0.0, None)  (0.0, 0.0)
@@ -79,7 +79,7 @@ class Parameters:
     # <equivalent> pt["p1_spectrum1", "Status"] = "fixed"
     # <equivalent> pt["Status"] = {"p1_spectrum1":"fixed"}
     # <equivalent> pt["Status"] = ["fixed", "free", "free", "free"]
-    >>> pt
+     pt
                     Status  Value       Bounds       Error
     p1_spectrum1  frozen    1.0  (0.0, None)  (0.0, 0.0)
                             ...
@@ -94,7 +94,7 @@ class Parameters:
     # To change multiple entries for one parameter
     pt["p1_spectrum1"] = {"Status":"fixed", "Value":4, "Bounds":(1, 50)}
     # <equivalent>  pt["p1_spectrum1"] = ["fixed", 4, (1, 50)])
-    >>> pt
+     pt
                     Status  Value       Bounds       Error
     p1_spectrum1  frozen    4.0      (1, 50)  (0.0, 0.0)
                             ...

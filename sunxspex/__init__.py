@@ -9,4 +9,4 @@ from .version import __version__
 >>>>>>> 1664cc0 (Apply suggestions from code review)
 
 __all__ = []
-from . import thermal, io, sunxspex_fitting
+from . import io, sunxspex_fitting, thermal

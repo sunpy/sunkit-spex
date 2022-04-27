@@ -2,12 +2,6 @@
 The following code hosts the main class that handles all processes relevant to fitting.
 """
 
-from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
-from sunxspex.sunxspex_fitting.photon_models_for_fitting import defined_photon_models
-from sunxspex.sunxspex_fitting.parameter_handler import Parameters, isnumber
-from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
-from sunxspex.sunxspex_fitting.instruments import rebin_any_array
-from sunxspex.sunxspex_fitting.data_loader import LoadSpec
 import re
 import math as maths
 import types
@@ -40,6 +34,13 @@ from scipy.linalg import LinAlgError
 from scipy.optimize import minimize
 
 from astropy.table import Table
+
+from sunxspex.sunxspex_fitting.data_loader import LoadSpec
+from sunxspex.sunxspex_fitting.instruments import rebin_any_array
+from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
+from sunxspex.sunxspex_fitting.parameter_handler import Parameters, isnumber
+from sunxspex.sunxspex_fitting.photon_models_for_fitting import defined_photon_models
+from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
