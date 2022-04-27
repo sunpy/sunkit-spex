@@ -53,7 +53,7 @@ def col2arr_py(data):
                      dtype=(numpy.record, [('ENERG_LO', '>f4'), ('ENERG_HI', '>f4'), ('N_GRP', '>i2'),
                                            ('F_CHAN', '>i4', (2,)), ('N_CHAN', '>i4', (2,)), ('MATRIX', '>i4', (2,))]))
 
-    >>> col2arr_py(data['F_CHAN'])
+     col2arr_py(data['F_CHAN'])
     array([[  0.,   0.],
            [  0.,   0.],
            [  0.,  22.]])
@@ -98,18 +98,18 @@ def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None
 
     Example
     -------
-    >>> d_rmf = 'directory/'
-    >>> f_rmf = 'file.rmf'
-    >>> e_lo, e_hi, ngrp, fchan, nchan, matrix = io._read_rmf(d_rmf+f_rmf)
+     d_rmf = 'directory/'
+     f_rmf = 'file.rmf'
+     e_lo, e_hi, ngrp, fchan, nchan, matrix = io._read_rmf(d_rmf+f_rmf)
 
-    >>> fchan_array = nu_spec.col2arr_py(fchan)
-    >>> nchan_array = nu_spec.col2arr_py(nchan)
+     fchan_array = nu_spec.col2arr_py(fchan)
+     nchan_array = nu_spec.col2arr_py(nchan)
 
-    >>> rmf = nu_spec.vrmf2arr_py(data=matrix,
+     rmf = nu_spec.vrmf2arr_py(data=matrix,
                                   n_grp_list=ngrp,
                                   f_chan_array=fchan_array,
                                   n_chan_array=nchan_array)
-    >>> rmf
+     rmf
 
     array([[0.00033627, 0.0007369 , 0.00113175, ..., 0.        , 0.        , 0.        ],
            [0.00039195, 0.00079259, 0.00138341, ..., 0.        , 0.        , 0.        ],
