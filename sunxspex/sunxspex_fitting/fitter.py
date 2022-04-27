@@ -39,7 +39,12 @@ from sunxspex.sunxspex_fitting.data_loader import LoadSpec
 from sunxspex.sunxspex_fitting.instruments import rebin_any_array
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
 from sunxspex.sunxspex_fitting.parameter_handler import Parameters, isnumber
-from sunxspex.sunxspex_fitting.photon_models_for_fitting import defined_photon_models
+from sunxspex.sunxspex_fitting.photon_models_for_fitting import (  # noqa
+    defined_photon_models,
+    f_vth,
+    thick_fn,
+    thick_warm,
+)
 from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
