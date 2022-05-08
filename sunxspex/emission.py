@@ -291,8 +291,8 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     return cross_section
 
 
-def _get_integrand(*, model, electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2,
-                   efd=True):
+def _get_integrand0(*, model, electron_energy, photon_energy, eelow, eebrk, eehigh, p, q, z=1.2,
+                    efd=True):
     """
     Return the value of the integrand for the thick- or thin-target bremsstrahlung models.
 
@@ -358,6 +358,62 @@ def _get_integrand(*, model, electron_energy, photon_energy, eelow, eebrk, eehig
     else:
         raise ValueError(f"Given model: {model} is not one of supported values"
                          f"'thick-target', 'thin-target'")
+
+
+def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
+    """
+    Return the value of the integrand for the thick- or thin-target bremsstrahlung models.
+
+    Parameters
+    ----------
+    x_log : `numpy.array'
+        Log of the electron energies
+    model : `str`
+        Either `thick-target` or `thin-target`
+    electron_dist : `numpy.array`
+        Electron energies
+    photon_energy : `numpy.array`
+        Photon energies
+    z : `float`
+        Mean atomic number of plasma
+    efd: `bool` (optional)
+        True (default) the electron flux distribution (electrons cm^-2 s^-1 keV^-1) is calculated
+        with `~sunxspex.emission.BrokenPowerLawElectronDistribution.flux`. False, the electron
+        density distribution (electrons cm^-3 keV^-1) is calculated with
+        `~sunxspex.emission.BrokenPowerLawElectronDistribution.density`.
+
+    Returns
+    -------
+    `numpy.array`
+        The values of the integrand at the given electron_energies
+
+    References
+    ----------
+    See SSW
+    `brm2_fthin.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fthin.pro>`_ and
+    `brm2_fouter.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fouter.pro>`_.
+
+    """
+    mc2 = const.get_constant('mc2')
+    clight = const.get_constant('clight')
+
+    # L=log10 (E), E=l0L and dE=10L ln(10) dL hence the electron_energy * np.log(10) below
+    electron_energy = 10**x_log
+    brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
+    collision_loss = collisional_loss(electron_energy)
+    pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
+
+    density = electron_dist.density(electron_energy)
+    if model == 'thick-target':
+        return (electron_energy * np.log(10) * density * brem_cross * pc
+                / collision_loss / ((electron_energy / mc2) + 1.0))
+    elif model == 'thin-target':
+        if efd:
+            return (electron_energy * np.log(10) * electron_dist.flux(electron_energy)
+                    * brem_cross*(mc2/clight))
+        else:
+            return (electron_energy * np.log(10) * electron_dist.flux(electron_energy)
+                    * brem_cross * pc/((electron_energy / mc2) + 1.0))
 
 
 def _integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh,
@@ -460,9 +516,9 @@ def _integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehig
 
         lastsum = np.copy(intsum)
 
-        intsum[i] = integrator(model_func, a_lg[i], b_lg[i], n=npoint, func_kwargs={
+        intsum[i] = integrator(_get_integrand, a_lg[i], b_lg[i], n=npoint, func_kwargs={
             'model': model, 'electron_dist': electron_dist, 'photon_energy': photon_energies[i],
-            'eelow': eelow, 'eebrk': eebrk, 'eehigh': eehigh, 'p': p, 'q': q, 'z': z, 'efd': efd})
+            'z': z, 'efd': efd})
 
         # Convergence criterion
         l1 = np.abs(intsum - lastsum)

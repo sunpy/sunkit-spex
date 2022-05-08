@@ -48,19 +48,17 @@ def test_brem_cross_section():
 
 def test_get_integrand():
     photon_energies = np.array([1.0, 10.0, 100.0, 1000.0])
-    electron_energies = photon_energies + 1
-    params = {'electron_energy': electron_energies,
-              'photon_energy': photon_energies,
-              'eelow': 1.0,
-              'eebrk': 150.0,
-              'eehigh': 1000.0,
-              'p': 5.0,
-              'q': 7.0,
-              'z': 1.2}
+    electron_energies = np.log(photon_energies + 1)
 
-    res_thick = emission._get_integrand(model='thick-target', **params)
-    res_thin_efd = emission._get_integrand(model='thin-target', **params)
-    res_thin_noefd = emission._get_integrand(model='thin-target', **params, efd=False)
+    electron_dist = emission.BrokenPowerLawElectronDistribution(p=5.0, q=7.0, eelow=1, eebrk=150,
+                                                                eehigh=1000.0)
+
+    params = {'electron_dist': electron_dist, 'photon_energy': photon_energies, 'z': 1.2}
+
+    res_thick = emission._get_integrand(electron_energies, model='thick-target', **params)
+    res_thin_efd = emission._get_integrand(electron_energies, model='thin-target', **params)
+    res_thin_noefd = emission._get_integrand(electron_energies, model='thin-target', **params,
+                                             efd=False)
     # IDL code to generate values
     # Brm2_Fouter([1.0, 10.0, 100.0, 1000.0] + 1, [1.0, 10.0, 100.0, 1000.0], 10.0d,  150.0d,
     # 1000.0d, 5.0d, 7.0d, 1.2d)
@@ -123,25 +121,18 @@ def test_integrate_part():
 
 def test_new_integrate():
     eph = np.array([10.0, 20.0, 40.0, 80.0, 150.0])
-    params = {'model': 'thick-target',
-              'z': 1.2,
-              'p': 5.0,
-              'q': 7.0,
-              'eebrk': 200,
-              'eelow': 1.0,
-              'eehigh': 200.0,
-              'photon_energy': eph,
-              'efd': True}
+
+    electron_dist = emission.BrokenPowerLawElectronDistribution(p=5.0, q=7.0, eelow=1, eebrk=200,
+                                                                eehigh=200.0)
+
+    params = {'model': 'thick-target', 'electron_dist': electron_dist, 'photon_energy': eph,
+              'z': 1.2}
     a_lg = np.log10(eph)
     b_lg = np.full_like(eph, np.log10(200))
 
-    def ff(x, **kwargs):
-        kwargs['electron_energy'] = 10 ** x
-        return emission._get_integrand(**kwargs)
-
-    r1 = gauss_legendre(ff, a_lg, b_lg, func_kwargs=params, n=10)
-    r2 = fixed_quad(ff, a_lg, b_lg, n=10, func_kwargs=params)
-    np.allclose(np.array(r1), np.array(r2))
+    r1 = gauss_legendre(emission._get_integrand, a_lg, b_lg, func_kwargs=params, n=10)
+    r2 = fixed_quad(emission._get_integrand, a_lg, b_lg, n=10, func_kwargs=params)
+    np.allclose(np.array(r1), np.array(r2), rtol=1e-10)
 
 
 def test_split_and_integrate():
