@@ -26,7 +26,7 @@ def _get_spec_file_info(spec_file):
     2d array of the time bins for each spectrum (time_bins), 2d array of livetimes/counts/count rates/count
     rate errors per channel bin and spectrum (lvt/counts/cts_rates/cts_rate_err, respectively).
     """
-    sdict = io._read_sspec_file(spec_file)
+    sdict = io._read_stix_spec_file(spec_file)
 
     times_mids = sdict["2"][1]["time"]  # mid-times of spectra, entries -> times. Mid-times from start of observation
     time_deltas = sdict["2"][1]["timedel"]  # times deltas of spectra, entries -> times
@@ -136,7 +136,7 @@ def _get_srm_file_info(srm_file):
     in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
     sub-set (nchan), 2d array that is the spectral response (srm).
     """
-    srmfsdict = io._read_ssrm_file(srm_file)
+    srmfsdict = io._read_stix_srm_file(srm_file)
 
     photon_bins = srmfsdict["photon_energy_bin_edges"]
 
