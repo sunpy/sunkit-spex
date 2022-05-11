@@ -1,5 +1,5 @@
 """
-The `io` module contains code to read instrument specific spectral data.
+The ``io`` module contains code to read instrument specific spectral data.
 """
 from astropy.io import fits
 
