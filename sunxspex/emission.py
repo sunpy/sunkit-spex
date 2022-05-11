@@ -366,7 +366,7 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
 
     Parameters
     ----------
-    x_log : `numpy.array'
+    x_log : `numpy.array`
         Log of the electron energies
     model : `str`
         Either `thick-target` or `thin-target`
