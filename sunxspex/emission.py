@@ -479,7 +479,7 @@ def _integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehig
     if integrator is None:
         integrator = gauss_legendre
     elif not callable(integrator):
-        raise TypeError('integrator must ba a callable')
+        raise TypeError('integrator must be a callable')
 
     # Copy indices over which to carry out the integration
     i = ll[:]
