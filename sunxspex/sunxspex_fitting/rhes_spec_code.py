@@ -26,7 +26,7 @@ def _get_spec_file_info(spec_file):
     2d array of the time bins for each spectrum (time_bins), 2d array of livetimes/counts/count rates/count
     rate errors per channel bin and spectrum (lvt/counts/cts_rates/cts_rate_err, respectively).
     """
-    rdict = io._read_rspec_file(spec_file)
+    rdict = io._read_rhessi_spec_file(spec_file)
 
     if rdict["1"][0]["SUMFLAG"] != 1:
         print("Apparently spectrum file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
@@ -120,7 +120,7 @@ def _get_srm_file_info(srm_file):
     in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
     sub-set (nchan), 2d array that is the spectral response (srm).
     """
-    srmfrdict = io._read_rsrm_file(srm_file)
+    srmfrdict = io._read_rhessi_srm_file(srm_file)
 
     if srmfrdict["1"][0]["SUMFLAG"] != 1:
         print("Apparently srm file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
