@@ -24,8 +24,7 @@ import logging
 logging.basicConfig(filename='xspec.log', level=logging.DEBUG) #for now this helps catch Python errors that are not printed to the terminal by XSPEC
 
 # Central constant management
-#global const #maybe re-write with astropy constants to keep so many globals from floating around
-const = constants.Constants() #will this work even inside the objects? or does it need to be a global
+CONST = constants.Constants()
 
 class XspecModel:
     '''Base class for Xspec models. Must include the model function and initial parameters
