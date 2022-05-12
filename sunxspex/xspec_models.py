@@ -281,9 +281,9 @@ class ThinTargetModel(XspecModel):
         photon_energy_bin_centers=(photon_energies[1:]-photon_energies[:-1])/2+photon_energies[:-1] #assumes linear spacing...
         internal_flux=np.zeros(photon_energies.shape)
 
-        mc2 = const.get_constant('mc2')
-        clight = const.get_constant('clight')
-        au = const.get_constant('au')
+        mc2 = CONST.get_constant('mc2')
+        clight = CONST.get_constant('clight')
+        au = CONST.get_constant('au')
 
         # Max number of points
         maxfcn = 2048
