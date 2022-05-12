@@ -14,7 +14,7 @@ Fixes #57
 """
 import numpy as np
 import pandas as pd
-from sunxspex.emission import split_and_integrate,split_and_integrate0
+from sunxspex.emission import split_and_integrate, split_and_integrate0
 from sunxspex import thermal
 from sunxspex import constants
 from astropy import units as u
