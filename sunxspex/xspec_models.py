@@ -85,11 +85,10 @@ class ThickTargetModel(XspecModel):
         internal_flux=np.zeros(photon_energies.shape)
 
         # Constants
-        #const=constants.Constants() #assume this has already happened
-        mc2 = const.get_constant('mc2')
-        clight = const.get_constant('clight')
-        au = const.get_constant('au')
-        r0 = const.get_constant('r0')
+        mc2 = CONST.get_constant('mc2')
+        clight = CONST.get_constant('clight')
+        au = CONST.get_constant('au')
+        r0 = CONST.get_constant('r0')
 
         # Max number of points
         maxfcn = 2048
