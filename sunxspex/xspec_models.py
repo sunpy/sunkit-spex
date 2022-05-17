@@ -14,14 +14,13 @@ Fixes #57
 """
 import numpy as np
 import pandas as pd
-from sunxspex.emission import split_and_integrate, split_and_integrate0
+from sunxspex.emission import split_and_integrate
 from sunxspex import thermal
 from sunxspex import constants
 from astropy import units as u
-from scipy.interpolate import interp1d
 
 import logging
-logging.basicConfig(filename='xspec.log', level=logging.DEBUG) #for now this helps catch Python errors that are not printed to the terminal by XSPEC
+logging.basicConfig(filename='xspec.log', level=logging.DEBUG) #For now this helps catch Python errors that are not printed to the terminal by XSPEC
 
 # Central constant management
 CONST = constants.Constants()
@@ -34,41 +33,40 @@ class XspecModel:
     thick=ThickTargetModel()
     xspec.AllModels.addPyMod(thick.model, thick.ParInfo, 'add')'''
     def __init__(self):
-        self.ParInfo=''
-        self.model=None
-        self.description=None
-        #deal with constants here?
+        self.ParInfo = ''
+        self.model = None
+        self.description = None
 
     def __repr__(self):
         return self.description
 
     def print_ParInfo(self):
         '''print parameter info in a readable format with headers '''
-        headers="Parameter,Unit,Default,Hard Min,Soft Min,Soft Max,Hard Max,Delta".split(',')
-        partable=np.array([[p.split('  ') for p in self.ParInfo]]).reshape((len(self.ParInfo),8)).T
-        df=pd.DataFrame({h:r for h,r in zip(headers,partable)}, index=range(1,len(self.ParInfo)+1))
-        return df #table should be small enough to print well in both terminal and Jupyter
+        headers = "Parameter,Unit,Default,Hard Min,Soft Min,Soft Max,Hard Max,Delta".split(',')
+        partable = np.array([[p.split('  ') for p in self.ParInfo]]).reshape((len(self.ParInfo),8)).T
+        df = pd.DataFrame({h:r for h,r in zip(headers,partable)}, index=range(1,len(self.ParInfo)+1))
+        return df #Table should be small enough to print well in both terminal and Jupyter
 
     def other_method(self):
         '''such as: easily set parameter defaults from a tuple or dictionary, descriptions of parameters, etc'''
         raise NotImplementedError
 
 class ThickTargetModel(XspecModel):
-    '''Thick-target bremsstrahlung model for use in Xspec. Default parameters are taken from OSPEX [link]()'''
+    '''Thick-target bremsstrahlung model for use in Xspec. Default parameters are taken from OSPEX [f_thick2_defaults.pro](https://hesperia.gsfc.nasa.gov/ssw/packages/spex/idl/object_spex/f_thick2_defaults.pro)'''
     def __init__(self):
-        self.ParInfo=(
-        "a0  1e-35  100.0  1.0  10.0  1e6  1e7  1.0",
+        self.ParInfo = (
+        #"a0  1e-35  100.0  1.0  10.0  1e6  1e7  1.0",
         "p  \"\"  4.0  1.1  1.5  15.0  20.0  0.1",
            "eebrk  keV  150.0  1.0  5.0  100.  1e5  0.5" ,
          "q  \"\"  6.0  0.0  1.5  15.0  20.0  0.1",
          "eelow  keV  20.0  0.0  1.0  100.  1e3  1.0" ,
          "eehigh  keV  3200.0  1.0  10.0  1e6  1e7  1.0"
         )
-        self.model=self.thick2
-        self.description=f"Thick-target bremsstrahlung '{self.model.__name__}'"
+        self.model = self.bremsstrahlung_thick_target
+        self.description = f"Thick-target bremsstrahlung '{self.model.__name__}'"
 
-    @staticmethod #XSPEC won't know what to do with self as first arg
-    def thick2(photon_energies, params, flux):
+    @staticmethod
+    def bremsstrahlung_thick_target(photon_energies, params, flux):
         """
         tuples or lists containing photon energies, params
               flux is empty list of length nE-1
@@ -79,10 +77,10 @@ class ThickTargetModel(XspecModel):
               The output flux array for an additive model should be in terms of photons/cm$^2$/s
               (not photons/cm$^2$/s/keV) i.e. it is the model spectrum integrated over the energy bin.
         """
-        photon_energies=np.array(photon_energies)
-        photon_energy_bins=photon_energies[1:]-photon_energies[:-1]
-        photon_energy_bin_centers=(photon_energies[1:]-photon_energies[:-1])/2+photon_energies[:-1] #assumes linear spacing...
-        internal_flux=np.zeros(photon_energies.shape)
+        photon_energies = np.array(photon_energies)
+        photon_energy_bins = photon_energies[1:]-photon_energies[:-1]
+        photon_energy_bin_centers = (photon_energies[1:]-photon_energies[:-1])/2+photon_energies[:-1] # Assumes linear spacing
+        internal_flux = np.zeros(photon_energy_bin_centers.shape)
 
         # Constants
         mc2 = CONST.get_constant('mc2')
@@ -99,132 +97,43 @@ class ThickTargetModel(XspecModel):
         # Relative error
         rerr = 1e-4
 
-        # Numerical coefficient for photo flux
+        # Numerical coefficient for photon flux
         fcoeff = ((clight ** 2 / mc2 ** 4) / (4 * np.pi * au ** 2))
         decoeff = 4.0 * np.pi * (r0 ** 2) * clight
 
-        # Create arrays for the photon flux and error flags.
-        iergq = np.zeros_like(photon_energies, dtype=np.float64)
         try:
-            a0,p, eebrk, q, eelow, eehigh,_=params #why is this not consistent within xspec?
+            p, eebrk, q, eelow, eehigh,_ = params # Sometimes model function is called without norm factor, sometimes with
         except ValueError:
-            a0,p, eebrk, q, eelow, eehigh=params
+            p, eebrk, q, eelow, eehigh = params
 
-        #if eelow >= eehigh:
-        #    return list(photon_energies)[1:]
+        if eelow < eehigh: #If eelow >=eehigh, flux remains unchanged
+            i, = np.where(np.logical_and(photon_energy_bin_centers < eehigh, photon_energy_bin_centers > 0))
 
-        i, = np.where(np.logical_and(photon_energies < eehigh, photon_energies > 0))
+            if i.size > 0:
+                try:
+                    internal_flux[i], _ = split_and_integrate(model='thick-target', photon_energies=photon_energy_bin_centers[i],maxfcn=maxfcn, rerr=rerr, eelow=eelow,eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,efd=False)
+                except ValueError:
+                    return flux #Same as previous iteration result
 
-        if i.size > 0:
-            try:
-                internal_flux[i], iergq[i] = split_and_integrate(model='thick-target', photon_energies=photon_energies[i],maxfcn=maxfcn, rerr=rerr, eelow=eelow,eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,efd=False)
-            except ValueError:
-                return flux #same as previous iteration result... might not always want this however
+                internal_flux = (fcoeff / decoeff) * internal_flux * 1e35 #Parameter norm will have units 1e35. Equivalent to a0, total electron density
 
-            internal_flux = (fcoeff / decoeff) * internal_flux
+                #Modify inplace, not return another pointer
+                flux[:] = internal_flux*photon_energy_bins
 
-            #logging.info(f"{dt.now()} PARAMS {params}")
-
-            #interpolate to bin centers as proxy for integral...for now
-            f=interp1d(photon_energies,internal_flux)
-            internal_flux=f(photon_energy_bin_centers)*a0*1e35
-
-            #have to modify inplace, not return another pointer
-            flux[:]=[internal_flux[j] if j in i else prev for j,prev in enumerate(flux)]*photon_energy_bins
-
-class ThickTargetModel0(XspecModel):
-    '''Thick-target bremsstrahlung model for use in Xspec. Uses original IDL-based integration. Default parameters are taken from OSPEX [link]()'''
-    def __init__(self):
-        self.ParInfo=(
-        "a0  1e-35  100.0  1.0  10.0  1e6  1e7  1.0",
-        "p  \"\"  4.0  1.1  1.5  15.0  20.0  0.1",
-           "eebrk  keV  150.0  1.0  5.0  100.  1e5  0.5" ,
-         "q  \"\"  6.0  0.0  1.5  15.0  20.0  0.1",
-         "eelow  keV  20.0  0.0  1.0  100.  1e3  1.0" ,
-         "eehigh  keV  3200.0  1.0  10.0  1e6  1e7  1.0"
-        ) #default parameters from OSPEX
-        self.model=self.thick2_original
-        self.description=f"Thick-target bremsstrahlung '{self.model.__name__}'"
-
-    @staticmethod #XSPEC won't know what to do with self as first arg
-    def thick2_original(photon_energies, params, flux):
-        """
-        tuples or lists containing photon energies, params
-              flux is empty list of length nE-1
-
-              The input array of energy bins gives the boundaries of the energy bins
-              and hence has one more entry than the output flux arrays.
-
-              The output flux array for an additive model should be in terms of photons/cm$^2$/s
-              (not photons/cm$^2$/s/keV) i.e. it is the model spectrum integrated over the energy bin.
-        """
-        photon_energies=np.array(photon_energies)
-        photon_energy_bins=photon_energies[1:]-photon_energies[:-1]
-        photon_energy_bin_centers=(photon_energies[1:]-photon_energies[:-1])/2+photon_energies[:-1] #assumes linear spacing...
-        internal_flux=np.zeros(photon_energies.shape)
-
-        # Constants
-        #const=constants.Constants() #assume this has already happened
-        mc2 = const.get_constant('mc2')
-        clight = const.get_constant('clight')
-        au = const.get_constant('au')
-        r0 = const.get_constant('r0')
-
-        # Max number of points
-        maxfcn = 2048
-
-        # Average atomic number
-        z = 1.2
-
-        # Relative error
-        rerr = 1e-4
-
-        # Numerical coefficient for photo flux
-        fcoeff = ((clight ** 2 / mc2 ** 4) / (4 * np.pi * au ** 2))
-        decoeff = 4.0 * np.pi * (r0 ** 2) * clight
-
-        # Create arrays for the photon flux and error flags.
-        iergq = np.zeros_like(photon_energies, dtype=np.float64)
-        try:
-            a0,p, eebrk, q, eelow, eehigh,_=params #why is this not consistent within xspec?
-        except ValueError:
-            a0,p, eebrk, q, eelow, eehigh=params
-
-        #if eelow >= eehigh:
-        #    return list(photon_energies)[1:]
-
-        i, = np.where(np.logical_and(photon_energies < eehigh, photon_energies > 0))
-
-        if i.size > 0:
-            try:
-                internal_flux[i], iergq[i] = split_and_integrate0(model='thick-target', photon_energies=photon_energies[i],maxfcn=maxfcn, rerr=rerr, eelow=eelow,eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,efd=False)
-            except ValueError:
-                return flux #same as previous iteration result... might not always want this however
-
-            internal_flux = (fcoeff / decoeff) * internal_flux
-
-            #logging.info(f"{dt.now()} PARAMS {params}")
-
-            #interpolate to bin centers as proxy for integral...for now
-            f=interp1d(photon_energies,internal_flux)
-            internal_flux=f(photon_energy_bin_centers)*a0*1e35
-
-            #have to modify inplace, not return another pointer
-            flux[:]=[internal_flux[j] if j in i else prev for j,prev in enumerate(flux)]*photon_energy_bins
 
 class ThinTargetModel(XspecModel):
-    '''Thin-target bremsstrahlung model for use in Xspec. Default parameters are taken from OSPEX [link]()'''
+    '''Thin-target bremsstrahlung model for use in Xspec. Default parameters are taken from OSPEX [f_thin2_defaults.pro](https://hesperia.gsfc.nasa.gov/ssw/packages/spex/idl/object_spex/f_thin2_defaults.pro)'''
     def __init__(self):
-        self.ParInfo=(
-        "a0  1e-35  100.0  1e-10  1e-9  1e14  1e15  1.0",
+        self.ParInfo = (
+        #"a0  1e-35  100.0  1e-10  1e-9  1e14  1e15  1.0",
         "p  \"\"  2.0  0.1  1.0  15.0  20.0  0.1",
            "eebrk  keV  100.0  10.0  20.0  100.  500  0.5" ,
          "q  \"\"  2.0  0.0  1.5  15.0  20.0  0.1",
          "eelow  keV  10.0  1.0  2.0  100.  1e3  1.0" ,
          "eehigh  keV  3200.0  100.0  500.0  1e6  1e7  1.0"
-        ) #default parameters from OSPEX
-        self.model=self.bremsstrahlung_thin_target
-        self.description=f"Thin-target bremsstrahlung '{self.model.__name__}'"
+        )
+        self.model = self.bremsstrahlung_thin_target
+        self.description = f"Thin-target bremsstrahlung '{self.model.__name__}'"
 
     @staticmethod
     def bremsstrahlung_thin_target(photon_energies, params, flux):
@@ -276,10 +185,10 @@ class ThinTargetModel(XspecModel):
         Adapted from SSW `Brm2_ThinTarget
         <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thintarget.pro>`_
         """
-        photon_energies=np.array(photon_energies)
-        photon_energy_bins=photon_energies[1:]-photon_energies[:-1]
-        photon_energy_bin_centers=(photon_energies[1:]-photon_energies[:-1])/2+photon_energies[:-1] #assumes linear spacing...
-        internal_flux=np.zeros(photon_energies.shape)
+        photon_energies = np.array(photon_energies)
+        photon_energy_bins = photon_energies[1:]-photon_energies[:-1]
+        photon_energy_bin_centers = (photon_energies[1:]-photon_energies[:-1])/2+photon_energies[:-1]
+        internal_flux = np.zeros(photon_energy_bin_centers.shape)
 
         mc2 = CONST.get_constant('mc2')
         clight = CONST.get_constant('clight')
@@ -297,53 +206,46 @@ class ThinTargetModel(XspecModel):
         # Numerical coefficient for photo flux
         fcoeff = (clight / (4 * np.pi * au ** 2)) / mc2 ** 2.
 
-        # Create arrays for error flags.
-        iergq = np.zeros_like(photon_energies, dtype=np.float64)
         try:
-            a0,p, eebrk, q, eelow, eehigh,_=params #why is this not consistent within xspec?
+            p, eebrk, q, eelow, eehigh,_ = params
         except ValueError:
-            a0,p, eebrk, q, eelow, eehigh=params
+            p, eebrk, q, eelow, eehigh = params
 
-#        if eelow >= eehigh:
-#            raise ValueError('eehigh must be larger than eelow!')
+        if eelow < eehigh:
 
-        i, = np.where(np.logical_and(photon_energies < eehigh,photon_energies > 0))
+            i, = np.where(np.logical_and(photon_energy_bin_centers < eehigh,photon_energy_bin_centers > 0))
 
-        if i.size > 0:
-            try:
-                internal_flux[i], iergq[i] = split_and_integrate(model='thin-target',
-                    photon_energies=photon_energies[i], maxfcn=maxfcn,rerr=rerr, eelow=eelow, eebrk=eebrk, eehigh=eehigh,p=p, q=q, z=z, efd=True)
-            except ValueError:
-                return flux
-            #interpolate to bin centers as proxy for integral...for now
-            f=interp1d(photon_energies,internal_flux)
-            internal_flux=f(photon_energy_bin_centers)*a0*1e35
+            if i.size > 0:
+                try:
+                    internal_flux[i], _ = split_and_integrate(model='thin-target',
+                        photon_energies=photon_energy_bin_centers[i], maxfcn=maxfcn,rerr=rerr, eelow=eelow, eebrk=eebrk, eehigh=eehigh,p=p, q=q, z=z, efd=True)
+                except ValueError:
+                    return flux
 
-            #have to modify inplace, not return another pointer
-            flux[:]=[internal_flux[j] if j in i else prev for j,prev in enumerate(flux)]*photon_energy_bins
+                flux[:] = internal_flux*photon_energy_bins*1e35
 
 
 class ThermalModel(XspecModel):
-    '''Thermal bremsstrahlung model for use in Xspec. Default parameters are taken from OSPEX [link](). Untested, probably unnecessary as well'''
+    '''Thermal bremsstrahlung model for use in Xspec. Default parameters are taken from OSPEX [link](). XSPEC's _apec_ model is more commonly used for thermal bremsstrahlung.'''
     def __init__(self):
-        self.ParInfo=(
+        self.ParInfo = (
         "EM  1e49  1.0  1e-20  1e-19  1e19  1e20  1.0",
         "kT  keV  2.0  1.  1.5  7.0  8.0  0.1",
-        "abund  \"\"  1.0  0.01  0.1  9.0  10.0  0.1") #default parameters from OSPEX
-        self.model=self.vth
-        self.description=f"Thermal bremsstrahlung model '{self.model.__name__}'"
+        "abund  \"\"  1.0  0.01  0.1  9.0  10.0  0.1")
+        self.model = self.vth
+        self.description = f"Thermal bremsstrahlung model '{self.model.__name__}'"
         global CONTINUUM_GRID
-        CONTINUUM_GRID = thermal.setup_continuum_parameters() #not a fan...
+        CONTINUUM_GRID = thermal.setup_continuum_parameters() #I don't like this...
         global LINE_GRID
-        LINE_GRID= thermal.setup_line_parameters()
+        LINE_GRID = thermal.setup_line_parameters()
         #self.observer_distance=(1*u.AU).to(u.cm).value
 
     @staticmethod
     def vth(energy_edges,params,flux):
         # Convert inputs to known units and confirm they are within range.
-        emission_measure,temperature,abund,_=params
-        emission_measure*=1e49
-        observer_distance=(1*u.AU).to(u.cm).value
+        emission_measure,temperature,abund,_ = params
+        emission_measure *= 1e49
+        observer_distance = (1*u.AU).to(u.cm).value
 
         energy_edges_keV, temperature_K = np.array(energy_edges), np.array([((temperature*u.keV).to(u.J)/(c.k_B)).value])
 
@@ -362,4 +264,4 @@ class ThermalModel(XspecModel):
                     (4 * np.pi * observer_distance**2)).flatten()
 
         #logging.info(f"PARAMS: {params}")
-        flux[:]=internal_flux.value
+        flux[:] = internal_flux.value
