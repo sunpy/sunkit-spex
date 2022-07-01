@@ -614,8 +614,8 @@ class SunXspex(LoadSpec):
     def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
         """Construct the class and set up some defaults."""
 
-        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
-                          custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
+        self.data = LoadSpec(*args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
+                             custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
 
         self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
 
@@ -686,7 +686,7 @@ class SunXspex(LoadSpec):
             self._model_param_names = []
             self._response_param_names = []
             self._other_model_inputs = {}
-            for s in range(len(self.loaded_spec_data)):
+            for s in range(len(self.data.loaded_spec_data)):
                 self._response_param_names.append("gain_slope_spectrum"+str(s+1))
                 self._response_param_names.append("gain_offset_spectrum"+str(s+1))
                 pg = []
@@ -907,9 +907,9 @@ class SunXspex(LoadSpec):
 
         # if a dict with keys of the spectra identifiers and energy ranges
         if (type(fitting_ranges) == dict):
-            default = dict(zip(self.loaded_spec_data.keys(), np.tile(_default_fitting_range, (len(self.loaded_spec_data.keys()), 1))))
+            default = dict(zip(self.data.loaded_spec_data.keys(), np.tile(_default_fitting_range, (len(self.data.loaded_spec_data.keys()), 1))))
             default_updated = {**default, **fitting_ranges}  # incase a dict is given only updating some spectra
-            self._energy_fitting_range = {k: default_updated[k] for k in list(self.loaded_spec_data.keys())}
+            self._energy_fitting_range = {k: default_updated[k] for k in list(self.data.loaded_spec_data.keys())}
             return
 
         # if not type list or array then set to default
@@ -920,16 +920,16 @@ class SunXspex(LoadSpec):
         # if a list is given then it is the fitting range for all spectra loaded
         if np.size(fitting_ranges) == 2:
             # if, e.g., [2,3] or [[2,3]] then fitting range is 2--3 keV for all spectra
-            frs = np.tile(fitting_ranges, (len(self.loaded_spec_data.keys()), 1))
+            frs = np.tile(fitting_ranges, (len(self.data.loaded_spec_data.keys()), 1))
         elif len(np.shape(fitting_ranges)) == 2:
             # if, e.g., [[2,3], [4,8]] then fitting range is 2--3 and 4--8 keV for all spectra
-            frs = [fitting_ranges]*len(self.loaded_spec_data.keys())
+            frs = [fitting_ranges]*len(self.data.loaded_spec_data.keys())
         else:
             # if (somehow) none of the above then default it
-            frs = np.tile(_default_fitting_range, (len(self.loaded_spec_data.keys()), 1))
+            frs = np.tile(_default_fitting_range, (len(self.data.loaded_spec_data.keys()), 1))
             warnings.warn(self._energy_fitting_range_instructions())
 
-        self._energy_fitting_range = dict(zip(self.loaded_spec_data.keys(), frs))
+        self._energy_fitting_range = dict(zip(self.data.loaded_spec_data.keys(), frs))
 
     def _energy_fitting_range_instructions(self):
         """ Function to store string needed for multiple points in the energy_fitting_range setter.
@@ -1717,16 +1717,16 @@ class SunXspex(LoadSpec):
         """
 
         photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, ph_e_binning, observed_counts, observed_count_errors = [], [], [], [], [], [], [], [], []
-        for k in self.loaded_spec_data:
-            photon_channel_bins.append(self.loaded_spec_data[k]['photon_channel_bins'])
-            photon_channel_mids.append(self.loaded_spec_data[k]['photon_channel_mids'])
-            count_channel_mids.append(self.loaded_spec_data[k]['count_channel_mids'])
-            srm.append(self.loaded_spec_data[k]['srm'])
-            e_binning.append(self.loaded_spec_data[k]['count_channel_binning'])
-            ph_e_binning.append(self.loaded_spec_data[k]['photon_channel_binning'])
-            observed_counts.append(self.loaded_spec_data[k]['counts'])
-            observed_count_errors.append(self.loaded_spec_data[k]['count_error'])
-            livetime.append(self.loaded_spec_data[k]['effective_exposure'])
+        for k in self.data.loaded_spec_data:
+            photon_channel_bins.append(self.data.loaded_spec_data[k]['photon_channel_bins'])
+            photon_channel_mids.append(self.data.loaded_spec_data[k]['photon_channel_mids'])
+            count_channel_mids.append(self.data.loaded_spec_data[k]['count_channel_mids'])
+            srm.append(self.data.loaded_spec_data[k]['srm'])
+            e_binning.append(self.data.loaded_spec_data[k]['count_channel_binning'])
+            ph_e_binning.append(self.data.loaded_spec_data[k]['photon_channel_binning'])
+            observed_counts.append(self.data.loaded_spec_data[k]['counts'])
+            observed_count_errors.append(self.data.loaded_spec_data[k]['count_error'])
+            livetime.append(self.data.loaded_spec_data[k]['effective_exposure'])
 
         return photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, ph_e_binning, observed_counts, observed_count_errors
 
@@ -1828,7 +1828,7 @@ class SunXspex(LoadSpec):
         update_free_params = {}
         update_free_bounds = []
         # loop through both spectra to check the response parameters
-        for s in range(len(self.loaded_spec_data)):
+        for s in range(len(self.data.loaded_spec_data)):
             # check if both gain rparams for a spec are tied but tied to frozen rparams
             tied2frozen = self._tied2frozen(spectrum_num=int(s+1))
 
@@ -1863,11 +1863,11 @@ class SunXspex(LoadSpec):
         """
         self._scaled_background_rates_cut, self._scaled_background_rates_full = {}, {}
         # loop through both spectra to check the response parameters
-        for s in range(len(self.loaded_spec_data)):
+        for s in range(len(self.data.loaded_spec_data)):
             # do not want to include bg spectrum if the data is structured to be event-background
-            if ("background_rate" in self.loaded_spec_data["spectrum"+str(s+1)]["extras"]) and (not self.loaded_spec_data["spectrum"+str(s+1)]["extras"]["counts=data-bg"]):
+            if ("background_rate" in self.data.loaded_spec_data["spectrum"+str(s+1)]["extras"]) and (not self.data.loaded_spec_data["spectrum"+str(s+1)]["extras"]["counts=data-bg"]):
                 # turn the background rate (cts/keV/s) into just cts/s scaled to the event time
-                bg_cts = self.loaded_spec_data["spectrum"+str(s+1)]["extras"]["background_rate"]*self.loaded_spec_data["spectrum"+str(s+1)]["count_channel_binning"]
+                bg_cts = self.data.loaded_spec_data["spectrum"+str(s+1)]["extras"]["background_rate"]*self.data.loaded_spec_data["spectrum"+str(s+1)]["count_channel_binning"]
                 self._scaled_background_rates_cut["scaled_background_spectrum"+str(s+1)] = self._cut_counts(bg_cts, spectrum=s+1) if not _for_plotting else bg_cts
                 self._scaled_background_rates_full["scaled_background_spectrum"+str(s+1)] = bg_cts
 
@@ -2223,7 +2223,7 @@ class SunXspex(LoadSpec):
 
         # want all energies plotted, not just ones in fitting range so change for now and change back later
         _energy_fitting_indices_orig = copy(self._energy_fitting_indices)
-        self._energy_fitting_indices = self._fit_range(count_channel_mids, dict(zip(self.loaded_spec_data.keys(), np.tile([0, np.inf], (len(self.loaded_spec_data.keys()), 1)))))
+        self._energy_fitting_indices = self._fit_range(count_channel_mids, dict(zip(self.data.loaded_spec_data.keys(), np.tile([0, np.inf], (len(self.data.loaded_spec_data.keys()), 1)))))
 
         # make sure using full background counts, not cut version for fitting
         self._scaled_backgrounds = self._scaled_background_rates_full
@@ -2299,10 +2299,10 @@ class SunXspex(LoadSpec):
         spec_no = int(spectrum.split("spectrum")[1])
 
         # don't waste time on full rows/columns of 0s in the srms
-        photon_channel_bins, _, _, srm = self._photon_space_reduce(ph_bins=[self.loaded_spec_data[spectrum]['photon_channel_bins']],
-                                                                   ph_mids=[self.loaded_spec_data[spectrum]['photon_channel_bins']],
-                                                                   ph_widths=[self.loaded_spec_data[spectrum]['photon_channel_binning']],
-                                                                   srm=[self.loaded_spec_data[spectrum]['srm']])  # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+        photon_channel_bins, _, _, srm = self._photon_space_reduce(ph_bins=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
+                                                                   ph_mids=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
+                                                                   ph_widths=[self.data.loaded_spec_data[spectrum]['photon_channel_binning']],
+                                                                   srm=[self.data.loaded_spec_data[spectrum]['srm']])  # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
         photon_channel_bins, srm = photon_channel_bins[0], srm[0]
 
         if type(parameters) == type(None):
@@ -2323,21 +2323,21 @@ class SunXspex(LoadSpec):
         if include_bg and ("scaled_background_"+spectrum in self._scaled_backgrounds):
             cts_model += self._scaled_backgrounds["scaled_background_"+spectrum]
 
-        cts_model /= np.diff(self.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
+        cts_model /= np.diff(self.data.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
 
         # if the spectrum has been gain shifted then this will be done but if user provides their own values they will take priority
         if ("gain_slope_spectrum"+str(spec_no) in kwargs) and ("gain_offset_spectrum"+str(spec_no) in kwargs):
-            cts_model = self._gain_energies(energies=self.loaded_spec_data[spectrum]['count_channel_mids'],
+            cts_model = self._gain_energies(energies=self.data.loaded_spec_data[spectrum]['count_channel_mids'],
                                             array=cts_model,
                                             gain_slope=kwargs["gain_slope_spectrum"+str(spec_no)],
                                             gain_offset=kwargs["gain_offset_spectrum"+str(spec_no)])
         elif (self.rParams["Value", "gain_slope_spectrum"+str(spec_no)] != 1) or (self.rParams["Value", "gain_offset_spectrum"+str(spec_no)] != 0):
-            cts_model = self._gain_energies(energies=self.loaded_spec_data[spectrum]['count_channel_mids'],
+            cts_model = self._gain_energies(energies=self.data.loaded_spec_data[spectrum]['count_channel_mids'],
                                             array=cts_model,
                                             gain_slope=self.rParams["Value", "gain_slope_spectrum"+str(spec_no)],
                                             gain_offset=self.rParams["Value", "gain_offset_spectrum"+str(spec_no)])
 
-        return self.loaded_spec_data[spectrum]['count_channel_mids'], cts_model
+        return self.data.loaded_spec_data[spectrum]['count_channel_mids'], cts_model
 
     def _prepare_submodels(self):
         """ Prepare individual sub-models for use.
@@ -2358,7 +2358,7 @@ class SunXspex(LoadSpec):
             # get the the params for each model, e.g., from above [['T1', 'EM1'], ['T2', 'EM2']] from 'C*(f_vth(T1,EM1,energies=None) + 0)' and 'C*(0 + f_vth(T2,EM2,energies=None))'
             self._corresponding_submod_inputs = [get_func_inputs(submod_fun)[0] for submod_fun in self._submod_functions]
             # get the values from the param table in the same structure as corresponding_submod_inputs for each loaded spectrum
-            self._submod_value_inputs = [[[self.params["Value", _p+"_spectrum"+str(s+1)] for _p in p] for p in self._corresponding_submod_inputs] for s in range(len(self.loaded_spec_data))]
+            self._submod_value_inputs = [[[self.params["Value", _p+"_spectrum"+str(s+1)] for _p in p] for p in self._corresponding_submod_inputs] for s in range(len(self.data.loaded_spec_data))]
 
     def _spec_loop_range(self, spectrum):
         """ Finds the range limits to loop through loaded spectra of choice.
@@ -2378,10 +2378,10 @@ class SunXspex(LoadSpec):
         """
         combine_submods = False
         if str(spectrum) == 'combined':
-            spec2pick = (1, len(self.loaded_spec_data)+1)
+            spec2pick = (1, len(self.data.loaded_spec_data)+1)
             combine_submods = True
         elif str(spectrum) == 'all':
-            spec2pick = (1, len(self.loaded_spec_data)+1)
+            spec2pick = (1, len(self.data.loaded_spec_data)+1)
         else:
             spec2pick = (int(spectrum), int(spectrum)+1)
         return spec2pick, combine_submods
@@ -2482,9 +2482,10 @@ class SunXspex(LoadSpec):
         """
         print("Apply binning for plotting. ", end="")
         new_bins, _, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
-        old_bins = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
-        old_bin_width = self.loaded_spec_data[rebin_and_spec[1]
-                                              ]["count_channel_binning"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_binning"]
+        old_bins = self.data.loaded_spec_data[rebin_and_spec[1]
+                                              ]["count_channel_bins"] if not _orig_in_extras else self.data.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
+        old_bin_width = self.data.loaded_spec_data[rebin_and_spec[1]
+                                                   ]["count_channel_binning"] if not _orig_in_extras else self.data.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_binning"]
         energy_channel_error = new_bin_width/2
         return new_bins, new_bin_width, energy_channels, count_rates, count_rate_errors, old_bins, old_bin_width, energy_channel_error
 
@@ -2545,8 +2546,8 @@ class SunXspex(LoadSpec):
         An array of the mean counts for each count energy bin for all loaded spectra.
         """
         _counts = []
-        for s in range(len(self.loaded_spec_data)):
-            _counts.append(self.loaded_spec_data['spectrum'+str(s+1)]['counts'])
+        for s in range(len(self.data.loaded_spec_data)):
+            _counts.append(self.data.loaded_spec_data['spectrum'+str(s+1)]['counts'])
         return np.mean(np.array(_counts), axis=0)
 
     def _bin_comb4plot(self, rebin_and_spec, count_rate_model, energy_channels, energy_channel_error, count_rates, count_rate_errors, _return_cts_rate_mod=True):
@@ -2727,7 +2728,7 @@ class SunXspex(LoadSpec):
         None.
         """
         # can only have a run for each loaded spectrum, if there is more then it must be from this being run multiple times
-        if hasattr(self, "_mcmc_mod_runs") and len(self._mcmc_mod_runs) >= len(self.loaded_spec_data):
+        if hasattr(self, "_mcmc_mod_runs") and len(self._mcmc_mod_runs) >= len(self.data.loaded_spec_data):
             del self._mcmc_mod_runs
 
         if hasattr(self, "_mcmc_mod_runs"):
@@ -3073,7 +3074,7 @@ class SunXspex(LoadSpec):
         rebin_val, rebin_spec = rebin_and_spec[0], rebin_and_spec[1]
         energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = data_arrays
         if type(rebin_val) != type(None):
-            if rebin_spec in list(self.loaded_spec_data.keys()):
+            if rebin_spec in list(self.data.loaded_spec_data.keys()):
                 new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_spec4plot(rebin_and_spec,
                                                                                                                                                                                 count_rate_model,
                                                                                                                                                                                 _return_cts_rate_mod=_return_cts_rate_mod)
@@ -3287,9 +3288,9 @@ class SunXspex(LoadSpec):
         Returns a rebinning dictionary with keys of spectra IDs and rebin number.
         """
 
-        _default = dict(zip(self.loaded_spec_data.keys(), [None]*len(self.loaded_spec_data.keys())))
+        _default = dict(zip(self.data.loaded_spec_data.keys(), [None]*len(self.data.loaded_spec_data.keys())))
         if type(_rebin_input) == int:
-            rebin_dict = dict(zip(self.loaded_spec_data.keys(), [_rebin_input]*len(self.loaded_spec_data.keys())))
+            rebin_dict = dict(zip(self.data.loaded_spec_data.keys(), [_rebin_input]*len(self.data.loaded_spec_data.keys())))
         elif type(_rebin_input) in (list, np.ndarray):
             rebin_dict = self._if_rebin_input_list(_rebin_input, _default)
         elif type(_rebin_input) is dict:
@@ -3318,8 +3319,8 @@ class SunXspex(LoadSpec):
         -------
         Returns a rebinning dictionary with keys of spectra IDs and rebin number.
         """
-        if len(self.loaded_spec_data.keys()) == len(_rebin_input):
-            rebin_dict = dict(zip(self.loaded_spec_data.keys(), _rebin_input))
+        if len(self.data.loaded_spec_data.keys()) == len(_rebin_input):
+            rebin_dict = dict(zip(self.data.loaded_spec_data.keys(), _rebin_input))
         else:
             print("rebin input list must have an entry for each spectrum; e.g., 3 spectra could be [10,15,None].")
             rebin_dict = _default
@@ -3339,10 +3340,10 @@ class SunXspex(LoadSpec):
         Returns a rebinning dictionary with keys of spectra IDs and rebin number.
         """
         if "all" in _rebin_input.keys():
-            rebin_dict = dict(zip(self.loaded_spec_data.keys(), [_rebin_input["all"]]*len(self.loaded_spec_data.keys())))
+            rebin_dict = dict(zip(self.data.loaded_spec_data.keys(), [_rebin_input["all"]]*len(self.data.loaded_spec_data.keys())))
         else:
-            labels = list(self.loaded_spec_data.keys())+['combined']
-            rebin_dict = dict(zip(labels, [None]*(len(self.loaded_spec_data.keys())+1)))
+            labels = list(self.data.loaded_spec_data.keys())+['combined']
+            rebin_dict = dict(zip(labels, [None]*(len(self.data.loaded_spec_data.keys())+1)))
             for k in _rebin_input.keys():
                 if k in labels:
                     rebin_dict[k] = _rebin_input[k]
@@ -3494,7 +3495,7 @@ class SunXspex(LoadSpec):
         """
         # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined
         _rebin_after_plot = False
-        if hasattr(self, "_rebin_setting") and type(rebin) != type(None):  # and (len(self.loaded_spec_data)>1):
+        if hasattr(self, "_rebin_setting") and type(rebin) != type(None):  # and (len(self.data.loaded_spec_data)>1):
             # check if rebinning needs done to at least one spectrum
             # e.g., self._rebin_setting={'spectrum1': 8, 'spectrum2': None} -> yes, self._rebin_setting={'spectrum1': None, 'spectrum2': None} -> no
             _need_rebinning = [0 if type(s) == type(None) else s for s in self._rebin_setting.values()]
@@ -3529,24 +3530,24 @@ class SunXspex(LoadSpec):
         -------
         None.
         """
-        if 'background_rate' in self.loaded_spec_data[spectrum]['extras']:
+        if 'background_rate' in self.data.loaded_spec_data[spectrum]['extras']:
 
             if isnumber(rebin):
                 # self._plot_rebin_info defined as [old_bin_width, old_bins, new_bins, new_bin_width] purely for this method
                 energies = self._plot_rebin_info[2].flatten()
-                _bg_rate_binned = self._bin_model(self.loaded_spec_data[spectrum]['extras']['background_rate'], *self._plot_rebin_info)
+                _bg_rate_binned = self._bin_model(self.data.loaded_spec_data[spectrum]['extras']['background_rate'], *self._plot_rebin_info)
                 bg_rate = np.concatenate((_bg_rate_binned[:, None], _bg_rate_binned[:, None]), axis=1).flatten()
             else:
-                energies = self.loaded_spec_data[spectrum]['count_channel_bins'].flatten()
-                bg_rate = np.concatenate((self.loaded_spec_data[spectrum]['extras']['background_rate'][:, None],
-                                         self.loaded_spec_data[spectrum]['extras']['background_rate'][:, None]), axis=1).flatten()
+                energies = self.data.loaded_spec_data[spectrum]['count_channel_bins'].flatten()
+                bg_rate = np.concatenate((self.data.loaded_spec_data[spectrum]['extras']['background_rate'][:, None],
+                                         self.data.loaded_spec_data[spectrum]['extras']['background_rate'][:, None]), axis=1).flatten()
 
             axes.plot(energies, bg_rate, color="grey", zorder=0)
             self.plotting_info[spectrum]["background_rate"] = bg_rate
 
             str_list, c_list = ["BG"], ["grey"]
             # check if the data is actually the event-background
-            if self.loaded_spec_data[spectrum]["extras"]["counts=data-bg"]:
+            if self.data.loaded_spec_data[spectrum]["extras"]["counts=data-bg"]:
                 str_list.insert(0, "Counts=Evt-BG\n")
                 c_list.insert(0, "k")
             rainbow_text_lines((0.01, 0.99), strings=str_list, colors=c_list, xycoords="axes fraction", verticalalignment="top", horizontalalignment="left", ax=axes, alpha=0.8, fontsize="small")
@@ -3566,7 +3567,7 @@ class SunXspex(LoadSpec):
         -------
         Bool.
         """
-        if (len(list(dict.fromkeys(list(self.instruments.values())))) == 1) and (can_combine):
+        if (len(list(dict.fromkeys(list(self.data.instruments.values())))) == 1) and (can_combine):
             return True
         else:
             return False
@@ -3634,9 +3635,9 @@ class SunXspex(LoadSpec):
 
         # check if the spectra combined plot can be made
         _channels, _channel_error = [], []
-        for s in range(len(self.loaded_spec_data)):
-            _channels.append(self.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'])
-            _channel_error.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2)
+        for s in range(len(self.data.loaded_spec_data)):
+            _channels.append(self.data.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'])
+            _channel_error.append(self.data.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2)
         _same_chans = all([np.array_equal(np.array(_channels[0]), np.array(c)) for c in _channels[1:]])
         _same_errs = all([np.array_equal(np.array(_channel_error[0]), np.array(c)) for c in _channel_error[1:]])
         if _same_chans and _same_errs:
@@ -3651,7 +3652,7 @@ class SunXspex(LoadSpec):
         if hasattr(self, "_model") and (self._model is None) and hasattr(self, "_plotting_info"):
             return self._plot_from_dict(subplot_axes_grid)
 
-        number_of_plots = len(self.loaded_spec_data)+1 if (len(self.loaded_spec_data) > 1) and (can_combine) else len(self.loaded_spec_data)  # plus one for combined plot
+        number_of_plots = len(self.data.loaded_spec_data)+1 if (len(self.data.loaded_spec_data) > 1) and (can_combine) else len(self.data.loaded_spec_data)  # plus one for combined plot
         subplot_axes_grid = self._build_axes(subplot_axes_grid, number_of_plots)
 
         # reset backgrounds for plotting
@@ -3667,10 +3668,10 @@ class SunXspex(LoadSpec):
         for s, ax in zip(range(number_of_plots), subplot_axes_grid):
             if (s < number_of_plots-1) or ((s == number_of_plots-1) and not can_combine) or (number_of_plots == 1):
                 self.plotting_info['spectrum'+str(s+1)] = {}
-                axs, res = self._plot_1spec((self.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'],
-                                             self.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2,
-                                             self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"],
-                                             self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"],
+                axs, res = self._plot_1spec((self.data.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'],
+                                             self.data.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2,
+                                             self.data.loaded_spec_data['spectrum'+str(s+1)]["count_rate"],
+                                             self.data.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"],
                                              models[s]),
                                             axes=ax,
                                             fitting_range=self.energy_fitting_range['spectrum'+str(s+1)],
@@ -3680,8 +3681,8 @@ class SunXspex(LoadSpec):
                                             rebin_and_spec=[rebin["spectrum"+str(s+1)], "spectrum"+str(s+1)],
                                             num_of_samples=num_of_samples,
                                             hex_grid=hex_grid)
-                _count_rates.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"])
-                _count_rate_errors.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"])
+                _count_rates.append(self.data.loaded_spec_data['spectrum'+str(s+1)]["count_rate"])
+                _count_rate_errors.append(self.data.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"])
                 axs.set_title('Spectrum '+str(s+1))
 
                 # do we have a background for this spectrum?
@@ -3689,8 +3690,8 @@ class SunXspex(LoadSpec):
 
             else:
                 self.plotting_info['combined'] = {}
-                axs, res = self._plot_1spec((self.loaded_spec_data[f'spectrum{s}']['count_channel_mids'],
-                                             self.loaded_spec_data['spectrum'+str(s)]["count_channel_binning"]/2,
+                axs, res = self._plot_1spec((self.data.loaded_spec_data[f'spectrum{s}']['count_channel_mids'],
+                                             self.data.loaded_spec_data['spectrum'+str(s)]["count_channel_binning"]/2,
                                              np.mean(np.array(_count_rates), axis=0),
                                              np.sqrt(np.sum(np.array(_count_rate_errors)**2, axis=0))/len(_count_rate_errors),
                                              np.mean(models, axis=0)),
@@ -4613,7 +4614,7 @@ class SunXspex(LoadSpec):
         _user_fncs = {"usr_funcs": DYNAMIC_FUNCTION_SOURCE}
         _user_args = {"user_args": DYNAMIC_VARS}
         if self._pickle_reason == "mcmc_parallelize":
-            _loaded_spec_data = {"loaded_spec_data": {s: {k: d for (k, d) in v.items() if k != "extras"} for (s, v) in self.loaded_spec_data.items()}}  # don't need anything in "extras"
+            _loaded_spec_data = {"loaded_spec_data": {s: {k: d for (k, d) in v.items() if k != "extras"} for (s, v) in self.data.loaded_spec_data.items()}}  # don't need anything in "extras"
             _atts = {"params": self.params,
                      "rParams": self.rParams,
                      "loglikelihood": self.loglikelihood,
@@ -4652,10 +4653,10 @@ class SunXspex(LoadSpec):
     def __str__(self):
         """Provide a printable, user friendly representation of what the class contains."""
         _loaded_spec = ""
-        plural = ["Spectrum", "is"] if len(self.loaded_spec_data.keys()) == 1 else ["Spectra", "are"]
+        plural = ["Spectrum", "is"] if len(self.data.loaded_spec_data.keys()) == 1 else ["Spectra", "are"]
         tag = f"{plural[0]} Loaded {plural[1]}: "
-        for s in self.loaded_spec_data.keys():
-            _loaded_spec += str(self.loaded_spec_data[s]["extras"]["pha.file"])+"\n"+" "*len(tag)
+        for s in self.data.loaded_spec_data.keys():
+            _loaded_spec += str(self.data.loaded_spec_data[s]["extras"]["pha.file"])+"\n"+" "*len(tag)
 
         _loaded_spec += "\rLikelihood: "+str(self.loglikelihood)
         _loaded_spec += "\nModel: "+str(self._model)
@@ -4664,7 +4665,7 @@ class SunXspex(LoadSpec):
         _loaded_spec += "\nModel Parameter Bounds: "+str(self.params.param_bounds)
         _loaded_spec += "\nFitting Range(s): "+str(self.energy_fitting_range)
 
-        return f"No. of Spectra Loaded: {len(self.loaded_spec_data.keys())} \n{tag}{_loaded_spec}"
+        return f"No. of Spectra Loaded: {len(self.data.loaded_spec_data.keys())} \n{tag}{_loaded_spec}"
 
 
 def load(filename):

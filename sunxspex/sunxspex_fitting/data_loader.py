@@ -8,8 +8,11 @@ import numpy as np
 
 from astropy.io import fits
 
-from . import instruments as inst  # sunxspex.sunxspex_fitting.instruments
-from .parameter_handler import _make_into_list, isnumber  # sunxspex.sunxspex_fitting.parameter_handler
+from sunxspex.sunxspex_fitting import instruments as inst  # sunxspex.sunxspex_fitting.instruments
+from sunxspex.sunxspex_fitting.parameter_handler import (  # sunxspex.sunxspex_fitting.parameter_handler
+    _make_into_list,
+    isnumber,
+)
 
 __all__ = ["LoadSpec"]
 
