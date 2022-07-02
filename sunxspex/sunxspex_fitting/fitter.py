@@ -35,6 +35,7 @@ from scipy.optimize import minimize
 
 from astropy.table import Table
 
+from sunxspex.logging import get_logger
 from sunxspex.sunxspex_fitting.data_loader import LoadSpec
 from sunxspex.sunxspex_fitting.instruments import rebin_any_array
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
@@ -50,6 +51,7 @@ from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
+logger = get_logger(__name__, 'DEBUG')
 
 __all__ = ["add_var", "del_var", "add_photon_model", "del_photon_model", "SunXspex", "load"]
 
@@ -113,7 +115,7 @@ def add_photon_model(function, overwrite=False):
     param_inputs, _ = get_func_inputs(function)  # get the param inputs for the function
     # check if the function has already been added
     if (usr_func.__name__ in defined_photon_models.keys()) and not overwrite:
-        print("Model: \'", usr_func.__name__, "\' already in \'defined_photon_models\'. Please set `overwrite=True`\nor use `del_photon_model()` to remove the existing model entirely.")
+        logger.info(f"Model: '{usr_func.__name__}', already in 'defined_photon_models'. Please set `overwrite=True` or use `del_photon_model()` to remove the existing model entirely.")
         # revert changes back, model needs to be initialised to know its name to hceck if it already existed but doing this overwrites it if it is there
         globals()[usr_func.__name__] = _glbls_cp[usr_func.__name__]
         DYNAMIC_FUNCTION_SOURCE[usr_func.__name__] = _dfs_cp[usr_func.__name__]
@@ -128,7 +130,7 @@ def add_photon_model(function, overwrite=False):
 
     # add user model to defined_photon_models from photon_models_for_fitting
     defined_photon_models[usr_func.__name__] = param_inputs
-    print(f"Model {usr_func.__name__} added.")
+    logger.info(f"Model {usr_func.__name__} added.")
 
 
 def del_photon_model(function_name):
@@ -158,15 +160,15 @@ def del_photon_model(function_name):
     """
     # quickly check if the function exists under function_name
     if function_name not in defined_photon_models:
-        print(function_name, "is not in `defined_photon_models` to be removed.")
+        logger.info(f"{function_name}, is not in `defined_photon_models` to be removed.")
         return
 
     # can only remove if the user added the model, defined models from photon_models_for_fitting.py are protected
     if inspect.getmodule(globals()[function_name]).__name__ in (__name__):
         del defined_photon_models[function_name], globals()[function_name], DYNAMIC_FUNCTION_SOURCE[function_name]
-        print(f"Model {function_name} removed.")
+        logger.indo(f"Model {function_name} removed.")
     else:
-        print("Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
+        logger.warning("Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
 
 
 DYNAMIC_VARS = {}
@@ -234,7 +236,8 @@ def add_var(overwrite=False, quiet=False, **user_kwarg):
             globals().update({k: i})
             vb = f"Variable {k} added."
         if not quiet:
-            print(vb)
+            logger.info(vb)
+        logger.debug(vb)
 
 
 def del_var(*user_arg_name):
@@ -271,7 +274,7 @@ def del_var(*user_arg_name):
             _not_removed.append(uan)
     _rmstr, spc = (f"Variables {_removed} were removed.", "\n") if len(_removed) > 0 else ("", "")
     _nrmstr, spc = (f"Variables {_not_removed} are not ones added by user and so were not removed.", spc) if len(_not_removed) > 0 else ("", "")
-    print(_rmstr, _nrmstr, sep=spc)
+    logger.info(_rmstr, _nrmstr, spc)
 
 
 # Easily access log-likelihood/fit-stat methods from the one place, if SunXpsex class inherits this then data is duplicated
@@ -676,7 +679,7 @@ class SunXspex(LoadSpec):
         """
         if hasattr(self, '_model'):
             # if we already have a model defined then don't want to do all this again
-            print("Model already assigned. If you want to change model please set property \"update_model\".")
+            logger.info("Model already assigned. If you want to change model please set property 'update_model'.")
         elif self._set_model_attr(model_function):
 
             # get parameter names from the function
@@ -723,7 +726,7 @@ class SunXspex(LoadSpec):
         elif type(model_function) is str:
             self._model = self._mod_from_str(model_string=model_function, _create_separate_models_for_one=True)
         else:
-            print("Model not set.")
+            logger.info("Model not set.")
             return False
         return True
 
@@ -858,8 +861,8 @@ class SunXspex(LoadSpec):
             self._orig_params, self._param_groups, self._model_param_names, self._response_param_names, self._other_model_inputs = _periph
             self.params, self.rParams = Parameters(_ps.param_name), Parameters(_rps.param_name, rparams=True)
             self._model = _model
-            print("Model cannot be renewed as the number of parameters are different.")
-            print(f"The following parameters are missing: {_orig_params_mismatch}, and the following are new: {_new_params_mismatch}")
+            logger.warning("Model cannot be renewed as the number of parameters are different.")
+            logger.warning(f"The following parameters are missing: {_orig_params_mismatch}, and the following are new: {_new_params_mismatch}")
 
         self.params["Status"], self.params["Value"], self.params["Bounds"], self.params["Error"] = list(_ps.param_status), list(_ps.param_value), list(_ps.param_bounds), list(_ps.param_error)
         self.rParams["Status"], self.rParams["Value"], self.rParams["Bounds"], self.rParams["Error"] = list(_rps.param_status), list(_rps.param_value), list(_rps.param_bounds), list(_rps.param_error)
@@ -1028,6 +1031,7 @@ class SunXspex(LoadSpec):
                 _isolated_model_strings.append(["".join(put_mods_back), _mod_counter])
                 # model shorthand string for _mod_from_str and the number for the input parameters. E.g., 1st f_vth->f_vth(T1,EM1, ...), 2nd f_vth->f_vth(T2,EM2, ...)
             self._separate_models = _isolated_model_strings
+            return _isolated_model_strings
 
     def _mod_from_str(self, model_string, custom_param_number=None, _create_separate_models_for_one=False):
         """ Construct a named function object from a given string.
@@ -1088,7 +1092,7 @@ class SunXspex(LoadSpec):
             return_line = "    return "+_mod+"\n"
             return function_creator(function_name=fun_name, function_text="".join([def_line, return_line]))
         else:
-            print("The above are not valid identifiers (or are keywords) in Python. Please change this in your model string.")
+            logger.warning("The above are not valid identifiers (or are keywords) in Python. Please change this in your model string.")
 
     def _free_and_other(self):
         """ Find all inputs to the model being used.
@@ -2312,7 +2316,7 @@ class SunXspex(LoadSpec):
         elif type(parameters) in [list, type(np.array([]))]:
             m = photon_model(*parameters, energies=photon_channel_bins)
         else:
-            print("parameters needs to be a dictionary or list (or np.array) of the photon_model inputs (excluding energies input) or None if photon_model is values and not a function.")
+            logger.warning("parameters needs to be a dictionary or list (or np.array) of the photon_model inputs (excluding energies input) or None if photon_model is values and not a function.")
             return
 
         cts_model = make_model(energies=photon_channel_bins,
@@ -2409,7 +2413,7 @@ class SunXspex(LoadSpec):
             elif type(spectrum) in [str, int]:
                 spec2pick, combine_submods = self._spec_loop_range(spectrum)
             else:
-                print("Not valid spectrum input.")
+                logger.warning("Not valid spectrum input.")
 
             all_spec_submods = []
             for s in range(*spec2pick):
@@ -2480,7 +2484,7 @@ class SunXspex(LoadSpec):
         same way (old_bins, old_bin_width), and the new bin channel "error"
         (energy_channel_error).
         """
-        print("Apply binning for plotting. ", end="")
+        logger.info("Apply binning for plotting.")
         new_bins, _, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
         old_bins = self.data.loaded_spec_data[rebin_and_spec[1]
                                               ]["count_channel_bins"] if not _orig_in_extras else self.data.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
@@ -3297,7 +3301,7 @@ class SunXspex(LoadSpec):
             rebin_dict = self._if_rebin_input_dict(_rebin_input)
         else:
             if type(_rebin_input) != type(None):
-                print("Rebin input needs to be a single int (applied to all spectra), a list with a rebin entry for each spectrum, or a dict with the spec. identifier and rebin value for any of the loaded spectra.")
+                logger.warning("Rebin input needs to be a single int (applied to all spectra), a list with a rebin entry for each spectrum, or a dict with the spec. identifier and rebin value for any of the loaded spectra.")
             rebin_dict = _default
         rebin_dict["combined"] = rebin_dict["spectrum1"] if "combined" not in rebin_dict else rebin_dict["combined"]
 
@@ -3322,7 +3326,7 @@ class SunXspex(LoadSpec):
         if len(self.data.loaded_spec_data.keys()) == len(_rebin_input):
             rebin_dict = dict(zip(self.data.loaded_spec_data.keys(), _rebin_input))
         else:
-            print("rebin input list must have an entry for each spectrum; e.g., 3 spectra could be [10,15,None].")
+            logger.warning("rebin input list must have an entry for each spectrum; e.g., 3 spectra could be [10,15,None].")
             rebin_dict = _default
         return rebin_dict
 
@@ -3451,7 +3455,7 @@ class SunXspex(LoadSpec):
         else:
             # work out rows and columns
             if number_of_plots == 0:
-                print("No spectra to plot.")
+                logger.info("No spectra to plot.")
                 return
             elif 0 < number_of_plots <= 4:
                 rows, cols = "1", str(number_of_plots)
@@ -3644,7 +3648,7 @@ class SunXspex(LoadSpec):
             can_combine = True
         else:
             can_combine = False
-            print("The energy channels and/or binning are different for at least one fitted spectrum. Not sure how to combine all spectra so won\'t show combined plot.")
+            logger.info("The energy channels and/or binning are different for at least one fitted spectrum. Not sure how to combine all spectra so won\'t show combined plot.")
 
         # check for same instruments, no point in combining counts from different instruments?
         can_combine = self._same_instruments(can_combine)
@@ -3710,7 +3714,7 @@ class SunXspex(LoadSpec):
 
         # if the data was unbinned for plotting (to be binned in the plotting methods) then rebin the data here
         if _rebin_after_plot:
-            print("Reapply original binning to data. ", end="")
+            logger.info("Reapply original binning to data.")
             self.rebin = self._data_rebin_setting
             del self._data_rebin_setting
 
@@ -3906,7 +3910,7 @@ class SunXspex(LoadSpec):
             spread2 = self._boundary_spread(value_bounds, number)[first_half:, :]  # half spread across the boundaries given
             spread = np.concatenate((spread1, spread2))
         else:
-            print("spread_type needs to be mag_order, over_bounds, or mixed.")
+            logger.info("spread_type needs to be mag_order, over_bounds, or mixed.")
             return
         return spread
 
@@ -4123,11 +4127,11 @@ class SunXspex(LoadSpec):
             if number_of_walkers >= 2*self._ndim:
                 self.nwalkers = number_of_walkers
             else:
-                print("\'self.nwalkers=number_of_walkers\' must be >= 2*number of free parameters (\'self._ndim\').")
-                print("Setting \'self.nwalkers\' to \'2*self._ndim\'.")
+                logger.warning("'self.nwalkers=number_of_walkers' must be >= 2*number of free parameters ('self._ndim').")
+                logger.warning("Setting 'self.nwalkers' to '2*self._ndim'.")
                 self.nwalkers = 2*self._ndim
         else:
-            print("\'number_of_walkers\' must be of type \'int\' and >= 2*number of free parameters (\'self._ndim\') or \'None\'.")
+            logger.info("'number_of_walkers' must be of type 'int' and >= 2*number of free parameters ('self._ndim') or 'None'.")
 
         # make sure the random number from normal distribution are of the same order as the earlier solution, or -1 orde, and get a good spread across the boundaries given
         walkers_start = self._walker_spread(free_params_list, free_bounds, self.nwalkers, spread_type=walker_spread)
@@ -4490,7 +4494,7 @@ class SunXspex(LoadSpec):
         """
         # check there are MCMC samples to plot
         if not hasattr(self, "all_mcmc_samples"):  # "mcmc_sampler"):
-            print("The MCMC analysis has not been run yet. Please run run_mcmc(...) successfully first.")
+            logger.info("The MCMC analysis has not been run yet. Please run run_mcmc(...) successfully first.")
             return
 
         cr = self.error_confidence_range
@@ -4866,7 +4870,7 @@ def check_allowed_names(model_string):
     if words_are_allowed:
         return True
     else:
-        print(set(all_words) - set([n for n in all_words if ((n.isidentifier()) and (not iskeyword(n))) or (isnumber(n))]))
+        logger.info(set(all_words) - set([n for n in all_words if ((n.isidentifier()) and (not iskeyword(n))) or (isnumber(n))]))
         return False
 
 
