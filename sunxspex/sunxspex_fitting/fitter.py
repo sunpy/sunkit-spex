@@ -53,122 +53,7 @@ warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 logger = get_logger(__name__, 'DEBUG')
 
-__all__ = ["add_var", "del_var", "add_photon_model", "del_photon_model", "SunXspex", "load"]
-
-DYNAMIC_FUNCTION_SOURCE = {}
-
-# models should return a photon spectrum with units photons s^-1 cm^-2 keV^-1
-
-
-def add_photon_model(function, overwrite=False):
-    """ Add user photon model to fitting namespace.
-
-    Takes a user defined function intended to be used as a model or model component when giving a
-    string to the SunXspex.model property. Puts defined_photon_models[function.__name__]=param_inputs
-    in `defined_photon_models` for it to be known to the fititng code. The energies argument must be
-    first and accept photon bins.
-
-    The given function needs to have parameters as arguments then \'energies\' as a keyword argument
-    where energies accepts the energy bin array. E.g.,
-
-    .. math::
-     gauss = = a$\cdot$e$^{-\frac{(energies - b)^{2}}{2 c^{2}}}$
-
-    would be
-     `gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))`
-
-    Parameters
-    ----------
-    function : function
-            The function object.
-
-    overwrite : bool
-            Set True to overwrite a model that already exists. User needs to be explicit if they wish
-            to overwrite their models.
-            Default: False
-
-    Returns
-    -------
-    None.
-
-    Example
-    -------
-    from fitter import SunXspex, defined_photon_models, add_photon_model
-
-    # Define gaussian model (doesn't have to be a lambda function)
-    gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))
-
-    # Add the gaussian model to fitter.py namespace
-    add_photon_model(gauss)
-
-    # Now can use it in fitting with string defined model. Will be plotted separately to the total model
-    Sx = SunXspex(pha_file=[...])
-    Sx.model = "gauss+gauss"
-    Sx.fit()
-    Sx.plot()
-    """
-    # if user wants to define any component model to use in the fitting and reference as a string
-    _glbls_cp, _dfs_cp = copy(globals()), copy(DYNAMIC_FUNCTION_SOURCE)
-    # check if lambda function and return the user function
-    # a 'self-contained' check will also take place and will fail if function is not of the form f(...,energies=None)
-    usr_func = deconstruct_lambda(function, add_underscore=False)
-    param_inputs, _ = get_func_inputs(function)  # get the param inputs for the function
-    # check if the function has already been added
-    if (usr_func.__name__ in defined_photon_models.keys()) and not overwrite:
-        logger.info(f"Model: '{usr_func.__name__}', already in 'defined_photon_models'. Please set `overwrite=True` or use `del_photon_model()` to remove the existing model entirely.")
-        # revert changes back, model needs to be initialised to know its name to hceck if it already existed but doing this overwrites it if it is there
-        globals()[usr_func.__name__] = _glbls_cp[usr_func.__name__]
-        DYNAMIC_FUNCTION_SOURCE[usr_func.__name__] = _dfs_cp[usr_func.__name__]
-        return
-
-    # if overwrite is True and it gets to this stage remove the function entry from defined_photon_models quietly, else this line does nothing
-    defined_photon_models.pop(usr_func.__name__, None)
-
-    # make list of all inputs for all already defined models
-    def_pars = list(itertools.chain.from_iterable(defined_photon_models.values()))
-    assert len(set(def_pars)-set(param_inputs)) == len(def_pars), f"Please use different parameter names to the ones already defined: {def_pars}"
-
-    # add user model to defined_photon_models from photon_models_for_fitting
-    defined_photon_models[usr_func.__name__] = param_inputs
-    logger.info(f"Model {usr_func.__name__} added.")
-
-
-def del_photon_model(function_name):
-    """ Remove user defined sub-models that have been added via `add_photon_model`.
-
-    Parameters
-    ----------
-    function_name : str
-            Name of the function to be removed.
-
-    Returns
-    -------
-    None.
-
-    Example
-    -------
-    from fitter import add_photon_model, del_photon_model
-
-    # Define gaussian model (doesn't have to be a lambda function)
-    gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))
-
-    # Add the gaussian model to fitter.py namespace
-    add_photon_model(gauss)
-
-    # realise the model is wrong or just want it removed
-    del_photon_model("gauss")
-    """
-    # quickly check if the function exists under function_name
-    if function_name not in defined_photon_models:
-        logger.info(f"{function_name}, is not in `defined_photon_models` to be removed.")
-        return
-
-    # can only remove if the user added the model, defined models from photon_models_for_fitting.py are protected
-    if inspect.getmodule(globals()[function_name]).__name__ in (__name__):
-        del defined_photon_models[function_name], globals()[function_name], DYNAMIC_FUNCTION_SOURCE[function_name]
-        logger.indo(f"Model {function_name} removed.")
-    else:
-        logger.warning("Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
+__all__ = ["add_var", "del_var", "SunXspex", "load"]
 
 
 DYNAMIC_VARS = {}
@@ -616,6 +501,8 @@ class SunXspex(LoadSpec):
 
     def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
         """Construct the class and set up some defaults."""
+        self.funcs = {}
+        self.dynamic_function_source = {}
 
         self.data = LoadSpec(*args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
                              custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
@@ -867,6 +754,137 @@ class SunXspex(LoadSpec):
         self.params["Status"], self.params["Value"], self.params["Bounds"], self.params["Error"] = list(_ps.param_status), list(_ps.param_value), list(_ps.param_bounds), list(_ps.param_error)
         self.rParams["Status"], self.rParams["Value"], self.rParams["Bounds"], self.rParams["Error"] = list(_rps.param_status), list(_rps.param_value), list(_rps.param_bounds), list(_rps.param_error)
 
+    def add_photon_model(self, function, overwrite=False):
+        """ Add user photon model to fitting namespace.
+
+        Takes a user defined function intended to be used as a model or model component when
+        giving a
+        string to the SunXspex.model property. Puts defined_photon_models[
+        function.__name__]=param_inputs
+        in `defined_photon_models` for it to be known to the fititng code. The energies argument
+        must be
+        first and accept photon bins.
+
+        The given function needs to have parameters as arguments then \'energies\' as a keyword
+        argument
+        where energies accepts the energy bin array. E.g.,
+
+        .. math::
+         gauss = = a$\cdot$e$^{-\frac{(energies - b)^{2}}{2 c^{2}}}$
+
+        would be
+         `gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(
+         2*c**2)))`
+
+        Parameters
+        ----------
+        function : function
+                The function object.
+
+        overwrite : bool
+                Set True to overwrite a model that already exists. User needs to be explicit if
+                they wish
+                to overwrite their models.
+                Default: False
+
+        Returns
+        -------
+        None.
+
+        Example
+        -------
+        from fitter import SunXspex, defined_photon_models, add_photon_model
+
+        # Define gaussian model (doesn't have to be a lambda function)
+        gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(
+        2*c**2)))
+
+        # Add the gaussian model to fitter.py namespace
+        add_photon_model(gauss)
+
+        # Now can use it in fitting with string defined model. Will be plotted separately to the
+        total model
+        Sx = SunXspex(pha_file=[...])
+        Sx.model = "gauss+gauss"
+        Sx.fit()
+        Sx.plot()
+        """
+        # if user wants to define any component model to use in the fitting and reference as a
+        # string
+        orig_params = copy(self.funcs)
+        orig_dsource = copy(self.dynamic_function_source)
+        # check if lambda function and return the user function
+        # a 'self-contained' check will also take place and will fail if function is not of the
+        # form f(...,energies=None)
+        usr_func = deconstruct_lambda(self.dynamic_function_source, function, add_underscore=False)
+        param_inputs, _ = get_func_inputs(function)  # get the param inputs for the function
+        # check if the function has already been added
+        if (usr_func.__name__ in defined_photon_models.keys()) and not overwrite:
+            logger.info(
+                f"Model: '{usr_func.__name__}', already in 'defined_photon_models'. Please set "
+                f"`overwrite=True` or use `del_photon_model()` to remove the existing model "
+                f"entirely.")
+            # revert changes back, model needs to be initialised to know its name to hceck if it
+            # already existed but doing this overwrites it if it is there
+            self.funcs[usr_func.__name__] = orig_params[usr_func.__name__]
+            self.dynamic_function_source[usr_func.__name__] = orig_dsource[usr_func.__name__]
+            return
+
+        # if overwrite is True and it gets to this stage remove the function entry from
+        # defined_photon_models quietly, else this line does nothing
+        defined_photon_models.pop(usr_func.__name__, None)
+
+        # make list of all inputs for all already defined models
+        def_pars = list(itertools.chain.from_iterable(defined_photon_models.values()))
+        if len(set(def_pars) - set(param_inputs)) != len(def_pars):
+            logger.info(
+                f"Please use different parameter names to the ones already defined: {def_pars}")
+
+        # add user model to defined_photon_models from photon_models_for_fitting
+        defined_photon_models[usr_func.__name__] = param_inputs
+        logger.info(f"Model {usr_func.__name__} added.")
+
+    def del_photon_model(self, function_name):
+        """ Remove user defined sub-models that have been added via `add_photon_model`.
+
+        Parameters
+        ----------
+        function_name : str
+                Name of the function to be removed.
+
+        Returns
+        -------
+        None.
+
+        Example
+        -------
+        from fitter import add_photon_model, del_photon_model
+
+        # Define gaussian model (doesn't have to be a lambda function)
+        gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(
+        2*c**2)))
+
+        # Add the gaussian model to fitter.py namespace
+        add_photon_model(gauss)
+
+        # realise the model is wrong or just want it removed
+        del_photon_model("gauss")
+        """
+        # quickly check if the function exists under function_name
+        if function_name not in defined_photon_models:
+            logger.info(f"{function_name}, is not in `defined_photon_models` to be removed.")
+            return
+
+        # can only remove if the user added the model, defined models from
+        # photon_models_for_fitting.py are protected
+        if inspect.getmodule([function_name]).__name__ in (__name__):
+            del defined_photon_models[function_name], sefl.funcs[function_name], \
+                self.dynamic_function_source[function_name]
+            logger.indo(f"Model {function_name} removed.")
+        else:
+            logger.warning(
+                "Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
+
     @property
     def energy_fitting_range(self):
         """ ***Property*** Allows a fitting range to be defined.
@@ -1090,7 +1108,8 @@ class SunXspex(LoadSpec):
             fun_name = re.sub(r'[^a-zA-Z0-9]+', '_', model_string).lstrip('0123456789')+"".join(_params)
             def_line = "def "+fun_name+"("+",".join(_params)+", energies=None):\n"
             return_line = "    return "+_mod+"\n"
-            return function_creator(function_name=fun_name, function_text="".join([def_line, return_line]))
+            return function_creator(self.dynamic_function_source, function_name=fun_name,
+                                    function_text="".join([def_line, return_line]))
         else:
             logger.warning("The above are not valid identifiers (or are keywords) in Python. Please change this in your model string.")
 
@@ -4735,7 +4754,7 @@ def _func_self_contained_check(function_name, function_text):
     #     warnings.warn(str(e)+"\nFunction failed self-contained check; however, this may be due to conflict in test inputs used to the model.")
 
 
-def function_creator(function_name, function_text, _orig_func=None):
+def function_creator(dsource, function_name, function_text, _orig_func=None):
     """ Creates a named function from its name and source code.
 
     Takes a user defined function name for a NAMED function and a string that
@@ -4758,7 +4777,7 @@ def function_creator(function_name, function_text, _orig_func=None):
     -------
     Returns the function that has just been created and executed into globals().
     """
-    DYNAMIC_FUNCTION_SOURCE[function_name] = function_text
+    dsource[function_name] = function_text
     try:
         _func_self_contained_check(function_name, function_text)
         # given the code for a NAMED function (not lambda) as a string, this will execute the code and return that function
@@ -4769,7 +4788,7 @@ def function_creator(function_name, function_text, _orig_func=None):
         return _orig_func
 
 
-def deconstruct_lambda(function, add_underscore=True):
+def deconstruct_lambda(dsource, function, add_underscore=True):
     """ Takes in a lambda function and returns it as a NAMED function
 
     Parameters
@@ -4806,7 +4825,7 @@ def deconstruct_lambda(function, add_underscore=True):
     else:
         func_info = {"function_name": function.__name__, "function_text": inspect.getsource(function)}
 
-    return function_creator(**func_info, _orig_func=function)  # execute the function to be used here
+    return function_creator(dsource, **func_info, _orig_func=function)  # execute the function to be used here
 
 
 def get_all_words(model_string):
