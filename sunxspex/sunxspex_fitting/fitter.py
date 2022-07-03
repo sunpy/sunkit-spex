@@ -53,120 +53,13 @@ warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 logger = get_logger(__name__, 'DEBUG')
 
-__all__ = ["add_var", "del_var", "SunXspex", "load"]
-
-
-DYNAMIC_VARS = {}
-
-
-def add_var(overwrite=False, quiet=False, **user_kwarg):
-    """ Add user variable to fitting namespace.
-
-    Takes user defined variables and makes them available to the models being used within the
-    fitting. E.g., the user could define a variable in their own namespace (obtained from a file?)
-    and, instead of loading the file in with every function call, they can add the variable using
-    this method.
-
-    Parameters
-    ----------
-    overwrite : bool
-            Set True to overwrite an argument that already exists. User needs to be explicit if they wish
-            to overwrite their arguments.
-            Default: False
-
-    quiet : bool
-            Suppress any print statement to announce the variable has been added or not added. To be used
-            when loading session back in as if the variables were save then they were fine to add in the
-            first place.
-            Default: False
-
-    **user_kwarg :
-            User added variables. Arrays, lists, constants, etc., to be used in user defined models. This
-            enables sessions with complex models (say that use a constants from a file) to still be save
-            and work nroally when loaded back in.
-
-    Returns
-    -------
-    None.
-
-    Example
-    -------
-    from fitter import SunXspex, defined_photon_models, add_photon_model, add_var
-
-    # the user variable that might be too costly to run every function call or too hard to hard code
-    some_user_var = something_complicated
-
-    # Define gaussian model (doesn't have to be a lambda function), but include some user variable outside the scope of the model
-    gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2))) * some_user_var
-
-    # add user variable
-    add_var(some_user_var=some_user_var)
-
-    # Add the gaussian model to fitter.py namespace
-    add_photon_model(gauss)
-
-    # Now can use it in fitting with string defined model. Will be plotted separately to the total model
-    Sx = SunXspex(pha_file=[...])
-    Sx.model = "gauss+gauss"
-    Sx.fit()
-    Sx.plot()
-    """
-    for k, i in user_kwarg.items():
-        if k in DYNAMIC_VARS and not overwrite:
-            vb = f"Variable {k} already exists. Please set `overwrite=True`, delete this with `del_var({k})`,\nor use a different variable name."
-        elif not k in DYNAMIC_VARS and k in globals():
-            vb = f"Argument name {k} already exists **in globals** and is not a good idea to overwrite. Please use a different variable name."
-        else:
-            DYNAMIC_VARS.update({k: i})
-            globals().update({k: i})
-            vb = f"Variable {k} added."
-        if not quiet:
-            logger.info(vb)
-        logger.debug(vb)
-
-
-def del_var(*user_arg_name):
-    """ Remove user defined variables that have been added via `add_var`.
-
-    Parameters
-    ----------
-    *user_arg_name : str
-            Name(s) of the variable(s) to be removed.
-
-    Returns
-    -------
-    None.
-
-    Example
-    -------
-    from fitter import add_var, del_var
-
-    # the user variable that might be too costly to run every function call or too hard to hard code
-    some_user_var = something_complicated
-
-    # add user variable
-    add_var(some_user_var=some_user_var)
-
-    # realise the variable should be there or want it gome to update it
-    del_var("some_user_var")
-    """
-    _removed, _not_removed = [], []
-    for uan in user_arg_name:
-        if uan in DYNAMIC_VARS:
-            del globals()[uan], DYNAMIC_VARS[uan]
-            _removed.append(uan)
-        else:
-            _not_removed.append(uan)
-    _rmstr, spc = (f"Variables {_removed} were removed.", "\n") if len(_removed) > 0 else ("", "")
-    _nrmstr, spc = (f"Variables {_not_removed} are not ones added by user and so were not removed.", spc) if len(_not_removed) > 0 else ("", "")
-    logger.info(_rmstr, _nrmstr, spc)
-
+__all__ = ["SunXspex", "load"]
 
 # Easily access log-likelihood/fit-stat methods from the one place, if SunXpsex class inherits this then data is duplicated
 LL_CLASS = LogLikelihoods()
 
 
-class SunXspex(LoadSpec):
+class SunXspex:
     """
     Load's in spectral file(s) and then provide a framework for fitting models to the spectral data.
 
@@ -503,7 +396,8 @@ class SunXspex(LoadSpec):
         """Construct the class and set up some defaults."""
         self.funcs = {}
         self.dynamic_function_source = {}
-
+        self.dynamic_vars = {}
+        self.defined_photon_models = {**defined_photon_models}
         self.data = LoadSpec(*args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
                              custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
 
@@ -819,7 +713,7 @@ class SunXspex(LoadSpec):
         usr_func = deconstruct_lambda(self.dynamic_function_source, function, add_underscore=False)
         param_inputs, _ = get_func_inputs(function)  # get the param inputs for the function
         # check if the function has already been added
-        if (usr_func.__name__ in defined_photon_models.keys()) and not overwrite:
+        if (usr_func.__name__ in self.defined_photon_models.keys()) and not overwrite:
             logger.info(
                 f"Model: '{usr_func.__name__}', already in 'defined_photon_models'. Please set "
                 f"`overwrite=True` or use `del_photon_model()` to remove the existing model "
@@ -832,16 +726,16 @@ class SunXspex(LoadSpec):
 
         # if overwrite is True and it gets to this stage remove the function entry from
         # defined_photon_models quietly, else this line does nothing
-        defined_photon_models.pop(usr_func.__name__, None)
+        self.defined_photon_models.pop(usr_func.__name__, None)
 
         # make list of all inputs for all already defined models
-        def_pars = list(itertools.chain.from_iterable(defined_photon_models.values()))
+        def_pars = list(itertools.chain.from_iterable(self.defined_photon_models.values()))
         if len(set(def_pars) - set(param_inputs)) != len(def_pars):
             logger.info(
                 f"Please use different parameter names to the ones already defined: {def_pars}")
 
         # add user model to defined_photon_models from photon_models_for_fitting
-        defined_photon_models[usr_func.__name__] = param_inputs
+        self.defined_photon_models[usr_func.__name__] = param_inputs
         logger.info(f"Model {usr_func.__name__} added.")
 
     def del_photon_model(self, function_name):
@@ -871,19 +765,136 @@ class SunXspex(LoadSpec):
         del_photon_model("gauss")
         """
         # quickly check if the function exists under function_name
-        if function_name not in defined_photon_models:
+        if function_name not in self.defined_photon_models:
             logger.info(f"{function_name}, is not in `defined_photon_models` to be removed.")
             return
 
         # can only remove if the user added the model, defined models from
         # photon_models_for_fitting.py are protected
         if inspect.getmodule([function_name]).__name__ in (__name__):
-            del defined_photon_models[function_name], sefl.funcs[function_name], \
+            del self.defined_photon_models[function_name], sefl.funcs[function_name], \
                 self.dynamic_function_source[function_name]
             logger.indo(f"Model {function_name} removed.")
         else:
             logger.warning(
                 "Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
+
+    def add_var(self, overwrite=False, quiet=False, **user_kwarg):
+        """ Add user variable to fitting namespace.
+
+        Takes user defined variables and makes them available to the models being used within the
+        fitting. E.g., the user could define a variable in their own namespace (obtained from a
+        file?)
+        and, instead of loading the file in with every function call, they can add the variable
+        using
+        this method.
+
+        Parameters
+        ----------
+        overwrite : bool
+                Set True to overwrite an argument that already exists. User needs to be explicit
+                if they wish
+                to overwrite their arguments.
+                Default: False
+
+        quiet : bool
+                Suppress any print statement to announce the variable has been added or not
+                added. To be used
+                when loading session back in as if the variables were save then they were fine to
+                add in the
+                first place.
+                Default: False
+
+        **user_kwarg :
+                User added variables. Arrays, lists, constants, etc., to be used in user defined
+                models. This
+                enables sessions with complex models (say that use a constants from a file) to
+                still be save
+                and work nroally when loaded back in.
+
+        Returns
+        -------
+        None.
+
+        Example
+        -------
+        from fitter import SunXspex, defined_photon_models, add_photon_model, add_var
+
+        # the user variable that might be too costly to run every function call or too hard to
+        hard code
+        some_user_var = something_complicated
+
+        # Define gaussian model (doesn't have to be a lambda function), but include some user
+        variable outside the scope of the model
+        gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(
+        2*c**2))) * some_user_var
+
+        # add user variable
+        add_var(some_user_var=some_user_var)
+
+        # Add the gaussian model to fitter.py namespace
+        add_photon_model(gauss)
+
+        # Now can use it in fitting with string defined model. Will be plotted separately to the
+        total model
+        Sx = SunXspex(pha_file=[...])
+        Sx.model = "gauss+gauss"
+        Sx.fit()
+        Sx.plot()
+        """
+        for k, i in user_kwarg.items():
+            if k in self.dynamic_vars and not overwrite:
+                vb = f"Variable {k} already exists. Please set `overwrite=True`, delete this with " \
+                     f"`del_var({k})`,\nor use a different variable name."
+            elif not k in self.dynamic_vars:
+                vb = f"Argument name {k} already exists **in globals** and is not a good idea to " \
+                    f"overwrite. Please use a different variable name."
+            else:
+                self.dynamic_vars.update({k: i})
+                vb = f"Variable {k} added."
+            if not quiet:
+                logger.info(vb)
+            logger.debug(vb)
+
+    def del_var(self, *user_arg_name):
+        """ Remove user defined variables that have been added via `add_var`.
+
+        Parameters
+        ----------
+        *user_arg_name : str
+                Name(s) of the variable(s) to be removed.
+
+        Returns
+        -------
+        None.
+
+        Example
+        -------
+        from fitter import add_var, del_var
+
+        # the user variable that might be too costly to run every function call or too hard to
+        hard code
+        some_user_var = something_complicated
+
+        # add user variable
+        add_var(some_user_var=some_user_var)
+
+        # realise the variable should be there or want it gome to update it
+        del_var("some_user_var")
+        """
+        _removed, _not_removed = [], []
+        for uan in user_arg_name:
+            if uan in self.dynamic_vars:
+                del self.dynamic_vars[uan]
+                _removed.append(uan)
+            else:
+                _not_removed.append(uan)
+        _rmstr, spc = (f"Variables {_removed} were removed.", "\n") if len(_removed) > 0 else (
+            "", "")
+        _nrmstr, spc = (
+            f"Variables {_not_removed} are not ones added by user and so were not removed.",
+            spc) if len(_not_removed) > 0 else ("", "")
+        logger.info(_rmstr, _nrmstr, spc)
 
     @property
     def energy_fitting_range(self):
@@ -1022,7 +1033,7 @@ class SunXspex(LoadSpec):
         List.
         """
 
-        model_names = list(defined_photon_models.keys())
+        model_names = list(self.defined_photon_models.keys())
         mods_removed = model_string.split(model_names[0])  # split the first one to start
         inds = np.array(list(map(len, model_string.split(model_names[0]))))  # get the indices of the gaps in the string (now broken down into a list)
         # starting index(/indices) of the first model in defined_photon_models in your custom string
@@ -1085,7 +1096,7 @@ class SunXspex(LoadSpec):
             _params = []
             # try to break down into separate models and assign them to self._separate_models, need >1 sub-model
             self._component_mods_from_str(model_string=model_string, _create_separate_models_for_one=_create_separate_models_for_one)
-            for mn, mp in defined_photon_models.items():
+            for mn, mp in self.defined_photon_models.items():
                 # how many of this model are in the string
                 number_of_this_model = _mod.count(mn)
                 # number the parameter accordingly
@@ -1103,7 +1114,7 @@ class SunXspex(LoadSpec):
                 put_mods_back[1::2] = _mods_with_params
                 _mod = "".join(put_mods_back)  # replace the model string with with latest model component added
             # build the function string
-            _params += get_nonsubmodel_params(model_string=model_string, _defined_photon_models=defined_photon_models)
+            _params += get_nonsubmodel_params(model_string=model_string, _defined_photon_models=self.defined_photon_models)
             # replace non-word/non-numbers from string with "_", remove any starting numbers, join params to the end too->should be a legit and unique enough function name
             fun_name = re.sub(r'[^a-zA-Z0-9]+', '_', model_string).lstrip('0123456789')+"".join(_params)
             def_line = "def "+fun_name+"("+",".join(_params)+", energies=None):\n"
@@ -4634,8 +4645,8 @@ class SunXspex(LoadSpec):
     def __getstate__(self):
         """Tells pickle how this object should be pickled."""
         _model = {"_model": self._model.__name__}
-        _user_fncs = {"usr_funcs": DYNAMIC_FUNCTION_SOURCE}
-        _user_args = {"user_args": DYNAMIC_VARS}
+        _user_fncs = {"usr_funcs": self.dynamic_function_source}
+        _user_args = {"user_args": self.dynamic_vars}
         if self._pickle_reason == "mcmc_parallelize":
             _loaded_spec_data = {"loaded_spec_data": {s: {k: d for (k, d) in v.items() if k != "extras"} for (s, v) in self.data.loaded_spec_data.items()}}  # don't need anything in "extras"
             _atts = {"params": self.params,
@@ -4662,9 +4673,9 @@ class SunXspex(LoadSpec):
 
     def __setstate__(self, d):
         """Tells pickle how this object should be loaded."""
-        add_var(**d["user_args"], quiet=True)
+        self.add_var(**d["user_args"], quiet=True)
         for f, c in d["usr_funcs"].items():
-            function_creator(function_name=f, function_text=c)
+            function_creator(d['dynamic_function_source'], function_name=f, function_text=c)
         del d["usr_funcs"], d["user_args"]
         self.__dict__ = d
         self._model = globals()[d["_model"]] if d["_model"] in globals() else None

@@ -1,7 +1,10 @@
+import pickle
+
 import numpy as np
+import pytest
 from numpy.testing import assert_allclose
 
-from sunxspex.sunxspex_fitting.fitter import SunXspex, add_photon_model
+from sunxspex.sunxspex_fitting.fitter import SunXspex
 
 rng = np.random.default_rng(2022)
 
@@ -28,10 +31,8 @@ def gauss(a, b, c, energies=None):
     return a * np.exp(-((mid_x - b) ** 2 / (2 * c ** 2)))
 
 
-def test_fitter_custom():
-    # add the model to be used in fitting
-    add_photon_model(gauss)
-
+@pytest.fixture
+def custom_spec():
     a = (1.3e4, 350, 60)
     b = (3e3, 600, 60)
     maxi, step = 1e3, 1
@@ -51,9 +52,17 @@ def test_fitter_custom():
 
     custom_spec = SunXspex(custom_dict)
 
+    # add the model to be used in fitting
+    custom_spec.add_photon_model(gauss)
+
     # assign the fitting code's active model to be a combination of ones you defined
     custom_spec.model = f"gauss+gauss+{noise_constant}"
 
+    return custom_spec, a, b
+
+
+def test_fitter_fit(custom_spec):
+    custom_spec, a, b = custom_spec
     # define a large enough range to be sure the answer is in there somewhere
     custom_spec.params["a1_spectrum1"] = [1e4, (5e2, 5e4)]
     custom_spec.params["b1_spectrum1"] = [400, (2e2, 1e3)]
@@ -94,3 +103,35 @@ def test_fitter_custom():
     assert_allclose(minimiser_results[3], b[0], rtol=1e-3)
     assert_allclose(minimiser_results[4], b[1], rtol=1e-3)
     assert_allclose(minimiser_results[5], b[2], rtol=1e-3)
+
+
+def test_fitter_plot(custom_spec):
+    custom_spec, a, b = custom_spec
+    custom_spec.energy_fitting_range = [150, 800]
+    custom_spec.fit()
+    custom_spec.plot()
+
+
+def test_fitter_load(custom_spec, tmp_path):
+    custom_spec, a, b = custom_spec
+    savefile = tmp_path / 'test'
+    custom_spec.save(str(savefile))
+    with open(tmp_path / 'test.pickle', 'rb') as d:
+        cs = pickle.load(d)
+
+    cs.params["a1_spectrum1"] = [1e4, (5e2, 5e4)]
+    cs.params["b1_spectrum1"] = [400, (2e2, 1e3)]
+    cs.params["c1_spectrum1"] = [100, (1e1, 2e2)]
+    cs.params["a2_spectrum1"] = ["free", 5e3, (1e3, 1e4)]
+    cs.params["b2_spectrum1"] = ["free", 600, (2e2, 1e3)]
+    cs.params["c2_spectrum1"] = ["free", 50, (1e1, 1e2)]
+    cs.fit()
+
+    minimiser_results = cs.fit()
+
+    assert_allclose(minimiser_results[0], a[0], rtol=1e-3)
+    assert_allclose(minimiser_results[1], a[1], rtol=1e-3)
+    assert_allclose(minimiser_results[2], a[2], rtol=1e-3)
+    assert_allclose(minimiser_results[3], b[0], rtol=1e-3)
+    assert_allclose(minimiser_results[4], b[1], rtol=1e-3)
+    assert_allclose(minimiser_results[5], b[2], rtol=1e-2)
