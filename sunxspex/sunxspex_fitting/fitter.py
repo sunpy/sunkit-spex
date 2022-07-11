@@ -2515,7 +2515,7 @@ class SunXspex:
         (energy_channel_error).
         """
         logger.info("Apply binning for plotting.")
-        new_bins, _, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
+        new_bins, _, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _, _orig_in_extras = self.data._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
         old_bins = self.data.loaded_spec_data[rebin_and_spec[1]
                                               ]["count_channel_bins"] if not _orig_in_extras else self.data.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
         old_bin_width = self.data.loaded_spec_data[rebin_and_spec[1]
@@ -2616,7 +2616,7 @@ class SunXspex:
         """
         old_bins = np.column_stack((energy_channels-energy_channel_error, energy_channels+energy_channel_error))
         old_bin_width = energy_channel_error*2
-        new_bins, mask = self._group_cts(channel_bins=old_bins, counts=self._get_mean_counts_across_specs(), group_min=rebin_and_spec[0], spectrum=rebin_and_spec[1], verbose=True)
+        new_bins, mask = self.data._group_cts(channel_bins=old_bins, counts=self._get_mean_counts_across_specs(), group_min=rebin_and_spec[0], spectrum=rebin_and_spec[1], verbose=True)
 
         mask[mask != 0] = 1
         # use group counts to make sure see where the grouping stops, any zero entries don't have grouped counts and so should be nans to avoid plotting
