@@ -9,23 +9,23 @@ __all__ = ['Constants']
 
 CONSTANTS = {
     'idl': {
-            'mc2': 510.98,  # electron rest mass keV
-            'clight': 2.9979e10,  # cm s^-1
-            'au': 1.496e13,  # cm
-            'r0': 2.8179e-13,  # classical electron radius cm
-            'alpha': 7.29735308e-3,  # alpha
-            'twoar02': 1.15893512e-27  # 2 * alpha * r0^2
-        },
+        'mc2': 510.98,  # electron rest mass keV
+        'clight': 2.9979e10,  # cm s^-1
+        'au': 1.496e13,  # cm
+        'r0': 2.8179e-13,  # classical electron radius cm
+        'alpha': 7.29735308e-3,  # alpha
+        'twoar02': 1.15893512e-27  # 2 * alpha * r0^2
+    },
 
     'astropy': {
-            'mc2': (const.m_e * const.c**2).to('keV').value,
-            'clight': const.c.cgs.value,
-            'au': const.au.cgs.value,
-            'r0': (const.a0*const.alpha**2).cgs.value,
-            'alpha': const.alpha.cgs.value,
-            'twoar02': 2.0 * const.alpha.cgs.value * (const.a0*const.alpha**2).cgs.value**2
-        }
+        'mc2': (const.m_e * const.c**2).to('keV').value,
+        'clight': const.c.cgs.value,
+        'au': const.au.cgs.value,
+        'r0': (const.a0*const.alpha**2).cgs.value,
+        'alpha': const.alpha.cgs.value,
+        'twoar02': 2.0 * const.alpha.cgs.value * (const.a0*const.alpha**2).cgs.value**2
     }
+}
 
 
 class Singleton(type):
@@ -44,6 +44,7 @@ class Constants(metaclass=Singleton):
     """
     Centralised constant representation
     """
+
     def __init__(self, ref='idl'):
         """
 

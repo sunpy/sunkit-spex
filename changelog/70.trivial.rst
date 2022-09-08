@@ -1,0 +1,1 @@
+Configure giles bot to check for change log entries.
