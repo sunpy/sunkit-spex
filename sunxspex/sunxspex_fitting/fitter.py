@@ -3896,9 +3896,9 @@ class SunXspex:
         lowers[lowers == None] = -2**32  # -np.inf # for the random int generatation, these have to be numbers. Make it largest 32-bit number
         uppers = value_bounds[:, 1][:, None]  # = []
         uppers[uppers == None] = 2**32  # np.inf
-        vbounds = np.concatenate((lowers, uppers), axis=1)*100
+        vbounds = np.concatenate((lowers, uppers), axis=1)
 
-        return np.array([list(np.random.randint(*vb, number)/100) for vb in vbounds]).T
+        return np.array([list(vb[0]+(vb[1]-vb[0])*np.random.rand(number)) for vb in vbounds]).T
 
     def _walker_spread(self, value, value_bounds, number, spread_type="mixed"):
         """ Calculate a spread of walker starting positions.
