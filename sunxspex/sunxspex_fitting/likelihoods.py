@@ -236,7 +236,11 @@ class LogLikelihoods:
         .. math::
          ln(L_{Poisson}) = D (ln(\frac{\mu}{D}) + 1) - \mu
 
-        where D is the data and mu is the model counts.
+        where D is the data and mu is the model counts. When D=0 then go with the Poissonian
+        log-likelihood
+
+        .. math::
+         ln(L_{Poisson}) = -\mu
 
         [1] https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/XSappendixStatistics.html
 
@@ -254,6 +258,11 @@ class LogLikelihoods:
         # Best value is 0, if obs_counts>mod_counts or obs_counts<mod_counts then likelihoods<0
         # Obvious since e^0=1
         likelihoods = np.array(observed_counts) * (np.log(np.array(model_counts)/np.array(observed_counts)) + 1) - np.array(model_counts)
+
+        # if zero observed counts in a bin, then Stirling Approx. not good (only good for obs_counts>=1, if =0 then ->-inf, but Poisson->-mod_counts)
+        # defer to Poisson for the nans in this case
+        if len(likelihoods[~np.isfinite(likelihoods)]) > 0:
+            likelihoods[~np.isfinite(likelihoods)] = -model_counts[~np.isfinite(likelihoods)]
 
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 
