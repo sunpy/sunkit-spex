@@ -15,7 +15,7 @@ __all__ = ['load_chianti_lines_lite', 'load_chianti_continuum',
 
 
 @manager.require('chianti_lines',
-                 ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav'],
+                 ['https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav'],
                  '2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677')
 def load_chianti_lines_lite():
     """
@@ -124,7 +124,7 @@ def load_chianti_lines_lite():
 
 
 @manager.require('chianti_continuum',
-                 ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav'],
+                 ['https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav'],
                  'aadf4355931b4c241ac2cd5669e89928615dc1b55c9fce49a155b70915a454dd')
 def load_chianti_continuum():
     """
@@ -179,7 +179,7 @@ def load_chianti_continuum():
 
 
 @manager.require('xray_abundances',
-                 ['https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/xray_abun_file.genx'],
+                 ['https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/xray_abun_file.genx'],
                  '92c0e1f9a83da393cc38840752fda5a5b44c5b18a4946e5bf12c208771fe0fd3')
 def load_xray_abundances(abundance_type=None):
     """

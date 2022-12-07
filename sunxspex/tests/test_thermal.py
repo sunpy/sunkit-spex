@@ -9,9 +9,9 @@ from sunxspex import thermal
 
 # Manually load file that was used to compile expected flux values.
 thermal.setup_continuum_parameters(
-    "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav")
+    "https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav")
 thermal.setup_line_parameters(
-    "https://hesperia.gsfc.nasa.gov/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav")
+    "https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav")
 SSW_INTENSITY_UNIT = u.ph / u.cm**2 / u.s / u.keV
 DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
