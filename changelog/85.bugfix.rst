@@ -1,0 +1,1 @@
+Added in special case when a data bin has zero counts in it for the C-stat likelihood, it defaults to the Poisson likelihood now when data is zero.
