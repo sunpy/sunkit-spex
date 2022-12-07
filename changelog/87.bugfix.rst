@@ -1,0 +1,1 @@
+Values are now left as floats when converting the model count rates (counts/second) to just counts since the model represents the average number of counts; therefore, there is not need for these to be integers.
