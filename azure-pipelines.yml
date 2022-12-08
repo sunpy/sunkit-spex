@@ -31,18 +31,19 @@ trigger:
 jobs:
 - template: run-tox-env.yml@samaloney
   parameters:
-    toxverspec: <0.4
+    toxverspec: <4
+    toxdeps: tox-pypi-filter
     submodules: false
     coverage: codecov
     envs:
-#      - macos: py38
-#        name: py38_test_macos
+      - macos: py38
+        name: py38_test_macos
 
-#      - windows: py37
-#        name: py37_win
+      - windows: py37
+        name: py37_win
 
-#      - linux: py38
-#        name: py38_lin
+      - linux: py38
+        name: py38_lin
 
       - linux: codestyle
         name: codestyle
