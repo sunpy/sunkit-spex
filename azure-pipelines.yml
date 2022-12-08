@@ -41,8 +41,8 @@ jobs:
 #      - windows: py37
 #        name: py37_win
 
-      - linux: py38
-        name: py38_lin
+#      - linux: py38
+#        name: py38_lin
 
       - linux: codestyle
         name: codestyle
