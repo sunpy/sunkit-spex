@@ -29,7 +29,7 @@ trigger:
     - '*post*'
 
 jobs:
-- template: run-tox-env.yml@OpenAstronomy
+- template: run-tox-env.yml@samaloney
   parameters:
     toxverspec: <0.4
     submodules: false
