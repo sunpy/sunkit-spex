@@ -8,11 +8,11 @@ variables:
 
 resources:
   repositories:
-  - repository: OpenAstronomy
+  - repository: samaloney
     type: github
     endpoint: sunpy
-    name: OpenAstronomy/azure-pipelines-templates
-    ref: master
+    name: samaloney/azure-pipelines-templates
+    ref: feat-add-tox-version
 
 trigger:
   branches:
@@ -31,6 +31,7 @@ trigger:
 jobs:
 - template: run-tox-env.yml@OpenAstronomy
   parameters:
+    toxverspec: <0.4
     submodules: false
     coverage: codecov
     envs:
