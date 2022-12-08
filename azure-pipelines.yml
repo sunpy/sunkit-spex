@@ -35,11 +35,11 @@ jobs:
     submodules: false
     coverage: codecov
     envs:
-      - macos: py38
-        name: py38_test_macos
+#      - macos: py38
+#        name: py38_test_macos
 
-      - windows: py37
-        name: py37_win
+#      - windows: py37
+#        name: py37_win
 
       - linux: py38
         name: py38_lin
