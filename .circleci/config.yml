@@ -48,7 +48,7 @@ jobs:
       - run: *skip-check
       - run: *merge-check
       - run: *apt-install
-      - run: pip install -U tox
+      - run: pip install -U 'tox<4' tox-pypi-filter
       - run: tox -e build_docs
       - run:
           name: Prepare for upload
