@@ -1,0 +1,1 @@
+`sunxspex.sunxspex_fitting.fitter.SunXspex` no longer inherits from `sunxspex.sunxspex_fitting.data_loader.LoadSpec`.

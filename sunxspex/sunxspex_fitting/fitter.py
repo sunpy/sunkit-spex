@@ -35,6 +35,7 @@ from scipy.optimize import minimize
 
 from astropy.table import Table
 
+from sunxspex.logging import get_logger
 from sunxspex.sunxspex_fitting.data_loader import LoadSpec
 from sunxspex.sunxspex_fitting.instruments import rebin_any_array
 from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
@@ -50,235 +51,15 @@ from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
+logger = get_logger(__name__, 'DEBUG')
 
-__all__ = ["add_var", "del_var", "add_photon_model", "del_photon_model", "SunXspex", "load"]
-
-DYNAMIC_FUNCTION_SOURCE = {}
-
-# models should return a photon spectrum with units photons s^-1 cm^-2 keV^-1
-
-
-def add_photon_model(function, overwrite=False):
-    """ Add user photon model to fitting namespace.
-
-    Takes a user defined function intended to be used as a model or model component when giving a
-    string to the SunXspex.model property. Puts defined_photon_models[function.__name__]=param_inputs
-    in `defined_photon_models` for it to be known to the fititng code. The energies argument must be
-    first and accept photon bins.
-
-    The given function needs to have parameters as arguments then \'energies\' as a keyword argument
-    where energies accepts the energy bin array. E.g.,
-
-    .. math::
-     gauss = = a$\cdot$e$^{-\frac{(energies - b)^{2}}{2 c^{2}}}$
-
-    would be
-     `gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))`
-
-    Parameters
-    ----------
-    function : function
-            The function object.
-
-    overwrite : bool
-            Set True to overwrite a model that already exists. User needs to be explicit if they wish
-            to overwrite their models.
-            Default: False
-
-    Returns
-    -------
-    None.
-
-    Example
-    -------
-    from fitter import SunXspex, defined_photon_models, add_photon_model
-
-    # Define gaussian model (doesn't have to be a lambda function)
-    gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))
-
-    # Add the gaussian model to fitter.py namespace
-    add_photon_model(gauss)
-
-    # Now can use it in fitting with string defined model. Will be plotted separately to the total model
-    Sx = SunXspex(pha_file=[...])
-    Sx.model = "gauss+gauss"
-    Sx.fit()
-    Sx.plot()
-    """
-    # if user wants to define any component model to use in the fitting and reference as a string
-    _glbls_cp, _dfs_cp = copy(globals()), copy(DYNAMIC_FUNCTION_SOURCE)
-    # check if lambda function and return the user function
-    # a 'self-contained' check will also take place and will fail if function is not of the form f(...,energies=None)
-    usr_func = deconstruct_lambda(function, add_underscore=False)
-    param_inputs, _ = get_func_inputs(function)  # get the param inputs for the function
-    # check if the function has already been added
-    if (usr_func.__name__ in defined_photon_models.keys()) and not overwrite:
-        print("Model: \'", usr_func.__name__, "\' already in \'defined_photon_models\'. Please set `overwrite=True`\nor use `del_photon_model()` to remove the existing model entirely.")
-        # revert changes back, model needs to be initialised to know its name to hceck if it already existed but doing this overwrites it if it is there
-        globals()[usr_func.__name__] = _glbls_cp[usr_func.__name__]
-        DYNAMIC_FUNCTION_SOURCE[usr_func.__name__] = _dfs_cp[usr_func.__name__]
-        return
-
-    # if overwrite is True and it gets to this stage remove the function entry from defined_photon_models quietly, else this line does nothing
-    defined_photon_models.pop(usr_func.__name__, None)
-
-    # make list of all inputs for all already defined models
-    def_pars = list(itertools.chain.from_iterable(defined_photon_models.values()))
-    assert len(set(def_pars)-set(param_inputs)) == len(def_pars), f"Please use different parameter names to the ones already defined: {def_pars}"
-
-    # add user model to defined_photon_models from photon_models_for_fitting
-    defined_photon_models[usr_func.__name__] = param_inputs
-    print(f"Model {usr_func.__name__} added.")
-
-
-def del_photon_model(function_name):
-    """ Remove user defined sub-models that have been added via `add_photon_model`.
-
-    Parameters
-    ----------
-    function_name : str
-            Name of the function to be removed.
-
-    Returns
-    -------
-    None.
-
-    Example
-    -------
-    from fitter import add_photon_model, del_photon_model
-
-    # Define gaussian model (doesn't have to be a lambda function)
-    gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2)))
-
-    # Add the gaussian model to fitter.py namespace
-    add_photon_model(gauss)
-
-    # realise the model is wrong or just want it removed
-    del_photon_model("gauss")
-    """
-    # quickly check if the function exists under function_name
-    if function_name not in defined_photon_models:
-        print(function_name, "is not in `defined_photon_models` to be removed.")
-        return
-
-    # can only remove if the user added the model, defined models from photon_models_for_fitting.py are protected
-    if inspect.getmodule(globals()[function_name]).__name__ in (__name__):
-        del defined_photon_models[function_name], globals()[function_name], DYNAMIC_FUNCTION_SOURCE[function_name]
-        print(f"Model {function_name} removed.")
-    else:
-        print("Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
-
-
-DYNAMIC_VARS = {}
-
-
-def add_var(overwrite=False, quiet=False, **user_kwarg):
-    """ Add user variable to fitting namespace.
-
-    Takes user defined variables and makes them available to the models being used within the
-    fitting. E.g., the user could define a variable in their own namespace (obtained from a file?)
-    and, instead of loading the file in with every function call, they can add the variable using
-    this method.
-
-    Parameters
-    ----------
-    overwrite : bool
-            Set True to overwrite an argument that already exists. User needs to be explicit if they wish
-            to overwrite their arguments.
-            Default: False
-
-    quiet : bool
-            Suppress any print statement to announce the variable has been added or not added. To be used
-            when loading session back in as if the variables were save then they were fine to add in the
-            first place.
-            Default: False
-
-    **user_kwarg :
-            User added variables. Arrays, lists, constants, etc., to be used in user defined models. This
-            enables sessions with complex models (say that use a constants from a file) to still be save
-            and work nroally when loaded back in.
-
-    Returns
-    -------
-    None.
-
-    Example
-    -------
-    from fitter import SunXspex, defined_photon_models, add_photon_model, add_var
-
-    # the user variable that might be too costly to run every function call or too hard to hard code
-    some_user_var = something_complicated
-
-    # Define gaussian model (doesn't have to be a lambda function), but include some user variable outside the scope of the model
-    gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(2*c**2))) * some_user_var
-
-    # add user variable
-    add_var(some_user_var=some_user_var)
-
-    # Add the gaussian model to fitter.py namespace
-    add_photon_model(gauss)
-
-    # Now can use it in fitting with string defined model. Will be plotted separately to the total model
-    Sx = SunXspex(pha_file=[...])
-    Sx.model = "gauss+gauss"
-    Sx.fit()
-    Sx.plot()
-    """
-    for k, i in user_kwarg.items():
-        if k in DYNAMIC_VARS and not overwrite:
-            vb = f"Variable {k} already exists. Please set `overwrite=True`, delete this with `del_var({k})`,\nor use a different variable name."
-        elif not k in DYNAMIC_VARS and k in globals():
-            vb = f"Argument name {k} already exists **in globals** and is not a good idea to overwrite. Please use a different variable name."
-        else:
-            DYNAMIC_VARS.update({k: i})
-            globals().update({k: i})
-            vb = f"Variable {k} added."
-        if not quiet:
-            print(vb)
-
-
-def del_var(*user_arg_name):
-    """ Remove user defined variables that have been added via `add_var`.
-
-    Parameters
-    ----------
-    *user_arg_name : str
-            Name(s) of the variable(s) to be removed.
-
-    Returns
-    -------
-    None.
-
-    Example
-    -------
-    from fitter import add_var, del_var
-
-    # the user variable that might be too costly to run every function call or too hard to hard code
-    some_user_var = something_complicated
-
-    # add user variable
-    add_var(some_user_var=some_user_var)
-
-    # realise the variable should be there or want it gome to update it
-    del_var("some_user_var")
-    """
-    _removed, _not_removed = [], []
-    for uan in user_arg_name:
-        if uan in DYNAMIC_VARS:
-            del globals()[uan], DYNAMIC_VARS[uan]
-            _removed.append(uan)
-        else:
-            _not_removed.append(uan)
-    _rmstr, spc = (f"Variables {_removed} were removed.", "\n") if len(_removed) > 0 else ("", "")
-    _nrmstr, spc = (f"Variables {_not_removed} are not ones added by user and so were not removed.", spc) if len(_not_removed) > 0 else ("", "")
-    print(_rmstr, _nrmstr, sep=spc)
-
+__all__ = ["SunXspex", "load"]
 
 # Easily access log-likelihood/fit-stat methods from the one place, if SunXpsex class inherits this then data is duplicated
 LL_CLASS = LogLikelihoods()
 
 
-class SunXspex(LoadSpec):
+class SunXspex:
     """
     Load's in spectral file(s) and then provide a framework for fitting models to the spectral data.
 
@@ -613,9 +394,12 @@ class SunXspex(LoadSpec):
 
     def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
         """Construct the class and set up some defaults."""
-
-        LoadSpec.__init__(self, *args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
-                          custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
+        self.funcs = {}
+        self.dynamic_function_source = {}
+        self.dynamic_vars = {}
+        self.defined_photon_models = {**defined_photon_models}
+        self.data = LoadSpec(*args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
+                             custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
 
         self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
 
@@ -676,7 +460,7 @@ class SunXspex(LoadSpec):
         """
         if hasattr(self, '_model'):
             # if we already have a model defined then don't want to do all this again
-            print("Model already assigned. If you want to change model please set property \"update_model\".")
+            logger.info("Model already assigned. If you want to change model please set property 'update_model'.")
         elif self._set_model_attr(model_function):
 
             # get parameter names from the function
@@ -686,7 +470,7 @@ class SunXspex(LoadSpec):
             self._model_param_names = []
             self._response_param_names = []
             self._other_model_inputs = {}
-            for s in range(len(self.loaded_spec_data)):
+            for s in range(len(self.data.loaded_spec_data)):
                 self._response_param_names.append("gain_slope_spectrum"+str(s+1))
                 self._response_param_names.append("gain_offset_spectrum"+str(s+1))
                 pg = []
@@ -723,7 +507,7 @@ class SunXspex(LoadSpec):
         elif type(model_function) is str:
             self._model = self._mod_from_str(model_string=model_function, _create_separate_models_for_one=True)
         else:
-            print("Model not set.")
+            logger.info("Model not set.")
             return False
         return True
 
@@ -858,11 +642,259 @@ class SunXspex(LoadSpec):
             self._orig_params, self._param_groups, self._model_param_names, self._response_param_names, self._other_model_inputs = _periph
             self.params, self.rParams = Parameters(_ps.param_name), Parameters(_rps.param_name, rparams=True)
             self._model = _model
-            print("Model cannot be renewed as the number of parameters are different.")
-            print(f"The following parameters are missing: {_orig_params_mismatch}, and the following are new: {_new_params_mismatch}")
+            logger.warning("Model cannot be renewed as the number of parameters are different.")
+            logger.warning(f"The following parameters are missing: {_orig_params_mismatch}, and the following are new: {_new_params_mismatch}")
 
         self.params["Status"], self.params["Value"], self.params["Bounds"], self.params["Error"] = list(_ps.param_status), list(_ps.param_value), list(_ps.param_bounds), list(_ps.param_error)
         self.rParams["Status"], self.rParams["Value"], self.rParams["Bounds"], self.rParams["Error"] = list(_rps.param_status), list(_rps.param_value), list(_rps.param_bounds), list(_rps.param_error)
+
+    def add_photon_model(self, function, overwrite=False):
+        """ Add user photon model to fitting namespace.
+
+        Takes a user defined function intended to be used as a model or model component when
+        giving a
+        string to the SunXspex.model property. Puts defined_photon_models[
+        function.__name__]=param_inputs
+        in `defined_photon_models` for it to be known to the fititng code. The energies argument
+        must be
+        first and accept photon bins.
+
+        The given function needs to have parameters as arguments then \'energies\' as a keyword
+        argument
+        where energies accepts the energy bin array. E.g.,
+
+        .. math::
+         gauss = = a$\cdot$e$^{-\frac{(energies - b)^{2}}{2 c^{2}}}$
+
+        would be
+         `gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(
+         2*c**2)))`
+
+        Parameters
+        ----------
+        function : function
+                The function object.
+
+        overwrite : bool
+                Set True to overwrite a model that already exists. User needs to be explicit if
+                they wish
+                to overwrite their models.
+                Default: False
+
+        Returns
+        -------
+        None.
+
+        Example
+        -------
+        from fitter import SunXspex, defined_photon_models, add_photon_model
+
+        # Define gaussian model (doesn't have to be a lambda function)
+        gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(
+        2*c**2)))
+
+        # Add the gaussian model to fitter.py namespace
+        add_photon_model(gauss)
+
+        # Now can use it in fitting with string defined model. Will be plotted separately to the
+        total model
+        Sx = SunXspex(pha_file=[...])
+        Sx.model = "gauss+gauss"
+        Sx.fit()
+        Sx.plot()
+        """
+        # if user wants to define any component model to use in the fitting and reference as a
+        # string
+        orig_params = copy(self.funcs)
+        orig_dsource = copy(self.dynamic_function_source)
+        # check if lambda function and return the user function
+        # a 'self-contained' check will also take place and will fail if function is not of the
+        # form f(...,energies=None)
+        usr_func = deconstruct_lambda(self.dynamic_function_source, function, add_underscore=False)
+        param_inputs, _ = get_func_inputs(function)  # get the param inputs for the function
+        # check if the function has already been added
+        if (usr_func.__name__ in self.defined_photon_models.keys()) and not overwrite:
+            logger.info(
+                f"Model: '{usr_func.__name__}', already in 'defined_photon_models'. Please set "
+                f"`overwrite=True` or use `del_photon_model()` to remove the existing model "
+                f"entirely.")
+            # revert changes back, model needs to be initialised to know its name to hceck if it
+            # already existed but doing this overwrites it if it is there
+            self.funcs[usr_func.__name__] = orig_params[usr_func.__name__]
+            self.dynamic_function_source[usr_func.__name__] = orig_dsource[usr_func.__name__]
+            return
+
+        # if overwrite is True and it gets to this stage remove the function entry from
+        # defined_photon_models quietly, else this line does nothing
+        self.defined_photon_models.pop(usr_func.__name__, None)
+
+        # make list of all inputs for all already defined models
+        def_pars = list(itertools.chain.from_iterable(self.defined_photon_models.values()))
+        if len(set(def_pars) - set(param_inputs)) != len(def_pars):
+            logger.info(
+                f"Please use different parameter names to the ones already defined: {def_pars}")
+
+        # add user model to defined_photon_models from photon_models_for_fitting
+        self.defined_photon_models[usr_func.__name__] = param_inputs
+        logger.info(f"Model {usr_func.__name__} added.")
+
+    def del_photon_model(self, function_name):
+        """ Remove user defined sub-models that have been added via `add_photon_model`.
+
+        Parameters
+        ----------
+        function_name : str
+                Name of the function to be removed.
+
+        Returns
+        -------
+        None.
+
+        Example
+        -------
+        from fitter import add_photon_model, del_photon_model
+
+        # Define gaussian model (doesn't have to be a lambda function)
+        gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(
+        2*c**2)))
+
+        # Add the gaussian model to fitter.py namespace
+        add_photon_model(gauss)
+
+        # realise the model is wrong or just want it removed
+        del_photon_model("gauss")
+        """
+        # quickly check if the function exists under function_name
+        if function_name not in self.defined_photon_models:
+            logger.info(f"{function_name}, is not in `defined_photon_models` to be removed.")
+            return
+
+        # can only remove if the user added the model, defined models from
+        # photon_models_for_fitting.py are protected
+        if inspect.getmodule([function_name]).__name__ in (__name__):
+            del self.defined_photon_models[function_name], sefl.funcs[function_name], \
+                self.dynamic_function_source[function_name]
+            logger.indo(f"Model {function_name} removed.")
+        else:
+            logger.warning(
+                "Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
+
+    def add_var(self, overwrite=False, quiet=False, **user_kwarg):
+        """ Add user variable to fitting namespace.
+
+        Takes user defined variables and makes them available to the models being used within the
+        fitting. E.g., the user could define a variable in their own namespace (obtained from a
+        file?)
+        and, instead of loading the file in with every function call, they can add the variable
+        using
+        this method.
+
+        Parameters
+        ----------
+        overwrite : bool
+                Set True to overwrite an argument that already exists. User needs to be explicit
+                if they wish
+                to overwrite their arguments.
+                Default: False
+
+        quiet : bool
+                Suppress any print statement to announce the variable has been added or not
+                added. To be used
+                when loading session back in as if the variables were save then they were fine to
+                add in the
+                first place.
+                Default: False
+
+        **user_kwarg :
+                User added variables. Arrays, lists, constants, etc., to be used in user defined
+                models. This
+                enables sessions with complex models (say that use a constants from a file) to
+                still be save
+                and work nroally when loaded back in.
+
+        Returns
+        -------
+        None.
+
+        Example
+        -------
+        from fitter import SunXspex, defined_photon_models, add_photon_model, add_var
+
+        # the user variable that might be too costly to run every function call or too hard to
+        hard code
+        some_user_var = something_complicated
+
+        # Define gaussian model (doesn't have to be a lambda function), but include some user
+        variable outside the scope of the model
+        gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(
+        2*c**2))) * some_user_var
+
+        # add user variable
+        add_var(some_user_var=some_user_var)
+
+        # Add the gaussian model to fitter.py namespace
+        add_photon_model(gauss)
+
+        # Now can use it in fitting with string defined model. Will be plotted separately to the
+        total model
+        Sx = SunXspex(pha_file=[...])
+        Sx.model = "gauss+gauss"
+        Sx.fit()
+        Sx.plot()
+        """
+        for k, i in user_kwarg.items():
+            if k in self.dynamic_vars and not overwrite:
+                vb = f"Variable {k} already exists. Please set `overwrite=True`, delete this with " \
+                     f"`del_var({k})`,\nor use a different variable name."
+            elif not k in self.dynamic_vars:
+                vb = f"Argument name {k} already exists **in globals** and is not a good idea to " \
+                    f"overwrite. Please use a different variable name."
+            else:
+                self.dynamic_vars.update({k: i})
+                vb = f"Variable {k} added."
+            if not quiet:
+                logger.info(vb)
+            logger.debug(vb)
+
+    def del_var(self, *user_arg_name):
+        """ Remove user defined variables that have been added via `add_var`.
+
+        Parameters
+        ----------
+        *user_arg_name : str
+                Name(s) of the variable(s) to be removed.
+
+        Returns
+        -------
+        None.
+
+        Example
+        -------
+        from fitter import add_var, del_var
+
+        # the user variable that might be too costly to run every function call or too hard to
+        hard code
+        some_user_var = something_complicated
+
+        # add user variable
+        add_var(some_user_var=some_user_var)
+
+        # realise the variable should be there or want it gome to update it
+        del_var("some_user_var")
+        """
+        _removed, _not_removed = [], []
+        for uan in user_arg_name:
+            if uan in self.dynamic_vars:
+                del self.dynamic_vars[uan]
+                _removed.append(uan)
+            else:
+                _not_removed.append(uan)
+        _rmstr, spc = (f"Variables {_removed} were removed.", "\n") if len(_removed) > 0 else (
+            "", "")
+        _nrmstr, spc = (
+            f"Variables {_not_removed} are not ones added by user and so were not removed.",
+            spc) if len(_not_removed) > 0 else ("", "")
+        logger.info(_rmstr, _nrmstr, spc)
 
     @property
     def energy_fitting_range(self):
@@ -907,9 +939,9 @@ class SunXspex(LoadSpec):
 
         # if a dict with keys of the spectra identifiers and energy ranges
         if (type(fitting_ranges) == dict):
-            default = dict(zip(self.loaded_spec_data.keys(), np.tile(_default_fitting_range, (len(self.loaded_spec_data.keys()), 1))))
+            default = dict(zip(self.data.loaded_spec_data.keys(), np.tile(_default_fitting_range, (len(self.data.loaded_spec_data.keys()), 1))))
             default_updated = {**default, **fitting_ranges}  # incase a dict is given only updating some spectra
-            self._energy_fitting_range = {k: default_updated[k] for k in list(self.loaded_spec_data.keys())}
+            self._energy_fitting_range = {k: default_updated[k] for k in list(self.data.loaded_spec_data.keys())}
             return
 
         # if not type list or array then set to default
@@ -920,16 +952,16 @@ class SunXspex(LoadSpec):
         # if a list is given then it is the fitting range for all spectra loaded
         if np.size(fitting_ranges) == 2:
             # if, e.g., [2,3] or [[2,3]] then fitting range is 2--3 keV for all spectra
-            frs = np.tile(fitting_ranges, (len(self.loaded_spec_data.keys()), 1))
+            frs = np.tile(fitting_ranges, (len(self.data.loaded_spec_data.keys()), 1))
         elif len(np.shape(fitting_ranges)) == 2:
             # if, e.g., [[2,3], [4,8]] then fitting range is 2--3 and 4--8 keV for all spectra
-            frs = [fitting_ranges]*len(self.loaded_spec_data.keys())
+            frs = [fitting_ranges]*len(self.data.loaded_spec_data.keys())
         else:
             # if (somehow) none of the above then default it
-            frs = np.tile(_default_fitting_range, (len(self.loaded_spec_data.keys()), 1))
+            frs = np.tile(_default_fitting_range, (len(self.data.loaded_spec_data.keys()), 1))
             warnings.warn(self._energy_fitting_range_instructions())
 
-        self._energy_fitting_range = dict(zip(self.loaded_spec_data.keys(), frs))
+        self._energy_fitting_range = dict(zip(self.data.loaded_spec_data.keys(), frs))
 
     def _energy_fitting_range_instructions(self):
         """ Function to store string needed for multiple points in the energy_fitting_range setter.
@@ -1001,7 +1033,7 @@ class SunXspex(LoadSpec):
         List.
         """
 
-        model_names = list(defined_photon_models.keys())
+        model_names = list(self.defined_photon_models.keys())
         mods_removed = model_string.split(model_names[0])  # split the first one to start
         inds = np.array(list(map(len, model_string.split(model_names[0]))))  # get the indices of the gaps in the string (now broken down into a list)
         # starting index(/indices) of the first model in defined_photon_models in your custom string
@@ -1028,6 +1060,7 @@ class SunXspex(LoadSpec):
                 _isolated_model_strings.append(["".join(put_mods_back), _mod_counter])
                 # model shorthand string for _mod_from_str and the number for the input parameters. E.g., 1st f_vth->f_vth(T1,EM1, ...), 2nd f_vth->f_vth(T2,EM2, ...)
             self._separate_models = _isolated_model_strings
+            return _isolated_model_strings
 
     def _mod_from_str(self, model_string, custom_param_number=None, _create_separate_models_for_one=False):
         """ Construct a named function object from a given string.
@@ -1063,7 +1096,7 @@ class SunXspex(LoadSpec):
             _params = []
             # try to break down into separate models and assign them to self._separate_models, need >1 sub-model
             self._component_mods_from_str(model_string=model_string, _create_separate_models_for_one=_create_separate_models_for_one)
-            for mn, mp in defined_photon_models.items():
+            for mn, mp in self.defined_photon_models.items():
                 # how many of this model are in the string
                 number_of_this_model = _mod.count(mn)
                 # number the parameter accordingly
@@ -1081,14 +1114,15 @@ class SunXspex(LoadSpec):
                 put_mods_back[1::2] = _mods_with_params
                 _mod = "".join(put_mods_back)  # replace the model string with with latest model component added
             # build the function string
-            _params += get_nonsubmodel_params(model_string=model_string, _defined_photon_models=defined_photon_models)
+            _params += get_nonsubmodel_params(model_string=model_string, _defined_photon_models=self.defined_photon_models)
             # replace non-word/non-numbers from string with "_", remove any starting numbers, join params to the end too->should be a legit and unique enough function name
             fun_name = re.sub(r'[^a-zA-Z0-9]+', '_', model_string).lstrip('0123456789')+"".join(_params)
             def_line = "def "+fun_name+"("+",".join(_params)+", energies=None):\n"
             return_line = "    return "+_mod+"\n"
-            return function_creator(function_name=fun_name, function_text="".join([def_line, return_line]))
+            return function_creator(self.dynamic_function_source, function_name=fun_name,
+                                    function_text="".join([def_line, return_line]))
         else:
-            print("The above are not valid identifiers (or are keywords) in Python. Please change this in your model string.")
+            logger.warning("The above are not valid identifiers (or are keywords) in Python. Please change this in your model string.")
 
     def _free_and_other(self):
         """ Find all inputs to the model being used.
@@ -1717,16 +1751,16 @@ class SunXspex(LoadSpec):
         """
 
         photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, ph_e_binning, observed_counts, observed_count_errors = [], [], [], [], [], [], [], [], []
-        for k in self.loaded_spec_data:
-            photon_channel_bins.append(self.loaded_spec_data[k]['photon_channel_bins'])
-            photon_channel_mids.append(self.loaded_spec_data[k]['photon_channel_mids'])
-            count_channel_mids.append(self.loaded_spec_data[k]['count_channel_mids'])
-            srm.append(self.loaded_spec_data[k]['srm'])
-            e_binning.append(self.loaded_spec_data[k]['count_channel_binning'])
-            ph_e_binning.append(self.loaded_spec_data[k]['photon_channel_binning'])
-            observed_counts.append(self.loaded_spec_data[k]['counts'])
-            observed_count_errors.append(self.loaded_spec_data[k]['count_error'])
-            livetime.append(self.loaded_spec_data[k]['effective_exposure'])
+        for k in self.data.loaded_spec_data:
+            photon_channel_bins.append(self.data.loaded_spec_data[k]['photon_channel_bins'])
+            photon_channel_mids.append(self.data.loaded_spec_data[k]['photon_channel_mids'])
+            count_channel_mids.append(self.data.loaded_spec_data[k]['count_channel_mids'])
+            srm.append(self.data.loaded_spec_data[k]['srm'])
+            e_binning.append(self.data.loaded_spec_data[k]['count_channel_binning'])
+            ph_e_binning.append(self.data.loaded_spec_data[k]['photon_channel_binning'])
+            observed_counts.append(self.data.loaded_spec_data[k]['counts'])
+            observed_count_errors.append(self.data.loaded_spec_data[k]['count_error'])
+            livetime.append(self.data.loaded_spec_data[k]['effective_exposure'])
 
         return photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, e_binning, ph_e_binning, observed_counts, observed_count_errors
 
@@ -1828,7 +1862,7 @@ class SunXspex(LoadSpec):
         update_free_params = {}
         update_free_bounds = []
         # loop through both spectra to check the response parameters
-        for s in range(len(self.loaded_spec_data)):
+        for s in range(len(self.data.loaded_spec_data)):
             # check if both gain rparams for a spec are tied but tied to frozen rparams
             tied2frozen = self._tied2frozen(spectrum_num=int(s+1))
 
@@ -1863,11 +1897,11 @@ class SunXspex(LoadSpec):
         """
         self._scaled_background_rates_cut, self._scaled_background_rates_full = {}, {}
         # loop through both spectra to check the response parameters
-        for s in range(len(self.loaded_spec_data)):
+        for s in range(len(self.data.loaded_spec_data)):
             # do not want to include bg spectrum if the data is structured to be event-background
-            if ("background_rate" in self.loaded_spec_data["spectrum"+str(s+1)]["extras"]) and (not self.loaded_spec_data["spectrum"+str(s+1)]["extras"]["counts=data-bg"]):
+            if ("background_rate" in self.data.loaded_spec_data["spectrum"+str(s+1)]["extras"]) and (not self.data.loaded_spec_data["spectrum"+str(s+1)]["extras"]["counts=data-bg"]):
                 # turn the background rate (cts/keV/s) into just cts/s scaled to the event time
-                bg_cts = self.loaded_spec_data["spectrum"+str(s+1)]["extras"]["background_rate"]*self.loaded_spec_data["spectrum"+str(s+1)]["count_channel_binning"]
+                bg_cts = self.data.loaded_spec_data["spectrum"+str(s+1)]["extras"]["background_rate"]*self.data.loaded_spec_data["spectrum"+str(s+1)]["count_channel_binning"]
                 self._scaled_background_rates_cut["scaled_background_spectrum"+str(s+1)] = self._cut_counts(bg_cts, spectrum=s+1) if not _for_plotting else bg_cts
                 self._scaled_background_rates_full["scaled_background_spectrum"+str(s+1)] = bg_cts
 
@@ -2223,7 +2257,7 @@ class SunXspex(LoadSpec):
 
         # want all energies plotted, not just ones in fitting range so change for now and change back later
         _energy_fitting_indices_orig = copy(self._energy_fitting_indices)
-        self._energy_fitting_indices = self._fit_range(count_channel_mids, dict(zip(self.loaded_spec_data.keys(), np.tile([0, np.inf], (len(self.loaded_spec_data.keys()), 1)))))
+        self._energy_fitting_indices = self._fit_range(count_channel_mids, dict(zip(self.data.loaded_spec_data.keys(), np.tile([0, np.inf], (len(self.data.loaded_spec_data.keys()), 1)))))
 
         # make sure using full background counts, not cut version for fitting
         self._scaled_backgrounds = self._scaled_background_rates_full
@@ -2299,10 +2333,10 @@ class SunXspex(LoadSpec):
         spec_no = int(spectrum.split("spectrum")[1])
 
         # don't waste time on full rows/columns of 0s in the srms
-        photon_channel_bins, _, _, srm = self._photon_space_reduce(ph_bins=[self.loaded_spec_data[spectrum]['photon_channel_bins']],
-                                                                   ph_mids=[self.loaded_spec_data[spectrum]['photon_channel_bins']],
-                                                                   ph_widths=[self.loaded_spec_data[spectrum]['photon_channel_binning']],
-                                                                   srm=[self.loaded_spec_data[spectrum]['srm']])  # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+        photon_channel_bins, _, _, srm = self._photon_space_reduce(ph_bins=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
+                                                                   ph_mids=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
+                                                                   ph_widths=[self.data.loaded_spec_data[spectrum]['photon_channel_binning']],
+                                                                   srm=[self.data.loaded_spec_data[spectrum]['srm']])  # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
         photon_channel_bins, srm = photon_channel_bins[0], srm[0]
 
         if type(parameters) == type(None):
@@ -2312,7 +2346,7 @@ class SunXspex(LoadSpec):
         elif type(parameters) in [list, type(np.array([]))]:
             m = photon_model(*parameters, energies=photon_channel_bins)
         else:
-            print("parameters needs to be a dictionary or list (or np.array) of the photon_model inputs (excluding energies input) or None if photon_model is values and not a function.")
+            logger.warning("parameters needs to be a dictionary or list (or np.array) of the photon_model inputs (excluding energies input) or None if photon_model is values and not a function.")
             return
 
         cts_model = make_model(energies=photon_channel_bins,
@@ -2323,21 +2357,21 @@ class SunXspex(LoadSpec):
         if include_bg and ("scaled_background_"+spectrum in self._scaled_backgrounds):
             cts_model += self._scaled_backgrounds["scaled_background_"+spectrum]
 
-        cts_model /= np.diff(self.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
+        cts_model /= np.diff(self.data.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
 
         # if the spectrum has been gain shifted then this will be done but if user provides their own values they will take priority
         if ("gain_slope_spectrum"+str(spec_no) in kwargs) and ("gain_offset_spectrum"+str(spec_no) in kwargs):
-            cts_model = self._gain_energies(energies=self.loaded_spec_data[spectrum]['count_channel_mids'],
+            cts_model = self._gain_energies(energies=self.data.loaded_spec_data[spectrum]['count_channel_mids'],
                                             array=cts_model,
                                             gain_slope=kwargs["gain_slope_spectrum"+str(spec_no)],
                                             gain_offset=kwargs["gain_offset_spectrum"+str(spec_no)])
         elif (self.rParams["Value", "gain_slope_spectrum"+str(spec_no)] != 1) or (self.rParams["Value", "gain_offset_spectrum"+str(spec_no)] != 0):
-            cts_model = self._gain_energies(energies=self.loaded_spec_data[spectrum]['count_channel_mids'],
+            cts_model = self._gain_energies(energies=self.data.loaded_spec_data[spectrum]['count_channel_mids'],
                                             array=cts_model,
                                             gain_slope=self.rParams["Value", "gain_slope_spectrum"+str(spec_no)],
                                             gain_offset=self.rParams["Value", "gain_offset_spectrum"+str(spec_no)])
 
-        return self.loaded_spec_data[spectrum]['count_channel_mids'], cts_model
+        return self.data.loaded_spec_data[spectrum]['count_channel_mids'], cts_model
 
     def _prepare_submodels(self):
         """ Prepare individual sub-models for use.
@@ -2358,7 +2392,7 @@ class SunXspex(LoadSpec):
             # get the the params for each model, e.g., from above [['T1', 'EM1'], ['T2', 'EM2']] from 'C*(f_vth(T1,EM1,energies=None) + 0)' and 'C*(0 + f_vth(T2,EM2,energies=None))'
             self._corresponding_submod_inputs = [get_func_inputs(submod_fun)[0] for submod_fun in self._submod_functions]
             # get the values from the param table in the same structure as corresponding_submod_inputs for each loaded spectrum
-            self._submod_value_inputs = [[[self.params["Value", _p+"_spectrum"+str(s+1)] for _p in p] for p in self._corresponding_submod_inputs] for s in range(len(self.loaded_spec_data))]
+            self._submod_value_inputs = [[[self.params["Value", _p+"_spectrum"+str(s+1)] for _p in p] for p in self._corresponding_submod_inputs] for s in range(len(self.data.loaded_spec_data))]
 
     def _spec_loop_range(self, spectrum):
         """ Finds the range limits to loop through loaded spectra of choice.
@@ -2378,10 +2412,10 @@ class SunXspex(LoadSpec):
         """
         combine_submods = False
         if str(spectrum) == 'combined':
-            spec2pick = (1, len(self.loaded_spec_data)+1)
+            spec2pick = (1, len(self.data.loaded_spec_data)+1)
             combine_submods = True
         elif str(spectrum) == 'all':
-            spec2pick = (1, len(self.loaded_spec_data)+1)
+            spec2pick = (1, len(self.data.loaded_spec_data)+1)
         else:
             spec2pick = (int(spectrum), int(spectrum)+1)
         return spec2pick, combine_submods
@@ -2409,7 +2443,7 @@ class SunXspex(LoadSpec):
             elif type(spectrum) in [str, int]:
                 spec2pick, combine_submods = self._spec_loop_range(spectrum)
             else:
-                print("Not valid spectrum input.")
+                logger.warning("Not valid spectrum input.")
 
             all_spec_submods = []
             for s in range(*spec2pick):
@@ -2480,11 +2514,12 @@ class SunXspex(LoadSpec):
         same way (old_bins, old_bin_width), and the new bin channel "error"
         (energy_channel_error).
         """
-        print("Apply binning for plotting. ", end="")
-        new_bins, _, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _, _orig_in_extras = self._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
-        old_bins = self.loaded_spec_data[rebin_and_spec[1]]["count_channel_bins"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
-        old_bin_width = self.loaded_spec_data[rebin_and_spec[1]
-                                              ]["count_channel_binning"] if not _orig_in_extras else self.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_binning"]
+        logger.info("Apply binning for plotting.")
+        new_bins, _, _, new_bin_width, energy_channels, count_rates, count_rate_errors, _, _orig_in_extras = self.data._rebin_data(spectrum=rebin_and_spec[1], group_min=rebin_and_spec[0])
+        old_bins = self.data.loaded_spec_data[rebin_and_spec[1]
+                                              ]["count_channel_bins"] if not _orig_in_extras else self.data.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_bins"]
+        old_bin_width = self.data.loaded_spec_data[rebin_and_spec[1]
+                                                   ]["count_channel_binning"] if not _orig_in_extras else self.data.loaded_spec_data[rebin_and_spec[1]]["extras"]["original_count_channel_binning"]
         energy_channel_error = new_bin_width/2
         return new_bins, new_bin_width, energy_channels, count_rates, count_rate_errors, old_bins, old_bin_width, energy_channel_error
 
@@ -2545,8 +2580,8 @@ class SunXspex(LoadSpec):
         An array of the mean counts for each count energy bin for all loaded spectra.
         """
         _counts = []
-        for s in range(len(self.loaded_spec_data)):
-            _counts.append(self.loaded_spec_data['spectrum'+str(s+1)]['counts'])
+        for s in range(len(self.data.loaded_spec_data)):
+            _counts.append(self.data.loaded_spec_data['spectrum'+str(s+1)]['counts'])
         return np.mean(np.array(_counts), axis=0)
 
     def _bin_comb4plot(self, rebin_and_spec, count_rate_model, energy_channels, energy_channel_error, count_rates, count_rate_errors, _return_cts_rate_mod=True):
@@ -2581,7 +2616,7 @@ class SunXspex(LoadSpec):
         """
         old_bins = np.column_stack((energy_channels-energy_channel_error, energy_channels+energy_channel_error))
         old_bin_width = energy_channel_error*2
-        new_bins, mask = self._group_cts(channel_bins=old_bins, counts=self._get_mean_counts_across_specs(), group_min=rebin_and_spec[0], spectrum=rebin_and_spec[1], verbose=True)
+        new_bins, mask = self.data._group_cts(channel_bins=old_bins, counts=self._get_mean_counts_across_specs(), group_min=rebin_and_spec[0], spectrum=rebin_and_spec[1], verbose=True)
 
         mask[mask != 0] = 1
         # use group counts to make sure see where the grouping stops, any zero entries don't have grouped counts and so should be nans to avoid plotting
@@ -2727,7 +2762,7 @@ class SunXspex(LoadSpec):
         None.
         """
         # can only have a run for each loaded spectrum, if there is more then it must be from this being run multiple times
-        if hasattr(self, "_mcmc_mod_runs") and len(self._mcmc_mod_runs) >= len(self.loaded_spec_data):
+        if hasattr(self, "_mcmc_mod_runs") and len(self._mcmc_mod_runs) >= len(self.data.loaded_spec_data):
             del self._mcmc_mod_runs
 
         if hasattr(self, "_mcmc_mod_runs"):
@@ -3073,7 +3108,7 @@ class SunXspex(LoadSpec):
         rebin_val, rebin_spec = rebin_and_spec[0], rebin_and_spec[1]
         energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = data_arrays
         if type(rebin_val) != type(None):
-            if rebin_spec in list(self.loaded_spec_data.keys()):
+            if rebin_spec in list(self.data.loaded_spec_data.keys()):
                 new_bins, new_bin_width, old_bins, old_bin_width, energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = self._bin_spec4plot(rebin_and_spec,
                                                                                                                                                                                 count_rate_model,
                                                                                                                                                                                 _return_cts_rate_mod=_return_cts_rate_mod)
@@ -3287,16 +3322,16 @@ class SunXspex(LoadSpec):
         Returns a rebinning dictionary with keys of spectra IDs and rebin number.
         """
 
-        _default = dict(zip(self.loaded_spec_data.keys(), [None]*len(self.loaded_spec_data.keys())))
+        _default = dict(zip(self.data.loaded_spec_data.keys(), [None]*len(self.data.loaded_spec_data.keys())))
         if type(_rebin_input) == int:
-            rebin_dict = dict(zip(self.loaded_spec_data.keys(), [_rebin_input]*len(self.loaded_spec_data.keys())))
+            rebin_dict = dict(zip(self.data.loaded_spec_data.keys(), [_rebin_input]*len(self.data.loaded_spec_data.keys())))
         elif type(_rebin_input) in (list, np.ndarray):
             rebin_dict = self._if_rebin_input_list(_rebin_input, _default)
         elif type(_rebin_input) is dict:
             rebin_dict = self._if_rebin_input_dict(_rebin_input)
         else:
             if type(_rebin_input) != type(None):
-                print("Rebin input needs to be a single int (applied to all spectra), a list with a rebin entry for each spectrum, or a dict with the spec. identifier and rebin value for any of the loaded spectra.")
+                logger.warning("Rebin input needs to be a single int (applied to all spectra), a list with a rebin entry for each spectrum, or a dict with the spec. identifier and rebin value for any of the loaded spectra.")
             rebin_dict = _default
         rebin_dict["combined"] = rebin_dict["spectrum1"] if "combined" not in rebin_dict else rebin_dict["combined"]
 
@@ -3318,10 +3353,10 @@ class SunXspex(LoadSpec):
         -------
         Returns a rebinning dictionary with keys of spectra IDs and rebin number.
         """
-        if len(self.loaded_spec_data.keys()) == len(_rebin_input):
-            rebin_dict = dict(zip(self.loaded_spec_data.keys(), _rebin_input))
+        if len(self.data.loaded_spec_data.keys()) == len(_rebin_input):
+            rebin_dict = dict(zip(self.data.loaded_spec_data.keys(), _rebin_input))
         else:
-            print("rebin input list must have an entry for each spectrum; e.g., 3 spectra could be [10,15,None].")
+            logger.warning("rebin input list must have an entry for each spectrum; e.g., 3 spectra could be [10,15,None].")
             rebin_dict = _default
         return rebin_dict
 
@@ -3339,10 +3374,10 @@ class SunXspex(LoadSpec):
         Returns a rebinning dictionary with keys of spectra IDs and rebin number.
         """
         if "all" in _rebin_input.keys():
-            rebin_dict = dict(zip(self.loaded_spec_data.keys(), [_rebin_input["all"]]*len(self.loaded_spec_data.keys())))
+            rebin_dict = dict(zip(self.data.loaded_spec_data.keys(), [_rebin_input["all"]]*len(self.data.loaded_spec_data.keys())))
         else:
-            labels = list(self.loaded_spec_data.keys())+['combined']
-            rebin_dict = dict(zip(labels, [None]*(len(self.loaded_spec_data.keys())+1)))
+            labels = list(self.data.loaded_spec_data.keys())+['combined']
+            rebin_dict = dict(zip(labels, [None]*(len(self.data.loaded_spec_data.keys())+1)))
             for k in _rebin_input.keys():
                 if k in labels:
                     rebin_dict[k] = _rebin_input[k]
@@ -3450,7 +3485,7 @@ class SunXspex(LoadSpec):
         else:
             # work out rows and columns
             if number_of_plots == 0:
-                print("No spectra to plot.")
+                logger.info("No spectra to plot.")
                 return
             elif 0 < number_of_plots <= 4:
                 rows, cols = "1", str(number_of_plots)
@@ -3494,7 +3529,7 @@ class SunXspex(LoadSpec):
         """
         # rather than having caveats and diff calc for diff spectra, just unbin all to check if the spec can be combined
         _rebin_after_plot = False
-        if hasattr(self, "_rebin_setting") and type(rebin) != type(None):  # and (len(self.loaded_spec_data)>1):
+        if hasattr(self, "_rebin_setting") and type(rebin) != type(None):  # and (len(self.data.loaded_spec_data)>1):
             # check if rebinning needs done to at least one spectrum
             # e.g., self._rebin_setting={'spectrum1': 8, 'spectrum2': None} -> yes, self._rebin_setting={'spectrum1': None, 'spectrum2': None} -> no
             _need_rebinning = [0 if type(s) == type(None) else s for s in self._rebin_setting.values()]
@@ -3529,24 +3564,24 @@ class SunXspex(LoadSpec):
         -------
         None.
         """
-        if 'background_rate' in self.loaded_spec_data[spectrum]['extras']:
+        if 'background_rate' in self.data.loaded_spec_data[spectrum]['extras']:
 
             if isnumber(rebin):
                 # self._plot_rebin_info defined as [old_bin_width, old_bins, new_bins, new_bin_width] purely for this method
                 energies = self._plot_rebin_info[2].flatten()
-                _bg_rate_binned = self._bin_model(self.loaded_spec_data[spectrum]['extras']['background_rate'], *self._plot_rebin_info)
+                _bg_rate_binned = self._bin_model(self.data.loaded_spec_data[spectrum]['extras']['background_rate'], *self._plot_rebin_info)
                 bg_rate = np.concatenate((_bg_rate_binned[:, None], _bg_rate_binned[:, None]), axis=1).flatten()
             else:
-                energies = self.loaded_spec_data[spectrum]['count_channel_bins'].flatten()
-                bg_rate = np.concatenate((self.loaded_spec_data[spectrum]['extras']['background_rate'][:, None],
-                                         self.loaded_spec_data[spectrum]['extras']['background_rate'][:, None]), axis=1).flatten()
+                energies = self.data.loaded_spec_data[spectrum]['count_channel_bins'].flatten()
+                bg_rate = np.concatenate((self.data.loaded_spec_data[spectrum]['extras']['background_rate'][:, None],
+                                         self.data.loaded_spec_data[spectrum]['extras']['background_rate'][:, None]), axis=1).flatten()
 
             axes.plot(energies, bg_rate, color="grey", zorder=0)
             self.plotting_info[spectrum]["background_rate"] = bg_rate
 
             str_list, c_list = ["BG"], ["grey"]
             # check if the data is actually the event-background
-            if self.loaded_spec_data[spectrum]["extras"]["counts=data-bg"]:
+            if self.data.loaded_spec_data[spectrum]["extras"]["counts=data-bg"]:
                 str_list.insert(0, "Counts=Evt-BG\n")
                 c_list.insert(0, "k")
             rainbow_text_lines((0.01, 0.99), strings=str_list, colors=c_list, xycoords="axes fraction", verticalalignment="top", horizontalalignment="left", ax=axes, alpha=0.8, fontsize="small")
@@ -3566,7 +3601,7 @@ class SunXspex(LoadSpec):
         -------
         Bool.
         """
-        if (len(list(dict.fromkeys(list(self.instruments.values())))) == 1) and (can_combine):
+        if (len(list(dict.fromkeys(list(self.data.instruments.values())))) == 1) and (can_combine):
             return True
         else:
             return False
@@ -3634,16 +3669,16 @@ class SunXspex(LoadSpec):
 
         # check if the spectra combined plot can be made
         _channels, _channel_error = [], []
-        for s in range(len(self.loaded_spec_data)):
-            _channels.append(self.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'])
-            _channel_error.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2)
+        for s in range(len(self.data.loaded_spec_data)):
+            _channels.append(self.data.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'])
+            _channel_error.append(self.data.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2)
         _same_chans = all([np.array_equal(np.array(_channels[0]), np.array(c)) for c in _channels[1:]])
         _same_errs = all([np.array_equal(np.array(_channel_error[0]), np.array(c)) for c in _channel_error[1:]])
         if _same_chans and _same_errs:
             can_combine = True
         else:
             can_combine = False
-            print("The energy channels and/or binning are different for at least one fitted spectrum. Not sure how to combine all spectra so won\'t show combined plot.")
+            logger.info("The energy channels and/or binning are different for at least one fitted spectrum. Not sure how to combine all spectra so won\'t show combined plot.")
 
         # check for same instruments, no point in combining counts from different instruments?
         can_combine = self._same_instruments(can_combine)
@@ -3651,7 +3686,7 @@ class SunXspex(LoadSpec):
         if hasattr(self, "_model") and (self._model is None) and hasattr(self, "_plotting_info"):
             return self._plot_from_dict(subplot_axes_grid)
 
-        number_of_plots = len(self.loaded_spec_data)+1 if (len(self.loaded_spec_data) > 1) and (can_combine) else len(self.loaded_spec_data)  # plus one for combined plot
+        number_of_plots = len(self.data.loaded_spec_data)+1 if (len(self.data.loaded_spec_data) > 1) and (can_combine) else len(self.data.loaded_spec_data)  # plus one for combined plot
         subplot_axes_grid = self._build_axes(subplot_axes_grid, number_of_plots)
 
         # reset backgrounds for plotting
@@ -3667,10 +3702,10 @@ class SunXspex(LoadSpec):
         for s, ax in zip(range(number_of_plots), subplot_axes_grid):
             if (s < number_of_plots-1) or ((s == number_of_plots-1) and not can_combine) or (number_of_plots == 1):
                 self.plotting_info['spectrum'+str(s+1)] = {}
-                axs, res = self._plot_1spec((self.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'],
-                                             self.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2,
-                                             self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"],
-                                             self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"],
+                axs, res = self._plot_1spec((self.data.loaded_spec_data['spectrum'+str(s+1)]['count_channel_mids'],
+                                             self.data.loaded_spec_data['spectrum'+str(s+1)]["count_channel_binning"]/2,
+                                             self.data.loaded_spec_data['spectrum'+str(s+1)]["count_rate"],
+                                             self.data.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"],
                                              models[s]),
                                             axes=ax,
                                             fitting_range=self.energy_fitting_range['spectrum'+str(s+1)],
@@ -3680,8 +3715,8 @@ class SunXspex(LoadSpec):
                                             rebin_and_spec=[rebin["spectrum"+str(s+1)], "spectrum"+str(s+1)],
                                             num_of_samples=num_of_samples,
                                             hex_grid=hex_grid)
-                _count_rates.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate"])
-                _count_rate_errors.append(self.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"])
+                _count_rates.append(self.data.loaded_spec_data['spectrum'+str(s+1)]["count_rate"])
+                _count_rate_errors.append(self.data.loaded_spec_data['spectrum'+str(s+1)]["count_rate_error"])
                 axs.set_title('Spectrum '+str(s+1))
 
                 # do we have a background for this spectrum?
@@ -3689,8 +3724,8 @@ class SunXspex(LoadSpec):
 
             else:
                 self.plotting_info['combined'] = {}
-                axs, res = self._plot_1spec((self.loaded_spec_data[f'spectrum{s}']['count_channel_mids'],
-                                             self.loaded_spec_data['spectrum'+str(s)]["count_channel_binning"]/2,
+                axs, res = self._plot_1spec((self.data.loaded_spec_data[f'spectrum{s}']['count_channel_mids'],
+                                             self.data.loaded_spec_data['spectrum'+str(s)]["count_channel_binning"]/2,
                                              np.mean(np.array(_count_rates), axis=0),
                                              np.sqrt(np.sum(np.array(_count_rate_errors)**2, axis=0))/len(_count_rate_errors),
                                              np.mean(models, axis=0)),
@@ -3709,7 +3744,7 @@ class SunXspex(LoadSpec):
 
         # if the data was unbinned for plotting (to be binned in the plotting methods) then rebin the data here
         if _rebin_after_plot:
-            print("Reapply original binning to data. ", end="")
+            logger.info("Reapply original binning to data.")
             self.rebin = self._data_rebin_setting
             del self._data_rebin_setting
 
@@ -3905,7 +3940,7 @@ class SunXspex(LoadSpec):
             spread2 = self._boundary_spread(value_bounds, number)[first_half:, :]  # half spread across the boundaries given
             spread = np.concatenate((spread1, spread2))
         else:
-            print("spread_type needs to be mag_order, over_bounds, or mixed.")
+            logger.info("spread_type needs to be mag_order, over_bounds, or mixed.")
             return
         return spread
 
@@ -4122,11 +4157,11 @@ class SunXspex(LoadSpec):
             if number_of_walkers >= 2*self._ndim:
                 self.nwalkers = number_of_walkers
             else:
-                print("\'self.nwalkers=number_of_walkers\' must be >= 2*number of free parameters (\'self._ndim\').")
-                print("Setting \'self.nwalkers\' to \'2*self._ndim\'.")
+                logger.warning("'self.nwalkers=number_of_walkers' must be >= 2*number of free parameters ('self._ndim').")
+                logger.warning("Setting 'self.nwalkers' to '2*self._ndim'.")
                 self.nwalkers = 2*self._ndim
         else:
-            print("\'number_of_walkers\' must be of type \'int\' and >= 2*number of free parameters (\'self._ndim\') or \'None\'.")
+            logger.info("'number_of_walkers' must be of type 'int' and >= 2*number of free parameters ('self._ndim') or 'None'.")
 
         # make sure the random number from normal distribution are of the same order as the earlier solution, or -1 orde, and get a good spread across the boundaries given
         walkers_start = self._walker_spread(free_params_list, free_bounds, self.nwalkers, spread_type=walker_spread)
@@ -4489,7 +4524,7 @@ class SunXspex(LoadSpec):
         """
         # check there are MCMC samples to plot
         if not hasattr(self, "all_mcmc_samples"):  # "mcmc_sampler"):
-            print("The MCMC analysis has not been run yet. Please run run_mcmc(...) successfully first.")
+            logger.info("The MCMC analysis has not been run yet. Please run run_mcmc(...) successfully first.")
             return
 
         cr = self.error_confidence_range
@@ -4610,10 +4645,10 @@ class SunXspex(LoadSpec):
     def __getstate__(self):
         """Tells pickle how this object should be pickled."""
         _model = {"_model": self._model.__name__}
-        _user_fncs = {"usr_funcs": DYNAMIC_FUNCTION_SOURCE}
-        _user_args = {"user_args": DYNAMIC_VARS}
+        _user_fncs = {"usr_funcs": self.dynamic_function_source}
+        _user_args = {"user_args": self.dynamic_vars}
         if self._pickle_reason == "mcmc_parallelize":
-            _loaded_spec_data = {"loaded_spec_data": {s: {k: d for (k, d) in v.items() if k != "extras"} for (s, v) in self.loaded_spec_data.items()}}  # don't need anything in "extras"
+            _loaded_spec_data = {"loaded_spec_data": {s: {k: d for (k, d) in v.items() if k != "extras"} for (s, v) in self.data.loaded_spec_data.items()}}  # don't need anything in "extras"
             _atts = {"params": self.params,
                      "rParams": self.rParams,
                      "loglikelihood": self.loglikelihood,
@@ -4638,9 +4673,9 @@ class SunXspex(LoadSpec):
 
     def __setstate__(self, d):
         """Tells pickle how this object should be loaded."""
-        add_var(**d["user_args"], quiet=True)
+        self.add_var(**d["user_args"], quiet=True)
         for f, c in d["usr_funcs"].items():
-            function_creator(function_name=f, function_text=c)
+            function_creator(d['dynamic_function_source'], function_name=f, function_text=c)
         del d["usr_funcs"], d["user_args"]
         self.__dict__ = d
         self._model = globals()[d["_model"]] if d["_model"] in globals() else None
@@ -4652,10 +4687,10 @@ class SunXspex(LoadSpec):
     def __str__(self):
         """Provide a printable, user friendly representation of what the class contains."""
         _loaded_spec = ""
-        plural = ["Spectrum", "is"] if len(self.loaded_spec_data.keys()) == 1 else ["Spectra", "are"]
+        plural = ["Spectrum", "is"] if len(self.data.loaded_spec_data.keys()) == 1 else ["Spectra", "are"]
         tag = f"{plural[0]} Loaded {plural[1]}: "
-        for s in self.loaded_spec_data.keys():
-            _loaded_spec += str(self.loaded_spec_data[s]["extras"]["pha.file"])+"\n"+" "*len(tag)
+        for s in self.data.loaded_spec_data.keys():
+            _loaded_spec += str(self.data.loaded_spec_data[s]["extras"]["pha.file"])+"\n"+" "*len(tag)
 
         _loaded_spec += "\rLikelihood: "+str(self.loglikelihood)
         _loaded_spec += "\nModel: "+str(self._model)
@@ -4664,7 +4699,7 @@ class SunXspex(LoadSpec):
         _loaded_spec += "\nModel Parameter Bounds: "+str(self.params.param_bounds)
         _loaded_spec += "\nFitting Range(s): "+str(self.energy_fitting_range)
 
-        return f"No. of Spectra Loaded: {len(self.loaded_spec_data.keys())} \n{tag}{_loaded_spec}"
+        return f"No. of Spectra Loaded: {len(self.data.loaded_spec_data.keys())} \n{tag}{_loaded_spec}"
 
 
 def load(filename):
@@ -4730,7 +4765,7 @@ def _func_self_contained_check(function_name, function_text):
     #     warnings.warn(str(e)+"\nFunction failed self-contained check; however, this may be due to conflict in test inputs used to the model.")
 
 
-def function_creator(function_name, function_text, _orig_func=None):
+def function_creator(dsource, function_name, function_text, _orig_func=None):
     """ Creates a named function from its name and source code.
 
     Takes a user defined function name for a NAMED function and a string that
@@ -4753,7 +4788,7 @@ def function_creator(function_name, function_text, _orig_func=None):
     -------
     Returns the function that has just been created and executed into globals().
     """
-    DYNAMIC_FUNCTION_SOURCE[function_name] = function_text
+    dsource[function_name] = function_text
     try:
         _func_self_contained_check(function_name, function_text)
         # given the code for a NAMED function (not lambda) as a string, this will execute the code and return that function
@@ -4764,7 +4799,7 @@ def function_creator(function_name, function_text, _orig_func=None):
         return _orig_func
 
 
-def deconstruct_lambda(function, add_underscore=True):
+def deconstruct_lambda(dsource, function, add_underscore=True):
     """ Takes in a lambda function and returns it as a NAMED function
 
     Parameters
@@ -4801,7 +4836,7 @@ def deconstruct_lambda(function, add_underscore=True):
     else:
         func_info = {"function_name": function.__name__, "function_text": inspect.getsource(function)}
 
-    return function_creator(**func_info, _orig_func=function)  # execute the function to be used here
+    return function_creator(dsource, **func_info, _orig_func=function)  # execute the function to be used here
 
 
 def get_all_words(model_string):
@@ -4865,7 +4900,7 @@ def check_allowed_names(model_string):
     if words_are_allowed:
         return True
     else:
-        print(set(all_words) - set([n for n in all_words if ((n.isidentifier()) and (not iskeyword(n))) or (isnumber(n))]))
+        logger.info(set(all_words) - set([n for n in all_words if ((n.isidentifier()) and (not iskeyword(n))) or (isnumber(n))]))
         return False
 
 
