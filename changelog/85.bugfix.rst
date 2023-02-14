@@ -1,1 +1,1 @@
-Added in special case when a data bin has zero counts in it for the C-stat likelihood, it defaults to the Poisson likelihood now when data is zero.
+Added special case in C-stat likelihood function :func:`sunxspex/sunxspex_fitting/likelihoods.LogLikelihoods.cstat_loglikelihood` it defaults to the Poisson likelihood now when data is zero.
