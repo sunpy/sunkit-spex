@@ -1,1 +1,1 @@
-Starting random walker positions over the parameter space for MCMC analysis are now obtained correctly and does not rely on all upper parameter bounds being >0.01.
+Fix bug where MCMC random walker starter positions were not correctly calculated.
