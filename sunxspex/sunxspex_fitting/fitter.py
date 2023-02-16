@@ -3893,9 +3893,9 @@ class SunXspex:
         # sort boundaries into numbers first if there are Nones
         value_bounds = np.array(value_bounds)
         lowers = value_bounds[:, 0][:, None]  # = []
-        lowers[lowers == None] = -2**32  # -np.inf # for the random int generatation, these have to be numbers. Make it largest 32-bit number
+        lowers[lowers == None] = -np.iinfo(np.int32).max  # -np.inf # for the random int generatation, these have to be numbers. Make it largest 32-bit number
         uppers = value_bounds[:, 1][:, None]  # = []
-        uppers[uppers == None] = 2**32  # np.inf
+        uppers[uppers == None] = np.iinfo(np.int32).max  # np.inf
         vbounds = np.concatenate((lowers, uppers), axis=1)
 
         return np.array([list(vb[0]+(vb[1]-vb[0])*np.random.rand(number)) for vb in vbounds]).T
