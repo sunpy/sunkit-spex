@@ -254,7 +254,7 @@ class LogLikelihoods:
         A float, the c-stat log-likelihood (to be maximised).
         """
 
-        model_counts, observed_counts, observed_count_errors = np.array(model_counts).squeeze(), np.array(observed_counts), np.array(observed_count_errors)
+        model_counts, observed_counts, observed_count_errors = np.array(model_counts).ravel(), np.array(observed_counts), np.array(observed_count_errors)
 
         # C-stat (XSPEC) - has data term in it so the lower the -2*ln(L) number the better the fit, this is the ln(L) though
         # Best value is 0, if obs_counts>mod_counts or obs_counts<mod_counts then likelihoods<0
