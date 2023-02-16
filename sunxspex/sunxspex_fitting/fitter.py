@@ -1498,7 +1498,7 @@ class SunXspex:
             return allowed
 
     def _count_rate2count(self, counts_model, livetime):
-        """ Convert a count rate [counts s^-1] to just counts.
+        """ Convert an average count rate [counts s^-1] to just counts.
 
         Parameters
         ----------
@@ -1512,7 +1512,7 @@ class SunXspex:
         -------
         Array or lists of count spectra.
         """
-        return (counts_model * livetime).astype(int)
+        return counts_model * livetime
 
     def _choose_loglikelihood(self):
         """ Access the log_likelihoods attribute.
