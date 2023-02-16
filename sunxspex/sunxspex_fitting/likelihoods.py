@@ -236,7 +236,11 @@ class LogLikelihoods:
         .. math::
          ln(L_{Poisson}) = D (ln(\frac{\mu}{D}) + 1) - \mu
 
-        where D is the data and mu is the model counts.
+        where D is the data and mu is the model counts. When D=0 then go with the Poissonian
+        log-likelihood
+
+        .. math::
+         ln(L_{Poisson}) = -\mu
 
         [1] https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/XSappendixStatistics.html
 
@@ -250,10 +254,18 @@ class LogLikelihoods:
         A float, the c-stat log-likelihood (to be maximised).
         """
 
+        model_counts, observed_counts, observed_count_errors = np.array(model_counts).ravel(), np.array(observed_counts), np.array(observed_count_errors)
+
         # C-stat (XSPEC) - has data term in it so the lower the -2*ln(L) number the better the fit, this is the ln(L) though
         # Best value is 0, if obs_counts>mod_counts or obs_counts<mod_counts then likelihoods<0
         # Obvious since e^0=1
-        likelihoods = np.array(observed_counts) * (np.log(np.array(model_counts)/np.array(observed_counts)) + 1) - np.array(model_counts)
+        likelihoods = observed_counts * (np.log(model_counts/observed_counts) + 1) - model_counts
+
+        # if zero observed counts in a bin, then Stirling Approx. not good (only good for obs_counts>=1, if =0 then ->-inf, but Poisson->-mod_counts)
+        # defer to Poisson for the nans in this case
+        _zero_data = (observed_counts == 0) & (model_counts > 0)
+        if len(observed_counts[_zero_data]) > 0:
+            likelihoods[_zero_data] = -model_counts[_zero_data]
 
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 
