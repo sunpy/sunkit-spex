@@ -1110,7 +1110,7 @@ class RhessiLoader(InstrumentBlueprint):
         List of matplotlib dates.
         """
         # convert astro time to datetime then use list comprehension to convert to matplotlib dates
-        return [mdates.date2num(dt.tt.datetime) for dt in astrotimes]
+        return [mdates.date2num(dt.utc.datetime) for dt in astrotimes]
 
     def _mdates_minute_locator(self, _obs_dt=None):
         """ Try to determine a nice tick separation for time axis on the lightcurve.
@@ -1290,12 +1290,12 @@ class RhessiLoader(InstrumentBlueprint):
         _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95  # stop region label overlapping axis spine
         if hasattr(self, "_start_background_time") and (type(self._start_background_time) != type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time) != type(None)):
             ax.axvspan(*self._atimes2mdates([self._start_background_time, self._end_background_time]), alpha=0.1, color='orange')
-            ax.annotate("BG", (self._atimes2mdates([self._start_background_time])[0], _y_pos), color='orange', va="top", size=_def_fs-8)
+            ax.annotate("BG", (self._atimes2mdates([self._start_background_time])[0], _y_pos), color='orange', va="top", size=_def_fs-2)
 
         # plot event time range
         if hasattr(self, "_start_event_time") and hasattr(self, "_end_event_time"):
             ax.axvspan(*self._atimes2mdates([self._start_event_time, self._end_event_time]), alpha=0.1, color='purple')
-            ax.annotate("Evt", (self._atimes2mdates([self._start_event_time])[0], _y_pos), color='purple', va="top", size=_def_fs-8)
+            ax.annotate("Evt", (self._atimes2mdates([self._start_event_time])[0], _y_pos), color='purple', va="top", size=_def_fs-2)
 
         self._lightcurve_data = {"mdtimes": _ts, "lightcurves": _lcs, "lightcurve_error": _lcs_err, "energy_ranges": energy_ranges}
 
@@ -1395,16 +1395,19 @@ class RhessiLoader(InstrumentBlueprint):
 
         ax.set_title(self._instrument()+"Spectrogram [Counts s$^{-1}$]")
 
+        # change event and background start and end times from astropy dates to matplotlib dates
+        start_evt_time, end_evt_time, start_bg_time, end_bg_time = self._atimes2mdates([self._start_event_time, self._end_event_time, self._start_background_time, self._end_background_time])
+
         # plot background time range if there is one
         _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95  # stop region label overlapping axis spine
         if hasattr(self, "_start_background_time") and (type(self._start_background_time) != type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time) != type(None)):
-            ax.plot(self._atimes2mdates([self._start_background_time, self._end_background_time]), [etop, etop], alpha=0.9, color='orange', lw=10)
-            ax.annotate("BG", (self._atimes2mdates([self._start_background_time])[0], _y_pos), color='orange', va="top", size=_def_fs-8)
+            ax.hlines(y=etop, xmin=start_bg_time, xmax=end_bg_time ,alpha=0.9, color='orange',capstyle='butt', lw=10)
+            ax.annotate("BG", (start_bg_time, _y_pos), color='orange', va="top", size=_def_fs-2)
 
         # plot event time range
         if hasattr(self, "_start_event_time") and hasattr(self, "_end_event_time"):
-            ax.plot(self._atimes2mdates([self._start_event_time, self._end_event_time]), [etop, etop], alpha=0.9, color='#F37AFF', lw=10)
-            ax.annotate("Evt", (self._atimes2mdates([self._start_event_time])[0], _y_pos), color='#F37AFF', va="top", size=_def_fs-8)
+            ax.hlines(y=etop, xmin=start_evt_time, xmax=end_evt_time ,alpha=0.9, color='#F37AFF',capstyle = 'butt', lw=10)
+            ax.annotate("Evt", (start_evt_time, _y_pos), color='#F37AFF', va="top", size=_def_fs-2)
 
         self._spectrogram_data = {"spectrogram": _spect, "extent": _ext}
 
