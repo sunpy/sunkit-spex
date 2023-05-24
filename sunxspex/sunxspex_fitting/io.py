@@ -2,6 +2,7 @@
 The ``io`` module contains code to read instrument specific spectral data.
 """
 from astropy.io import fits
+import numpy as np
 
 from sunpy.io.special.genx import read_genx
 
@@ -150,6 +151,13 @@ def _read_stix_srm_file(srm_file):
     `dict`
         STIX SRM data (photon bins, count bins, and SRM in units of [counts/keV/photons]).
     """
-    contents = read_genx(srm_file)
-    return {"photon_energy_bin_edges": contents["DRM"]['E_2D'], "count_energy_bin_edges": contents["DRM"]['EDGES_OUT'],
-            "drm": contents['DRM']['SMATRIX']}
+    with fits.open(srm_file) as hdul:
+        d0 = hdul[1].header
+        d1 = hdul[1].data
+        d2 = hdul[2].header
+        d3 = hdul[2].data
+    pcb = np.concatenate((d1['ENERG_LO'][:,None],d1['ENERG_HI'][:,None]), axis=1)
+    
+    return {"photon_energy_bin_edges": pcb, 
+            "count_energy_bin_edges": np.concatenate((d3['E_MIN'][:,None],d3['E_MAX'][:,None]), axis=1),
+            "drm": d1['MATRIX']*d0["GEOAREA"]}
