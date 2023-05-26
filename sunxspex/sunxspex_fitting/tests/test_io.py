@@ -104,15 +104,26 @@ def test_read_stix_spec_file(mock_open):
         assert np.array_equal(v[1][k], np.arange(k))
 
 
-@patch('sunxspex.sunxspex_fitting.io.read_genx')
-def test_read_stix_srm_file(mock_read_genx):
-    photon_bins = np.array([[1, 2], [2, 3]])
-    count_bins = np.array([[2, 3], [4, 5]])
-    drm = np.eye(2)
-    ret = {"DRM": {'E_2D': photon_bins, 'EDGES_OUT': count_bins, 'SMATRIX': drm}}
+@patch('astropy.io.fits.open')
+def test_read_stix_srm_file(mock_open):
 
-    mock_read_genx.return_value = ret
-    res = _read_stix_srm_file('test.genx')
+    photon_bins = np.array([[1, 2], [2, 3]])
+    count_bins = np.array([[2, 3], [3, 4]])
+    drm = 2*np.eye(2)
+
+    hdul = []
+    headers = [{}, {'GEOAREA':2}, {}]
+    data = [{}, {'MATRIX': np.eye(2), 'ENERG_LO':np.array([1, 2]), 'ENERG_HI': np.array([2, 3])}, {'E_MIN':np.array([2, 3]), 'E_MAX':np.array([3, 4])}]
+    
+    for i in range(len(headers)):
+        m = MagicMock()
+        m.header = headers[i]
+        m.data = data[i]
+        hdul.append(m)
+
+    mock_open.return_value.__enter__.return_value = hdul
+    res = _read_stix_srm_file('test.fits')
+
     assert np.array_equal(res['photon_energy_bin_edges'], photon_bins)
     assert np.array_equal(res['count_energy_bin_edges'], count_bins)
     assert np.array_equal(res['drm'], drm)
