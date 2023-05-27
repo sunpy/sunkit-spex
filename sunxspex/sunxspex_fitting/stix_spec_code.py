@@ -29,7 +29,7 @@ def _get_spec_file_info(spec_file):
     sdict = io._read_stix_spec_file(spec_file)
 
     times_mids = _ds_times2s_times(sdict["2"][1]["time"])   # mid-times of spectra, entries -> times. Mid-times from start of observation
-    time_deltas = _ds_times2s_times(sdict["2"][1]["timedel"]) # times deltas of spectra, entries -> times
+    time_deltas = _ds_times2s_times(sdict["2"][1]["timedel"])  # times deltas of spectra, entries -> times
     time_diff_so2e = sdict["0"][0]["EAR_TDEL"]  # time difference between Sun2Earth and Sun2SO, so time at earth for measurement is this difference added on to the actual detection time
     # spectrum number in the file, entries -> times # spec_num = sdict["1"][1]["SPEC_NUM"]
 
@@ -149,5 +149,3 @@ def _get_srm_file_info(srm_file):
     srm = srm * np.diff(channel_bins, axis=1).flatten()
 
     return photon_bins, channel_bins, srm
-    
-    

@@ -1401,12 +1401,12 @@ class RhessiLoader(InstrumentBlueprint):
         # plot background time range if there is one
         _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95  # stop region label overlapping axis spine
         if hasattr(self, "_start_background_time") and (type(self._start_background_time) != type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time) != type(None)):
-            ax.hlines(y=etop, xmin=start_bg_time, xmax=end_bg_time ,alpha=0.9, color='orange',capstyle='butt', lw=10)
+            ax.hlines(y=etop, xmin=start_bg_time, xmax=end_bg_time, alpha=0.9, color='orange', capstyle='butt', lw=10)
             ax.annotate("BG", (start_bg_time, _y_pos), color='orange', va="top", size=_def_fs-2)
 
         # plot event time range
         if hasattr(self, "_start_event_time") and hasattr(self, "_end_event_time"):
-            ax.hlines(y=etop, xmin=start_evt_time, xmax=end_evt_time ,alpha=0.9, color='#F37AFF',capstyle = 'butt', lw=10)
+            ax.hlines(y=etop, xmin=start_evt_time, xmax=end_evt_time, alpha=0.9, color='#F37AFF', capstyle='butt', lw=10)
             ax.annotate("Evt", (start_evt_time, _y_pos), color='#F37AFF', va="top", size=_def_fs-2)
 
         self._spectrogram_data = {"spectrogram": _spect, "extent": _ext}

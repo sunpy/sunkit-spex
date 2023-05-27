@@ -112,9 +112,9 @@ def test_read_stix_srm_file(mock_open):
     drm = 2*np.eye(2)
 
     hdul = []
-    headers = [{}, {'GEOAREA':2}, {}]
-    data = [{}, {'MATRIX': np.eye(2), 'ENERG_LO':np.array([1, 2]), 'ENERG_HI': np.array([2, 3])}, {'E_MIN':np.array([2, 3]), 'E_MAX':np.array([3, 4])}]
-    
+    headers = [{}, {'GEOAREA': 2}, {}]
+    data = [{}, {'MATRIX': np.eye(2), 'ENERG_LO': np.array([1, 2]), 'ENERG_HI': np.array([2, 3])}, {'E_MIN': np.array([2, 3]), 'E_MAX':np.array([3, 4])}]
+
     for i in range(len(headers)):
         m = MagicMock()
         m.header = headers[i]
