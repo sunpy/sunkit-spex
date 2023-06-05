@@ -5,6 +5,7 @@ import numpy as np
 
 PHOTON_RATE_UNIT = u.ph / u.keV / u.cm**2 / u.s
 
+
 @u.quantity_input
 def power_law_integral(
     energy: u.keV,
