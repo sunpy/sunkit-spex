@@ -1,9 +1,9 @@
-import astropy.units as u
-from matplotlib import pyplot as plt
 import numpy as np
+from matplotlib import pyplot as plt
+
+import astropy.units as u
 
 from sunxspex import photon_power_law as ppl
-
 
 ''' i know this isn't really a test but it shows that things are working '''
 

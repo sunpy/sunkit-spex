@@ -1,7 +1,8 @@
 import functools
 
-import astropy.units as u
 import numpy as np
+
+import astropy.units as u
 
 PHOTON_RATE_UNIT = u.ph / u.keV / u.cm**2 / u.s
 
