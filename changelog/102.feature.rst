@@ -1,0 +1,6 @@
+Add photon space broken power law.
+Behavior is equivalent to the OSPEX power law
+when the pivot option is given.
+Similar to XSPEC bknpower.
+
+See the pull request for more details.
