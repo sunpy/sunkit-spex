@@ -1,0 +1,1 @@
+Removed cast to `int` when converting the model count rates (counts/second) to just counts since the model represents the average number of counts, there is not need for these to be integers.

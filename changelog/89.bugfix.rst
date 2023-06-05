@@ -1,0 +1,1 @@
+Fix bug where MCMC random walker starter positions were not correctly calculated.

@@ -135,3 +135,29 @@ def test_fitter_load(custom_spec, tmp_path):
     assert_allclose(minimiser_results[3], b[0], rtol=1e-3)
     assert_allclose(minimiser_results[4], b[1], rtol=1e-3)
     assert_allclose(minimiser_results[5], b[2], rtol=1e-2)
+
+
+def _assert_in_range(bounds, values):
+    """Raise assertion if the values given are within certain bounds.
+
+    I.e., lower_bound <= values <= upper_bound
+    """
+    assert np.all((bounds[0] <= values) & (values <= bounds[1])), "Value(s) not within bounds given."
+
+
+def test_mcmc_walker_boundary_spread():
+    # test lower and upper boundaries, [(lower,upper),(lower,upper),...]
+    list_of_tuple_bounds1, number_of_values1 = [(1, 10)], 1
+    list_of_tuple_bounds2, number_of_values2 = [(0.005, 0.3)], 5
+    list_of_tuple_bounds3, number_of_values3 = [(1, 10), (0.005, 0.3)], 10
+
+    # get `number` entries between all bounds in `value_bounds`
+    spread1 = SunXspex()._boundary_spread(value_bounds=list_of_tuple_bounds1, number=number_of_values1)
+    spread2 = SunXspex()._boundary_spread(value_bounds=list_of_tuple_bounds2, number=number_of_values2)
+    spread3 = SunXspex()._boundary_spread(value_bounds=list_of_tuple_bounds3, number=number_of_values3)
+
+    # check values produced are within the bounds
+    _assert_in_range(list_of_tuple_bounds1[0], spread1[:, 0])
+    _assert_in_range(list_of_tuple_bounds2[0], spread2[:, 0])
+    _assert_in_range(list_of_tuple_bounds3[0], spread3[:, 0])
+    _assert_in_range(list_of_tuple_bounds3[1], spread3[:, 1])
