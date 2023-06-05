@@ -7,6 +7,7 @@ from sunxspex import photon_power_law as ppl
 
 ''' i know this isn't really a test but it shows that things are working '''
 
+
 def basic_plot_test():
     paramz = dict()
     paramz['energy_edges'] = (edges := np.logspace(0, 2, num=40) << u.keV)
@@ -28,6 +29,7 @@ def basic_plot_test():
         title='Broken power law'
     )
     plt.show()
+
 
 if __name__ == '__main__':
     basic_plot_test()
