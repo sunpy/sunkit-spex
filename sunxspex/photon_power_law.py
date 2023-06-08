@@ -95,6 +95,8 @@ def broken_power_law_binned_flux(
         )
 
     ret = np.concatenate((lower_portion, twixt_portion, upper_portion))
-    assert ret.size == (energy_edges.size - 1)
+    if ret.size != (energy_edges.size - 1):
+        raise ValueError('Bin or edge size mismatch. Bug?')
+
     # go back to units of cm2/sec/keV
     return ret / np.diff(energy_edges)
