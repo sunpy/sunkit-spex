@@ -139,7 +139,6 @@ def broken_power_law_binned_flux(
             up_integ(energy=u.Quantity([break_energy, upper[0]]))
         )
 
-
     ret = np.concatenate((lower_portion, twixt_portion, upper_portion))
     if ret.size != (energy_edges.size - 1):
         raise ValueError('Bin or edge size mismatch. Bug?')

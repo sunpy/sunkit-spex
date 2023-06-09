@@ -3,9 +3,7 @@ import numpy.testing as npt
 
 import astropy.units as u
 
-import sys
-sys.path.insert(0, '..')
-import photon_power_law as ppl
+from sunxspex import photon_power_law as ppl
 
 
 def test_different_bins():
