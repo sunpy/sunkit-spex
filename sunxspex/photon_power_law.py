@@ -18,7 +18,6 @@ def power_law_integral(
 
     The power law antiderivative evaluated by this function is assumed to take the following form:
     .. math:: f(E) = N \left( \frac{E}{E_0} \right)^{- \gamma},
-
     where $E$ is the energy, $N$ is the normalization, $E_0$ is the normalization energy,
     and $\gamma$ is the power law index.
 
@@ -64,7 +63,6 @@ def broken_power_law_binned_flux(
     The broken power law is assumed to take the following form:
     .. math:: f(E \le E_b) = N_1 \left( \frac{E}{E_0} \right)^{-\gamma_1},
     .. math:: f(E > E_b) = N_2 \left( \frac{E}{E_0} \right)^{-\gamma_2}
-
     where $E$ is the energy, $N_1$ and $N_2$ are the normalization below and above the break,
     $E_0$ is the normalization energy, $E_b$ is the break energy, and $\gamma_1$ and $\gamma_2$ are the upper and lower
     power law indices.
