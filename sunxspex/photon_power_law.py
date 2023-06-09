@@ -14,21 +14,14 @@ def power_law_integral(
     norm: PHOTON_RATE_UNIT,
     index: u.one
 ) -> (PHOTON_RATE_UNIT * u.keV):
-    """Evaluate the antiderivative of a power law at a given energy.
-
-    :param energy: Array of energies to evaluate.
-    :type energy: u.keV
-    :param norm_energy: Normalization energy.
-    :param norm: Function normalization.
-    :param index: Power law index.
-    :return: Antiderivative of power law evaluated at given energies.
-    :rtype: PHOTON_RATE_UNIT
+    """Evaluate the antiderivative of a power law at a given energy,
+       or vector of energies.
     """
     prefactor = norm * norm_energy
-    arg = energy / norm_energy
+    arg = (energy / norm_energy).to(u.one)
     if index == 1:
         return prefactor * np.log(arg)
-    return prefactor * arg**(1 - index) / (1 - index)
+    return (prefactor / (1 - index)) * arg**(1 - index)
 
 
 @u.quantity_input
@@ -41,40 +34,30 @@ def broken_power_law_binned_flux(
     upper_index: u.one
 ) -> PHOTON_RATE_UNIT:
     """Analytically evaluate a photon-space broken power law.
-
-    :param energy_edges: 1D array of energy edges.
-    :type energy_edges: u.keV
-    :param reference_energy: Normalization energy.
-    :type reference_energy: u.keV
-    :param reference_flux: Normalization flux.
-    :type reference_flux: PHOTON_RATE_UNIT
-    :param break_energy: Power law break energy.
-    :type break_energy: u.keV
-    :param lower_index: Power law index below the break.
-    :type lower_index: u.one
-    :param upper_index: Power law index above the break.
-    :type upper_index: u.one
-    :return: Photon flux of the broken power law.
-    :rtype: PHOTON_RATE_UNIT
     """
-    norm_idx = lower_index if reference_energy <= break_energy else upper_index
-    # norm is from continuity at break energy and solving.
-    norm = reference_flux * (reference_energy / break_energy)**(norm_idx)
 
-    cnd = energy_edges <= break_energy
+    eng_arg = (break_energy / reference_energy).to(u.one)
+    if reference_energy < break_energy:
+        low_norm = reference_flux
+        up_norm = reference_flux * eng_arg**(upper_index - lower_index)
+    else:
+        up_norm = reference_flux
+        low_norm = reference_flux * eng_arg**(lower_index - upper_index)
+
+    cnd = energy_edges < break_energy
     lower = energy_edges[cnd]
     upper = energy_edges[~cnd]
 
     up_integ = functools.partial(
         power_law_integral,
-        norm_energy=break_energy,
-        norm=norm,
+        norm_energy=reference_energy,
+        norm=up_norm,
         index=upper_index
     )
     low_integ = functools.partial(
         power_law_integral,
-        norm_energy=break_energy,
-        norm=norm,
+        norm_energy=reference_energy,
+        norm=low_norm,
         index=lower_index
     )
 
@@ -86,12 +69,13 @@ def broken_power_law_binned_flux(
 
     twixt_portion = []
     # bin between the portions is comprised of both power laws
+    # import pdb; pdb.set_trace()
     if lower.size > 0 and upper.size > 0:
         twixt_portion = np.diff(
-            low_integ(energy=np.array([break_energy.value, upper[0].value]) << u.keV)
+            low_integ(energy=u.Quantity([lower[-1], break_energy]))
         )
         twixt_portion += np.diff(
-            up_integ(energy=np.array([lower[-1].value, break_energy.value]) << u.keV)
+            up_integ(energy=u.Quantity([break_energy, upper[0]]))
         )
 
     ret = np.concatenate((lower_portion, twixt_portion, upper_portion))
