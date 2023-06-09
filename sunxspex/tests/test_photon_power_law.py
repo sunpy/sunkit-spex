@@ -78,7 +78,7 @@ def test_one_big_bin():
         reference_flux=ref_flux, break_energy=break_eng,
         lower_index=li, upper_index=ui)
 
-    un, ln = ppl.broken_power_law_normalizations(
+    un, ln = ppl._broken_power_law_normalizations(
         reference_flux=ref_flux,
         reference_energy=ref_eng,
         break_energy=break_eng,
@@ -138,11 +138,9 @@ if __name__ == '__main__':
     def all_tests():
         test_integration()
         test_different_bins()
-
         test_empty_or_single_energy_edges()
         test_no_flux()
         test_one_big_bin()
-
         test_single_power_law()
 
     all_tests()
