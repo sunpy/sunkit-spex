@@ -150,7 +150,7 @@ def power_law_binned_flux(
     reference_flux: PHOTON_RATE_UNIT,
     index: u.one
 ) -> PHOTON_RATE_UNIT:
-    '''Single power law, defined by setting the break energy to -inf and the lower index to nan.
+    r'''Single power law, defined by setting the break energy to -inf and the lower index to nan.
 
     See docstring of `broken_power_law_binned_flux` for more details.
 
