@@ -1,1 +1,1 @@
-Add photon space broken power law, located in `sunxspex/photon_power_law.py`, function name `broken_power_law_binned_flux`. Behavior is equivalent to the OSPEX power law when the pivot option is given. Similar to XSPEC bknpower. See the pull request for more details.
+Add photon space broken power law :func:`sunxspex.photon_power_law.broken_power_law_binned_flux`. Behavior is equivalent to the OSPEX power law when the pivot option is given. Similar to XSPEC bknpower.
