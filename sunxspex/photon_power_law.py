@@ -16,26 +16,26 @@ def power_law_integral(
 ) -> (PHOTON_RATE_UNIT * u.keV):
     r"""Evaluate the antiderivative of a power law at a given energy or vector of energies.
 
-    The power law antiderivative evaluated by this function is assumed to take the following form:
-    .. math:: f(E) = N \left( \frac{E}{E_0} \right)^{- \gamma},
-    where $E$ is the energy, $N$ is the normalization, $E_0$ is the normalization energy,
-    and $\gamma$ is the power law index.
+    The power law antiderivative evaluated by this function is assumed to take the following form,
+    :math: `f(E) = N \left( \frac{E}{E_0} \right)^{- \gamma}`,
+    where :math:`E` is the energy, :math:`N` is the normalization, :math:`E_0` is the normalization energy,
+    and :math:`\gamma` is the power law index.
 
-    The value of $\gamma$ is assumed to be positive, but the functional form
+    The value of :math:`\gamma` is assumed to be positive, but the functional form
     includes a negative sign.
 
-    The special case of $\gamma = 1$ is handled.
+    The special case of :math:`\gamma = 1` is handled.
 
     Parameters
     ----------
     energy : `astropy.units.Quantity`
-        Energy (or vector of energies) at which to evaluate the power law antiderivative, i.e. $E$.
+        Energy (or vector of energies) at which to evaluate the power law antiderivative.
     norm_energy : `astropy.units.Quantity`
-        Energy used for the normalization of the power law argument, i.e. $E_0$.
+        Energy used for the normalization of the power law argument, i.e. :math:`E_0`.
     norm : `astropy.units.Quantity`
-        Normalization of the power law integral, i.e. $N$, in units convertible to ph / (cm2 . keV . s).
+        Normalization of the power law integral, i.e. :math:`N`, in units convertible to ph / (cm2 . keV . s).
     index : `astropy.units.Quantity`
-        The power law index, i.e. $\gamma$.
+        The power law index, i.e. :math:`\gamma`.
 
     Returns
     -------
@@ -58,19 +58,19 @@ def broken_power_law_binned_flux(
     lower_index: u.one,
     upper_index: u.one
 ) -> PHOTON_RATE_UNIT:
-    """Analytically evaluate a photon-space broken power law and bin the flux.
+    r"""Analytically evaluate a photon-space broken power law and bin the flux.
 
-    The broken power law is assumed to take the following form:
-    .. math:: f(E \le E_b) = N_1 \left( \frac{E}{E_0} \right)^{-\gamma_1},
-    .. math:: f(E > E_b) = N_2 \left( \frac{E}{E_0} \right)^{-\gamma_2}
-    where $E$ is the energy, $N_1$ and $N_2$ are the normalization below and above the break,
-    $E_0$ is the normalization energy, $E_b$ is the break energy, and $\gamma_1$ and $\gamma_2$ are the upper and lower
+    The broken power law is assumed to take the following form,
+    :math:`f(E \le E_b) &= N_1 \left( \frac{E}{E_0} \right)^{-\gamma_1}`,
+    :math:`f(E > E_b)   &= N_2 \left( \frac{E}{E_0} \right)^{-\gamma_2}`
+    where :math:`E` is the energy, :math:`N_1` and :math:`N_2` are the normalization below and above the break,
+    :math:`E_0` is the normalization energy, :math:`E_b` is the break energy, and :math:`\gamma_1` and :math:`\gamma_2` are the upper and lower
     power law indices.
 
     Only one normalization flux and energy are given. Continuity is enforced at the break energy
     so that the normalization is correct at the chosen energy.
 
-    The values of $\gamma_1$ and $\gamma_2$ are assumed to be positive, but the functional form
+    The values of :math:`\gamma_11 and :math:`\gamma_21 are assumed to be positive, but the functional form
     includes negative signs.
 
     Parameters
@@ -78,7 +78,7 @@ def broken_power_law_binned_flux(
     energy_edges : `astropy.units.Quantity`
         1D array of energy edges defining the energy bins.
     reference_energy : `astropy.units.Quantity`
-        Energy at which the normalization is applied, i.e. $E_0$.
+        Energy at which the normalization is applied, i.e. :math:`E_0`.
     reference_flux : `astropy.units.Quantity`
         Normalization flux for the photon power law.
     break_energy : `astropy.units.Quantity`
@@ -152,14 +152,12 @@ def power_law_binned_flux(
 ) -> PHOTON_RATE_UNIT:
     r'''Single power law, defined by setting the break energy to -inf and the lower index to nan.
 
-    See docstring of `broken_power_law_binned_flux` for more details.
-
     Parameters
     ----------
     energy_edges : `astropy.units.Quantity`
         1D array of energy edges defining the energy bins.
     reference_energy : `astropy.units.Quantity`
-        Energy at which the normalization is applied, i.e. $E_0$.
+        Energy at which the normalization is applied, i.e. :math:`E_0`.
     reference_flux : `astropy.units.Quantity`
         Normalization flux for the photon power law.
     index : `astropy.units.Quantity`
