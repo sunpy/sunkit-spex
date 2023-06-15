@@ -17,7 +17,7 @@ def power_law_integral(
     r"""Evaluate the antiderivative of a power law at a given energy or vector of energies.
 
     The power law antiderivative evaluated by this function is assumed to take the following form,
-    :math: `f(E) = N \left( \frac{E}{E_0} \right)^{- \gamma}`,
+    :math:`f(E) = N \left( \frac{E}{E_0} \right)^{- \gamma}`,
     where :math:`E` is the energy, :math:`N` is the normalization, :math:`E_0` is the normalization energy,
     and :math:`\gamma` is the power law index.
 
@@ -61,8 +61,12 @@ def broken_power_law_binned_flux(
     r"""Analytically evaluate a photon-space broken power law and bin the flux.
 
     The broken power law is assumed to take the following form,
-    :math:`f(E \le E_b) &= N_1 \left( \frac{E}{E_0} \right)^{-\gamma_1}`,
-    :math:`f(E > E_b)   &= N_2 \left( \frac{E}{E_0} \right)^{-\gamma_2}`
+    
+    .. math::
+
+       f(E \le E_b) = N_1 \left( \frac{E}{E_0} \right)^{-\gamma_1} \\
+       f(E > E_b)   = N_2 \left( \frac{E}{E_0} \right)^{-\gamma_2}
+
     where :math:`E` is the energy, :math:`N_1` and :math:`N_2` are the normalization below and above the break,
     :math:`E_0` is the normalization energy, :math:`E_b` is the break energy, and :math:`\gamma_1` and :math:`\gamma_2` are the upper and lower
     power law indices.
@@ -70,7 +74,7 @@ def broken_power_law_binned_flux(
     Only one normalization flux and energy are given. Continuity is enforced at the break energy
     so that the normalization is correct at the chosen energy.
 
-    The values of :math:`\gamma_11 and :math:`\gamma_21 are assumed to be positive, but the functional form
+    The values of :math:`\gamma_1` and :math:`\gamma_2` are assumed to be positive, but the functional form
     includes negative signs.
 
     Parameters
