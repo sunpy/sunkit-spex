@@ -61,7 +61,7 @@ def broken_power_law_binned_flux(
     r"""Analytically evaluate a photon-space broken power law and bin the flux.
 
     The broken power law is assumed to take the following form,
-    
+
     .. math::
 
        f(E \le E_b) = N_1 \left( \frac{E}{E_0} \right)^{-\gamma_1} \\
