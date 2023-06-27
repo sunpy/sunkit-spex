@@ -40,8 +40,8 @@ def _get_spec_file_info(spec_file):
     _plus_half_bin_width = np.ceil(time_deltas/2)
     t_hi = times_mids + _plus_half_bin_width
 
-    spec_stimes = [Time(sdict["0"][0]["DATE_BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.ds) for dt in t_lo]
-    spec_etimes = [Time(sdict["0"][0]["DATE_BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.ds) for dt in t_hi]
+    spec_stimes = [Time(sdict["0"][0]["DATE-BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.cs) for dt in t_lo]
+    spec_etimes = [Time(sdict["0"][0]["DATE-BEG"], format='isot', scale='utc')+TimeDelta(time_diff_so2e * u.s)+TimeDelta(dt * u.cs) for dt in t_hi]
     time_bins = np.concatenate((np.array(spec_stimes)[:, None], np.array(spec_etimes)[:, None]), axis=1)
 
     channel_bins_inds, channel_bins = _return_masked_bins(sdict)
@@ -52,21 +52,6 @@ def _get_spec_file_info(spec_file):
     counts, counts_err, cts_rates, cts_rate_err = _spec_file_units_check(stix_dict=sdict, time_dels=time_deltas)
 
     return channel_bins, channel_bins_inds, time_bins, lvt, counts, counts_err, cts_rates, cts_rate_err
-
-
-def _ds_times2s_times(ds_times):
-    """ STIX time might be in ds (deci-seconds). Convert to seconds.
-
-    Parameters
-    ----------
-    ds_times : time bins
-            A 2D array of time bins.
-
-    Returns
-    -------
-    A 2d array of the time bin edges.
-    """
-    return ds_times
 
 
 def _return_masked_bins(sdict):
@@ -85,9 +70,9 @@ def _return_masked_bins(sdict):
     e_bins = np.concatenate((sdict["4"][1]['e_low'][:, None], sdict["4"][1]['e_high'][:, None]), axis=1)
 
     # get all indices of the energy bins needed
-    mask_inds = sdict["1"][1]['energy_bin_mask'][0].astype(bool)
+    mask_inds = sdict["1"][1]['energy_bin_edge_mask'][0].astype(bool)
 
-    return mask_inds, e_bins[mask_inds]
+    return mask_inds, e_bins
 
 
 def _spec_file_units_check(stix_dict, time_dels):
@@ -110,7 +95,7 @@ def _spec_file_units_check(stix_dict, time_dels):
     """
     # stix can be saved out with counts, counts/sec, or counts/sec/cm^2/keV using counts, rate, or flux, respectively
     if stix_dict["0"][0]["BUNIT"] == "counts":
-        counts = stix_dict["2"][1]["counts"][:, 1:]
+        counts = stix_dict["2"][1]["counts"][:, :]
         counts_err = np.sqrt(counts)  # should this be added in quadrature to the estimated count compression error
         cts_rates = counts / time_dels[:, None]
         cts_rate_err = counts_err / time_dels[:, None]
