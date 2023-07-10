@@ -8,6 +8,7 @@ from astropy import units as u
 from astropy.time import Time, TimeDelta
 
 from . import io
+from .common_spec_code import SpecFileInfo, SrmFileInfo
 
 __all__ = ["_get_spec_file_info", "_spec_file_units_check", "_get_srm_file_info"]
 
@@ -52,7 +53,15 @@ def _get_spec_file_info(spec_file):
     # get counts [counts], count rate [counts/s], and error on count rate
     counts, counts_err, cts_rates, cts_rate_err = _spec_file_units_check(rhessi_dict=rdict, livetimes=lvt, time_dels=time_deltas, kev_binning=channel_bins)
 
-    return channel_bins, channel_bins_inds, time_bins, lvt, counts, counts_err, cts_rates, cts_rate_err
+    return SpecFileInfo(
+        channel_bins_2d=channel_bins,
+        time_bins=time_bins,
+        livetime=lvt,
+        counts=counts,
+        counts_error=counts_err,
+        count_rate=cts_rates,
+        count_rate_error=cts_rate_err
+    )
 
 
 def _spec_file_units_check(rhessi_dict, livetimes, time_dels, kev_binning):
@@ -123,8 +132,7 @@ def _get_srm_file_info(srm_file):
     srmfrdict = io._read_rhessi_srm_file(srm_file)
 
     if srmfrdict["1"][0]["SUMFLAG"] != 1:
-        print("Apparently srm file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
-        return
+        raise ValueError("Apparently srm file's `SUMFLAG` should be one and I don't know what to do otherwise at the moment.")
 
     photon_channels_elo = srmfrdict["1"][1]['ENERG_LO']  # photon channel edges, different to count channels
     photon_channels_ehi = srmfrdict["1"][1]['ENERG_HI']
@@ -140,8 +148,13 @@ def _get_srm_file_info(srm_file):
     channels = srmfrdict["2"][1]  # [(chan, lowE, hiE), ...], srmfrdict["2"][0] has units etc. count channels for SRM
     channel_bins = np.concatenate((np.array(channels['E_MIN'])[:, None], np.array(channels['E_MAX'])[:, None]), axis=1)
 
-    # srm units counts ph^(-1) kev^(-1); i.e., photons cm^(-2) go in and counts cm^(-2) kev^(-1) comes out # https://hesperia.gsfc.nasa.gov/ssw/hessi/doc/params/hsi_params_srm.htm#***
+    # srm units counts ph^(-1) kev^(-1); i.e., photons cm^(-2) go in and counts cm^(-2) kev^(-1) comes out
+    # https://hesperia.gsfc.nasa.gov/ssw/hessi/doc/params/hsi_params_srm.htm#***
     # need srm units are counts ph^(-1) cm^(2)
     srm = srm * np.diff(channel_bins, axis=1).flatten() * geo_area
 
-    return photon_bins, channel_bins, srm
+    return SrmFileInfo(
+        photon_bin_edges=photon_bins,
+        count_bin_edges=channel_bins,
+        srm=srm
+    )

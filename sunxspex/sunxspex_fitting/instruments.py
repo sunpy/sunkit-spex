@@ -13,14 +13,16 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 
+import astropy.io.fits as fits
 from astropy.time import Time
 
 from . import io
 from . import nu_spec_code as nu_spec
 from . import rhes_spec_code as rhes_spec
 from . import stix_spec_code as stix_spec
+from .common_spec_code import SpecFileInfo
 
-__all__ = ["NustarLoader", "StixLoader", "RhessiLoader", "CustomLoader", "rebin_any_array"]
+__all__ = ["NustarLoader", "StixLoader", "StixSpectrogramLoader", "RhessiLoader", "CustomLoader", "rebin_any_array"]
 
 # Get a default class for the instrument specfic loaders
 # Once the instrument specific loaders inherit from this then all they really have to do is get the spectral
@@ -425,7 +427,6 @@ class NustarLoader(InstrumentBlueprint):
         new_eff_area = rebin_any_array(data=old_eff_area, old_bins=old_photon_bins, new_bins=new_photon_bins, combine_by="mean") if (axis != "count") else old_eff_area
         return nu_spec.make_srm(rmf_matrix=new_rmf, arf_array=new_eff_area)
 
-
 class RhessiLoader(InstrumentBlueprint):
     """
     Loader specifically for RHESSI spectral data.
@@ -503,23 +504,11 @@ class RhessiLoader(InstrumentBlueprint):
 
     Attributes
     ----------
-    _channel_bins_inds_perspec : 2d array
-            Array of channel bins (columns) per spectrum (rows).
+    spec_info : SpecFileInfo
+            Data used for constructing the Sunxspex dict.
 
     _construction_string : string
             String to show how class was constructed.
-
-    _count_rate_perspec : 2d array
-            Array of count rates per channel bin (columns) and spectrum (rows).
-
-    _count_rate_error_perspec 2d array
-            Array of count rate errors per channel bin (columns) and spectrum (rows).
-
-    _counts_perspec : 2d array
-            Array of counts per channel bin (columns) and spectrum (rows).
-
-    _counts_err_perspec : 2d array
-            Array of count error per channel bin (columns) and spectrum (rows).
 
     _end_background_time : `astropy.Time`
             End time for the defined background.
@@ -538,9 +527,6 @@ class RhessiLoader(InstrumentBlueprint):
     _loaded_spec_data : dict
             Instrument loaded spectral data.
 
-    _lvt_perspec : 2d array
-            Array of livetimes per channel bin (columns) and spectrum (rows).
-
     _spectrogram_data : {"spectrogram":_spect, "extent":_ext}
             Arrays used to plots the spectrogram if the spectrogram method has been run.
 
@@ -551,9 +537,6 @@ class RhessiLoader(InstrumentBlueprint):
     _start_event_time
             Starting time for the defined event.
             Default: First time in loaded data.
-
-    _time_bins_perspec : 2d array
-            Array of time bins per spectrum.
 
     _time_fmt
             Format for astropy to convert teh times with.
@@ -591,9 +574,7 @@ class RhessiLoader(InstrumentBlueprint):
 
         Returns
         -------
-        A 2d array of the channel bin edges (channel_bins), 2d array of the channel bins (channel_bins_inds),
-        2d array of the time bins for each spectrum (time_bins), 2d array of livetimes/counts/count rates/count
-        rate errors per channel bin and spectrum (lvt/counts/cts_rates/cts_rate_err, respectively).
+        SpecFileInfo object
         """
         return rhes_spec._get_spec_file_info(f_pha)
 
@@ -611,9 +592,7 @@ class RhessiLoader(InstrumentBlueprint):
 
         Returns
         -------
-        A 2d array of the photon and channel bin edges (photon_bins, channel_bins), number of sub-set channels
-        in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
-        sub-set (nchan), 2d array that is the spectral response (srm).
+        SrmFileInfo object
         """
         return rhes_spec._get_srm_file_info(f_srm)
 
@@ -657,36 +636,39 @@ class RhessiLoader(InstrumentBlueprint):
                                                                      }.
         """
         # need effective exposure and energy binning since likelihood works on counts, not count rates etc.
-        obs_channel_bins, self._channel_bins_inds_perspec, self._time_bins_perspec, self._lvt_perspec, self._counts_perspec, self._counts_err_perspec, self._count_rate_perspec, self._count_rate_error_perspec = self._getspec(
-            f_pha)
+        self.spec_info = self._getspec(f_pha)
 
         # now calculate the SRM or use a custom one if given
-        if type(srm) == type(None):
+        srm_photon_bins = None
+        if srm is None:
             # needs an srm file load it in
-            srm_photon_bins, srm_channel_bins, srm = self._getsrm(f_srm)
+            srm_info = self._getsrm(f_srm)
+            # TODO refactor so we don't assign to three arrays like this?
+            srm_photon_bins, srm_channel_bins, srm = (
+                srm_info.photon_bin_edges, srm_info.count_bin_edges, srm_info.srm)
             # make sure the SRM will only produce counts to match the data
-            data_inds2match = np.where((obs_channel_bins[0, 0] <= srm_channel_bins[:, 0]) & (srm_channel_bins[:, 1] <= obs_channel_bins[-1, -1]))
+            data_inds2match = np.where(
+                (self.spec_info.channel_bins_2d[0, 0] <= srm_channel_bins[:, 0]) &
+                (srm_channel_bins[:, 1] <= self.spec_info.channel_bins_2d[-1, -1])
+            )
             srm = srm[:, data_inds2match[0]]
-        else:
-            srm_photon_bins = None
 
-        photon_bins = srm_photon_bins if type(photon_bins) == type(None) else photon_bins
+        photon_bins = photon_bins or srm_photon_bins
         photon_binning = np.diff(photon_bins).flatten()
 
-        # from the srm file #channel_binning = np.diff(channel_bins).flatten()
-        channel_bins = obs_channel_bins if type(channel_bins) == type(None) else channel_bins
+        channel_bins = channel_bins or self.spec_info.channel_bins_2d
 
         # default is no background and all data is the spectrum to be fitted
-        self._full_obs_time = [self._time_bins_perspec[0, 0], self._time_bins_perspec[-1, -1]]
-        counts = np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self._counts_perspec, etime=self._full_obs_time[1]), axis=0)
-        counts_err = np.sqrt(np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self._counts_err_perspec,
+        self._full_obs_time = [self.spec_info.time_bins[0, 0], self.spec_info.time_bins[-1, -1]]
+        counts = np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self.spec_info.counts, etime=self._full_obs_time[1]), axis=0)
+        counts_err = np.sqrt(np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self.spec_info.counts_error,
                              etime=self._full_obs_time[1])**2, axis=0))  # sum errors in quadrature, Poisson still sqrt(N)
 
-        _livetimes = np.mean(self._data_time_select(stime=self._full_obs_time[0], full_data=self._lvt_perspec,
+        _livetimes = np.mean(self._data_time_select(stime=self._full_obs_time[0], full_data=self.spec_info.livetime,
                              etime=self._full_obs_time[1]), axis=0)  # to convert a model count rate to counts, so need mean
         eff_exp = np.diff(self._full_obs_time)[0].to_value("s")*_livetimes
 
-        channel_binning = np.diff(obs_channel_bins, axis=1).flatten()
+        channel_binning = np.diff(self.spec_info.channel_bins_2d, axis=1).flatten()
         count_rate = counts/eff_exp/channel_binning  # count rates from here are counts/s/keV
         count_rate_error = counts_err/eff_exp/channel_binning  # was np.sqrt(counts)/eff_exp/channel_binning
 
@@ -797,11 +779,11 @@ class RhessiLoader(InstrumentBlueprint):
         if (type(stime) == type(None)) and (type(etime) == type(None)):
             return full_data
         elif type(stime) == type(None):
-            return full_data[np.where(self._time_bins_perspec[:, 1] <= etime)]
+            return full_data[np.where(self.spec_info.time_bins[:, 1] <= etime)]
         elif type(etime) == type(None):
-            return full_data[np.where(stime <= self._time_bins_perspec[:, 0])]
+            return full_data[np.where(stime <= self.spec_info.time_bins[:, 0])]
         else:
-            return full_data[np.where((stime <= self._time_bins_perspec[:, 0]) & (self._time_bins_perspec[:, 1] <= etime))]
+            return full_data[np.where((stime <= self.spec_info.time_bins[:, 0]) & (self.spec_info.time_bins[:, 1] <= etime))]
 
     def _update_event_data_with_times(self):
         """ Changes the data in `_loaded_spec_data` to the data in the defined event time range.
@@ -820,14 +802,14 @@ class RhessiLoader(InstrumentBlueprint):
             return
 
         # sum counts over time range
-        self._loaded_spec_data["counts"] = np.sum(self._data_time_select(stime=self._start_event_time, full_data=self._counts_perspec, etime=self._end_event_time), axis=0)
+        self._loaded_spec_data["counts"] = np.sum(self._data_time_select(stime=self._start_event_time, full_data=self.spec_info.counts, etime=self._end_event_time), axis=0)
         self._loaded_spec_data["count_error"] = np.sqrt(self._loaded_spec_data["counts"])
 
         # isolate livetimes and time binning
-        _livetimes = np.mean(self._data_time_select(stime=self._start_event_time, full_data=self._lvt_perspec,
+        _livetimes = np.mean(self._data_time_select(stime=self._start_event_time, full_data=self.spec_info.livetime,
                              etime=self._end_event_time), axis=0)  # to convert a model count rate to counts, so need mean
-        _actual_first_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:, 0], etime=self._end_event_time)[0]
-        _actual_last_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:, 1], etime=self._end_event_time)[-1]
+        _actual_first_bin = self._data_time_select(stime=self._start_event_time, full_data=self.spec_info.time_bins[:, 0], etime=self._end_event_time)[0]
+        _actual_last_bin = self._data_time_select(stime=self._start_event_time, full_data=self.spec_info.time_bins[:, 1], etime=self._end_event_time)[-1]
         self._loaded_spec_data["effective_exposure"] = np.diff([_actual_first_bin, _actual_last_bin])[0].to_value("s")*_livetimes
 
         # calculate new count rates and errors
@@ -953,14 +935,14 @@ class RhessiLoader(InstrumentBlueprint):
             # get background data, woo!
             # sum counts over time range
             self._loaded_spec_data["extras"]["background_counts"] = np.sum(self._data_time_select(
-                stime=self._start_background_time, full_data=self._counts_perspec, etime=self._end_background_time), axis=0)
+                stime=self._start_background_time, full_data=self.spec_info.counts, etime=self._end_background_time), axis=0)
             self._loaded_spec_data["extras"]["background_count_error"] = np.sqrt(self._loaded_spec_data["extras"]["background_counts"])
 
             # isolate livetimes and time binning
-            _livetimes = np.mean(self._data_time_select(stime=self._start_background_time, full_data=self._lvt_perspec,
+            _livetimes = np.mean(self._data_time_select(stime=self._start_background_time, full_data=self.spec_info.livetime,
                                  etime=self._end_background_time), axis=0)  # to convert a model count rate to counts, so need mean
-            _actual_first_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:, 0], etime=self._end_background_time)[0]
-            _actual_last_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:, 1], etime=self._end_background_time)[-1]
+            _actual_first_bin = self._data_time_select(stime=self._start_background_time, full_data=self.spec_info.time_bins[:, 0], etime=self._end_background_time)[0]
+            _actual_last_bin = self._data_time_select(stime=self._start_background_time, full_data=self.spec_info.time_bins[:, 1], etime=self._end_background_time)[-1]
             self._loaded_spec_data["extras"]["background_effective_exposure"] = np.diff([_actual_first_bin, _actual_last_bin])[0].to_value("s")*_livetimes
 
             # calculate new count rates and errors
@@ -1150,12 +1132,11 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         String.
         """
-        if self._construction_string.startswith("Rhessi"):
-            return "RHESSI "
-        elif self._construction_string.startswith("Stix"):
-            return "STIX "
-        else:
-            return ""
+        is_stix = (
+            isinstance(self, StixLoader) or
+            isinstance(self, StixSpectrogramLoader)
+        )
+        return "STIX " if is_stix else "RHESSI "
 
     def _rebin_lc(self, arr, clump_bins):
         """ Combines array elements in groups of `clump_bins`.
@@ -1254,15 +1235,15 @@ class RhessiLoader(InstrumentBlueprint):
         _def_fs = plt.rcParams['font.size']
 
         _lcs, _lcs_err = [], []
-        _times = self._time_bins_perspec
+        _times = self.spec_info.time_bins
         _times = self._rebin_ts(_times, rebin_time) if type(rebin_time) == int and rebin_time > 1 else _times
         _ts = self._atimes2mdates(_times.flatten())
 
         # plot each energy range
         for er in energy_ranges:
             i = np.where((self._loaded_spec_data["count_channel_bins"][:, 0] >= er[0]) & (self._loaded_spec_data["count_channel_bins"][:, -1] <= er[-1]))
-            time_binning = np.array([dt.to_value("s") for dt in np.diff(self._time_bins_perspec).flatten()])
-            e_range_cts = np.sum(self._counts_perspec[:, i].reshape((len(time_binning), -1)), axis=1)
+            time_binning = np.array([dt.to_value("s") for dt in np.diff(self.spec_info.time_bins).flatten()])
+            e_range_cts = np.sum(self.spec_info.counts[:, i].reshape((len(time_binning), -1)), axis=1)
 
             if type(rebin_time) == int and rebin_time > 1:
                 e_range_cts = self._rebin_lc(e_range_cts, rebin_time)
@@ -1359,9 +1340,9 @@ class RhessiLoader(InstrumentBlueprint):
         _def_fs = plt.rcParams['font.size']
 
         # get cts/s, and times and energy bin ranges
-        time_binning = np.array([dt.to_value("s") for dt in np.diff(self._time_bins_perspec).flatten()])
-        e_range_cts = self._counts_perspec
-        _times = self._time_bins_perspec
+        time_binning = np.array([dt.to_value("s") for dt in np.diff(self.spec_info.time_bins).flatten()])
+        e_range_cts = self.spec_info.counts
+        _times = self.spec_info.time_bins
 
         # check if the times are being rebinned
         if type(rebin_time) == int and rebin_time > 1:
@@ -1455,42 +1436,31 @@ class RhessiLoader(InstrumentBlueprint):
         self.__warn = True
 
 
-# STIX data is pretty much the same as RHESSI so can startwith all the same code then customise
+# TODO populate classes
+class StixSpectrogramLoader:
+    pass
+
+
+# STIX data is pretty much the same as RHESSI so can start with all the same code then customise
 class StixLoader(RhessiLoader):
     """
-    Loader specifically for STIX spectral data.
-
-    StixLoader Specifics
-    --------------------
-    Inherit directly from the RHESSI loader instead of the usual InstrumentBlueprint class. This
-    will mean the all the methods that can be applied to RHESSI data can be applied to STIX too.
-
     At the moment, please see `RhessiLoader` for more information.
-
-    Superclass Override:
-
-    Properties
-    ----------
-
-    Setters
-    -------
-
-    Methods
-    -------
-
-    Attributes
-    ----------
     """
-    # can I do this RhessiLoader.__doc__.replace("RHESSI", "STIX")?
-    __doc__ += InstrumentBlueprint._UNIVERSAL_DOC_
+    __doc__ = RhessiLoader.__doc__.replace('RHESSI', 'STIX')
 
-    def __init__(self, pha_file, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
-        """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
-        RhessiLoader.__init__(self, pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins, **kwargs)
+    def __init__(self, data_file, srm_file, srm_type='unattenuated', time_base='utc'):
+        with fits.open(data_file) as f:
+            head = f[0].header
+            if head['creator'] != 'stixcore':
+                raise ValueError("OSPEX files not yet supported (only from stix data center)")
+            if 'spec' not in head['parent']:
+                raise ValueError("Sunxspex does not yet support STIX (compressed) pixel data")
 
-        self._construction_string = f"StixLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},**{kwargs})"
+            self.srm_type = srm_type
+            self.time_base = time_base
+            RhessiLoader.__init__(self, data_file, arf_file=data_file, rmf_file=srm_file)
 
-    def _getspec(self, f_pha):
+    def _getspec(self, f_pha: str) -> SpecFileInfo:
         """ Load in STIX spectral data.
 
         Overrides `RhessiLoader` Superclass `_getspec` and gets called by `_load1spec` method.
@@ -1502,13 +1472,11 @@ class StixLoader(RhessiLoader):
 
         Returns
         -------
-        A 2d array of the channel bin edges (channel_bins), 2d array of the channel bins (channel_bins_inds),
-        2d array of the time bins for each spectrum (time_bins), 2d array of livetimes/counts/count rates/count
-        rate errors per channel bin and spectrum (lvt/counts/cts_rates/cts_rate_err, respectively).
+        SpecFileInfo object
         """
-        return stix_spec._get_spec_file_info(f_pha)
+        return stix_spec.load_spec(f_pha, time_base=self.time_base)
 
-    def _getsrm(self, f_srm):
+    def _getsrm(self, f_srm: str) -> tuple:
         """ Return all STIX SRM data needed for fitting.
 
         SRM units returned as counts ph^(-1) cm^(2).
@@ -1522,11 +1490,9 @@ class StixLoader(RhessiLoader):
 
         Returns
         -------
-        A 2d array of the photon and channel bin edges (photon_bins, channel_bins), number of sub-set channels
-        in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
-        sub-set (nchan), 2d array that is the spectral response (srm).
+        SrmFileInfo object
         """
-        return stix_spec._get_srm_file_info(f_srm)
+        return stix_spec.load_srm(f_srm, self.srm_type)
 
 
 class CustomLoader(InstrumentBlueprint):
