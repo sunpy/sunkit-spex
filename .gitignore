@@ -153,3 +153,4 @@ htmlcov/
 # IDE files
 .idea
 .project
+*.swp
