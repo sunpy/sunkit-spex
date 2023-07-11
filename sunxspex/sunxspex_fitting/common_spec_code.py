@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import numpy as np
 
 @dataclass
 class SpecFileInfo:
@@ -18,7 +19,8 @@ class SpecFileInfo:
     count_rate_error: np.ndarray
 
 
-@dataclass SrmFileInfo:
+@dataclass
+class SrmFileInfo:
     photon_bin_edges: np.ndarray
     count_bin_edges: np.ndarray
     srm: np.ndarray
