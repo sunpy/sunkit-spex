@@ -204,7 +204,7 @@ def test_passing_instrument_loader_direct():
     custom_user_inst3 = UserCustomInst2(custom_dict)
 
     # pass the classes themselves, not the data or files to the fitter
-    fitter = SunXspex(custom_user_inst1, custom_user_inst1, custom_user_inst2)
+    fitter = SunXspex(custom_user_inst1, custom_user_inst2, custom_user_inst3)
 
     # check everything has carried through to where it should be
     assert fitter.data.loaded_spec_data["spectrum1"]._loaded_spec_data == custom_user_inst1._loaded_spec_data, "Failed to pass instrument loader directly to fitter."
