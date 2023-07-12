@@ -54,7 +54,7 @@ def _get_spec_file_info(spec_file):
     counts, counts_err, cts_rates, cts_rate_err = _spec_file_units_check(rhessi_dict=rdict, livetimes=lvt, time_dels=time_deltas, kev_binning=channel_bins)
 
     return SpecFileInfo(
-        channel_bins_2d=channel_bins,
+        count_bins=channel_bins,
         time_bins=time_bins,
         livetime=lvt,
         counts=counts,

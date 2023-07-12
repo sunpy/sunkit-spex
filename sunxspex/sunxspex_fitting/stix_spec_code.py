@@ -99,7 +99,7 @@ def load_spec(spec_file: str, time_base: str) -> SpecFileInfo:
         )
 
     return SpecFileInfo(
-        channel_bins_2d=channel_bins.to_value(u.keV),
+        count_bins=channel_bins.to_value(u.keV),
         time_bins=time_bins,
         livetime=livetime_dat['value'],
         counts=counts.to_value(u.ct),
