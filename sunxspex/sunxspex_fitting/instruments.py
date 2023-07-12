@@ -20,9 +20,9 @@ from . import io
 from . import nu_spec_code as nu_spec
 from . import rhes_spec_code as rhes_spec
 from . import stix_spec_code as stix_spec
-from .common_spec_code import SpecFileInfo
+from .common_spec_code import SpecFileInfo, SrmFileInfo
 
-__all__ = ["NustarLoader", "StixLoader", "StixSpectrogramLoader", "RhessiLoader", "CustomLoader", "rebin_any_array"]
+__all__ = ["NustarLoader", "StixLoader", "RhessiLoader", "CustomLoader", "rebin_any_array"]
 
 # Get a default class for the instrument specfic loaders
 # Once the instrument specific loaders inherit from this then all they really have to do is get the spectral
@@ -552,7 +552,10 @@ class RhessiLoader(InstrumentBlueprint):
     def __init__(self, pha_file, srm_file=None, srm_custom=None, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"RhessiLoader(pha_file={pha_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
+        self._construction_string = \
+                f"RhessiLoader(pha_file={pha_file},srm_file={srm_file},"\
+                f"srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},"\
+                f"custom_photon_bins={custom_photon_bins},**{kwargs})"
         self._loaded_spec_data = self._load1spec(pha_file, srm_file, srm=srm_custom, channel_bins=custom_channel_bins, photon_bins=custom_photon_bins)
 
         self._time_fmt, self._time_scale = "isot", "utc"
@@ -635,7 +638,6 @@ class RhessiLoader(InstrumentBlueprint):
                                                                                 "counts=data-bg":False}
                                                                      }.
         """
-        # need effective exposure and energy binning since likelihood works on counts, not count rates etc.
         self.spec_info = self._getspec(f_pha)
 
         # now calculate the SRM or use a custom one if given
@@ -648,15 +650,15 @@ class RhessiLoader(InstrumentBlueprint):
                 srm_info.photon_bin_edges, srm_info.count_bin_edges, srm_info.srm)
             # make sure the SRM will only produce counts to match the data
             data_inds2match = np.where(
-                (self.spec_info.channel_bins_2d[0, 0] <= srm_channel_bins[:, 0]) &
-                (srm_channel_bins[:, 1] <= self.spec_info.channel_bins_2d[-1, -1])
+                (self.spec_info.count_bins[0, 0] <= srm_channel_bins[:, 0]) &
+                (srm_channel_bins[:, 1] <= self.spec_info.count_bins[-1, -1])
             )
             srm = srm[:, data_inds2match[0]]
 
         photon_bins = photon_bins or srm_photon_bins
         photon_binning = np.diff(photon_bins).flatten()
 
-        channel_bins = channel_bins or self.spec_info.channel_bins_2d
+        channel_bins = channel_bins or self.spec_info.count_bins
 
         # default is no background and all data is the spectrum to be fitted
         self._full_obs_time = [self.spec_info.time_bins[0, 0], self.spec_info.time_bins[-1, -1]]
@@ -668,7 +670,7 @@ class RhessiLoader(InstrumentBlueprint):
                              etime=self._full_obs_time[1]), axis=0)  # to convert a model count rate to counts, so need mean
         eff_exp = np.diff(self._full_obs_time)[0].to_value("s")*_livetimes
 
-        channel_binning = np.diff(self.spec_info.channel_bins_2d, axis=1).flatten()
+        channel_binning = np.diff(self.spec_info.count_bins, axis=1).flatten()
         count_rate = counts/eff_exp/channel_binning  # count rates from here are counts/s/keV
         count_rate_error = counts_err/eff_exp/channel_binning  # was np.sqrt(counts)/eff_exp/channel_binning
 
@@ -1132,10 +1134,7 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         String.
         """
-        is_stix = (
-            isinstance(self, StixLoader) or
-            isinstance(self, StixSpectrogramLoader)
-        )
+        is_stix = isinstance(self, StixLoader)
         return "STIX " if is_stix else "RHESSI "
 
     def _rebin_lc(self, arr, clump_bins):
@@ -1436,11 +1435,6 @@ class RhessiLoader(InstrumentBlueprint):
         self.__warn = True
 
 
-# TODO populate classes
-class StixSpectrogramLoader:
-    pass
-
-
 # STIX data is pretty much the same as RHESSI so can start with all the same code then customise
 class StixLoader(RhessiLoader):
     """
@@ -1449,6 +1443,10 @@ class StixLoader(RhessiLoader):
     __doc__ = RhessiLoader.__doc__.replace('RHESSI', 'STIX')
 
     def __init__(self, data_file, srm_file, srm_type='unattenuated', time_base='utc'):
+        # For systematic error
+        self.orig_cts_err = None
+        self.orig_rate_err = None
+
         with fits.open(data_file) as f:
             head = f[0].header
             if head['creator'] != 'stixcore':
@@ -1458,7 +1456,7 @@ class StixLoader(RhessiLoader):
 
             self.srm_type = srm_type
             self.time_base = time_base
-            RhessiLoader.__init__(self, data_file, arf_file=data_file, rmf_file=srm_file)
+            RhessiLoader.__init__(self, data_file, srm_file)
 
     def _getspec(self, f_pha: str) -> SpecFileInfo:
         """ Load in STIX spectral data.
@@ -1492,7 +1490,56 @@ class StixLoader(RhessiLoader):
         -------
         SrmFileInfo object
         """
-        return stix_spec.load_srm(f_srm, self.srm_type)
+        ret = stix_spec.load_srm(f_srm, self.srm_type)
+        # trim counts bins to SRM counts bins
+        # (some aren't computed for the SRM)
+        self.clip_energy_edges(ret)
+        return ret
+
+    def clip_energy_edges(self, srm_info: SrmFileInfo):
+        '''STIX SRM bin edges don't always line up with the spectrum edges.
+           Clip them so that matrix multiplication works.
+        '''
+        if srm_info.count_bin_edges.size > self.spec_info.count_bins.size:
+            raise ValueError("more SRM count channel bins than loaded from spectrogram")
+
+        mask = np.array([
+            b in srm_info.count_bin_edges
+            for b in self.spec_info.count_bins
+        ], dtype=bool)
+        modify = [
+            'count_bins',
+            'counts',
+            'counts_error',
+            'count_rate',
+            'count_rate_error'
+        ]
+        for k in modify:
+            dat = getattr(self.spec_info, k)
+            try:
+                setattr(self.spec_info, k, dat[mask])
+            except IndexError:
+                setattr(self.spec_info, k, dat.T[mask].T)
+
+    def add_systematic_error(self, error: float | np.ndarray):
+        '''Add `error` (proportion) onto count and count rate errors.'''
+        orig_cts_err = self.orig_cts_err
+        orig_rate_err = self.orig_rate_err
+
+        if orig_cts_err is None:
+            orig_cts_err = self._loaded_spec_data['count_error']
+            orig_rate_err = self._loaded_spec_data['count_rate_error']
+
+        cts = self._loaded_spec_data['counts']
+        new_cts_err = np.sqrt(orig_cts_err**2 + (error * cts)**2)
+        self._loaded_spec_data['count_error'] = new_cts_err
+
+        rate = self._loaded_spec_data['count_rate']
+        new_rate_err = np.sqrt(orig_rate_err**2 + (error * rate)**2)
+        self._loaded_spec_data['count_rate_error'] = new_rate_err
+
+        self.orig_cts_err = orig_cts_err
+        self.orig_rate_err = orig_rate_err
 
 
 class CustomLoader(InstrumentBlueprint):
