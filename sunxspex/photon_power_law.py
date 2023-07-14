@@ -1,14 +1,12 @@
 import functools
-
 import numpy as np
-
 import astropy.units as u
 
 PHOTON_RATE_UNIT = u.ph / u.keV / u.cm**2 / u.s
 
 
 @u.quantity_input
-def power_law_integral(
+def integrate_power_law(
     energy: u.keV,
     norm_energy: u.keV,
     norm: PHOTON_RATE_UNIT,
@@ -50,7 +48,7 @@ def power_law_integral(
 
 
 @u.quantity_input
-def broken_power_law_binned_flux(
+def compute_broken_power_law(
     energy_edges: u.keV,
     reference_energy: u.keV,
     reference_flux: PHOTON_RATE_UNIT,
@@ -67,7 +65,7 @@ def broken_power_law_binned_flux(
        f(E \le E_b) = N_1 \left( \frac{E}{E_0} \right)^{-\gamma_1} \\
        f(E > E_b)   = N_2 \left( \frac{E}{E_0} \right)^{-\gamma_2}
 
-    where :math:`E` is the energy, :math:`N_1` and :math:`N_2` are the normalization below and above the break,
+    where :math:`E` is the energy, :math:`N_1` and :math:`N_2` are the normalizations below and above the break,
     :math:`E_0` is the normalization energy, :math:`E_b` is the break energy, and :math:`\gamma_1` and :math:`\gamma_2` are the upper and lower
     power law indices.
 
@@ -105,22 +103,22 @@ def broken_power_law_binned_flux(
     if reference_flux == 0:
         return np.zeros(energy_edges.size - 1) << PHOTON_RATE_UNIT
 
-    up_norm, low_norm = _broken_power_law_normalizations(
+    up_norm, low_norm = _compute_broken_power_law_normalizations(
         reference_flux, reference_energy, break_energy, lower_index, upper_index
     )
 
-    cnd = energy_edges < break_energy
-    lower = energy_edges[cnd]
-    upper = energy_edges[~cnd]
+    condition = energy_edges < break_energy
+    lower = energy_edges[condition]
+    upper = energy_edges[~condition]
 
     up_integ = functools.partial(
-        power_law_integral,
+        integrate_power_law,
         norm_energy=reference_energy,
         norm=up_norm,
         index=upper_index
     )
     low_integ = functools.partial(
-        power_law_integral,
+        integrate_power_law,
         norm_energy=reference_energy,
         norm=low_norm,
         index=lower_index
@@ -148,7 +146,7 @@ def broken_power_law_binned_flux(
 
 
 @u.quantity_input
-def power_law_binned_flux(
+def compute_power_law(
     energy_edges: u.keV,
     reference_energy: u.keV,
     reference_flux: PHOTON_RATE_UNIT,
@@ -174,7 +172,7 @@ def power_law_binned_flux(
         to the power law analytically averaged over each bin.
 
     '''
-    return broken_power_law_binned_flux(
+    return compute_broken_power_law(
         energy_edges=energy_edges,
         reference_energy=reference_energy,
         reference_flux=reference_flux,
@@ -185,7 +183,7 @@ def power_law_binned_flux(
 
 
 @u.quantity_input
-def _broken_power_law_normalizations(
+def _compute_broken_power_law_normalizations(
     reference_flux: PHOTON_RATE_UNIT,
     reference_energy: u.keV,
     break_energy: u.keV,
@@ -196,11 +194,11 @@ def _broken_power_law_normalizations(
     give the correct upper and lower power law normalizations given the
     desired flux and locations of break & norm energies
     '''
-    eng_arg = (break_energy / reference_energy).to(u.one)
+    energy_arg = (break_energy / reference_energy).to(u.one)
     if reference_energy < break_energy:
         low_norm = reference_flux
-        up_norm = reference_flux * eng_arg**(upper_index - lower_index)
+        up_norm = reference_flux * energy_arg**(upper_index - lower_index)
     else:
         up_norm = reference_flux
-        low_norm = reference_flux * eng_arg**(lower_index - upper_index)
+        low_norm = reference_flux * energy_arg**(lower_index - upper_index)
     return u.Quantity((up_norm, low_norm))
