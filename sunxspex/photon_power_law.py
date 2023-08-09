@@ -1,5 +1,7 @@
 import functools
+
 import numpy as np
+
 import astropy.units as u
 
 PHOTON_RATE_UNIT = u.ph / u.keV / u.cm**2 / u.s
@@ -83,6 +85,8 @@ def compute_broken_power_law(
         Energy at which the normalization is applied, i.e. :math:`E_0`.
     norm_flux : `astropy.units.Quantity`
         Normalization flux for the photon power law.
+        The `norm_flux` corresponds to either :math:`N_1` or :math:`N_2` depending
+        on if the energy is below or above the break.
     break_energy : `astropy.units.Quantity`
         Break energy of the broken power law. The energy bin containing the break energy
         will be a combination of the lower and upper power laws.
@@ -162,6 +166,7 @@ def compute_power_law(
         Energy at which the normalization is applied, i.e. :math:`E_0`.
     norm_flux : `astropy.units.Quantity`
         Normalization flux for the photon power law.
+        See
     index : `astropy.units.Quantity`
         Power law index.
 
