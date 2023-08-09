@@ -12,8 +12,8 @@ def test_different_bins():
     energy_bins2 = np.linspace(10, 100, num=10) << u.keV
 
     shared_kw = dict(
-        reference_energy=3 << u.keV,
-        reference_flux=1 << ppl.PHOTON_RATE_UNIT,
+        norm_energy=3 << u.keV,
+        norm_flux=1 << ppl.PHOTON_RATE_UNIT,
         break_energy=20 << u.keV,
         lower_index=1,
         upper_index=3
@@ -58,8 +58,8 @@ def test_empty_or_single_energy_edges():
         edges = (np.arange(size) + 10) << u.keV
         with npt.assert_raises(ValueError):
             ppl.compute_broken_power_law(
-                energy_edges=edges << u.keV, reference_energy=1 << u.keV,
-                reference_flux=1 << ppl.PHOTON_RATE_UNIT, break_energy=3 << u.keV,
+                energy_edges=edges << u.keV, norm_energy=1 << u.keV,
+                norm_flux=1 << ppl.PHOTON_RATE_UNIT, break_energy=3 << u.keV,
                 lower_index=2, upper_index=3)
 
 
@@ -72,13 +72,13 @@ def test_one_big_bin():
     lower_index, upper_index = 2, 3
 
     ret = ppl.compute_broken_power_law(
-        energy_edges=edges, reference_energy=ref_eng,
-        reference_flux=ref_flux, break_energy=break_eng,
+        energy_edges=edges, norm_energy=ref_eng,
+        norm_flux=ref_flux, break_energy=break_eng,
         lower_index=lower_index, upper_index=upper_index)
 
     upper_norm, lower_norm = ppl._compute_broken_power_law_normalizations(
-        reference_flux=ref_flux,
-        reference_energy=ref_eng,
+        norm_flux=ref_flux,
+        norm_energy=ref_eng,
         break_energy=break_eng,
         lower_index=lower_index,
         upper_index=upper_index
@@ -107,8 +107,8 @@ def test_one_big_bin():
 
 def test_no_flux():
     ret = ppl.compute_broken_power_law(
-        energy_edges=[1, 2, 3] << u.keV, reference_energy=1 << u.keV,
-        reference_flux=0 << ppl.PHOTON_RATE_UNIT, break_energy=3 << u.keV,
+        energy_edges=[1, 2, 3] << u.keV, norm_energy=1 << u.keV,
+        norm_flux=0 << ppl.PHOTON_RATE_UNIT, break_energy=3 << u.keV,
         lower_index=2, upper_index=3)
     npt.assert_allclose(ret, np.zeros_like(ret))
 
@@ -118,8 +118,8 @@ def test_single_power_law():
     energy_bins2 = np.linspace(10, 100, num=10) << u.keV
 
     shared_kw = dict(
-        reference_energy=3 << u.keV,
-        reference_flux=1 << ppl.PHOTON_RATE_UNIT,
+        norm_energy=3 << u.keV,
+        norm_flux=1 << ppl.PHOTON_RATE_UNIT,
         index=2,
     )
 

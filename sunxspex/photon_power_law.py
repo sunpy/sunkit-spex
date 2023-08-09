@@ -50,8 +50,8 @@ def integrate_power_law(
 @u.quantity_input
 def compute_broken_power_law(
     energy_edges: u.keV,
-    reference_energy: u.keV,
-    reference_flux: PHOTON_RATE_UNIT,
+    norm_energy: u.keV,
+    norm_flux: PHOTON_RATE_UNIT,
     break_energy: u.keV,
     lower_index: u.one,
     upper_index: u.one
@@ -79,9 +79,9 @@ def compute_broken_power_law(
     ----------
     energy_edges : `astropy.units.Quantity`
         1D array of energy edges defining the energy bins.
-    reference_energy : `astropy.units.Quantity`
+    norm_energy : `astropy.units.Quantity`
         Energy at which the normalization is applied, i.e. :math:`E_0`.
-    reference_flux : `astropy.units.Quantity`
+    norm_flux : `astropy.units.Quantity`
         Normalization flux for the photon power law.
     break_energy : `astropy.units.Quantity`
         Break energy of the broken power law. The energy bin containing the break energy
@@ -100,11 +100,11 @@ def compute_broken_power_law(
 
     if energy_edges.size <= 1:
         raise ValueError('Need at least two energy edges.')
-    if reference_flux == 0:
+    if norm_flux == 0:
         return np.zeros(energy_edges.size - 1) << PHOTON_RATE_UNIT
 
     up_norm, low_norm = _compute_broken_power_law_normalizations(
-        reference_flux, reference_energy, break_energy, lower_index, upper_index
+        norm_flux, norm_energy, break_energy, lower_index, upper_index
     )
 
     condition = energy_edges < break_energy
@@ -113,13 +113,13 @@ def compute_broken_power_law(
 
     up_integ = functools.partial(
         integrate_power_law,
-        norm_energy=reference_energy,
+        norm_energy=norm_energy,
         norm=up_norm,
         index=upper_index
     )
     low_integ = functools.partial(
         integrate_power_law,
-        norm_energy=reference_energy,
+        norm_energy=norm_energy,
         norm=low_norm,
         index=lower_index
     )
@@ -148,8 +148,8 @@ def compute_broken_power_law(
 @u.quantity_input
 def compute_power_law(
     energy_edges: u.keV,
-    reference_energy: u.keV,
-    reference_flux: PHOTON_RATE_UNIT,
+    norm_energy: u.keV,
+    norm_flux: PHOTON_RATE_UNIT,
     index: u.one
 ) -> PHOTON_RATE_UNIT:
     r'''Single power law, defined by setting the break energy to -inf and the lower index to nan.
@@ -158,9 +158,9 @@ def compute_power_law(
     ----------
     energy_edges : `astropy.units.Quantity`
         1D array of energy edges defining the energy bins.
-    reference_energy : `astropy.units.Quantity`
+    norm_energy : `astropy.units.Quantity`
         Energy at which the normalization is applied, i.e. :math:`E_0`.
-    reference_flux : `astropy.units.Quantity`
+    norm_flux : `astropy.units.Quantity`
         Normalization flux for the photon power law.
     index : `astropy.units.Quantity`
         Power law index.
@@ -174,8 +174,8 @@ def compute_power_law(
     '''
     return compute_broken_power_law(
         energy_edges=energy_edges,
-        reference_energy=reference_energy,
-        reference_flux=reference_flux,
+        norm_energy=norm_energy,
+        norm_flux=norm_flux,
         break_energy=-np.inf << u.keV,
         lower_index=np.nan,
         upper_index=index
@@ -184,8 +184,8 @@ def compute_power_law(
 
 @u.quantity_input
 def _compute_broken_power_law_normalizations(
-    reference_flux: PHOTON_RATE_UNIT,
-    reference_energy: u.keV,
+    norm_flux: PHOTON_RATE_UNIT,
+    norm_energy: u.keV,
     break_energy: u.keV,
     lower_index: u.one,
     upper_index: u.one
@@ -194,11 +194,11 @@ def _compute_broken_power_law_normalizations(
     give the correct upper and lower power law normalizations given the
     desired flux and locations of break & norm energies
     '''
-    energy_arg = (break_energy / reference_energy).to(u.one)
-    if reference_energy < break_energy:
-        low_norm = reference_flux
-        up_norm = reference_flux * energy_arg**(upper_index - lower_index)
+    energy_arg = (break_energy / norm_energy).to(u.one)
+    if norm_energy < break_energy:
+        low_norm = norm_flux
+        up_norm = norm_flux * energy_arg**(upper_index - lower_index)
     else:
-        up_norm = reference_flux
-        low_norm = reference_flux * energy_arg**(lower_index - upper_index)
+        up_norm = norm_flux
+        low_norm = norm_flux * energy_arg**(lower_index - upper_index)
     return u.Quantity((up_norm, low_norm))
