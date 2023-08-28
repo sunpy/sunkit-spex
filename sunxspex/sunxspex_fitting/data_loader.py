@@ -140,10 +140,9 @@ class LoadSpec:
                 if type(args[s]) == dict:
                     self.loaded_spec_data[f"spectrum{s+1}"] = inst.CustomLoader(args[s], **kwargs)
                     self.instruments[f"spectrum{s+1}"] = "CustomLoader"
-                elif issubclass(args[s], inst.InstrumentBlueprint) or issubclass(args[s].__class__, inst.InstrumentBlueprint):
+                elif isinstance(args[s], inst.InstrumentBlueprint):
                     self.loaded_spec_data[f"spectrum{s+1}"] = args[s]
-                    _usr_loader_name = args[s].__class__.__name__ if issubclass(args[s].__class__, inst.InstrumentBlueprint) else args[s].__name__
-                    self.instruments[f"spectrum{s+1}"] = "UserLoader:"+_usr_loader_name
+                    self.instruments[f"spectrum{s+1}"] = args[s].__class__.__name__
             else:
                 file_indx = s-num_of_custom
                 self.loaded_spec_data[f"spectrum{s+1}"] = self.instrument_loaders[instruments[s]](pha_file[file_indx],

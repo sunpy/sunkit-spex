@@ -5,6 +5,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from sunxspex.sunxspex_fitting.fitter import SunXspex
+from sunxspex.sunxspex_fitting.instruments import CustomLoader, InstrumentBlueprint
 
 rng = np.random.default_rng(2022)
 
@@ -161,3 +162,51 @@ def test_mcmc_walker_boundary_spread():
     _assert_in_range(list_of_tuple_bounds2[0], spread2[:, 0])
     _assert_in_range(list_of_tuple_bounds3[0], spread3[:, 0])
     _assert_in_range(list_of_tuple_bounds3[1], spread3[:, 1])
+
+
+def test_passing_instrument_loader_direct():
+    """Test behaviour when passing an instrument loader directly to the fitting infrastructure."""
+
+    # create a new instrument class from the beginning with the `InstrumentBlueprint` class
+    class UserCustomInst1(InstrumentBlueprint):
+        def __init__(self, spec_data_dict):
+            # set up default values, only need these fields to be populated
+            _count_length_default = np.ones(len(spec_data_dict["count_channel_bins"]))
+            _chan_mids_default = np.mean(spec_data_dict["count_channel_bins"], axis=1)
+            _default_spec_data = {"photon_channel_bins": spec_data_dict["count_channel_bins"],
+                                  "photon_channel_mids": _chan_mids_default,
+                                  "photon_channel_binning": _count_length_default,
+                                  "count_channel_mids": _chan_mids_default,
+                                  "count_channel_binning": _count_length_default,
+                                  "count_error": _count_length_default,
+                                  "count_rate": spec_data_dict["counts"],
+                                  "count_rate_error": _count_length_default,
+                                  "effective_exposure": 1,
+                                  "srm": np.identity(len(spec_data_dict["counts"])),
+                                  "extras": {}}
+            _default_spec_data.update(spec_data_dict)
+            self._loaded_spec_data = _default_spec_data
+
+    # create a class from existing loader class
+    class UserCustomInst2(CustomLoader):
+        def __init__(self, *args, **kwargs):
+            CustomLoader.__init__(self, *args, **kwargs)
+
+    # create fake data
+    bin_edges = np.arange(2)
+    chan_bins = np.concatenate((bin_edges[:-1, None], bin_edges[1:, None]), axis=1)
+    fake_data = bin_edges[:-1]
+    custom_dict = {"count_channel_bins": chan_bins, "counts": fake_data}
+
+    # pass the fake data to the different intrument classes defined
+    custom_user_inst1 = CustomLoader(custom_dict)
+    custom_user_inst2 = UserCustomInst1(custom_dict)
+    custom_user_inst3 = UserCustomInst2(custom_dict)
+
+    # pass the classes themselves, not the data or files to the fitter
+    fitter = SunXspex(custom_user_inst1, custom_user_inst2, custom_user_inst3)
+
+    # check everything has carried through to where it should be
+    assert fitter.data.loaded_spec_data["spectrum1"]._loaded_spec_data == custom_user_inst1._loaded_spec_data, "Failed to pass instrument loader directly to fitter."
+    assert fitter.data.loaded_spec_data["spectrum2"]._loaded_spec_data == custom_user_inst2._loaded_spec_data, "Failed to pass instrument loader directly to fitter."
+    assert fitter.data.loaded_spec_data["spectrum3"]._loaded_spec_data == custom_user_inst3._loaded_spec_data, "Failed to pass instrument loader directly to fitter."
