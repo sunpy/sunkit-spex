@@ -85,17 +85,23 @@ def thick_fn(total_eflux, index, e_c, energies=None):
     energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
 
     # total_eflux in units of 1e35 e/s
-    # single power law so set eebrk==eehigh at a high value, high q also
-    output = bremsstrahlung_thick_target(photon_energies=energies,
-                                         p=index,
-                                         eebrk=150,
-                                         q=20,
-                                         eelow=e_c,
-                                         eehigh=150)*total_eflux*1e35
+    # single power law so set eebrk == eehigh at a high value, high q also
+    high_break = 10 * np.max(energies)
+    high_powerlaw_slope = 100
+    output = bremsstrahlung_thick_target(
+        photon_energies=energies,
+         p=index,
+         eebrk=high_break,
+         q=high_powerlaw_slope,
+         eelow=e_c,
+         eehigh=high_break
+    )
 
     output[np.isnan(output)] = 0
     output[~np.isfinite(output)] = 0
-    return output
+
+    # convert the output to 1e35 e- / sec
+    return output * total_eflux * 1e35
 
 
 def thick_warm(total_eflux, index, e_c, plasma_d, loop_temp, length, energies=None):
