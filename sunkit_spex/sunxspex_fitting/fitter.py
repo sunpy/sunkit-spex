@@ -779,6 +779,7 @@ class Fitter:
             logger.warning(
                 "Default models imported from sunkit_spex.sunxspex_fitting.photon_models_for_fitting are protected.")
 
+
     def add_var(self, overwrite=False, quiet=False, **user_kwarg):
         """ Add user variable to fitting namespace.
 
