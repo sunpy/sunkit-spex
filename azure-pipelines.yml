@@ -58,7 +58,7 @@ jobs:
         pypi_connection_name : 'PyPI'
 
       test_extras: 'test'
-      test_command: 'pytest -p no:warnings --doctest-rst -m "not figure" --pyargs sunxspex'
+      test_command: 'pytest -p no:warnings --doctest-rst -m "not figure" --pyargs sunkit_spex'
       submodules: false
       targets:
         - wheels_linux

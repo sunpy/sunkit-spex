@@ -9,8 +9,8 @@
 
 # -- Project information -----------------------------------------------------
 
-from sunxspex import __version__
-project = 'sunxspex'
+from sunkit_spex import __version__
+project = 'sunkit-spex'
 copyright = '2020, The SunPy Community'
 author = 'The SunPy Community'
 

@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.testing import assert_allclose
 
-from sunxspex.integrate import fixed_quad, gauss_legendre
+from sunkit_spex.integrate import fixed_quad, gauss_legendre
 
 
 def test_scalar():

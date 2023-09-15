@@ -64,7 +64,7 @@ def gauss_legendre(func, a, b, n=5, args=(), func_kwargs={}):
 
     Examples
     --------
-    >>> from sunxspex.integrate  import gauss_legendre
+    >>> from sunkit_spex.integrate  import gauss_legendre
     >>> f = lambda x: x**8
     >>> gauss_legendre(f,0.0,1.0,n=4)
     array([0.11108844])
@@ -126,7 +126,7 @@ def fixed_quad(func, a, b, n=5, args=(), func_kwargs={}):
 
     Examples
     --------
-    >>> from sunxspex.integrate  import fixed_quad
+    >>> from sunkit_spex.integrate  import fixed_quad
     >>> f = lambda x: x**8
     >>> fixed_quad(f,0.0,1.0,n=4)
     array(0.11108844)

@@ -1,1 +1,1 @@
-Fixed bug where passing a user defined instrument loader class to :class:`sunxspex/sunxspex_fitting/fitter.SunXspex` caused an error.
+Fixed bug where passing a user defined instrument loader class to :class:`sunkit_spex/sunxspex_fitting/fitter.Fitter` caused an error.

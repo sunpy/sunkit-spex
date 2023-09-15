@@ -36,7 +36,7 @@ build-backend = 'setuptools.build_meta'
     number_incorrect_long = "The number in the changelog file you added does not match the number of this pull request. Please rename the file."
 
 [tool.towncrier]
-    package = "sunxspex"
+    package = "sunkit_spex"
     filename = "CHANGELOG.rst"
     directory = "changelog/"
     issue_format = "`#{issue} <https://github.com/sunpy/sunxspex/pull/{issue}>`__"

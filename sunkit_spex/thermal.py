@@ -6,8 +6,8 @@ from scipy import interpolate, stats
 
 import astropy.units as u
 
+from sunkit_spex.io import load_chianti_continuum, load_chianti_lines_lite, load_xray_abundances
 from sunpy.data import manager
-from sunxspex.io import load_chianti_continuum, load_chianti_lines_lite, load_xray_abundances
 
 __all__ = ['thermal_emission', 'continuum_emission', 'line_emission',
            'setup_continuum_parameters', 'setup_line_parameters', 'setup_default_abundances']
@@ -746,7 +746,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 
 # ### Continuum emission, kris
 # from astropy import constants as const
-# from sunxspex.io import load_chianti_continuum, load_xray_abundances # chianti_kev_cont_common_load,
+# from Fitter.io import load_chianti_continuum, load_xray_abundances # chianti_kev_cont_common_load,
 # from scipy.stats.mstats import gmean
 # from scipy.interpolate import interp1d
 # # load in everything for the chianti_kev_cont code of "mine". This only needs done once so do it here.

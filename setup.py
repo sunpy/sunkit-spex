@@ -38,7 +38,7 @@ except Exception:
 
 setup(
     extras_require=extras,
-    use_scm_version={'write_to': os.path.join('sunxspex', 'version.py'),
+    use_scm_version={'write_to': os.path.join('sunkit_spex', 'version.py'),
                      'write_to_template': VERSION_TEMPLATE},
 
 )

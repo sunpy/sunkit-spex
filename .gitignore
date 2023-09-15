@@ -147,7 +147,7 @@ docs/_build
 docs/generated
 docs/api
 docs/whatsnew/latest_changelog.txt
-sunxspex/version.py
+sunkit_spex/version.py
 htmlcov/
 
 # IDE files

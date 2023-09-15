@@ -4,12 +4,12 @@ Reference
 
 Software and API.
 
-.. automodapi:: sunxspex
-.. automodapi:: sunxspex.thermal
-.. automodapi:: sunxspex.integrate
-.. automodapi:: sunxspex.io
-.. automodapi:: sunxspex.emission
-.. automodapi:: sunxspex.constants
-.. automodapi:: sunxspex.sunxspex_fitting
-.. automodapi:: sunxspex.sunxspex_fitting.io
-.. automodapi:: sunxspex.photon_power_law
+.. automodapi:: sunkit_spex
+.. automodapi:: sunkit_spex.thermal
+.. automodapi:: sunkit_spex.integrate
+.. automodapi:: sunkit_spex.io
+.. automodapi:: sunkit_spex.emission
+.. automodapi:: sunkit_spex.constants
+.. automodapi:: sunkit_spex.sunxspex_fitting
+.. automodapi:: sunkit_spex.sunxspex_fitting.io
+.. automodapi:: sunkit_spex.photon_power_law
