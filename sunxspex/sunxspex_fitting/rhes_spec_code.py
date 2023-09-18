@@ -6,6 +6,7 @@ import numpy as np
 
 from astropy import units as u
 from astropy.time import Time, TimeDelta
+import astropy.table as atab
 
 from . import io
 
@@ -29,8 +30,7 @@ def _get_spec_file_info(spec_file):
     rdict = io._read_rhessi_spec_file(spec_file)
 
     if rdict["1"][0]["SUMFLAG"] != 1:
-        print("Apparently spectrum file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
-        return
+        raise ValueError("Apparently spectrum file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
 
     # Note that for rate, the units are per detector, i.e. counts sec-1 detector-1. https://hesperia.gsfc.nasa.gov/rhessi3/software/spectroscopy/spectrum-software/index.html
     # -> I tnhink this is the default but false for the first simple case I tried. I think sum_flag=1 sums the detectors up for spectra and srm
@@ -104,7 +104,39 @@ def _spec_file_units_check(rhessi_dict, livetimes, time_dels, kev_binning):
     return counts, counts_err, cts_rates, cts_rate_err
 
 
-def _get_srm_file_info(srm_file):
+def elicit_srm(choice: str, hdu_list: list[dict[str, atab.QTable]]) -> atab.QTable:
+    choice_to_state = {
+        'no attenuator': 0,
+        'thin': 1,
+        'thick': 2, # almost never used
+        'both': 3
+    }
+    state_to_choice = {v: k for (k, v) in choice_to_state.items()}
+
+    try:
+        state = choice_to_state[choice]
+    except KeyError:
+        raise ValueError(
+            f'{choice} not valid srm option. Options are: {", ".join(choice_to_state.keys())}'
+        )
+
+    file_opts = []
+    for hdu in hdu_list:
+        if (dat := hdu['data']) is None:
+            continue
+        if 'MATRIX' not in dat.columns:
+            continue
+        if hdu['header']['FILTER'] == state:
+            return hdu
+        file_opts.append(state_to_choice[hdu['header']['FILTER']])
+
+    raise ValueError(
+        f'{choice} not valid srm option here. Options are: {", ".join(choice_to_state.keys())}.\n'
+        f'File has: {", ".join(file_opts)}'
+    )
+
+
+def _get_srm_file_info(srm_file, srm_choice: str=None):
     """ Return all RHESSI SRM data needed for fitting.
 
     SRM units returned as counts ph^(-1) cm^(2).
@@ -120,28 +152,27 @@ def _get_srm_file_info(srm_file):
     in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
     sub-set (nchan), 2d array that is the spectral response (srm).
     """
-    srmfrdict = io._read_rhessi_srm_file(srm_file)
+    srm_file_dat = io._read_rhessi_srm_file(srm_file)
 
-    if srmfrdict["1"][0]["SUMFLAG"] != 1:
-        print("Apparently srm file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
-        return
+    # handle attenuated responses and `None` simultaneously
+    srm_header_data = elicit_srm(srm_choice or 'no attenuator', srm_file_dat)
+    srm_hdu = srm_header_data['data']
+    srm_head = srm_header_data['header']
 
-    photon_channels_elo = srmfrdict["1"][1]['ENERG_LO']  # photon channel edges, different to count channels
-    photon_channels_ehi = srmfrdict["1"][1]['ENERG_HI']
-    photon_bins = np.concatenate((np.array(photon_channels_elo)[:, None], np.array(photon_channels_ehi)[:, None]), axis=1)
+    if srm_head['SUMFLAG'] != 1:
+        raise ValueError('SRM SUMFLAG must be 1 for RHESSI spectroscopy')
 
-    # other info but left out
-    # ngrp = srmfrdict["1"][1]['N_GRP'] # number of count groups along a photon bin to construct the SRM
-    # fchan = srmfrdict["1"][1]['F_CHAN'] # starting index for each count group along a photon channel
-    # nchan = srmfrdict["1"][1]['N_CHAN'] # number of matrix entries each count group along a photon channel
-    srm = srmfrdict["1"][1]['MATRIX']  # counts ph^-1 keV^-1
-    geo_area = srmfrdict["3"][0]['GEOAREA']
+    low_photon_bins = srm_hdu['ENERG_LO']
+    high_photon_bins = srm_hdu['ENERG_HI']
+    photon_bins = np.column_stack((low_photon_bins, high_photon_bins)).to_value(u.keV)
 
-    channels = srmfrdict["2"][1]  # [(chan, lowE, hiE), ...], srmfrdict["2"][0] has units etc. count channels for SRM
-    channel_bins = np.concatenate((np.array(channels['E_MIN'])[:, None], np.array(channels['E_MAX'])[:, None]), axis=1)
+    srm = srm_hdu['MATRIX']
+    geo_area = srm_file_dat[3]['data']['GEOM_AREA'].astype(float).sum()
 
-    # srm units counts ph^(-1) kev^(-1); i.e., photons cm^(-2) go in and counts cm^(-2) kev^(-1) comes out # https://hesperia.gsfc.nasa.gov/ssw/hessi/doc/params/hsi_params_srm.htm#***
-    # need srm units are counts ph^(-1) cm^(2)
+    channels = srm_file_dat[2]['data']
+    channel_bins = np.column_stack((channels['E_MIN'], channels['E_MAX'])).to_value(u.keV)
+
+    # need srm units in counts ph^(-1) cm^(2)
     srm = srm * np.diff(channel_bins, axis=1).flatten() * geo_area
 
     return photon_bins, channel_bins, srm
