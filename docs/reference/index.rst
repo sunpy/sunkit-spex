@@ -12,3 +12,4 @@ Software and API.
 .. automodapi:: sunxspex.constants
 .. automodapi:: sunxspex.sunxspex_fitting
 .. automodapi:: sunxspex.sunxspex_fitting.io
+.. automodapi:: sunxspex.photon_power_law
