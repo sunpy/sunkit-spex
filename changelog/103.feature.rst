@@ -1,0 +1,1 @@
+Add photon space broken power law :func:`sunxspex.photon_power_law.broken_power_law_binned_flux`. Behavior is equivalent to the OSPEX power law f_bpow.pro when the pivot option is given. Similar to XSPEC bknpower.
