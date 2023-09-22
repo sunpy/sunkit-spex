@@ -65,35 +65,9 @@ class SunXspex:
 
     Parameters
     ----------
-    *args : dict
-            Dictionaries for custom data to be passed to `sunxspex.sunxspex_fitting.instruments.CustomLoader`.
-            These will be added before any instrument file entries from `pha_file`.
-
-    pha_file : string or list of strings
-            The PHA file or list of PHA files for the spectrum to be loaded.
-            See LoadSpec class.
-
-    arf_file, rmf_file : string or list of strings
-            The ARF and RMF files associated with the PHA file(s). If none are given it is assumed
-            that these are in the same directory with same filename as the PHA file(s) but with
-            extensions '.arf' and '.rmf', respectively.
-            See LoadSpec class.
-
-    srm_file : string
-            The file that contains the spectral response matrix for the given spectrum.
-            See LoadSpec class.
-
-    srm_custom : 2d array
-            User defined spectral response matrix. This is accepted over the SRM created from any
-            ARF and RMF files given.
-            See LoadSpec class.
-
-    custom_channel_bins, custom_photon_bins : 2d array
-            User defined channel bins for the columns and rows of the SRM matrix.
-            E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
-            See LoadSpec class.
-
-    **kwargs : Passed to LoadSpec.
+    *args : `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`
+            Instrument loader that contains the instument data and inherits 
+            from `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`.
 
     Properties
     ----------
@@ -398,10 +372,9 @@ class SunXspex:
         self.dynamic_function_source = {}
         self.dynamic_vars = {}
         self.defined_photon_models = {**defined_photon_models}
-        self.data = LoadSpec(*args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
-                             custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
+        self.data = LoadSpec(*args)
 
-        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
+        self._construction_string_sunxspex = f"SunXspex({args})"
 
         self.loglikelihood = "cstat"
 

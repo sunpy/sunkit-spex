@@ -8,11 +8,14 @@ import numpy as np
 
 from astropy.io import fits
 
+from sunxspex.logging import get_logger
 from sunxspex.sunxspex_fitting import instruments as inst  # sunxspex.sunxspex_fitting.instruments
 from sunxspex.sunxspex_fitting.parameter_handler import (  # sunxspex.sunxspex_fitting.parameter_handler
     _make_into_list,
     isnumber,
 )
+
+logger = get_logger(__name__, 'DEBUG')
 
 __all__ = ["LoadSpec"]
 
@@ -26,31 +29,9 @@ class LoadSpec:
 
     Parameters
     ----------
-    *args : dict
-            Dictionaries for custom data to be passed to `sunxspex.sunxspex_fitting.instruments.CustomLoader`.
-            These will be added before any instrument file entries from `pha_file`.
-
-    pha_file : string or list of strings
-            The PHA file or list of PHA files for the spectrum to be loaded.
-
-    arf_file, rmf_file : string or list of strings
-            The ARF and RMF files associated with the PHA file(s). If none are given (e.g, with
-            NuSTAR data) it is assumed that these are in the same directory with same filename
-            as the PHA file(s) but with extensions '.arf' and '.rmf', respectively.
-
-    srm_file : string
-            The file that contains the spectral response matrix for the given spectrum.
-
-    srm_custom : 2d array
-            User defined spectral response matrix. This is accepted over the SRM created from any
-            ARF and RMF files given.
-
-    custom_channel_bins : 2d array
-            User defined channel bins for the columns of the SRM matrix.
-            E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
-
-    **kwargs :
-            Any kwargs will get passed to all instrument loaders.
+    *args : `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`
+            Instrument loader that contains the instument data and inherits 
+            from `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`.
 
     Properties
     ----------
@@ -109,168 +90,34 @@ class LoadSpec:
 
     Examples
     --------
-    # load in 2 spectra, rebin the count channels to have a minimum of 10 counts then undo that rebinning
-    s = LoadSpec(pha_file=['filename1.pha', 'filename2.pha'],
-                    arf_file=['filename1.arf', 'filename2.arf'],
-                    rmf_file=['filename1.rmf', 'filename2.rmf'])
+    from sunxspex.sunxspex_fitting.instruments import NustarLoader
+
+    # give my new instrument loader my specific data from 'nustarFile.pha'
+    nu = NustarLoader(pha_file='nustarFile.pha')
+
+    # pass the new instrument loader instance to the main fitting class
+    s = LoadSpec(nu)
+
     s.rebin = 10
     s.undo_rebin
     """
 
-    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
+    def __init__(self, *args):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
+        self._construction_string = f"LoadSpec(*{args})"
 
-        # from sunxspex.sunxspex_fitting.instruments import * gives us the instrument specific loaders, keys should match up to the "TELESCOP" header entry in spec file
-        self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "SOLO/STIX": inst.StixLoader, "RHESSI": inst.RhessiLoader}
-
-        pha_file, arf_file, rmf_file, srm_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file,
-                                                                                                                arf_file=arf_file,
-                                                                                                                rmf_file=rmf_file,
-                                                                                                                srm_file=srm_file,
-                                                                                                                srm_custom=srm_custom,
-                                                                                                                custom_channel_bins=custom_channel_bins)
         # get ready to load multiple spectra if needed
-        num_of_files, num_of_custom = len(pha_file), len(args)
         self.loaded_spec_data, self.instruments = {}, {}
-        for s in range(num_of_files+num_of_custom):
-            if s < num_of_custom:
-                # if a custom dict is given or if the user has set up the instrument loader class themselves and just wants to pass it straight in
-                if type(args[s]) == dict:
-                    self.loaded_spec_data[f"spectrum{s+1}"] = inst.CustomLoader(args[s], **kwargs)
-                    self.instruments[f"spectrum{s+1}"] = "CustomLoader"
-                elif isinstance(args[s], inst.InstrumentBlueprint):
-                    self.loaded_spec_data[f"spectrum{s+1}"] = args[s]
-                    self.instruments[f"spectrum{s+1}"] = args[s].__class__.__name__
+        for s,a in enumerate(args):
+            if isinstance(a, inst.InstrumentBlueprint):
+                self.loaded_spec_data[f"spectrum{s+1}"] = args[s]
+                self.instruments[f"spectrum{s+1}"] = args[s].__class__.__name__
             else:
-                file_indx = s-num_of_custom
-                self.loaded_spec_data[f"spectrum{s+1}"] = self.instrument_loaders[instruments[s]](pha_file[file_indx],
-                                                                                                  arf_file=arf_file[file_indx],
-                                                                                                  rmf_file=rmf_file[file_indx],
-                                                                                                  srm_file=srm_file[file_indx],
-                                                                                                  srm_custom=srm_custom[file_indx],
-                                                                                                  custom_channel_bins=custom_channel_bins[file_indx],
-                                                                                                  **kwargs)
-                self.instruments[f"spectrum{s+1}"] = instruments[s]
+                logger.info(
+                "Please pass instrument loader classes with data that inherit from `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`.")
 
         # Adding these classes should also yield {"spectrum1":..., "spectrum2":..., etc.}
-
-    def _sort_files(self, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None):
-        """ Takes in spectral data files and turns then all into list.
-
-        Parameters
-        ----------
-        pha_file : string or list of strings
-                The PHA file or list of PHA files for the spectrum to be loaded.
-
-        arf_file, rmf_file : string or list of strings
-                The ARF and RMF files associated with the PHA file(s). If none are given (e.g, with
-                NuSTAR data) it is assumed that these are in the same directory with same filename
-                as the PHA file(s) but with extensions '.arf' and '.rmf', respectively.
-
-        srm_file : string
-                The file that contains the spectral response matrix for the given spectrum.
-
-        srm_custom : 2d array
-                User defined spectral response matrix. This is accepted over the SRM created from any
-                ARF and RMF files given.
-
-        custom_channel_bins : 2d array
-                User defined channel bins for the columns of the SRM matrix.
-                E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
-
-        Returns
-        -------
-        Equal length lists such that each spectral data set has an entry for all inputs (pha_file,
-        arf_file, rmf_file, srm_custom, custom_channel_bins) along with a list of corresponding
-        instrument names.
-        """
-        if type(pha_file) == type(None):
-            return [], [], [], [], [], [], []
-
-        # if only one observation is given then it won't be a list so make it one
-        file_pha = _make_into_list(pha_file)
-        file_arf = _make_into_list(arf_file)
-        file_rmf = _make_into_list(rmf_file)
-        file_srm = _make_into_list(srm_file)
-
-        # the following should be numpy arrays so _make_into_list would turn the array to a list, not put it into a list
-        custom_srm = srm_custom if type(srm_custom) == list else [srm_custom]
-        custom_channel_bins = custom_channel_bins if type(custom_channel_bins) == list else [custom_channel_bins]
-
-        # check if arf and rmf and custom srm is either None in which case everything is found via the pha
-        #  file naming (a list of None the same length as the pha input will also acheive this) or if there
-        #  is a corresponding arf, rmf, and srm for every pha file
-        assert ((type(arf_file) == type(None)) and (type(arf_file) == type(None)) and (len(file_pha) >= 1)) \
-            or \
-            ((len(file_arf) == len(file_pha)) and (len(file_rmf) == len(file_pha))), \
-            """Names can be taken from the \"pha_file\" input if your \"arf_file\", \"rmf_file\", and \"srm_file\" are not
-                supplied. This means that if your \"arf_file\", \"rmf_file\", and \"srm_file\" are supplied then they can
-                either be of list length==1 or the same number of entries as your \"pha_file\" input."""
-
-        assert (type(file_srm) == type(None)) or (len(file_srm) == 1) or (len(file_srm) == len(file_pha)), \
-            """The \"file_srm\" should either be None, list length 1, or the same length as the \"pha_file\" input."""
-
-        assert (type(srm_custom) == type(None)) or (len(custom_srm) == 1) or (len(custom_srm) == len(file_pha)), \
-            """The \"srm_custom\" should either be None, list length 1, or the same length as the \"pha_file\" input."""
-
-        assert (type(custom_channel_bins) == type(None)) or (len(custom_channel_bins) == 1) or (len(custom_channel_bins) == len(file_pha)), \
-            """The \"custom_channel_bins\" should either be None, list length 1, or the same length as the \"pha_file\" input."""
-
-        # make sure lists of None are same length for inputs to self.load1spec()
-        file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins = self._lists_same_length(file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins)
-
-        instruments = self._files2instruments(file_pha)
-
-        return file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins, instruments
-
-    def _lists_same_length(self, file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins):
-        """ Ensure all file_pha entries have corresponding entries in all other lists.
-
-        Parameters
-        ----------
-        blah : blah
-                .
-
-        Returns
-        -------
-        .
-        """
-        # make sure lists of None are same length for inputs to self.load1spec()
-        if (len(file_arf) == 1) and (len(file_rmf) == 1) and (len(file_pha) > 1):
-            file_arf *= len(file_pha)
-            file_rmf *= len(file_pha)
-        if (len(file_srm) == 1):
-            file_srm *= len(file_pha)
-        if (len(custom_srm) == 1) and (len(file_pha) > 1):
-            custom_srm *= len(file_pha)
-        if (len(custom_channel_bins) == 1) and (len(file_pha) > 1):
-            custom_channel_bins *= len(file_pha)
-
-        return file_pha, file_arf, file_rmf, file_srm, custom_srm, custom_channel_bins
-
-    def _files2instruments(self, pha_files):
-        """ Finds the instruments that correspond to the list of input `pha_files` (list of fits files).
-
-        Parameters
-        ----------
-        pha_files : list of strings
-                List of PHA (fits) files.
-
-        Returns
-        -------
-        List of corresponding instrument names (strings) to the input fits files.
-        """
-        _instruments_names = []
-        for pf in pha_files:
-            with fits.open(pf) as hdul:
-                if ("TELESCOP" in hdul[0].header):
-                    # works for 'NuSTAR' and 'RHESSI'
-                    _instruments_names.append(hdul[0].header["TELESCOP"])
-                else:
-                    print("How do I know the instument?")
-        return _instruments_names
 
     @property
     def rebin(self):
@@ -299,8 +146,14 @@ class LoadSpec:
 
         Example
         -------
-        # load in 1 spectra, rebin the count channels to have a minimum of 10 counts
-        s = LoadSpec(pha_file='filename1.pha',arf_file='filename1.arf',rmf_file='filename1.rmf')
+        from sunxspex.sunxspex_fitting.instruments import NustarLoader
+
+        # give my new instrument loader my specific data from 'nustarFile.pha'
+        nu = NustarLoader(pha_file='nustarFile.pha')
+
+        # pass the new instrument loader instance to the main fitting class
+        s = LoadSpec(nu)
+
         s.rebin = 10
         s.rebin = {"spectrum1":10}
         """
@@ -445,8 +298,14 @@ class LoadSpec:
 
         Example
         -------
-        # load in 1 spectra, rebin the count channels to have a minimum of 10 counts
-        s = LoadSpec(pha_file='filename1.pha',arf_file='filename1.arf',rmf_file='filename1.rmf')
+        from sunxspex.sunxspex_fitting.instruments import NustarLoader
+
+        # give my new instrument loader my specific data from 'nustarFile.pha'
+        nu = NustarLoader(pha_file='nustarFile.pha')
+
+        # pass the new instrument loader instance to the main fitting class
+        s = LoadSpec(nu)
+        
         s.rebin = 10
         s.undo_rebin = \'all\' <equivalent to> s.undo_rebin
         """
