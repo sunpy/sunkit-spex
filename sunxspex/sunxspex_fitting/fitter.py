@@ -476,7 +476,7 @@ class SunXspex:
         Bool.
         """
         if isinstance(model_function, (types.FunctionType, types.BuiltinFunctionType)):
-            self._model = deconstruct_lambda(model_function)  # model_function
+            self._model = deconstruct_lambda(self.dynamic_function_source, model_function)  # model_function
         elif type(model_function) is str:
             self._model = self._mod_from_str(model_string=model_function, _create_separate_models_for_one=True)
         else:
@@ -745,7 +745,7 @@ class SunXspex:
         # can only remove if the user added the model, defined models from
         # photon_models_for_fitting.py are protected
         if inspect.getmodule([function_name]).__name__ in (__name__):
-            del self.defined_photon_models[function_name], sefl.funcs[function_name], \
+            del self.defined_photon_models[function_name], self.funcs[function_name], \
                 self.dynamic_function_source[function_name]
             logger.indo(f"Model {function_name} removed.")
         else:
@@ -2162,7 +2162,7 @@ class SunXspex:
                 else:
                     self.correlation_matrix[i, j] = cov / (np.sqrt(self._covariance_matrix[i, i]) * np.sqrt(self._covariance_matrix[j, j]))
         except LinAlgError:
-            warnings.warn(f"LinAlgError when calculating the hessian. Errors may not be calculated.")
+            warnings.warn("LinAlgError when calculating the hessian. Errors may not be calculated.")
         return self.sigmas
 
     def _calc_hessian(self, mod_without_x, fparams, step=0.01, _abs_step=None):
