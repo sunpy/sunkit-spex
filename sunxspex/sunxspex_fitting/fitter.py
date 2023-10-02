@@ -66,7 +66,7 @@ class SunXspex:
     Parameters
     ----------
     *args : `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`
-            Instrument loader that contains the instument data and inherits 
+            Instrument loader that contains the instument data and inherits
             from `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`.
 
     Properties

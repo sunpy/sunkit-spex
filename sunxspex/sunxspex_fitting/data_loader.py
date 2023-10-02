@@ -6,8 +6,6 @@ from copy import deepcopy
 
 import numpy as np
 
-from astropy.io import fits
-
 from sunxspex.logging import get_logger
 from sunxspex.sunxspex_fitting import instruments as inst  # sunxspex.sunxspex_fitting.instruments
 from sunxspex.sunxspex_fitting.parameter_handler import (  # sunxspex.sunxspex_fitting.parameter_handler
@@ -30,7 +28,7 @@ class LoadSpec:
     Parameters
     ----------
     *args : `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`
-            Instrument loader that contains the instument data and inherits 
+            Instrument loader that contains the instument data and inherits
             from `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`.
 
     Properties
@@ -109,13 +107,13 @@ class LoadSpec:
 
         # get ready to load multiple spectra if needed
         self.loaded_spec_data, self.instruments = {}, {}
-        for s,a in enumerate(args):
+        for s, a in enumerate(args):
             if isinstance(a, inst.InstrumentBlueprint):
                 self.loaded_spec_data[f"spectrum{s+1}"] = args[s]
                 self.instruments[f"spectrum{s+1}"] = args[s].__class__.__name__
             else:
                 logger.info(
-                "Please pass instrument loader classes with data that inherit from `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`.")
+                    "Please pass instrument loader classes with data that inherit from `sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint`.")
 
         # Adding these classes should also yield {"spectrum1":..., "spectrum2":..., etc.}
 
@@ -305,7 +303,7 @@ class LoadSpec:
 
         # pass the new instrument loader instance to the main fitting class
         s = LoadSpec(nu)
-        
+
         s.rebin = 10
         s.undo_rebin = \'all\' <equivalent to> s.undo_rebin
         """

@@ -1,1 +1,1 @@
-sunxspex.sunxspex_fitting.data_loader.LoadSpec and, by extension, sunxspex.sunxspex_fitting.fitter.SunXspex no longer accepts files and dictionaries, only instances of sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint. 
+sunxspex.sunxspex_fitting.data_loader.LoadSpec and, by extension, sunxspex.sunxspex_fitting.fitter.SunXspex no longer accepts files and dictionaries, only instances of sunxspex.sunxspex_fitting.instruments.InstrumentBlueprint.
