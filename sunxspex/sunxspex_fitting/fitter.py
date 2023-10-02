@@ -366,7 +366,7 @@ class SunXspex:
     s_minimised_params = s.fit()
     """
 
-    def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
+    def __init__(self, *args):
         """Construct the class and set up some defaults."""
         self.funcs = {}
         self.dynamic_function_source = {}
