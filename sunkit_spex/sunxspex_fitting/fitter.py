@@ -653,7 +653,7 @@ class Fitter:
 
         Takes a user defined function intended to be used as a model or model component when
         giving a
-        string to the Fitter.model property. Puts defined_photon_models[
+        string to the sunkit_spex.model property. Puts defined_photon_models[
         function.__name__]=param_inputs
         in `defined_photon_models` for it to be known to the fititng code. The energies argument
         must be
@@ -4719,7 +4719,7 @@ def load(filename):
         loaded = pickle.load(f)
     return loaded
 
-# The following functions allows Fitter.model take lambda functions and strings as inputs then convert them to named functions
+# The following functions allows sunkit_spex.model take lambda functions and strings as inputs then convert them to named functions
 
 
 def _func_self_contained_check(function_name, function_text):
