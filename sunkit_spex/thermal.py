@@ -746,7 +746,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 
 # ### Continuum emission, kris
 # from astropy import constants as const
-# from Fitter.io import load_chianti_continuum, load_xray_abundances # chianti_kev_cont_common_load,
+# from sunkit_spex.io import load_chianti_continuum, load_xray_abundances # chianti_kev_cont_common_load,
 # from scipy.stats.mstats import gmean
 # from scipy.interpolate import interp1d
 # # load in everything for the chianti_kev_cont code of "mine". This only needs done once so do it here.

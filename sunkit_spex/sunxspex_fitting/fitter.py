@@ -66,7 +66,7 @@ class Fitter:
     Parameters
     ----------
     *args : dict
-            Dictionaries for custom data to be passed to `Fitter.sunxspex_fitting.instruments.CustomLoader`.
+            Dictionaries for custom data to be passed to `sunkit_spex.sunxspex_fitting.instruments.CustomLoader`.
             These will be added before any instrument file entries from `pha_file`.
 
     pha_file : string or list of strings
@@ -653,7 +653,7 @@ class Fitter:
 
         Takes a user defined function intended to be used as a model or model component when
         giving a
-        string to the Fitter.model property. Puts defined_photon_models[
+        string to the sunkit_spex.model property. Puts defined_photon_models[
         function.__name__]=param_inputs
         in `defined_photon_models` for it to be known to the fititng code. The energies argument
         must be
@@ -777,7 +777,7 @@ class Fitter:
             logger.indo(f"Model {function_name} removed.")
         else:
             logger.warning(
-                "Default models imported from Fitter.sunxspex_fitting.photon_models_for_fitting are protected.")
+                "Default models imported from sunkit_spex.sunxspex_fitting.photon_models_for_fitting are protected.")
 
     def add_var(self, overwrite=False, quiet=False, **user_kwarg):
         """ Add user variable to fitting namespace.
@@ -4718,7 +4718,7 @@ def load(filename):
         loaded = pickle.load(f)
     return loaded
 
-# The following functions allows Fitter.model take lambda functions and strings as inputs then convert them to named functions
+# The following functions allows sunkit_spex.model take lambda functions and strings as inputs then convert them to named functions
 
 
 def _func_self_contained_check(function_name, function_text):

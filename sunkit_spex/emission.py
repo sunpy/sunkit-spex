@@ -309,9 +309,9 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
         Mean atomic number of plasma
     efd: `bool` (optional)
         True (default) the electron flux distribution (electrons cm^-2 s^-1 keV^-1) is calculated
-        with `~Fitter.emission.BrokenPowerLawElectronDistribution.flux`. False, the electron
+        with `~sunkit_spex.emission.BrokenPowerLawElectronDistribution.flux`. False, the electron
         density distribution (electrons cm^-3 keV^-1) is calculated with
-        `~Fitter.emission.BrokenPowerLawElectronDistribution.density`.
+        `~sunkit_spex.emission.BrokenPowerLawElectronDistribution.density`.
 
     Returns
     -------
