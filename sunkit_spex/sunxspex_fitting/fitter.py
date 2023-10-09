@@ -401,7 +401,8 @@ class Fitter:
         self.data = LoadSpec(*args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
                              custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
 
-        self._construction_string_sunxspex = f"Fitter({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
+        self._construction_string_sunxspex = (f"Fitter({args}, pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, srm_file={srm_file}, "
+                                              f"srm_custom={srm_custom}, custom_channel_bins={custom_channel_bins}, custom_photon_bins={custom_photon_bins}, **{kwargs})")
 
         self.loglikelihood = "cstat"
 
@@ -779,7 +780,6 @@ class Fitter:
             logger.warning(
                 "Default models imported from sunkit_spex.sunxspex_fitting.photon_models_for_fitting are protected.")
 
-
     def add_var(self, overwrite=False, quiet=False, **user_kwarg):
         """ Add user variable to fitting namespace.
 
@@ -846,7 +846,7 @@ class Fitter:
         for k, i in user_kwarg.items():
             if k in self.dynamic_vars and not overwrite:
                 vb = f"Variable {k} already exists. Please set `overwrite=True`, delete this with " \
-                     f"`del_var({k})`,\nor use a different variable name."
+                    f"`del_var({k})`,\nor use a different variable name."
             elif not k in self.dynamic_vars:
                 vb = f"Argument name {k} already exists **in globals** and is not a good idea to " \
                     f"overwrite. Please use a different variable name."
@@ -2047,7 +2047,8 @@ class Fitter:
         photon_channel_bins, photon_channel_mids, photon_channel_widths, srm = self._photon_space_reduce(ph_bins=photon_channel_bins,
                                                                                                          ph_mids=photon_channel_mids,
                                                                                                          ph_widths=photon_e_binning,
-                                                                                                         srm=srm)  # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+                                                                                                         # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+                                                                                                         srm=srm)
         # photon_e_binning
 
         # remove the count space reduce since this now needs to reduce the livetimes and baclgrounds if they are there
@@ -2337,7 +2338,8 @@ class Fitter:
         photon_channel_bins, _, _, srm = self._photon_space_reduce(ph_bins=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
                                                                    ph_mids=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
                                                                    ph_widths=[self.data.loaded_spec_data[spectrum]['photon_channel_binning']],
-                                                                   srm=[self.data.loaded_spec_data[spectrum]['srm']])  # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+                                                                   # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+                                                                   srm=[self.data.loaded_spec_data[spectrum]['srm']])
         photon_channel_bins, srm = photon_channel_bins[0], srm[0]
 
         if type(parameters) == type(None):

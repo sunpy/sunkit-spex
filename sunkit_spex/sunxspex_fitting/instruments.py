@@ -235,7 +235,8 @@ class NustarLoader(InstrumentBlueprint):
     def __init__(self, pha_file, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"NustarLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
+        self._construction_string = (f"NustarLoader(pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, srm_custom={srm_custom}, "
+                                     f"custom_channel_bins={custom_channel_bins}, custom_photon_bins={custom_photon_bins}, **{kwargs})")
         self._loaded_spec_data = self._load1spec(pha_file, f_arf=arf_file, f_rmf=rmf_file, srm=srm_custom, channel_bins=custom_channel_bins, photon_bins=custom_photon_bins)
 
     def _load1spec(self, f_pha, f_arf=None, f_rmf=None, srm=None, channel_bins=None, photon_bins=None):
@@ -569,7 +570,8 @@ class RhessiLoader(InstrumentBlueprint):
     def __init__(self, pha_file, srm_file=None, srm_custom=None, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"RhessiLoader(pha_file={pha_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
+        self._construction_string = (f"RhessiLoader(pha_file={pha_file}, srm_file={srm_file}, srm_custom={srm_custom}, "
+                                     f"custom_channel_bins={custom_channel_bins}, custom_photon_bins={custom_photon_bins}, **{kwargs})")
         self._loaded_spec_data = self._load1spec(pha_file, srm_file, srm=srm_custom, channel_bins=custom_channel_bins, photon_bins=custom_photon_bins)
 
         self._time_fmt, self._time_scale = "isot", "utc"
