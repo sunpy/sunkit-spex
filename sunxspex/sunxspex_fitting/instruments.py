@@ -201,6 +201,9 @@ class InstrumentBlueprint:
         """String representation of `_loaded_spec_data`."""
         return str(self._loaded_spec_data)
 
+    def items(self):
+        return self._loaded_spec_data.items()
+
 
 # Instrument specific data loaders
 #    As long as these loaders get the spectral data to fit into the correct dictionary form and assigned to self._loaded_spec_data then

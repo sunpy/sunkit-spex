@@ -710,18 +710,22 @@ class SunXspex:
         # check if lambda function and return the user function
         # a 'self-contained' check will also take place and will fail if function is not of the
         # form f(...,energies=None)
-        usr_func = deconstruct_lambda(self.dynamic_function_source, function, add_underscore=False)
-        param_inputs, _ = get_func_inputs(function)  # get the param inputs for the function
+        func_dict = deconstruct_lambda(function, add_underscore=False)
+        usr_func = func_dict['function_object']
+        fname = func_dict['function_name']
+        self.dynamic_function_source[fname] = func_dict['function_text']
+        param_inputs, _ = get_func_inputs(function)
+        
         # check if the function has already been added
-        if (usr_func.__name__ in self.defined_photon_models.keys()) and not overwrite:
+        if fname in self.defined_photon_models and not overwrite:
             logger.info(
-                f"Model: '{usr_func.__name__}', already in 'defined_photon_models'. Please set "
-                f"`overwrite=True` or use `del_photon_model()` to remove the existing model "
-                f"entirely.")
+                f"Model: '{fname}', already in 'defined_photon_models'. Please set "
+                "`overwrite=True` or use `del_photon_model()` to remove the existing model "
+                "entirely.")
             # revert changes back, model needs to be initialised to know its name to hceck if it
             # already existed but doing this overwrites it if it is there
-            self.funcs[usr_func.__name__] = orig_params[usr_func.__name__]
-            self.dynamic_function_source[usr_func.__name__] = orig_dsource[usr_func.__name__]
+            self.funcs[fname] = orig_params[fname]
+            self.dynamic_function_source[fname] = orig_dsource[fname]
             return
 
         # if overwrite is True and it gets to this stage remove the function entry from
@@ -735,8 +739,8 @@ class SunXspex:
                 f"Please use different parameter names to the ones already defined: {def_pars}")
 
         # add user model to defined_photon_models from photon_models_for_fitting
-        self.defined_photon_models[usr_func.__name__] = param_inputs
-        logger.info(f"Model {usr_func.__name__} added.")
+        self.defined_photon_models[fname] = param_inputs
+        logger.info(f"Model {fname} added.")
 
     def del_photon_model(self, function_name):
         """ Remove user defined sub-models that have been added via `add_photon_model`.
@@ -1119,8 +1123,10 @@ class SunXspex:
             fun_name = re.sub(r'[^a-zA-Z0-9]+', '_', model_string).lstrip('0123456789')+"".join(_params)
             def_line = "def "+fun_name+"("+",".join(_params)+", energies=None):\n"
             return_line = "    return "+_mod+"\n"
-            return function_creator(self.dynamic_function_source, function_name=fun_name,
-                                    function_text="".join([def_line, return_line]))
+
+            fun_text = "".join([def_line, return_line])
+            self.dynamic_function_source[fun_name] = fun_text
+            return function_creator(function_name=fun_name, function_text=fun_text)
         else:
             logger.warning("The above are not valid identifiers (or are keywords) in Python. Please change this in your model string.")
 
@@ -1363,7 +1369,7 @@ class SunXspex:
             sep_params = dict(zip(self._orig_params, ordered_kwarg_values))
 
             # calculate the [photon s^-1 cm^-2]
-            m = self._model(**sep_params, energies=kwargs["photon_channels"][s]) * kwargs["photon_channel_widths"][s]  # np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
+            m = self._model(**sep_params, energies=kwargs["photon_channels"][s]) * kwargs["photon_channel_widths"][s]
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1]
             cts_model = make_model(energies=kwargs["photon_channels"][s],
@@ -4648,37 +4654,48 @@ class SunXspex:
         _user_fncs = {"usr_funcs": self.dynamic_function_source}
         _user_args = {"user_args": self.dynamic_vars}
         if self._pickle_reason == "mcmc_parallelize":
-            _loaded_spec_data = {"loaded_spec_data": {s: {k: d for (k, d) in v.items() if k != "extras"} for (s, v) in self.data.loaded_spec_data.items()}}  # don't need anything in "extras"
-            _atts = {"params": self.params,
-                     "rParams": self.rParams,
-                     "loglikelihood": self.loglikelihood,
-                     "_param_groups": self._param_groups,
-                     "_free_model_param_bounds": self._free_model_param_bounds,
-                     "_orig_params": self._orig_params}
-            return {**_loaded_spec_data, **_model, **_atts, **_user_fncs, **_user_args}
-        else:
-            dict_copy = self.__dict__.copy()
+            _atts = {
+                'data': self.data,
+                "params": self.params,
+                 "rParams": self.rParams,
+                 "loglikelihood": self.loglikelihood,
+                 "_param_groups": self._param_groups,
+                 "_free_model_param_bounds": self._free_model_param_bounds,
+                 "_orig_params": self._orig_params,
+                 '_other_model_inputs': self._other_model_inputs,
+            }
+            if hasattr(self, '_scaled_backgrounds'):
+                _atts['_scaled_backgrounds'] = self._scaled_backgrounds
+            return _model | _atts | _user_fncs | _user_args
+            
+        dict_copy = copy(self.__dict__)
+        # delete attributes that rely on non-picklable objects (dynamic functions)
+        if hasattr(self, '_model'):
+            del dict_copy['_model']
+        if hasattr(self, '_submod_functions'):
+            del dict_copy['_submod_functions']
+        if hasattr(self, 'all_models'):
+            for mod in self.all_models.keys():
+                self.all_models[mod]["function"] = inspect.getsource(self.all_models[mod]["function"])
 
-            # delete attributes that rely on non-picklable objects (dynamic functions)
-            if hasattr(self, '_model'):
-                del dict_copy['_model']
-            if hasattr(self, '_submod_functions'):
-                del dict_copy['_submod_functions']
-            if hasattr(self, 'all_models'):
-                for mod in self.all_models.keys():
-                    self.all_models[mod]["function"] = inspect.getsource(self.all_models[mod]["function"])
-
-            # _model is a function in dict_copy (likely not picklable) but the **_model dict will replace this in dict_copy
-            return {**dict_copy, **_model, **_user_fncs, **_user_args}
+        # _model is a function in dict_copy (likely not picklable) but the **_model dict will replace this in dict_copy
+        return dict_copy | _model | _user_fncs | _user_args
 
     def __setstate__(self, d):
         """Tells pickle how this object should be loaded."""
         self.add_var(**d["user_args"], quiet=True)
-        for f, c in d["usr_funcs"].items():
-            function_creator(d['dynamic_function_source'], function_name=f, function_text=c)
-        del d["usr_funcs"], d["user_args"]
+        del d["user_args"]
+        
+        d['dynamic_function_source'] = {}
+        for (f, c) in d['usr_funcs'].items():
+            _  = function_creator(f, c)
+            d['dynamic_function_source'][f] = c
+        del d["usr_funcs"]
+        
         self.__dict__ = d
         self._model = globals()[d["_model"]] if d["_model"] in globals() else None
+        # call this to set a mess of attributes needed
+        # self._fit_setup()
 
     def __repr__(self):
         """Provide a representation to construct the class from scratch."""
@@ -4757,15 +4774,17 @@ def _func_self_contained_check(function_name, function_text):
         del globals()[function_name]  # this is a check function, don't want it just adding things to globals
         _func_to_test(*_test_params, energies=_test_energies)
     except NameError as e:
-        raise NameError(str(
-            e)+f"\nA user defined function should be completely self-contained and should be able to be created from its source code,\nrelying entirely on its local scope. E.g., modules not imported in the fitter module need to be imported in the fuction (fitter imported modules:\n{imports()}).")
+        raise NameError(
+            str(e ) + "\nA user defined function should be completely self-contained and"
+                      "should be able to be created from its source code,\nrelying entirely "
+                      "on its local scope. E.g., modules not imported in the fitter module need "
+                      f"to be imported in the fuction (fitter imported modules:\n{imports()})."
+            )
     except FileNotFoundError as e:
         raise FileNotFoundError(str(e)+"\nPlease check that absolute file/directory paths are given for the user defined function to be completely self-contained.")
-    # except ValueError as e:
-    #     warnings.warn(str(e)+"\nFunction failed self-contained check; however, this may be due to conflict in test inputs used to the model.")
 
 
-def function_creator(dsource, function_name, function_text, _orig_func=None):
+def function_creator(function_name, function_text):
     """ Creates a named function from its name and source code.
 
     Takes a user defined function name for a NAMED function and a string that
@@ -4780,26 +4799,25 @@ def function_creator(dsource, function_name, function_text, _orig_func=None):
     function_text : str
             Code for the function as a string.
 
-    _orig_func : function or None
-            The original function provided to be broken down and recreated.
-            Default: None
-
     Returns
     -------
     Returns the function that has just been created and executed into globals().
     """
-    dsource[function_name] = function_text
     try:
         _func_self_contained_check(function_name, function_text)
-        # given the code for a NAMED function (not lambda) as a string, this will execute the code and return that function
         exec(function_text, globals())
         return globals()[function_name]
     except (NameError, FileNotFoundError) as e:
-        warnings.warn(str(e) + "\nHi there! it looks like your model is not self-contained. This will mean that any method that includes\npickling (save, load, parallelisation, etc.) will not act as expected since if the model is loaded\ninto another session the namespace will not be the same.")
-        return _orig_func
+        warnings.warn(
+            str(e) +
+            "\nHi there! it looks like your model is not self-contained. "
+            "This will mean that any method that includes pickling "
+            "(save, load, parallelisation, etc.) will not act as expected since "
+            "if the model is loaded\ninto another session the namespace will not be the same."
+        )
 
 
-def deconstruct_lambda(dsource, function, add_underscore=True):
+def deconstruct_lambda(function, add_underscore=True):
     """ Takes in a lambda function and returns it as a NAMED function
 
     Parameters
@@ -4813,7 +4831,7 @@ def deconstruct_lambda(dsource, function, add_underscore=True):
 
     Returns
     -------
-    Returns the NAMED function created from the lambda function provided.
+    Returns the NAMED function created from the lambda function provided, along with the name and source code.
     """
     # put in a lambda function and convert it to a named function and return it
     if function.__name__ == "<lambda>":
@@ -4836,7 +4854,8 @@ def deconstruct_lambda(dsource, function, add_underscore=True):
     else:
         func_info = {"function_name": function.__name__, "function_text": inspect.getsource(function)}
 
-    return function_creator(dsource, **func_info, _orig_func=function)  # execute the function to be used here
+
+    return {'function_object': function_creator(**func_info)} | func_info
 
 
 def get_all_words(model_string):
@@ -4950,7 +4969,7 @@ def imports():
         if isinstance(val, types.ModuleType):
             # check for modules and their names being used to refer to them
             _imps += "* import "+val.__name__ + " as " + name + "\n"
-        elif (isinstance(val, (types.FunctionType, types.BuiltinFunctionType)) and not isinstance(inspect.getmodule(val), type(None))) and (inspect.getmodule(val).__name__ not in ("__main__", __name__)):
+        elif callable(val) and (inspect.getmodule(val) is not None) and (inspect.getmodule(val).__name__ not in ("__main__", __name__)):
             # check for functions and their names being used to refer to them
             _imps += "* from "+str(inspect.getmodule(val).__name__)+" import "+val.__name__+" as "+name + "\n"
     return _imps
