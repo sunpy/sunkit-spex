@@ -14,8 +14,6 @@ from ..thermal import thermal_emission
 
 __all__ = ["defined_photon_models", "f_vth", "thick_fn", "thick_warm"]
 
-# Issue when using np.float64 numbers for the parameters as it ends up ret
-
 # The defined models shouldn't have duplicate parameter input names
 defined_photon_models = {"f_vth": ["T", "EM"],
                          "thick_fn": ["total_eflux", "index", "e_c"],
@@ -85,7 +83,7 @@ def thick_fn(total_eflux, index, e_c, energies=None):
 
     energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
 
-    # we have a single power law,
+    # we want a single power law electron distribution,
     # so set eebrk == eehigh at a high value.
     # we don't care about q at E > eebrk.
     high_break = energies.max() * 10
