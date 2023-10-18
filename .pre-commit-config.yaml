@@ -6,7 +6,7 @@ repos:
   # F823 - local variable name referenced before assignment
   # Others are taken care of by autopep8
   - repo: https://github.com/PyCQA/flake8
-    rev: 6.0.0
+    rev: 6.1.0
     hooks:
       - id: flake8
         args:
@@ -17,7 +17,7 @@ repos:
           ]
         exclude: ".*(.fits|.fts|.fit|.txt|tca.*|extern.*|.rst|.md|cm/__init__.py|sunpy/extern|sunpy/visualization/colormaps/color_tables.py)$"
   - repo: https://github.com/PyCQA/autoflake
-    rev: v2.1.1
+    rev: v2.2.1
     hooks:
       - id: autoflake
         args:
@@ -33,8 +33,8 @@ repos:
       - id: isort
         args: ["--sp", "setup.cfg"]
         exclude: ".*(.fits|.fts|.fit|.txt|tca.*|extern.*|.rst|.md|cm/__init__.py|docs/conf.py)$"
-  - repo: https://github.com/pre-commit/mirrors-autopep8
-    rev: v2.0.2
+  - repo: https://github.com/hhatto/autopep8
+    rev: v2.0.4
     hooks:
     -   id: autopep8
         args: ["--in-place","--max-line-length", "200"]
