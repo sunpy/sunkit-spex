@@ -1,0 +1,1 @@
+Update upper bound of thick target emission function in :func:`sunxspex.sunxspex_fitting.photon_models_for_fitting.thick_fn`.
