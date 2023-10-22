@@ -51,7 +51,7 @@ def custom_spec():
 
     noise_constant = np.mean(noise)
 
-    custom_spec = SunXspex(custom_dict)
+    custom_spec = SunXspex(CustomLoader(custom_dict))
 
     # add the model to be used in fitting
     custom_spec.add_photon_model(gauss)
