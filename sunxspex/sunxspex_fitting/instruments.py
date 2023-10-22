@@ -570,7 +570,13 @@ class RhessiLoader(InstrumentBlueprint):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
 
         self._construction_string = f"RhessiLoader(pha_file={pha_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
-        self._loaded_spec_data = self._load1spec(pha_file, srm_file, srm=srm_custom, channel_bins=custom_channel_bins, photon_bins=custom_photon_bins)
+
+        self.srm_choice = kwargs.get('srm_choice', None)
+        self._loaded_spec_data = self._load1spec(
+            pha_file, srm_file, srm=srm_custom,
+            channel_bins=custom_channel_bins,
+            photon_bins=custom_photon_bins
+        )
 
         self._time_fmt, self._time_scale = "isot", "utc"
         self._start_background_time, self._end_background_time = None, None
@@ -615,7 +621,7 @@ class RhessiLoader(InstrumentBlueprint):
         in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
         sub-set (nchan), 2d array that is the spectral response (srm).
         """
-        return rhes_spec._get_srm_file_info(f_srm)
+        return rhes_spec._get_srm_file_info(f_srm, self.srm_choice)
 
     def _load1spec(self, f_pha, f_srm, srm=None, channel_bins=None, photon_bins=None):
         """ Loads all the information in for a given spectrum.
@@ -661,7 +667,7 @@ class RhessiLoader(InstrumentBlueprint):
             f_pha)
 
         # now calculate the SRM or use a custom one if given
-        if type(srm) == type(None):
+        if srm is None:
             # needs an srm file load it in
             srm_photon_bins, srm_channel_bins, srm = self._getsrm(f_srm)
             # make sure the SRM will only produce counts to match the data
