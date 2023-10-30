@@ -4,6 +4,11 @@ Reference
 
 Software and API.
 
+.. toctree::
+   :maxdepth: 2
+
+   sunxspex_fitter
+
 .. automodapi:: sunkit_spex
 .. automodapi:: sunkit_spex.thermal
 .. automodapi:: sunkit_spex.integrate
