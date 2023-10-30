@@ -5,13 +5,13 @@ import pytest
 
 import astropy.units as u
 
-from sunxspex import thermal
+from sunkit_spex import thermal
 
 # Manually load file that was used to compile expected flux values.
 thermal.setup_continuum_parameters(
-    "https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav")
+    "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav")
 thermal.setup_line_parameters(
-    "https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav")
+    "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav")
 SSW_INTENSITY_UNIT = u.ph / u.cm**2 / u.s / u.keV
 DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 

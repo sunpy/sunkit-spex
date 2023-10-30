@@ -1,8 +1,8 @@
-==============
-Using sunxspex
-==============
+=================
+Using sunkit-spex
+=================
 
-Introductions to all the key parts of sunxpex you'll need to know:
+Introductions to all the key parts of sunkit-spex you'll need to know:
 
 .. toctree::
    :maxdepth: 2

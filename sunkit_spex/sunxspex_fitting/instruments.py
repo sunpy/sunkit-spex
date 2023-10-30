@@ -56,7 +56,7 @@ class InstrumentBlueprint:
     as **kwargs.
 
     The `DataLoader` class in data_loader.py then creates a dictionary attrbute called `loaded_spec_data`
-    (note no underscore) that is then getable by the user when spectral fitting with the `SunXspex` class
+    (note no underscore) that is then getable by the user when spectral fitting with the `Fitter` class
     in fitter.py where the keys are each spectum's ID (e.g, spectrum1, spectrum2, etc.).
 
     This means that, while fitting STIX data with spectrum ID "spectrum1" for example, if the user wants

@@ -1,0 +1,1 @@
+Rename of package from 'sunxspex' to 'sunkit-spex' with module being 'sunkit_spex'.
