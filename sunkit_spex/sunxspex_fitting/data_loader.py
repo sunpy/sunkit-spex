@@ -120,7 +120,8 @@ class LoadSpec:
     def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
+        self._construction_string = (f"LoadSpec(*{args}, pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, "
+                                     f"srm_file={srm_file}, srm_custom={srm_custom}, custom_channel_bins={custom_channel_bins}, **{kwargs})")
 
         # from sunkit_spex.sunxspex_fitting.instruments import * gives us the instrument specific loaders, keys should match up to the "TELESCOP" header entry in spec file
         self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "SOLO/STIX": inst.StixLoader, "RHESSI": inst.RhessiLoader}

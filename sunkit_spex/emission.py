@@ -167,7 +167,7 @@ class BrokenPowerLawElectronDistribution:
 
     def __repr__(self):
         return f'{self.__class__.__name__}(p={self.p}, q={self.q}, eelow={self.eelow}, ' \
-               f'eebrk={self.eebrk}, eehigh={self.eehigh}, norm={self.norm})'
+            f'eebrk={self.eebrk}, eehigh={self.eehigh}, norm={self.norm})'
 
 
 def collisional_loss(electron_energy):
