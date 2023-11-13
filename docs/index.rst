@@ -10,12 +10,12 @@ The Fitter documentation is divided into  four sections a high-level overview of
 will help you know where to look for certain things:
 
 * :doc:`Tutorials </tutorials/index>` take you by the hand through a series of
-  steps to create fit an X-ray spectrum.
+  steps to create data data into the spectrum container, create a model and fit the model to the spectrum.
 
-* :doc:`Topic guides </discussion/index>` discuss key topics and concepts at a
+* :doc:`Discussions </discussion/index>` of key topics and concepts at a
   fairly high level and provide useful background information and explanation.
 
-* :doc:`Reference guides </reference/index>` contain technical reference for APIs and
+* :doc:`References </reference/index>` contain technical reference for APIs and
   other aspects of sunkit-spex machinery. They describe how it works and how to
   use it but assume that you have a basic understanding of key concepts.
 
