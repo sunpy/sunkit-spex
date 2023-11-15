@@ -6,8 +6,9 @@ Tips that I have been following:
     * Only obvious and useful methods and setters should be public, all else preceded with `_`
 """
 
-import warnings
+import copy
 from os import path as os_path
+import warnings
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
@@ -18,9 +19,8 @@ from astropy.time import Time
 from . import io
 from . import nu_spec_code as nu_spec
 from . import rhes_spec_code as rhes_spec
-from . import stix_spec_code as stix_spec
 
-__all__ = ["NustarLoader", "StixLoader", "RhessiLoader", "CustomLoader", "rebin_any_array"]
+__all__ = ["NustarLoader", "RhessiLoader", "CustomLoader", "rebin_any_array"]
 
 # Get a default class for the instrument specfic loaders
 # Once the instrument specific loaders inherit from this then all they really have to do is get the spectral
@@ -441,175 +441,102 @@ class RhessiLoader(InstrumentBlueprint):
     I.e., background_effective_exposure * (background_area / event_area) as described in [1]. This may be automated (16/03/2022).
 
     [1] https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/XSappendixStatistics.html
-
-    Properties
     ----------
     """
-    __doc__ += InstrumentBlueprint._UNIVERSAL_DOC_
 
-    def __init__(self, pha_file, srm_file=None, srm_custom=None, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
-        """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
-
-        self._construction_string = f"RhessiLoader(pha_file={pha_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
-
-        self.srm_choice = kwargs.get('srm_choice', None)
-        self._loaded_spec_data = self._load1spec(
-            pha_file, srm_file, srm=srm_custom,
-            channel_bins=custom_channel_bins,
-            photon_bins=custom_photon_bins
+    def __init__(self, spectrum_fn, srm_fn, **kwargs):
+        '''
+        Spectrum and SRM files are both required: attenuator state change times
+            are in the spectrum file,
+            and the state determines which SRM will be used.
+        '''
+        self._construction_string = (
+            f"RhessiLoader(spectrum_fn={spectrum_fn}, "
+            f"srm_fn={srm_fn},"
+            f"**{kwargs})"
         )
-
-        self._time_fmt, self._time_scale = "isot", "utc"
+        self._systematic_error = 0
+        self.load_prepare_spectrum_srm(spectrum_fn, srm_fn)
         self._start_background_time, self._end_background_time = None, None
-        self._start_event_time, self._end_event_time = self._full_obs_time[0], self._full_obs_time[1]
 
-        # used to give the user a warning if incompatible times are set
-        self.__warn = True
+    @property
+    def systematic_error(self):
+        return self._systematic_error
 
-    def _getspec(self, f_pha):
-        """ Return all RHESSI data needed for fitting.
+    @systematic_error.setter
+    def systematic_error(self, err):
+        self._systematic_error = err
+        self._update_event_data_with_times()
 
-        Only here so that `StixLoader` can overwrite for the same `_load1spec` method.
-
-        Parameters
-        ----------
-        f_pha : str
-                String for the RHESSI spectral file under investigation.
-
-        Returns
-        -------
-        A 2d array of the channel bin edges (channel_bins), 2d array of the channel bins (channel_bins_inds),
-        2d array of the time bins for each spectrum (time_bins), 2d array of livetimes/counts/count rates/count
-        rate errors per channel bin and spectrum (lvt/counts/cts_rates/cts_rate_err, respectively).
-        """
-        return rhes_spec._get_spec_file_info(f_pha)
-
-    def _getsrm(self, f_srm):
-        """ Return all RHESSI SRM data needed for fitting.
-
-        SRM units returned as counts ph^(-1) cm^(2).
-
-        Only here so that `StixLoader` can overwrite for the same `_load1spec` method.
-
-        Parameters
-        ----------
-        f_srm : str
-                String for the RHESSI SRM spectral file under investigation.
-
-        Returns
-        -------
-        A 2d array of the photon and channel bin edges (photon_bins, channel_bins), number of sub-set channels
-        in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
-        sub-set (nchan), 2d array that is the spectral response (srm).
-        """
-        return rhes_spec._get_srm_file_info(f_srm, self.srm_choice)
-
-    def _load1spec(self, f_pha, f_srm, srm=None, channel_bins=None, photon_bins=None):
+    def load_prepare_spectrum_srm(self, spectrum_fn, srm_fn):
         """ Loads all the information in for a given spectrum.
 
         Parameters
         ----------
-        f_pha, f_srm : string
-                Filenames for the relevant spectral files.
-
-        srm : 2d array
-                User defined spectral response matrix. This is accepted over the SRM from f_srm.
-                Default: None
-
-        photon_bins, channel_bins: 2d array
-                User defined channel bins for the rows and columns of the SRM matrix.
-                E.g., custom_channel_bins=[[1,1.5],[1.5,2],...]
-                Default: None
+        spectrum_fn, srm_fn : string
+            Filenames for the spectrum and SRM .fits files from OSPEX.
 
         Returns
         -------
-        Dictionary of the loaded in spectral information in the form {"photon_channel_bins":channel_bins,
-                                                                      "photon_channel_mids":np.mean(channel_bins, axis=1),
-                                                                      "photon_channel_binning":channel_binning,
-                                                                      "count_channel_bins":channel_bins,
-                                                                      "count_channel_mids":np.mean(channel_bins, axis=1),
-                                                                      "count_channel_binning":channel_binning,
-                                                                      "counts":counts,
-                                                                      "count_error":count_error,
-                                                                      "count_rate":count_rate,
-                                                                      "count_rate_error":count_rate_error,
-                                                                      "effective_exposure":eff_exp,
-                                                                      "srm":srm,
-                                                                      "extras":{"pha.file":f_pha,
-                                                                                "srm.file":f_srm,
-                                                                                "srm.ngrp":ngrp,
-                                                                                "srm.fchan":fchan,
-                                                                                "srm.nchan":nchan,
-                                                                                "counts=data-bg":False}
-                                                                     }.
+        Standard sunxspex dictionary (see docs)
         """
-        # need effective exposure and energy binning since likelihood works on counts, not count rates etc.
-        obs_channel_bins, self._channel_bins_inds_perspec, self._time_bins_perspec, self._lvt_perspec, self._counts_perspec, self._counts_err_perspec, self._count_rate_perspec, self._count_rate_error_perspec = self._getspec(
-            f_pha)
+        # Load spectrum & SRM
+        self._spectrum = (spec := rhes_spec.load_spectrum(spectrum_fn))
+        self._attenuator_state_info = spec.pop('attenuator_state_info')
+        self._srm = (srm := rhes_spec.load_srm(srm_fn))
 
-        # now calculate the SRM or use a custom one if given
-        if srm is None:
-            # needs an srm file load it in
-            srm_photon_bins, srm_channel_bins, srm = self._getsrm(f_srm)
-            # make sure the SRM will only produce counts to match the data
-            data_inds2match = np.where((obs_channel_bins[0, 0] <= srm_channel_bins[:, 0]) & (srm_channel_bins[:, 1] <= obs_channel_bins[-1, -1]))
-            srm = srm[:, data_inds2match[0]]
-        else:
-            srm_photon_bins = None
+        # make sure the SRM will only produce counts to match the data
+        counts_indices_which_match = np.where(
+            (spec['channel_bins'][0, 0] <=  srm['channel_bins'][ :,  0]) &
+            ( srm['channel_bins'][:, 1] <= spec['channel_bins'][-1, -1])
+        )[0]
+        srm['srm_options'] = {
+            state: matrix[:, counts_indices_which_match]
+            for (state, matrix) in srm['srm_options'].items()
+        }
 
-        photon_bins = srm_photon_bins if type(photon_bins) == type(None) else photon_bins
+        photon_bins = srm['photon_bins']
         photon_binning = np.diff(photon_bins).flatten()
-
-        # from the srm file #channel_binning = np.diff(channel_bins).flatten()
-        channel_bins = obs_channel_bins if type(channel_bins) == type(None) else channel_bins
+        channel_bins = spec['channel_bins']
 
         # default is no background and all data is the spectrum to be fitted
-        self._full_obs_time = [self._time_bins_perspec[0, 0], self._time_bins_perspec[-1, -1]]
-        counts = np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self._counts_perspec, etime=self._full_obs_time[1]), axis=0)
-        counts_err = np.sqrt(np.sum(self._data_time_select(stime=self._full_obs_time[0], full_data=self._counts_err_perspec,
-                             etime=self._full_obs_time[1])**2, axis=0))  # sum errors in quadrature, Poisson still sqrt(N)
+        self.start_data_time, self.end_data_time = (
+            spec['time_bins'][0, 0],
+            spec['time_bins'][-1, -1]
+        )
+        # avoid SRM setting issues
+        self._start_event_time, self._end_event_time =\
+            self.start_data_time, self.end_data_time
 
-        _livetimes = np.mean(self._data_time_select(stime=self._full_obs_time[0], full_data=self._lvt_perspec,
-                             etime=self._full_obs_time[1]), axis=0)  # to convert a model count rate to counts, so need mean
-        eff_exp = np.diff(self._full_obs_time)[0].to_value("s")*_livetimes
+        # Assume unattenuated SRM until spectroscopy interval is specified
+        UNATTENUATED_STATE = 0
+        self._loaded_spec_data = {
+            'photon_channel_bins': photon_bins,
+            'photon_channel_binning': photon_binning,
+            'photon_channel_mids': photon_bins[:, 0] + photon_binning/2,
+            'count_channel_bins': channel_bins,
+            'count_channel_binning': (ch_de := np.diff(channel_bins, axis=1).flatten()),
+            'count_channel_mids': channel_bins[:, 0] + ch_de/2,
+            'srm': srm['srm_options'][UNATTENUATED_STATE],
+            'extras': dict()
+        }
+        self._update_event_data_with_times()
+        self._original_data = copy.deepcopy(self._loaded_spec_data)
 
-        channel_binning = np.diff(obs_channel_bins, axis=1).flatten()
-        count_rate = counts/eff_exp/channel_binning  # count rates from here are counts/s/keV
-        count_rate_error = counts_err/eff_exp/channel_binning  # was np.sqrt(counts)/eff_exp/channel_binning
-
-        # what spectral info you want to know from this observation
-        return {"photon_channel_bins": photon_bins,
-                "photon_channel_mids": np.mean(photon_bins, axis=1),
-                "photon_channel_binning": photon_binning,
-                "count_channel_bins": channel_bins,
-                "count_channel_mids": np.mean(channel_bins, axis=1),
-                "count_channel_binning": channel_binning,
-                "counts": counts,
-                "count_error": counts_err,
-                "count_rate": count_rate,
-                "count_rate_error": count_rate_error,
-                "effective_exposure": eff_exp,
-                "srm": srm,
-                "extras": {"pha.file": f_pha,
-                           "srm.file": f_srm,
-                           "counts=data-bg": False}
-                }  # this might make it easier to add different observations together
 
     @property
-    def data2data_minus_background(self):
-        """ ***Property*** States whether the the data is event-background or not.
-
-        Returns
-        -------
-        Bool.
+    def subtract_background(self):
+        """
+        States whether the the data is event minus background or not.
         """
         return self._loaded_spec_data["extras"]["counts=data-bg"]
 
-    @data2data_minus_background.setter
-    def data2data_minus_background(self, boolean):
-        """ ***Property Setter*** Allows the data to be changed to be event-background.
+    @subtract_background.setter
+    def subtract_background(self, do_subtract: bool):
+        """
+        Allows the data to be changed to be event minus background.
 
-        Original data is stroed in `_full_data` attribute. Default fitting will essentially have this as False and fit the event
+        Original data is stored in `_original_data` attribute. Default fitting will essentially have this as False and fit the event
         time data with model+background (recommended). If this is set to True then the data to be fitting will be converted to
         the event time data minus the background data and fitting with just model; this is the way RHESSI/OSPEX analysis has been
         done in the past but is not strictly correct.
@@ -617,52 +544,41 @@ class RhessiLoader(InstrumentBlueprint):
         To convert back to fitting the event time data with model+background then this setter need only be set to False again.
 
         Everytime a background is set this is set to False.
-
-        Parameters
-        ----------
-        boolean : bool
-                If True then the event data is changed to event-background and the _loaded_spec_data["extras"]["counts=data-bg"]
-                entry is changed to True. If False (recommended) then the event data to be fitted will remain as is or will be
-                converted back with the _loaded_spec_data["extras"]["counts=data-bg"] entry changed to False.
-
-        Returns
-        -------
-        None.
         """
-        # make sure a background is set
-        if not "background_rate" in self._loaded_spec_data["extras"]:
+        if "background_rate" not in self._loaded_spec_data["extras"]:
+            raise ValueError("No background set. Cannot update subtraction state.")
+        if not do_subtract:
+            self._loaded_spec_data["extras"]["counts=data-bg"] = False
+            # remove SRM from the original data so we dont accidentally modify it
+            # and background: not set initially
+            no_srm = copy.deepcopy(self._original_data)
+            _ = no_srm.pop('srm', None)
+            _ = no_srm.pop('extras', None)
+            self._loaded_spec_data.update(no_srm)
             return
 
-        # check you want to make data data-bg and that the data isn't already data-bg
-        if boolean:
-            # make sure to save the full data first (without background subtraction) if not already done
-            if not hasattr(self, "_full_data"):
-                self._full_data = {"counts": self._loaded_spec_data["counts"], "count_error": self._loaded_spec_data["count_error"],
-                                   "count_rate": self._loaded_spec_data["count_rate"], "count_rate_error": self._loaded_spec_data["count_rate_error"]}
+        scaled_bg = (
+            self._loaded_spec_data["extras"]["background_rate"] *
+            self._loaded_spec_data["effective_exposure"] *
+            self._loaded_spec_data["count_channel_binning"]
+        )
+        new_cts = self._original_data["counts"] - scaled_bg
 
-            new_cts = self._full_data["counts"] - (self._loaded_spec_data["extras"]["background_rate"]*self._loaded_spec_data["effective_exposure"]*self._loaded_spec_data["count_channel_binning"])
-            new_cts_err = np.sqrt(self._full_data["count_error"]**2+(self._loaded_spec_data["extras"]["background_count_error"] *
-                                  (self._loaded_spec_data["effective_exposure"]/self._loaded_spec_data["extras"]["background_effective_exposure"]))**2)
-            new_cts_rates = self._full_data["count_rate"] - self._loaded_spec_data["extras"]["background_rate"]
-            new_cts_rates_err = np.sqrt(self._full_data["count_rate_error"]**2 + self._loaded_spec_data["extras"]["background_rate_error"]**2)
+        scaled_bg_err = (
+            self._loaded_spec_data["extras"]["background_count_error"] *
+            self._loaded_spec_data["effective_exposure"] /
+            self._loaded_spec_data["extras"]["background_effective_exposure"]
+        )
+        new_cts_err = np.sqrt(self._original_data["count_error"]**2 + scaled_bg_err**2)
 
-            self._loaded_spec_data.update({"counts": new_cts, "count_error": new_cts_err, "count_rate": new_cts_rates, "count_rate_error": new_cts_rates_err})
-            self._loaded_spec_data["extras"]["counts=data-bg"] = True
-        elif not boolean:
-            # reset
-            if hasattr(self, "_full_data"):
-                self._loaded_spec_data.update(self._full_data)
-                del self._full_data
-            self._loaded_spec_data["extras"]["counts=data-bg"] = False
+        new_rate = self._original_data["count_rate"] - self._loaded_spec_data["extras"]["background_rate"]
+        new_rate_err = np.sqrt(self._original_data["count_rate_error"]**2 + self._loaded_spec_data["extras"]["background_rate_error"]**2)
 
-    def _req_time_fmt(self):
-        """ Alert statement to tell user of the string time format needed to be given to astropy.Time.
-
-        Returns
-        -------
-        None.
-        """
-        print(f"Time format must be {self._time_fmt.upper()} with scale {self._time_scale.upper()}.")
+        self._loaded_spec_data.update({"counts": new_cts,
+                                       "count_error": new_cts_err,
+                                       "count_rate": new_rate,
+                                       "count_rate_error": new_rate_err})
+        self._loaded_spec_data["extras"]["counts=data-bg"] = True
 
     def _data_time_select(self, stime, full_data, etime):
         """ Index and return data in time range stime<=data<=etime.
@@ -681,337 +597,188 @@ class RhessiLoader(InstrumentBlueprint):
         -------
         Indexed array.
         """
-        if (type(stime) == type(None)) and (type(etime) == type(None)):
+        if stime is None and etime is None:
             return full_data
-        elif type(stime) == type(None):
-            return full_data[np.where(self._time_bins_perspec[:, 1] <= etime)]
-        elif type(etime) == type(None):
-            return full_data[np.where(stime <= self._time_bins_perspec[:, 0])]
-        else:
-            return full_data[np.where((stime <= self._time_bins_perspec[:, 0]) & (self._time_bins_perspec[:, 1] <= etime))]
+        elif stime is None:
+            return full_data[np.where(self._spectrum['time_bins'][:, 1] <= etime)]
+        elif etime is None:
+            return full_data[np.where(stime <= self._spectrum['time_bins'][:, 0])]
+        return full_data[np.where((stime <= self._spectrum['time_bins'][:, 0]) & (self._spectrum['time_bins'][:, 1] <= etime))]
+
+    def _update_srm_state(self):
+        '''
+        Updates SRM state (attenuator state) given the event times.
+        If the times span attenuator states, throws an error.
+        '''
+        start_time, end_time = self._start_event_time, self._end_event_time
+        change_times = self._attenuator_state_info['change_times']
+        for t in change_times:
+            if start_time <= t <= end_time:
+                warnings.warn(
+                    f"\ndo not update event times to ({start_time}, {end_time}): "
+                    "covers attenuator state change. Don't trust this fit!"
+                )
+
+        new_att_state = 0
+        for i in range(len(self._attenuator_state_info['states']) - 1):
+            state = self._attenuator_state_info['states'][i]
+            if change_times[i] < start_time and end_time < change_times[i+1]:
+                new_att_state = state
+                break
+
+        self._loaded_spec_data['srm'] = self._srm['srm_options'][new_att_state].astype(float)
 
     def _update_event_data_with_times(self):
-        """ Changes the data in `_loaded_spec_data` to the data in the defined event time range.
-
-        Default time is the whole file time range.
-
+        """
+        Changes the data in `_loaded_spec_data` to the data in the defined event time range.
         Returns
         -------
         None.
         """
-
-        # check that evt_start<evt_end
-        if (self._start_event_time >= self._end_event_time):
-            if self.__warn:
-                self.__time_warning()
-            return
+        self._update_srm_state()
 
         # sum counts over time range
-        self._loaded_spec_data["counts"] = np.sum(self._data_time_select(stime=self._start_event_time, full_data=self._counts_perspec, etime=self._end_event_time), axis=0)
-        self._loaded_spec_data["count_error"] = np.sqrt(self._loaded_spec_data["counts"])
+        self._loaded_spec_data["counts"] = (
+            cts := np.sum(
+                self._data_time_select(
+                    stime=self._start_event_time,
+                    full_data=self._spectrum['counts'],
+                    etime=self._end_event_time
+                ),
+                axis=0
+            )
+        )
+        # do not assume Poisson error
+        self._loaded_spec_data["count_error"] = (
+            err := np.sqrt(np.sum(
+                self._data_time_select(
+                    stime=self._start_event_time,
+                    full_data=self._spectrum['counts_err'],
+                    etime=self._end_event_time
+                )**2)
+            )
+        )
 
-        # isolate livetimes and time binning
-        _livetimes = np.mean(self._data_time_select(stime=self._start_event_time, full_data=self._lvt_perspec,
-                             etime=self._end_event_time), axis=0)  # to convert a model count rate to counts, so need mean
-        _actual_first_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:, 0], etime=self._end_event_time)[0]
-        _actual_last_bin = self._data_time_select(stime=self._start_event_time, full_data=self._time_bins_perspec[:, 1], etime=self._end_event_time)[-1]
-        self._loaded_spec_data["effective_exposure"] = np.diff([_actual_first_bin, _actual_last_bin])[0].to_value("s")*_livetimes
+        if np.any(np.atleast_1d(self.systematic_error) > 0):
+            self._loaded_spec_data['count_error'] = (err := np.sqrt(
+                err**2 + (self._systematic_error * cts)**2
+            ))
+
+        livetimes = np.mean(
+            self._data_time_select(
+                stime=self._start_event_time,
+                full_data=self._spectrum['livetime'],
+                etime=self._end_event_time
+            ),
+            axis=0
+        )
+        actual_first_bin = self._data_time_select(
+            stime=self._start_event_time,
+            full_data=self._spectrum['time_bins'][:, 0],
+            etime=self._end_event_time
+        )[0]
+        actual_last_bin = self._data_time_select(
+            stime=self._start_event_time,
+            full_data=self._spectrum['time_bins'][:, 1],
+            etime=self._end_event_time
+        )[-1]
+        self._loaded_spec_data["effective_exposure"] = np.diff([actual_first_bin, actual_last_bin])[0].to_value("s") * livetimes
 
         # calculate new count rates and errors
-        self._loaded_spec_data["count_rate"] = self._loaded_spec_data["counts"]/self._loaded_spec_data["effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
-        self._loaded_spec_data["count_rate_error"] = np.sqrt(self._loaded_spec_data["counts"])/self._loaded_spec_data["effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
+        effe = self._loaded_spec_data['effective_exposure']
+        de = self._loaded_spec_data["count_channel_binning"]
+        self._loaded_spec_data["count_rate"] = cts / effe / de
+        self._loaded_spec_data["count_rate_error"] = err / effe / de
 
-    @property
-    def start_event_time(self):
-        """ ***Property*** States the set event starting time.
-
-        Returns
-        -------
-        Astropy.Time of the set event starting time.
-        """
-        return self._start_event_time
-
-    @start_event_time.setter
-    def start_event_time(self, evt_stime):
-        """ ***Property Setter*** Sets the event start time.
-
-        Default behaviour has this set to the first data time.
-
-        Parameters
-        ----------
-        evt_stime : str, `astropy.Time`, None
-                String to be given to astropy's Time, `astropy.Time` is used directly, None sets the
-                start event time to be the first time of the data.
-
-        Returns
-        -------
-        None.
-        """
-        if type(evt_stime) == str:
-            # string format
-            _t = Time(evt_stime, format=self._time_fmt, scale=self._time_scale)
-            self._start_event_time = Time(evt_stime, format=self._time_fmt, scale=self._time_scale)
-        elif type(evt_stime) == type(self._full_obs_time[0]):
-            # if user has provided an astropy time already
-            _t = evt_stime
-        elif type(evt_stime) == type(None):
-            # set to None to reset
-            _t = self._full_obs_time[0]
-        else:
-            # don't know what to do, print helpful(?) statement and don't do anything
-            self._req_time_fmt()
-            return
-
-        _set_evt_stime = (not hasattr(self, "_end_event_time")) or (hasattr(self, "_end_event_time") and _t < self._end_event_time)
-        if _set_evt_stime:
-            self._start_event_time = _t
-        elif self.__warn:
-            self.__time_warning()
-
-        self._update_event_data_with_times()
-
-    @property
-    def end_event_time(self):
-        """ ***Property*** States the set event end time.
-
-        Returns
-        -------
-        Astropy.Time of the set event end time.
-        """
-        return self._end_event_time
-
-    @end_event_time.setter
-    def end_event_time(self, evt_etime):
-        """ ***Property Setter*** Sets the event end time.
-
-        Default behaviour has this set to the last data time.
-
-        Parameters
-        ----------
-        evt_stime : str, `astropy.Time`, None
-                String to be given to astropy's Time, `astropy.Time` is used directly, None sets the
-                start event time to be the last time of the data.
-
-        Returns
-        -------
-        None.
-        """
-        if type(evt_etime) == str:
-            # string format
-            _t = Time(evt_etime, format=self._time_fmt, scale=self._time_scale)
-        elif type(evt_etime) == type(self._full_obs_time[1]):
-            # if user has provided an astropy time already
-            _t = evt_etime
-        elif type(evt_etime) == type(None):
-            # set to None to reset
-            _t = self._full_obs_time[1]
-        else:
-            # don't know what to do, print helpful(?) statement and don't do anything
-            self._req_time_fmt()
-            return
-
-        _set_evt_etime = (not hasattr(self, "_start_event_time")) or (hasattr(self, "_start_event_time") and self._start_event_time < _t)
-        if _set_evt_etime:
-            self._end_event_time = _t
-        elif self.__warn:
-            self.__time_warning()
-
+    def update_event_times(self, ta, tb):
+        ''' Update start, end event times '''
+        if not isinstance(ta, Time) or not isinstance(tb, Time):
+            raise ValueError("Event times must be astropy.time.Time")
+        if ta > tb:
+            self._time_error()
+        self._start_event_time = ta
+        self._end_event_time = tb
         self._update_event_data_with_times()
 
     def _update_bg_data_with_times(self):
-        """ Changes/adds the background data in `_loaded_spec_data["extras"]` to the data in the defined background time range.
-
+        """
+        Changes/adds the background data in `_loaded_spec_data["extras"]` to the data in the defined background time range.
         Background data is removed from `_loaded_spec_data["extras"]` is either the start or end time is set to None.
-
         Default is that there is no background.
-
-        Returns
-        -------
-        None.
         """
-        if (type(self._start_background_time) != type(None)) and (type(self._end_background_time) != type(None)):
-
-            # check that bg_start<bg_end
-            if (self._start_background_time >= self._end_background_time):
-                if self.__warn:
-                    self.__time_warning()
-                return
-
-            # get background data, woo!
-            # sum counts over time range
-            self._loaded_spec_data["extras"]["background_counts"] = np.sum(self._data_time_select(
-                stime=self._start_background_time, full_data=self._counts_perspec, etime=self._end_background_time), axis=0)
-            self._loaded_spec_data["extras"]["background_count_error"] = np.sqrt(self._loaded_spec_data["extras"]["background_counts"])
-
-            # isolate livetimes and time binning
-            _livetimes = np.mean(self._data_time_select(stime=self._start_background_time, full_data=self._lvt_perspec,
-                                 etime=self._end_background_time), axis=0)  # to convert a model count rate to counts, so need mean
-            _actual_first_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:, 0], etime=self._end_background_time)[0]
-            _actual_last_bin = self._data_time_select(stime=self._start_background_time, full_data=self._time_bins_perspec[:, 1], etime=self._end_background_time)[-1]
-            self._loaded_spec_data["extras"]["background_effective_exposure"] = np.diff([_actual_first_bin, _actual_last_bin])[0].to_value("s")*_livetimes
-
-            # calculate new count rates and errors
-            self._loaded_spec_data["extras"]["background_rate"] = self._loaded_spec_data["extras"]["background_counts"] / \
-                self._loaded_spec_data["extras"]["background_effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
-            self._loaded_spec_data["extras"]["background_rate_error"] = np.sqrt(self._loaded_spec_data["extras"]["background_counts"]) / \
-                self._loaded_spec_data["extras"]["background_effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
-
-        else:
-            # if either the start or end background time is None, or set to None, then makes sure the background data is removed if it is there
-            for key in self._loaded_spec_data["extras"].copy().keys():
-                if key.startswith("background"):
+        clear_all_bg_data = (self._start_background_time is None) or (self._end_background_time is None)
+        if clear_all_bg_data:
+            keyz = list(self._loaded_spec_data['extras'].keys())
+            for key in keyz:
+                if 'background' in key:
                     del self._loaded_spec_data["extras"][key]
-
-    @property
-    def start_background_time(self):
-        """ ***Property*** States the set background starting time.
-
-        Returns
-        -------
-        Astropy.Time of the set background starting time.
-        """
-        return self._start_background_time
-
-    @start_background_time.setter
-    def start_background_time(self, bg_stime):
-        """ ***Property Setter*** Sets the background start time.
-
-        Default behaviour has this set to None, with no background data component added.
-
-        The `data2data_minus_background` setter is reset to False; if the `data2data_minus_background` setter
-        was used by the user and they still want to fit the event time data minus the background then this
-        must be set to True again. If you don't know what the `data2data_minus_background` setter is then
-        don't worry about it.
-
-        Parameters
-        ----------
-        evt_stime : str, `astropy.Time`, None
-                String to be given to astropy's Time, `astropy.Time` is used directly, None doesn't
-                add, or will remove, any background data in `_loaded_spec_data["extras"]`.
-
-        Returns
-        -------
-        None.
-        """
-        if type(bg_stime) == str:
-            # string format
-            _t = Time(bg_stime, format=self._time_fmt, scale=self._time_scale)
-        elif type(bg_stime) == type(self._full_obs_time[0]):
-            # if user has provided an astropy time already
-            _t = bg_stime
-        elif type(bg_stime) == type(None):
-            # set to None to reset
-            _t = None
-        else:
-            # don't know what to do, print helpful(?) statement and don't do anything
-            self._req_time_fmt()
             return
 
-        _set_bg_stime = (not hasattr(self, "_end_background_time")) or (type(_t) == type(None)) or (
-            hasattr(self, "_end_background_time") and ((type(self._end_background_time) == type(None)) or (_t < self._end_background_time)))
-        if _set_bg_stime:
-            self._start_background_time = _t
-        elif self.__warn:
-            self.__time_warning()
+        # sum counts over time range
+        self._loaded_spec_data["extras"]["background_counts"] = (cts := np.sum(
+            self._data_time_select(
+                stime=self._start_background_time,
+                full_data=self._spectrum['counts'],
+                etime=self._end_background_time
+            ),
+            axis=0
+        ))
 
+        # TODO: this is an assumption of Poisson statistics (not necessarily correct)
+        self._loaded_spec_data["extras"]["background_count_error"] = (cts_err := np.sqrt(self._loaded_spec_data["extras"]["background_counts"]))
+
+        # isolate livetimes and time binning
+        livetimes = np.mean(
+            self._data_time_select(
+                stime=self._start_background_time,
+                full_data=self._spectrum['livetime'],
+                etime=self._end_background_time
+            ),
+            axis=0
+        )
+        actual_first_bin = self._data_time_select(
+            stime=self._start_background_time,
+            full_data=self._spectrum['time_bins'][:, 0],
+            etime=self._end_background_time
+        )[0]
+        actual_last_bin = self._data_time_select(
+            stime=self._start_background_time,
+            full_data=self._spectrum['time_bins'][:, 1],
+            etime=self._end_background_time
+        )[-1]
+        self._loaded_spec_data["extras"]["background_effective_exposure"] = (
+            effe := ((actual_last_bin - actual_first_bin).to_value("s") * livetimes)
+        )
+
+        # calculate new count rates and errors
+        de = self._loaded_spec_data['count_channel_binning']
+        self._loaded_spec_data["extras"]["background_rate"] = cts / effe / de
+        self._loaded_spec_data["extras"]["background_rate_error"] = cts_err / effe / de
+
+    def update_background_times(self, ta: Time, tb: Time):
+        ''' Update start and end background times.'''
+        if (ta is not None) and (tb is not None) and (ta > tb):
+            self._time_error()
+
+        self._start_background_time = ta
+        self._end_background_time = tb
         self._update_bg_data_with_times()
-        # change back to separate event time and background data
-        self.data2data_minus_background = False
+        self.subtract_background = False
 
-    @property
-    def end_background_time(self):
-        """ ***Property*** States the set background end time.
+    def _time_error(self):
+        raise ValueError(
+            "The start and/or end time being set is not appropriate."
+            "The data will not be changed. Please set start < end."
+        )
 
-        Returns
-        -------
-        Astropy.Time of the set background end time.
-        """
-        return self._end_background_time
-
-    @end_background_time.setter
-    def end_background_time(self, bg_etime):
-        """ ***Property Setter*** Sets the background end time.
-
-        Default behaviour has this set to None, with no background data component added.
-
-        The `data2data_minus_background` setter is reset to False; if the `data2data_minus_background` setter
-        was used by the user and they still want to fit the event time data minus the background then this
-        must be set to True again. If you don't know what the `data2data_minus_background` setter is then
-        don't worry about it.
-
-        Parameters
-        ----------
-        evt_stime : str, `astropy.Time`, None
-                String to be given to astropy's Time, `astropy.Time` is used directly, None doesn't
-                add, or will remove, any background data in `_loaded_spec_data["extras"]`.
-
-        Returns
-        -------
-        None.
-        """
-        if type(bg_etime) == str:
-            # string format
-            _t = Time(bg_etime, format=self._time_fmt, scale=self._time_scale)
-        elif type(bg_etime) == type(self._full_obs_time[1]):
-            # if user has provided an astropy time already
-            _t = bg_etime
-        elif type(bg_etime) == type(None):
-            # set to None to reset
-            _t = None
-        else:
-            # don't know what to do, print helpful(?) statement and don't do anything
-            self._req_time_fmt()
-            return
-
-        _set_bg_etime = (not hasattr(self, "_start_background_time")) or (type(_t) == type(None)) or (hasattr(self, "_start_background_time")
-                                                                                                      and ((type(self._start_background_time) == type(None)) or (self._start_background_time < _t)))
-        if _set_bg_etime:
-            self._end_background_time = _t
-        elif self.__warn:
-            self.__time_warning()
-
-        self._update_bg_data_with_times()
-        # change back to separate event time and background data
-        self.data2data_minus_background = False
-
-    def __time_warning(self):
-        """ Here to provide a warning about the times being set by user.
-
-        User is recommended to use `select_time` method where this warning should only be raised if the start
-        time is >= end time. If the user sets the times separately using the four methods for the event and
-        background start and end times then this warning may be given out when one time is changed before
-        the other.
-        """
-        warnings.warn("The start and/or end time being set are not compatible to each other or one already set. The data will not be changed. Please set start<end.")
-
-    def _atimes2mdates(self, astrotimes):
-        """ Convert a list of `astropy.Time`s to matplotlib dates for plotting.
-
-        Parameters
-        ----------
-        astrotimes : list of `astropy.Time`
-                List of `astropy.Time`s to convert to list of matplotlib dates.
-
-        Returns
-        -------
-        List of matplotlib dates.
-        """
-        # convert astro time to datetime then use list comprehension to convert to matplotlib dates
-        return [mdates.date2num(dt.utc.datetime) for dt in astrotimes]
-
-    def _mdates_minute_locator(self, _obs_dt=None):
+    def _mdates_minute_locator(self):
         """ Try to determine a nice tick separation for time axis on the lightcurve.
-
-        Parameters
-        ----------
-        _obs_dt : float
-                Number of seconds the axis spans.
 
         Returns
         -------
         `mdates.MinuteLocator`.
         """
-        obs_dt = np.diff(self._full_obs_time)[0].to_value("s") if type(_obs_dt) == type(None) else _obs_dt
+        obs_dt = (self.end_data_time  - self.start_data_time).to_value("s")
         if obs_dt > 3600*12:
             return mdates.MinuteLocator(byminute=[0], interval=1)
         elif 3600*3 < obs_dt <= 3600*12:
@@ -1026,23 +793,6 @@ class RhessiLoader(InstrumentBlueprint):
             return mdates.MinuteLocator(interval=2)
         else:
             return mdates.SecondLocator(bysecond=[0, 20, 40], interval=1)
-
-    def _instrument(self):
-        """ Determine the instrument of the class.
-
-        This may seem obvious but the StixLoader will inherit from this and so essentially
-        need to check whether we have STIX or RHESSI data.
-
-        Returns
-        -------
-        String.
-        """
-        if self._construction_string.startswith("Rhessi"):
-            return "RHESSI "
-        elif self._construction_string.startswith("Stix"):
-            return "STIX "
-        else:
-            return ""
 
     def _rebin_lc(self, arr, clump_bins):
         """ Combines array elements in groups of `clump_bins`.
@@ -1081,7 +831,7 @@ class RhessiLoader(InstrumentBlueprint):
         _t_to_clump, _endt_to_clump = times[0::clump_bins], times[clump_bins-1::clump_bins]
         _clumped_start_ts = _t_to_clump[:, 0]
         _clumped_end_ts = np.concatenate((_t_to_clump[1:, 0], [_endt_to_clump[-1, -1]]))
-        return np.concatenate((_clumped_start_ts[:, None], _clumped_end_ts[:, None]), axis=1)
+        return np.column_stack((_clumped_start_ts, _clumped_end_ts))
 
     def lightcurve(self, energy_ranges=None, axes=None, rebin_time=1):
         """ Creates a RHESSI lightcurve.
@@ -1129,7 +879,7 @@ class RhessiLoader(InstrumentBlueprint):
 
         """
         # just make sure we have a list of lists for the energy ranges
-        if type(energy_ranges) == type(None):
+        if energy_ranges is None:
             energy_ranges = [[self._loaded_spec_data["count_channel_bins"][0, 0], self._loaded_spec_data["count_channel_bins"][-1, -1]]]
         elif len(np.shape(energy_ranges)) == 1:
             energy_ranges = [energy_ranges]
@@ -1137,54 +887,58 @@ class RhessiLoader(InstrumentBlueprint):
             print("The `energy_ranges` input should be a range of two energy values (e.g., [4,8] meaning 4-8 keV inclusive) or a list of these ranges.")
             return
 
-        ax = axes if type(axes) != type(None) else plt.gca()
-        _def_fs = plt.rcParams['font.size']
+        ax = axes or plt.gca()
+        font_size = plt.rcParams['font.size']
 
-        _lcs, _lcs_err = [], []
-        _times = self._time_bins_perspec
-        _times = self._rebin_ts(_times, rebin_time) if type(rebin_time) == int and rebin_time > 1 else _times
-        _ts = self._atimes2mdates(_times.flatten())
+        orig_bins = self._spectrum['time_bins']
+        flat_times = Time(np.concatenate((orig_bins[:, 0], [orig_bins[-1, -1]])))
+
+        if rebin_time > 1:
+            flat_times = self._rebin_ts(flat_times, rebin_time)
+        time_mids = flat_times[:-1] + (flat_times[1:] - flat_times[:-1])/2
 
         # plot each energy range
+        time_binning = (flat_times[1:] - flat_times[:-1]).to_value('s')
         for er in energy_ranges:
             i = np.where((self._loaded_spec_data["count_channel_bins"][:, 0] >= er[0]) & (self._loaded_spec_data["count_channel_bins"][:, -1] <= er[-1]))
-            time_binning = np.array([dt.to_value("s") for dt in np.diff(self._time_bins_perspec).flatten()])
-            e_range_cts = np.sum(self._counts_perspec[:, i].reshape((len(time_binning), -1)), axis=1)
+            e_range_cts = np.sum(self._spectrum['counts'][:, i].reshape((len(time_binning), -1)), axis=1)
 
-            if type(rebin_time) == int and rebin_time > 1:
+            if rebin_time > 1:
                 e_range_cts = self._rebin_lc(e_range_cts, rebin_time)
                 time_binning = self._rebin_lc(time_binning, rebin_time)
 
             e_range_ctr, e_range_ctr_err = e_range_cts/time_binning, np.sqrt(e_range_cts)/time_binning
-            lc = np.concatenate((e_range_ctr[:, None], e_range_ctr[:, None]), axis=1).flatten()
-            _lcs.append(lc)
-            _lcs_err.append(e_range_ctr_err)
-            _p = ax.plot(_ts, lc, label=f"{er[0]}$-${er[-1]} keV")  # incase of uncommon time binning just plot cts/s per bin edge
-            ax.errorbar(np.mean(np.reshape(_ts, (int(len(_ts)/2), -1)), axis=1), e_range_ctr, yerr=e_range_ctr_err, c=_p[0].get_color(), ls="")  # error bar in middle of the bin
+            lc = e_range_ctr
+            p = ax.stairs(lc, flat_times.datetime, label=f"{er[0]}$-${er[-1]} keV")
+            ax.errorbar(
+                x=time_mids.datetime,
+                y=e_range_ctr,
+                yerr=e_range_ctr_err,
+                c=p.get_edgecolor(),
+                ls=""
+            )  # error bar in middle of the bin
 
         fmt = mdates.DateFormatter('%H:%M')
         ax.xaxis.set_major_formatter(fmt)
         ax.xaxis.set_major_locator(self._mdates_minute_locator())
 
         ax.set_yscale("log")
-        ax.set_xlabel(f"Time (Start Time: {self._full_obs_time[0]})")
+        ax.set_xlabel(f"Time (Start Time: {self.start_data_time})")
         ax.set_ylabel("Counts s$^{-1}$")
 
-        ax.set_title(self._instrument()+"Lightcurve")
-        plt.legend(fontsize=_def_fs-5)
+        ax.set_title("RHESSI Lightcurve")
+        plt.legend(fontsize=font_size-5)
 
         # plot background time range if there is one
         _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95  # stop region label overlapping axis spine
-        if hasattr(self, "_start_background_time") and (type(self._start_background_time) != type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time) != type(None)):
-            ax.axvspan(*self._atimes2mdates([self._start_background_time, self._end_background_time]), alpha=0.1, color='orange')
-            ax.annotate("BG", (self._atimes2mdates([self._start_background_time])[0], _y_pos), color='orange', va="top", size=_def_fs-2)
+        if (self._start_background_time is not None) and (self._end_background_time is not None):
+            ax.axvspan(*Time([self._start_background_time, self._end_background_time]).datetime, alpha=0.1, color='orange')
+            ax.annotate("BG", (self._start_background_time.datetime, _y_pos), color='orange', va="top", size=font_size-2)
 
         # plot event time range
         if hasattr(self, "_start_event_time") and hasattr(self, "_end_event_time"):
-            ax.axvspan(*self._atimes2mdates([self._start_event_time, self._end_event_time]), alpha=0.1, color='purple')
-            ax.annotate("Evt", (self._atimes2mdates([self._start_event_time])[0], _y_pos), color='purple', va="top", size=_def_fs-2)
-
-        self._lightcurve_data = {"mdtimes": _ts, "lightcurves": _lcs, "lightcurve_error": _lcs_err, "energy_ranges": energy_ranges}
+            ax.axvspan(self._start_event_time.datetime, self._end_event_time.datetime, alpha=0.1, color='purple')
+            ax.annotate("Evt", (self._start_event_time.datetime, _y_pos), color='purple', va="top", size=font_size-2)
 
         return ax
 
@@ -1235,68 +989,64 @@ class RhessiLoader(InstrumentBlueprint):
         plt.show()
 
         """
-
-        ax = axes if type(axes) != type(None) else plt.gca()
-
-        _cmap = "plasma" if "cmap" not in kwargs else kwargs["cmap"]
-        kwargs.pop("cmap", None)
-        _aspect = "auto" if "aspect" not in kwargs else kwargs["aspect"]
-        kwargs.pop("aspect", None)
+        ax = axes or plt.gca()
 
         _def_fs = plt.rcParams['font.size']
 
         # get cts/s, and times and energy bin ranges
-        time_binning = np.array([dt.to_value("s") for dt in np.diff(self._time_bins_perspec).flatten()])
-        e_range_cts = self._counts_perspec
-        _times = self._time_bins_perspec
+        time_binning = np.array([dt.to_value("s") for dt in np.diff(self._spectrum['time_bins']).flatten()])
+        e_range_cts = self._spectrum['counts']
+        t = Time(np.concatenate((self._spectrum['time_bins'][:, 0], [self._spectrum['time_bins'][-1, -1]])))
 
         # check if the times are being rebinned
-        if type(rebin_time) == int and rebin_time > 1:
+        if rebin_time > 1:
             e_range_cts = self._rebin_lc(e_range_cts, rebin_time)
             time_binning = self._rebin_lc(time_binning, rebin_time)
-            _times = self._rebin_ts(_times, rebin_time)
+            t = self._rebin_ts(t, rebin_time)
 
-        _cts_rate = e_range_cts/time_binning[:, None]
-        _e_bins = self._loaded_spec_data["count_channel_bins"]
+        cts_rate = e_range_cts / time_binning[:, None]
+        ebins = self._loaded_spec_data["count_channel_bins"]
 
         # rebin the energies if needed
-        if type(rebin_energy) == int and rebin_energy > 1:
-            _cts_rate = self._rebin_lc(_cts_rate.T, rebin_energy).T
-            _e_bins = self._rebin_ts(self._loaded_spec_data["count_channel_bins"], rebin_energy)
+        if rebin_energy > 1:
+            cts_rate = self._rebin_lc(cts_rate.T, rebin_energy).T
+            ebins = self._rebin_ts(ebins, rebin_energy)
+
+        ebins = np.unique(ebins.flatten())
 
         # check if the time bins need combined
-        _t = self._atimes2mdates(_times.flatten())
+        t = t.datetime
 
         # plot spectrogram
-        etop = _e_bins[-1][-1]
-        _ext = [_t[0], _t[-1], _e_bins[0][0], etop]
-        _spect = _cts_rate.T
-        ax.imshow(_spect, origin="lower", extent=_ext, aspect=_aspect, cmap=_cmap, **kwargs)
+        spect = cts_rate.T
+        opts = {'cmap': 'plasma'}
+        opts.update(kwargs)
+        ax.pcolormesh(t, ebins, spect, **opts)
 
         fmt = mdates.DateFormatter('%H:%M')
         ax.xaxis.set_major_formatter(fmt)
         ax.xaxis.set_major_locator(self._mdates_minute_locator())
 
-        ax.set_xlabel(f"Time (Start Time: {self._full_obs_time[0]})")
+        ax.set_xlabel(f"Time (Start Time: {self._start_event_time})")
         ax.set_ylabel("Energy [keV]")
 
-        ax.set_title(self._instrument()+"Spectrogram [Counts s$^{-1}$]")
+        ax.set_title("RHESSI Spectrogram [Counts s$^{-1}$]")
 
         # change event and background start and end times from astropy dates to matplotlib dates
-        start_evt_time, end_evt_time, start_bg_time, end_bg_time = self._atimes2mdates([self._start_event_time, self._end_event_time, self._start_background_time, self._end_background_time])
+        start_evt_time, end_evt_time, start_bg_time, end_bg_time = Time(
+            [self._start_event_time, self._end_event_time, self._start_background_time, self._end_background_time]
+        ).datetime
 
         # plot background time range if there is one
         _y_pos = ax.get_ylim()[0] + (ax.get_ylim()[1]-ax.get_ylim()[0])*0.95  # stop region label overlapping axis spine
-        if hasattr(self, "_start_background_time") and (type(self._start_background_time) != type(None)) and hasattr(self, "_end_background_time") and (type(self._end_background_time) != type(None)):
+        etop = ebins.max()
+        if (self._start_background_time is not None) and (self._end_background_time is not None):
             ax.hlines(y=etop, xmin=start_bg_time, xmax=end_bg_time, alpha=0.9, color='orange', capstyle='butt', lw=10)
             ax.annotate("BG", (start_bg_time, _y_pos), color='orange', va="top", size=_def_fs-2)
 
         # plot event time range
-        if hasattr(self, "_start_event_time") and hasattr(self, "_end_event_time"):
-            ax.hlines(y=etop, xmin=start_evt_time, xmax=end_evt_time, alpha=0.9, color='#F37AFF', capstyle='butt', lw=10)
-            ax.annotate("Evt", (start_evt_time, _y_pos), color='#F37AFF', va="top", size=_def_fs-2)
-
-        self._spectrogram_data = {"spectrogram": _spect, "extent": _ext}
+        ax.hlines(y=etop, xmin=start_evt_time, xmax=end_evt_time, alpha=0.9, color='#F37AFF', capstyle='butt', lw=10)
+        ax.annotate("Evt", (start_evt_time, _y_pos), color='#F37AFF', va="top", size=_def_fs-2)
 
         return ax
 
@@ -1338,82 +1088,6 @@ class RhessiLoader(InstrumentBlueprint):
             self.start_background_time, self.end_background_time = start, end
         else:
             self.start_event_time, self.end_event_time = start, end
-
-        self.__warn = True
-
-
-# STIX data is pretty much the same as RHESSI so can startwith all the same code then customise
-class StixLoader(RhessiLoader):
-    """
-    Loader specifically for STIX spectral data.
-
-    StixLoader Specifics
-    --------------------
-    Inherit directly from the RHESSI loader instead of the usual InstrumentBlueprint class. This
-    will mean the all the methods that can be applied to RHESSI data can be applied to STIX too.
-
-    At the moment, please see `RhessiLoader` for more information.
-
-    Superclass Override:
-
-    Properties
-    ----------
-
-    Setters
-    -------
-
-    Methods
-    -------
-
-    Attributes
-    ----------
-    """
-    # can I do this RhessiLoader.__doc__.replace("RHESSI", "STIX")?
-    __doc__ += InstrumentBlueprint._UNIVERSAL_DOC_
-
-    def __init__(self, pha_file, arf_file=None, rmf_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
-        """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
-        RhessiLoader.__init__(self, pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_custom=srm_custom, custom_channel_bins=custom_channel_bins, **kwargs)
-
-        self._construction_string = f"StixLoader(pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},**{kwargs})"
-
-    def _getspec(self, f_pha):
-        """ Load in STIX spectral data.
-
-        Overrides `RhessiLoader` Superclass `_getspec` and gets called by `_load1spec` method.
-
-        Parameters
-        ----------
-        f_pha : str
-                String for the STIX spectral file under investigation.
-
-        Returns
-        -------
-        A 2d array of the channel bin edges (channel_bins), 2d array of the channel bins (channel_bins_inds),
-        2d array of the time bins for each spectrum (time_bins), 2d array of livetimes/counts/count rates/count
-        rate errors per channel bin and spectrum (lvt/counts/cts_rates/cts_rate_err, respectively).
-        """
-        return stix_spec._get_spec_file_info(f_pha)
-
-    def _getsrm(self, f_srm):
-        """ Return all STIX SRM data needed for fitting.
-
-        SRM units returned as counts ph^(-1) cm^(2).
-
-        Overrides `RhessiLoader` Superclass `_getsrm` and gets called by `_load1spec` method.
-
-        Parameters
-        ----------
-        f_srm : str
-                String for the STIX SRM spectral file under investigation.
-
-        Returns
-        -------
-        A 2d array of the photon and channel bin edges (photon_bins, channel_bins), number of sub-set channels
-        in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
-        sub-set (nchan), 2d array that is the spectral response (srm).
-        """
-        return stix_spec._get_srm_file_info(f_srm)
 
 
 class CustomLoader(InstrumentBlueprint):

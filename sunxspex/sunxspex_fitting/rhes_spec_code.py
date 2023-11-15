@@ -4,6 +4,7 @@ The following code is used to make SRM/counts data in consistent units from RHES
 
 import numpy as np
 
+from astropy.io import fits
 from astropy import units as u
 from astropy.time import Time, TimeDelta
 import astropy.table as atab
@@ -13,57 +14,93 @@ from . import io
 __all__ = ["_get_spec_file_info", "_spec_file_units_check", "_get_srm_file_info"]
 
 
-def _get_spec_file_info(spec_file):
+def load_spectrum(spec_fn: str):
     """ Return all RHESSI data needed for fitting.
 
     Parameters
     ----------
-    spec_file : str
+    spec_fn : str
             String for the RHESSI spectral file under investigation.
 
     Returns
     -------
-    A 2d array of the channel bin edges (channel_bins), 2d array of the channel bins (channel_bins_inds),
-    2d array of the time bins for each spectrum (time_bins), 2d array of livetimes/counts/count rates/count
-    rate errors per channel bin and spectrum (lvt/counts/cts_rates/cts_rate_err, respectively).
+    `dict` of:
+        - A 2d array of the channel bin edges (channel_bins),
+        - 2d array of the time bins for each spectrum (time_bins),
+        - 2d array of livetimes/counts/count rates/count rate errors per
+          channel bin and spectrum (lvt/counts/cts_rates/cts_rate_err, respectively).
     """
-    rdict = io._read_rhessi_spec_file(spec_file)
+    with fits.open(spec_fn) as spec:
+        rate_dat = spec['RATE']
+        if rate_dat.header["SUMFLAG"] != 1:
+            raise ValueError("Cannot perform spectroscopy on un-summed RHESSI data.")
 
-    if rdict["1"][0]["SUMFLAG"] != 1:
-        raise ValueError("Apparently spectrum file\'s `SUMFLAG` should be one and I don\'t know what to do otherwise at the moment.")
+        # Note that for rate, the units are per detector, i.e. counts sec-1 detector-1.
+        # https://hesperia.gsfc.nasa.gov/rhessi3/software/spectroscopy/spectrum-software/index.html
 
-    # Note that for rate, the units are per detector, i.e. counts sec-1 detector-1. https://hesperia.gsfc.nasa.gov/rhessi3/software/spectroscopy/spectrum-software/index.html
-    # -> I tnhink this is the default but false for the first simple case I tried. I think sum_flag=1 sums the detectors up for spectra and srm
+        # livetimes, (rows,columns) -> (times, channels)
+        lvt = rate_dat.data["LIVETIME"]
+        # times of spectra, entries -> times. Times from start of the day of "DATE_OBS";
+        # e.g.,"DATE_OBS"='2002-10-05T10:38:00.000' then times measured from '2002-10-05T00:00:00.000'
+        start_time = Time(rate_dat.header['DATE_OBS'], format='isot', scale='utc')
+        bin_starts = TimeDelta(rate_dat.data["TIME"], format='sec')
+        bin_starts -= bin_starts[0]
+        time_deltas = TimeDelta(rate_dat.data["TIMEDEL"], format='sec')
 
-    channel_bins_inds = rdict["1"][1]["CHANNEL"]  # channel numbers, (rows,columns) -> (times, channels)
-    lvt = rdict["1"][1]["LIVETIME"]  # livetimes, (rows,columns) -> (times, channels)
-    times_s = rdict["1"][1]["TIME"]  # times of spectra, entries -> times. Times from start of the day of "DATE_OBS"; e.g.,"DATE_OBS"='2002-10-05T10:38:00.000' then times measured from '2002-10-05T00:00:00.000'
-    time_deltas = rdict["1"][1]["TIMEDEL"]  # times deltas of spectra, entries -> times
-    # spectrum number in the file, entries -> times # spec_num = rdict["1"][1]["SPEC_NUM"]
+        spec_stimes = start_time + bin_starts
+        spec_etimes = spec_stimes + time_deltas
+        time_bins = np.column_stack((spec_stimes, spec_etimes))
 
-    td = times_s-times_s[0]
-    spec_stimes = [Time(rdict["0"][0]["DATE_OBS"], format='isot', scale='utc')+TimeDelta(dt * u.s) for dt in td]
-    spec_etimes = [st+TimeDelta(dt * u.s) for st, dt in zip(spec_stimes, time_deltas)]
-    time_bins = np.concatenate((np.array(spec_stimes)[:, None], np.array(spec_etimes)[:, None]), axis=1)
+        channels = spec['ENEBAND'].data
+        channel_bins = np.column_stack((channels['E_MIN'], channels['E_MAX']))
 
-    channels = rdict["2"][1]  # [(chan, lowE, hiE), ...], rdict["2"][0] has units etc.
-    channel_bins = np.concatenate((np.array(channels['E_MIN'])[:, None], np.array(channels['E_MAX'])[:, None]), axis=1)
+        # get counts [counts], count rate [counts/s], and error on count rate
+        counts, counts_err, cts_rates, cts_rate_err = _spec_file_units_check(
+            hdu=spec['RATE'],
+            livetimes=lvt,
+            time_dels=time_deltas.to_value(u.s),
+            kev_binning=channel_bins
+        )
 
-    # get counts [counts], count rate [counts/s], and error on count rate
-    counts, counts_err, cts_rates, cts_rate_err = _spec_file_units_check(rhessi_dict=rdict, livetimes=lvt, time_dels=time_deltas, kev_binning=channel_bins)
+        attenuator_state_info = _extract_attenunator_info(
+            spec['HESSI Spectral Object Parameters']
+        )
 
-    return channel_bins, channel_bins_inds, time_bins, lvt, counts, counts_err, cts_rates, cts_rate_err
+    return dict(
+        channel_bins=channel_bins,
+        time_bins=time_bins,
+        livetime=lvt,
+        counts=counts,
+        counts_err=counts_err,
+        count_rate=cts_rates,
+        count_rate_error=cts_rate_err,
+        attenuator_state_info=attenuator_state_info
+    )
 
 
-def _spec_file_units_check(rhessi_dict, livetimes, time_dels, kev_binning):
+def _extract_attenunator_info(att_dat) -> dict[str, list]:
+    '''Pull out attenuator states and times'''
+    # hack for now: swap the UNIX year with the date_obs year
+    # they don't match (???)
+    # waiting on reply from Kim Tolbert
+    obs_year = Time(att_dat.header['DATE_OBS']).datetime.year
+    dtimes = Time(att_dat.data['SP_ATTEN_STATE$$TIME'], format='unix').datetime[0]
+    dtimes = [dt.replace(year=obs_year) for dt in dtimes]
+    return {
+        'change_times': Time(dtimes, format='datetime'),
+        'states': list(*att_dat.data['SP_ATTEN_STATE$$STATE'])
+    }
+
+
+def _spec_file_units_check(hdu, livetimes, time_dels, kev_binning):
     """ Make sure RHESSI count data is in the correct units.
 
     This file is regularly saved out using different units.
 
     Parameters
     ----------
-    rhessi_dict : dict
-            Dictionary containing all RHESSI spectral file information.
+    hdu: astropy HDU
+            rhessi 'RATE' data
 
     livetimes : 2d array
             Fraction livetimes for each energy bin and each recorded spectrum.
@@ -80,63 +117,34 @@ def _spec_file_units_check(rhessi_dict, livetimes, time_dels, kev_binning):
     rate errors (counts, counts_err, cts_rates, cts_rate_err).
     """
     # rhessi can be saved out with counts, counts/sec, or counts/sec/cm^2/keV using counts, rate, or flux, respectively
-    if rhessi_dict["1"][0]["TTYPE1"] == "RATE":
-        cts_rates = rhessi_dict["1"][1]["RATE"]  # count rate for every time, (rows,columns) -> (times, channels) [counts/sec]
-        cts_rate_err = rhessi_dict["1"][1]["STAT_ERR"]  # errors, (rows,columns) -> (times, channels)
-        counts = cts_rates * livetimes * time_dels[:, None]
-        counts_err = cts_rate_err * livetimes * time_dels[:, None]
-    elif rhessi_dict["1"][0]["TTYPE1"] == "COUNTS":
-        # **** Not Tested ****
-        counts = rhessi_dict["1"][1]["COUNTS"]  # counts for every time, (rows,columns) -> (times, channels) [counts]
-        counts_err = rhessi_dict["1"][1]["STAT_ERR"]
-        cts_rates = counts / livetimes / time_dels[:, None]
-        cts_rate_err = np.sqrt(counts) / livetimes / time_dels[:, None]
-    elif rhessi_dict["1"][0]["TTYPE1"] == "FLUX":
-        # **** Not Tested ****
-        _flux = rhessi_dict["1"][1]["FLUX"]  # flux for every time, (rows,columns) -> (times, channels) [counts/sec/cm^2/keV]
-        cts_rates = _flux * rhessi_dict["1"][0]["GEOAREA"] * np.diff(kev_binning, axis=1).flatten()
-        cts_rate_err = rhessi_dict["1"][1]["STAT_ERR"] * rhessi_dict["1"][0]["GEOAREA"] * np.diff(kev_binning, axis=1).flatten()
-        counts = cts_rates * livetimes * time_dels[:, None]
-        counts_err = cts_rate_err * livetimes * time_dels[:, None]
-    else:
-        print("I don\'t know what units RHESSI has.")
+    if hdu.header["TTYPE1"] != "RATE":
+        raise ValueError("Only tested with units of 'RATE'."
+                         "Go back to OSPEX and save counts data as 'RATE'")
 
+    # count rate for every time, (rows,columns) -> (times, channels) [counts/sec]
+    cts_rates = hdu.data["RATE"]
+    # errors, (rows,columns) -> (times, channels)
+    cts_rate_err = hdu.data["STAT_ERR"]
+    counts = cts_rates * livetimes * time_dels[:, None]
+    counts_err = cts_rate_err * livetimes * time_dels[:, None]
     return counts, counts_err, cts_rates, cts_rate_err
 
 
-def elicit_srm(choice: str, hdu_list: list[dict[str, atab.QTable]]) -> atab.QTable:
-    choice_to_state = {
-        'no attenuator': 0,
-        'thin': 1,
-        'thick': 2, # almost never used
-        'both': 3
-    }
-    state_to_choice = {v: k for (k, v) in choice_to_state.items()}
-
-    try:
-        state = choice_to_state[choice]
-    except KeyError:
-        raise ValueError(
-            f'{choice} not valid srm option. Options are: {", ".join(choice_to_state.keys())}'
-        )
-
-    file_opts = []
+def srm_options_by_attenuator_state(hdu_list: list[dict[str, atab.QTable]]) -> dict[int, np.ndarray]:
+    ''' Enumerate all possible SRMs for RHESSI based on attenuator state'''
+    ret = dict()
     for hdu in hdu_list:
-        if (dat := hdu['data']) is None:
+        if hdu['data'] is None:
             continue
-        if 'MATRIX' not in dat.columns:
+        if 'MATRIX' not in hdu['data'].columns:
             continue
-        if hdu['header']['FILTER'] == state:
-            return hdu
-        file_opts.append(state_to_choice[hdu['header']['FILTER']])
+        state = hdu['header']['filter']
+        ret[state] = hdu
 
-    raise ValueError(
-        f'{choice} not valid srm option here. Options are: {", ".join(choice_to_state.keys())}.\n'
-        f'File has: {", ".join(file_opts)}'
-    )
+    return ret
 
 
-def _get_srm_file_info(srm_file, srm_choice: str=None):
+def load_srm(srm_file: str):
     """ Return all RHESSI SRM data needed for fitting.
 
     SRM units returned as counts ph^(-1) cm^(2).
@@ -148,31 +156,36 @@ def _get_srm_file_info(srm_file, srm_choice: str=None):
 
     Returns
     -------
-    A 2d array of the photon and channel bin edges (photon_bins, channel_bins), number of sub-set channels
-    in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
-    sub-set (nchan), 2d array that is the spectral response (srm).
+    Dict of relevant SRM data.
+    Notably returns all available SRM states from the given SRM .fits file.
     """
     srm_file_dat = io._read_rhessi_srm_file(srm_file)
 
     # handle attenuated responses and `None` simultaneously
-    srm_header_data = elicit_srm(srm_choice or 'no attenuator', srm_file_dat)
-    srm_hdu = srm_header_data['data']
-    srm_head = srm_header_data['header']
+    all_srms = srm_options_by_attenuator_state(srm_file_dat)
 
-    if srm_head['SUMFLAG'] != 1:
-        raise ValueError('SRM SUMFLAG must be 1 for RHESSI spectroscopy')
+    if not all(h['header']['SUMFLAG'] for h in all_srms.values()):
+        raise ValueError('SRM SUMFLAG\'s must be 1 for RHESSI spectroscopy')
 
-    low_photon_bins = srm_hdu['ENERG_LO']
-    high_photon_bins = srm_hdu['ENERG_HI']
+    sample_key = list(all_srms.keys())[0]
+    sample_srm = all_srms[sample_key]['data']
+    low_photon_bins = sample_srm['ENERG_LO']
+    high_photon_bins = sample_srm['ENERG_HI']
     photon_bins = np.column_stack((low_photon_bins, high_photon_bins)).to_value(u.keV)
 
-    srm = srm_hdu['MATRIX']
     geo_area = srm_file_dat[3]['data']['GEOM_AREA'].astype(float).sum()
 
     channels = srm_file_dat[2]['data']
     channel_bins = np.column_stack((channels['E_MIN'], channels['E_MAX'])).to_value(u.keV)
 
     # need srm units in counts ph^(-1) cm^(2)
-    srm = srm * np.diff(channel_bins, axis=1).flatten() * geo_area
+    ret_srms = {
+        state: srm['data']['MATRIX'].data * np.diff(channel_bins, axis=1).flatten() * geo_area
+        for (state, srm) in all_srms.items()
+    }
 
-    return photon_bins, channel_bins, srm
+    return dict(
+        channel_bins=channel_bins,
+        photon_bins=photon_bins,
+        srm_options=ret_srms
+    )

@@ -74,27 +74,6 @@ def _read_rmf(file):
     return data['energ_lo'], data['energ_hi'], data['n_grp'], data['f_chan'], data['n_chan'], data['matrix']
 
 
-def _read_rhessi_spec_file(spec_file):
-    """
-    Read RHESSI spectral fits file and extract useful information from it.
-
-    Parameters
-    ----------
-    spec_file :  `str`, `file-like` or `pathlib.Path`
-        A RHESSI spectral fits file (see `~astropy.fits.io.open` for details)
-
-    Returns
-    -------
-    `dict`
-        RHESSI spectrum data
-    """
-    ret = {}
-    with fits.open(spec_file) as hdul:
-        for i in range(4):
-            ret[str(i)] = [hdul[i].header, hdul[i].data]
-    return ret
-
-
 def _read_rhessi_srm_file(srm_file):
     """
     Read RHESSI SRM fits file and extract useful information from it.
