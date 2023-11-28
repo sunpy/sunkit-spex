@@ -1,0 +1,1 @@
+Rename ``sunxspex_fitting`` module to ``fitting``.

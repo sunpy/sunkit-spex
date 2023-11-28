@@ -8,8 +8,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from sunkit_spex.sunxspex_fitting import instruments as inst  # sunkit_spex.sunxspex_fitting.instruments
-from sunkit_spex.sunxspex_fitting.parameter_handler import (  # sunkit_spex.sunxspex_fitting.parameter_handler
+from sunkit_spex.fitting import instruments as inst  # sunkit_spex.fitting.instruments
+from sunkit_spex.fitting.parameter_handler import (  # sunkit_spex.fitting.parameter_handler
     _make_into_list,
     isnumber,
 )

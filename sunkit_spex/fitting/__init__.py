@@ -11,3 +11,4 @@ from . import (
     rhes_spec_code,
     stix_spec_code,
 )
+from .fitter import Fitter
