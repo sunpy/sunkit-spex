@@ -4753,7 +4753,7 @@ def _func_self_contained_check(function_name, function_text):
     """
     exec(function_text, globals())
     params, _ = get_func_inputs(globals()[function_name])
-    _test_e_range = np.arange(1.6, 5.01, 0.04)[:, None]
+    _test_e_range = np.arange(1.6, 25.01, 0.04)[:, None]
     _test_params, _test_energies = np.ones(len(params)), np.concatenate((_test_e_range[:-1], _test_e_range[1:]), axis=1)  # one 5 for each param, 2 column array of e-bins
     try:
         _func_to_test = globals()[function_name]
