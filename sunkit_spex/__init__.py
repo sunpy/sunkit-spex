@@ -4,4 +4,4 @@
 from .version import __version__
 
 __all__ = []
-from . import io, sunxspex_fitting, thermal
+from . import io, fitter_legacy, thermal
