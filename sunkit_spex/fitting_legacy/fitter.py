@@ -270,7 +270,7 @@ class Fitter:
             Colour cycle to be used when plotting submodels.
             Default = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
-    _construction_string_sunxspex : str
+    _construction_string_sunkit_spex : str
             String to be returned from __repr__() dunder method.
 
     _corresponding_submod_inputs : list of strings
@@ -401,7 +401,7 @@ class Fitter:
         self.data = LoadSpec(*args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
                              custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
 
-        self._construction_string_sunxspex = (f"Fitter({args}, pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, srm_file={srm_file}, "
+        self._construction_string_sunkit_spex = (f"Fitter({args}, pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, srm_file={srm_file}, "
                                               f"srm_custom={srm_custom}, custom_channel_bins={custom_channel_bins}, custom_photon_bins={custom_photon_bins}, **{kwargs})")
 
         self.loglikelihood = "cstat"
@@ -4685,7 +4685,7 @@ class Fitter:
 
     def __repr__(self):
         """Provide a representation to construct the class from scratch."""
-        return self._construction_string_sunxspex
+        return self._construction_string_sunkit_spex
 
     def __str__(self):
         """Provide a printable, user friendly representation of what the class contains."""
