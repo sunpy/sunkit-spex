@@ -35,7 +35,6 @@ from scipy.optimize import minimize
 
 from astropy.table import Table
 
-from sunkit_spex.logging import get_logger
 from sunkit_spex.fitter_legacy.data_loader import LoadSpec
 from sunkit_spex.fitter_legacy.instruments import rebin_any_array
 from sunkit_spex.fitter_legacy.likelihoods import LogLikelihoods
@@ -47,6 +46,7 @@ from sunkit_spex.fitter_legacy.photon_models_for_fitting import (  # noqa
     thick_warm,
 )
 from sunkit_spex.fitter_legacy.rainbow_text import rainbow_text_lines
+from sunkit_spex.logging import get_logger
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
