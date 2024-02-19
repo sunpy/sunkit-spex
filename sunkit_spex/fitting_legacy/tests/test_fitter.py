@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from sunkit_spex.fitter_legacy.fitter import Fitter
-from sunkit_spex.fitter_legacy.instruments import CustomLoader, InstrumentBlueprint
+from sunkit_spex.fitting_legacy.fitter import Fitter
+from sunkit_spex.fitting_legacy.instruments import CustomLoader, InstrumentBlueprint
 
 rng = np.random.default_rng(2022)
 

@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from sunkit_spex.fitter_legacy.io import (
+from sunkit_spex.fitting_legacy.io import (
     _read_arf,
     _read_pha,
     _read_rhessi_spec_file,

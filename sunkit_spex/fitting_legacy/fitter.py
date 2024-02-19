@@ -35,17 +35,17 @@ from scipy.optimize import minimize
 
 from astropy.table import Table
 
-from sunkit_spex.fitter_legacy.data_loader import LoadSpec
-from sunkit_spex.fitter_legacy.instruments import rebin_any_array
-from sunkit_spex.fitter_legacy.likelihoods import LogLikelihoods
-from sunkit_spex.fitter_legacy.parameter_handler import Parameters, isnumber
-from sunkit_spex.fitter_legacy.photon_models_for_fitting import (  # noqa
+from sunkit_spex.fitting_legacy.data_loader import LoadSpec
+from sunkit_spex.fitting_legacy.instruments import rebin_any_array
+from sunkit_spex.fitting_legacy.likelihoods import LogLikelihoods
+from sunkit_spex.fitting_legacy.parameter_handler import Parameters, isnumber
+from sunkit_spex.fitting_legacy.photon_models_for_fitting import (  # noqa
     defined_photon_models,
     f_vth,
     thick_fn,
     thick_warm,
 )
-from sunkit_spex.fitter_legacy.rainbow_text import rainbow_text_lines
+from sunkit_spex.fitting_legacy.rainbow_text import rainbow_text_lines
 from sunkit_spex.logging import get_logger
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -66,7 +66,7 @@ class Fitter:
     Parameters
     ----------
     *args : dict
-            Dictionaries for custom data to be passed to `sunkit_spex.fitter_legacy.instruments.CustomLoader`.
+            Dictionaries for custom data to be passed to `sunkit_spex.fitting_legacy.instruments.CustomLoader`.
             These will be added before any instrument file entries from `pha_file`.
 
     pha_file : string or list of strings
@@ -778,7 +778,7 @@ class Fitter:
             logger.indo(f"Model {function_name} removed.")
         else:
             logger.warning(
-                "Default models imported from sunkit_spex.fitter_legacy.photon_models_for_fitting are protected.")
+                "Default models imported from sunkit_spex.fitting_legacy.photon_models_for_fitting are protected.")
 
     def add_var(self, overwrite=False, quiet=False, **user_kwarg):
         """ Add user variable to fitting namespace.
