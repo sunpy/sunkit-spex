@@ -74,7 +74,3 @@ workflows:
   test-documentation:
     jobs:
       - html-docs
-
-notify:
-  webhooks:
-    - url: https://giles.cadair.dev/circleci
