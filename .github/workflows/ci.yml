@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+
+jobs:
+  core:
+    uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@main
+    with:
+      submodules: false
+      coverage: codecov
+      envs: |
+        - linux: py39
+
+  test:
+    needs: [core]
+    uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@main
+    with:
+      submodules: false
+      coverage: codecov
+      envs: |
+        - windows: py39
+        - macos: py39
+    secrets:
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  docs:
+      needs: [test]
+      uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@main
+      with:
+        default_python: '3.9'
+        submodules: false
+        pytest: false
+        libraries: |
+          apt:
+            - graphviz
+        envs: |
+          - linux: build_docs

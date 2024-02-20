@@ -650,7 +650,7 @@ class Fitter:
         self.rParams["Status"], self.rParams["Value"], self.rParams["Bounds"], self.rParams["Error"] = list(_rps.param_status), list(_rps.param_value), list(_rps.param_bounds), list(_rps.param_error)
 
     def add_photon_model(self, function, overwrite=False):
-        """ Add user photon model to fitting namespace.
+        r"""Add user photon model to fitting namespace.
 
         Takes a user defined function intended to be used as a model or model component when
         giving a
@@ -3277,7 +3277,7 @@ class Fitter:
         res.axhline(0, linestyle=':', color='k')
         res.set_ylim(self.res_ylim)
         # res.set_ylabel('(y$_{Data}$ - y$_{Model}$)/$\sigma_{Error}$')
-        res.set_ylabel('($D - M$)/$\sigma$')
+        res.set_ylabel(r'($D - M$)/$\sigma$')
         res.set_xlim(self.plot_xlims)
         res.set_xlabel("Energy [keV]")
 
@@ -3458,7 +3458,7 @@ class Fitter:
             res.axhline(0, linestyle=':', color='k')
             res.set_ylim(self.res_ylim)
             # res.set_ylabel('(y$_{Data}$ - y$_{Model}$)/$\sigma_{Error}$')
-            res.set_ylabel('($D - M$)/$\sigma$')
+            res.set_ylabel(r'($D - M$)/$\sigma$')
             res.set_xlim(self.plot_xlims)
             res.set_xlabel("Energy [keV]")
 
