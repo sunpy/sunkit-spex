@@ -402,7 +402,7 @@ class Fitter:
                              custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
 
         self._construction_string_sunkit_spex = (f"Fitter({args}, pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, srm_file={srm_file}, "
-                                              f"srm_custom={srm_custom}, custom_channel_bins={custom_channel_bins}, custom_photon_bins={custom_photon_bins}, **{kwargs})")
+                                                 f"srm_custom={srm_custom}, custom_channel_bins={custom_channel_bins}, custom_photon_bins={custom_photon_bins}, **{kwargs})")
 
         self.loglikelihood = "cstat"
 
