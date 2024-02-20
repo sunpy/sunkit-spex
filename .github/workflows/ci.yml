@@ -12,8 +12,6 @@ jobs:
     with:
       submodules: false
       coverage: codecov
-      toxdeps: tox-pypi-filter
-      posargs: -n auto
       envs: |
         - linux: py39
 
@@ -23,7 +21,6 @@ jobs:
     with:
       submodules: false
       coverage: codecov
-      toxdeps: tox-pypi-filter
       envs: |
         - windows: py39
         - macos: py39
