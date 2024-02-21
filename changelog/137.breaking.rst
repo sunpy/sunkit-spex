@@ -1,0 +1,1 @@
+Renamed `sunxspex_fitting` module to `fitting_legacy` and added a new `fitting` module.

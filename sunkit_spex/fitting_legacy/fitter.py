@@ -35,18 +35,18 @@ from scipy.optimize import minimize
 
 from astropy.table import Table
 
-from sunkit_spex.logging import get_logger
-from sunkit_spex.sunxspex_fitting.data_loader import LoadSpec
-from sunkit_spex.sunxspex_fitting.instruments import rebin_any_array
-from sunkit_spex.sunxspex_fitting.likelihoods import LogLikelihoods
-from sunkit_spex.sunxspex_fitting.parameter_handler import Parameters, isnumber
-from sunkit_spex.sunxspex_fitting.photon_models_for_fitting import (  # noqa
+from sunkit_spex.fitting_legacy.data_loader import LoadSpec
+from sunkit_spex.fitting_legacy.instruments import rebin_any_array
+from sunkit_spex.fitting_legacy.likelihoods import LogLikelihoods
+from sunkit_spex.fitting_legacy.parameter_handler import Parameters, isnumber
+from sunkit_spex.fitting_legacy.photon_models_for_fitting import (  # noqa
     defined_photon_models,
     f_vth,
     thick_fn,
     thick_warm,
 )
-from sunkit_spex.sunxspex_fitting.rainbow_text import rainbow_text_lines
+from sunkit_spex.fitting_legacy.rainbow_text import rainbow_text_lines
+from sunkit_spex.logging import get_logger
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
@@ -66,7 +66,7 @@ class Fitter:
     Parameters
     ----------
     *args : dict
-            Dictionaries for custom data to be passed to `sunkit_spex.sunxspex_fitting.instruments.CustomLoader`.
+            Dictionaries for custom data to be passed to `sunkit_spex.fitting_legacy.instruments.CustomLoader`.
             These will be added before any instrument file entries from `pha_file`.
 
     pha_file : string or list of strings
@@ -270,7 +270,7 @@ class Fitter:
             Colour cycle to be used when plotting submodels.
             Default = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
-    _construction_string_sunxspex : str
+    _construction_string_sunkit_spex : str
             String to be returned from __repr__() dunder method.
 
     _corresponding_submod_inputs : list of strings
@@ -401,8 +401,8 @@ class Fitter:
         self.data = LoadSpec(*args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
                              custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
 
-        self._construction_string_sunxspex = (f"Fitter({args}, pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, srm_file={srm_file}, "
-                                              f"srm_custom={srm_custom}, custom_channel_bins={custom_channel_bins}, custom_photon_bins={custom_photon_bins}, **{kwargs})")
+        self._construction_string_sunkit_spex = (f"Fitter({args}, pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, srm_file={srm_file}, "
+                                                 f"srm_custom={srm_custom}, custom_channel_bins={custom_channel_bins}, custom_photon_bins={custom_photon_bins}, **{kwargs})")
 
         self.loglikelihood = "cstat"
 
@@ -778,7 +778,7 @@ class Fitter:
             logger.indo(f"Model {function_name} removed.")
         else:
             logger.warning(
-                "Default models imported from sunkit_spex.sunxspex_fitting.photon_models_for_fitting are protected.")
+                "Default models imported from sunkit_spex.fitting_legacy.photon_models_for_fitting are protected.")
 
     def add_var(self, overwrite=False, quiet=False, **user_kwarg):
         """ Add user variable to fitting namespace.
@@ -4685,7 +4685,7 @@ class Fitter:
 
     def __repr__(self):
         """Provide a representation to construct the class from scratch."""
-        return self._construction_string_sunxspex
+        return self._construction_string_sunkit_spex
 
     def __str__(self):
         """Provide a printable, user friendly representation of what the class contains."""
