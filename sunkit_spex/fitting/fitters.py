@@ -77,7 +77,7 @@ class MonteCarloChi2Fitter(Fitter):
         # Give emcee the shape of parameters it expects
         initial = np.tile(
             no_units, nwalkers
-        ).reshape(nwalkers, ndim) * np.random.random(size=8).reshape(nwalkers, ndim)
+        ).reshape(nwalkers, ndim)
         initial *= np.random.random(size=ndim*nwalkers).reshape(nwalkers, ndim)
         self.emcee_sampler.run_mcmc(initial, num_steps)
 
