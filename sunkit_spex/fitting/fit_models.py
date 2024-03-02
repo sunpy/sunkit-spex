@@ -2,8 +2,42 @@ from collections import OrderedDict
 
 import astropy.units as u
 import numpy as np
+from sunkit_spex import emission
+import scipy.stats as st
 
 RATE_UNIT = u.ph / u.cm**2 / u.s / u.keV
+
+class ModelParameter:
+    def __init__(self, initial: u.Quantity):
+        self._value = initial
+        self.frozen = False
+        self.set_bounds(-np.inf, np.inf)
+
+    @property
+    def value(self) -> u.Quantity:
+        return self._value
+
+    @value.setter
+    def value(self, new: u.Quantity) -> None:
+        if self.frozen: return
+        self._value = (new << self._value.unit)
+
+    def evaluate_prior_logpdf(self):
+        return np.nan_to_num(self.prior_distribution.logpdf(
+            self._value.value
+        ))
+
+    def set_bounds(self, a: u.Quantity, b: u.Quantity):
+        ''' convenience wrapper if user wants to just put bounds on param '''
+        unit = self._value.unit
+        self.prior_distribution = st.uniform(
+            loc=(a << unit).value,
+            scale=((b - a) << unit).value
+        )
+
+    def __repr__(self):
+        return f'ModelParameter<{self._value} | {self.prior_distribution}>'
+
 
 class PhotonModel:
     '''
@@ -14,24 +48,16 @@ class PhotonModel:
         self.name = kwargs.pop('name', 'Photon model')
         for name, quant in kwargs.items():
             assert isinstance(quant, u.Quantity)
-            setattr(self, f'_{name}', quant)
-            self._create_property(name)
+            setattr(self, name, ModelParameter(quant))
 
-    def _create_property(self, name: str) -> None:
-        def getter(self):
-            return getattr(self, f'_{name}')
-
-        def setter(self, value):
-            setattr(self, f'_{name}', value << getattr(self, f'_{name}').unit)
-
-        setattr(self.__class__, name, property(getter, setter))
-
-    def current_parameters(self) -> tuple[u.Quantity]:
+    def update_parameters(self, *params):
         raise NotImplementedError
 
-    def update_parameters(self, *new_params) -> None:
+    def evaluate(self, *_):
         raise NotImplementedError
-        _ = new_params
+
+    def current_parameters(self) -> OrderedDict[str, ModelParameter]:
+        raise NotImplemented
 
 
 class Line(PhotonModel):
@@ -46,15 +72,56 @@ class Line(PhotonModel):
         )
 
     @u.quantity_input
-    def evaluate(self, photon_bins: u.keV) -> RATE_UNIT:
+    def evaluate(self, photon_bins: u.keV) -> RATE_UNIT: #type: ignore
         midpoints = photon_bins[:-1] + np.diff(photon_bins)/2
-        return self.intercept + self.slope*midpoints
+        return self.intercept.value + self.slope.value*midpoints
 
     def current_parameters(self):
-        return OrderedDict({'slope': self.slope, 'intercept': self.intercept})
+        return OrderedDict({
+            'slope': self.slope, 'intercept': self.intercept
+        })
 
     def update_parameters(self, new_slope, new_intercept):
-        self.slope = new_slope
-        self.intercept = new_intercept
+        self.slope.value = new_slope
+        self.intercept.value = new_intercept
 
-# Add more model types, or PhotonModel subclasses, below . . .
+
+class ThickTargetBremsstrahlungSinglePowerLaw(PhotonModel):
+    def __init__(self):
+        super().__init__(
+            name='thick target single power law',
+            electron_index=3 << u.one,
+            low_energy_cutoff=5 << u.keV,
+            electron_flux=1e35 << (u.electron / u.s)
+        )
+
+    @u.quantity_input
+    def evaluate(self, photon_bins: u.keV) -> RATE_UNIT: # type: ignore
+        # very high electron cutoff energy
+        high_cutoff = 10 * photon_bins.max()
+
+        # Bremsstrahlung function expects bin midpoints
+        midpoints = photon_bins[:-1] + np.diff(photon_bins)/2
+        electron_conversion = emission.bremsstrahlung_thick_target(
+            photon_energies=midpoints.to_value(u.keV),
+            p=self.electron_index.value,
+            # Don't care about anything above break/high cutoff
+            q=self.electron_index.value,
+            eebrk=high_cutoff.to_value(u.keV),
+            eelow=self.low_energy_cutoff.value.to_value(u.keV),
+            eehigh=high_cutoff.to_value(u.keV)
+        ) << (u.ph / u.electron / u.keV / u.cm**2)
+
+        return self.electron_flux.value * electron_conversion
+
+    def current_parameters(self) -> OrderedDict[str, ModelParameter]:
+        return OrderedDict({
+            'electron_index': self.electron_index,
+            'low_energy_cutoff': self.low_energy_cutoff,
+            'electron_flux': self.electron_flux
+        })
+
+    def update_parameters(self, new_idx, new_cutoff, new_flux) -> None:
+        self.electron_index.value = new_idx
+        self.low_energy_cutoff.value = new_cutoff
+        self.electron_flux.value = new_flux

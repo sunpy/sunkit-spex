@@ -20,8 +20,8 @@ def linear(slope, intercept):
 
     # data from model which we will fit
     mod = fit_models.Line()
-    mod.slope = slope
-    mod.intercept = intercept
+    mod.slope.value = slope
+    mod.intercept.value = intercept
     model = mod.evaluate(photon_bins)
     model *= np.diff(photon_bins) * exposure
     perfect = response @ model 
