@@ -1,8 +1,8 @@
 import copy
+import typing
 
 import astropy.units as u
 from astropy.utils import lazyproperty
-import dill
 import emcee
 from scipy import optimize
 import numpy as np
@@ -15,10 +15,10 @@ class Fitter:
     def __init__(self):
         raise NotImplementedError
 
-    def evaluate_model(self):
+    def evaluate_model(self) -> typing.Any:
         raise NotImplementedError
 
-    def perform_fit(self):
+    def perform_fit(self) -> None:
         raise NotImplementedError
 
     def model_parameters(self) -> dict[str, fit_models.ModelParameter]:
@@ -37,10 +37,6 @@ class PhotonFitter(Fitter):
         self.data = copy.deepcopy(spectral_data)
         self.photon_model = photon_model
         self.emcee_sampler = None
-
-    @lazyproperty
-    def _count_de(self):
-        return np.diff(self.data.count_energy_edges)
 
     def evaluate_model(self) -> u.ct:
         ret = (
@@ -117,7 +113,6 @@ class MonteCarloChi2Fitter(Chi2PhotonFitter):
         self.emcee_sampler.run_mcmc(initial, num_steps)
 
     def log_prob_func(self, parameters):
-        # self.photon_model.update_parameters(*parameters)
         # emcee maximizes a probability,
         # but we want to minimize chi2,
         # so return a negative
