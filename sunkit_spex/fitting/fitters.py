@@ -21,12 +21,6 @@ class Fitter:
     def perform_fit(self):
         raise NotImplementedError
 
-    def save(self, fn: str='fitter.dill'):
-        with open(fn, 'wb') as f:
-            # Dill = better pickle
-            # Used for multiprocessing
-            dill.dump(self, f)
-
 
 class PhotonFitter(Fitter):
     def __init__(
