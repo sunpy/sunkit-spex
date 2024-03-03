@@ -21,6 +21,12 @@ class Fitter:
     def perform_fit(self):
         raise NotImplementedError
 
+    def model_parameters(self) -> dict[str, fit_models.ModelParameter]:
+        raise NotImplementedError
+
+    def model_parameters_no_units(self) -> tuple[float]:
+        raise NotImplementedError
+
 
 class PhotonFitter(Fitter):
     def __init__(
