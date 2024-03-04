@@ -1,0 +1,1 @@
+Fixed bug where changing the Chianti file for `sunkit_spex.thermal` and using :class:`sunkit_spex/sunxspex_fitting/fitter.Fitter` caused an error.
