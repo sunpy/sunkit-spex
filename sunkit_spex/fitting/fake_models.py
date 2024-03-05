@@ -5,13 +5,14 @@ import scipy.stats as st
 from . import fit_models
 from . import spectra
 
-def linear(slope, intercept):
-    photon_bins = np.linspace(2, 100, num=400) << u.keV
+@u.quantity_input()
+def linear(slope: (u.ph / u.keV**2 / u.cm**2 / u.s), intercept: (u.ph / u.cm**2 / u.keV / u.s)): # type: ignore
+    photon_bins = np.linspace(0, 100, num=400) << u.keV
     count_bins = photon_bins
 
     # Response matrix with good units
     # Keep it square so that we don't need to worry about scaling fake model properly
-    response = np.eye(photon_bins.size-1) * 0.5
+    response = np.eye(photon_bins.size-1)
     response = response << u.cm**2 * u.ct / u.ph
 
     # 'observing time'
@@ -20,10 +21,12 @@ def linear(slope, intercept):
 
     # data from model which we will fit
     mod = fit_models.Line()
-    mod.slope.value = slope
-    mod.intercept.value = intercept
+    photon_de = np.diff(photon_bins)
+    mod.slope.value = slope #(slope / photon_de / exposure).to(u.ph / u.cm**2 / u.keV**2 / u.s)
+    mod.intercept.value = intercept # (intercept / photon_de / exposure).to(u.ph / u.cm**2 / u.keV / u.s)
+
     model = mod.evaluate(photon_bins)
-    model *= np.diff(photon_bins) * exposure
+    model *= photon_de * exposure
     perfect = response @ model 
 
     # add Poisson noise
