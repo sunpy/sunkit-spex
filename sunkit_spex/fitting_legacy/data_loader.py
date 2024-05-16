@@ -8,8 +8,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from sunkit_spex.fitting_legacy import instruments as inst  # sunkit_spex.fitting_legacy.instruments
-from sunkit_spex.fitting_legacy.parameter_handler import (  # sunkit_spex.fitting_legacy.parameter_handler
+from sunkit_spex.fitting_legacy import instruments as inst
+from sunkit_spex.fitting_legacy.parameter_handler import (
     _make_into_list,
     isnumber,
 )
@@ -27,7 +27,7 @@ class LoadSpec:
     Parameters
     ----------
     *args : dict
-            Dictionaries for custom data to be passed to `sunkit_spex.fitting_legacy.instruments.CustomLoader`.
+            Dictionaries for custom data to be passed to `CustomLoader`.
             These will be added before any instrument file entries from `pha_file`.
 
     pha_file : string or list of strings
@@ -120,11 +120,9 @@ class LoadSpec:
     def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = (f"LoadSpec(*{args}, pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, "
-                                     f"srm_file={srm_file}, srm_custom={srm_custom}, custom_channel_bins={custom_channel_bins}, **{kwargs})")
+        self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
 
-        # from sunkit_spex.fitting_legacy.instruments import * gives us the instrument specific loaders, keys should match up to the "TELESCOP" header entry in spec file
-        self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "SOLO/STIX": inst.StixLoader, "RHESSI": inst.RhessiLoader}
+        self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "RHESSI": inst.RhessiLoader}
 
         pha_file, arf_file, rmf_file, srm_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file,
                                                                                                                 arf_file=arf_file,

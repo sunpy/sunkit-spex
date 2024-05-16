@@ -5,8 +5,6 @@ import numpy as np
 from sunkit_spex.fitting_legacy.io import (
     _read_arf,
     _read_pha,
-    _read_rhessi_spec_file,
-    _read_rhessi_srm_file,
     _read_rmf,
     _read_stix_spec_file,
     _read_stix_srm_file,
@@ -54,38 +52,6 @@ def test_read_rmf(mock_open):
     mock_open.return_value.__enter__.return_value = hdul
     res = _read_rmf('test.pha')
     assert res == (energ_lo, energ_hi, n_grp, f_chan, n_chan, matrix)
-
-
-@patch('astropy.io.fits.open')
-def test_read_rhessi_spec_file(mock_open):
-    hdul = []
-    for i in range(4):
-        m = MagicMock()
-        m.data = {i: np.arange(i)}
-        m.header = {'ext': i}
-        hdul.append(m)
-    mock_open.return_value.__enter__.return_value = hdul
-    res = _read_rhessi_spec_file('test.fits')
-    for k, v in res.items():
-        k = int(k)
-        assert v[0]['ext'] == k
-        assert np.array_equal(v[1][k], np.arange(k))
-
-
-@patch('astropy.io.fits.open')
-def test_read_rhessi_srm_file(mock_open):
-    hdul = []
-    for i in range(4):
-        m = MagicMock()
-        m.data = {i: np.arange(i)}
-        m.header = {'ext': i}
-        hdul.append(m)
-    mock_open.return_value.__enter__.return_value = hdul
-    res = _read_rhessi_srm_file('test.fits')
-    for k, v in res.items():
-        k = int(k)
-        assert v[0]['ext'] == k
-        assert np.array_equal(v[1][k], np.arange(k))
 
 
 @patch('astropy.io.fits.open')

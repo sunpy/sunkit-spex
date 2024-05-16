@@ -4,6 +4,7 @@ The ``io`` module contains code to read instrument specific spectral data.
 import numpy as np
 
 from astropy.io import fits
+import astropy.table as atab
 
 __all__ = ["_read_pha", "_read_arf", "_read_rmf", "_read_rhessi_spec_file", "_read_rhessi_srm_file",
            "_read_stix_spec_file", "_read_stix_srm_file"]
@@ -73,27 +74,6 @@ def _read_rmf(file):
     return data['energ_lo'], data['energ_hi'], data['n_grp'], data['f_chan'], data['n_chan'], data['matrix']
 
 
-def _read_rhessi_spec_file(spec_file):
-    """
-    Read RHESSI spectral fits file and extract useful information from it.
-
-    Parameters
-    ----------
-    spec_file :  `str`, `file-like` or `pathlib.Path`
-        A RHESSI spectral fits file (see `~astropy.fits.io.open` for details)
-
-    Returns
-    -------
-    `dict`
-        RHESSI spectal data
-    """
-    rdict = {}
-    with fits.open(spec_file) as hdul:
-        for i in range(4):
-            rdict[str(i)] = [hdul[i].header, hdul[i].data]
-    return rdict
-
-
 def _read_rhessi_srm_file(srm_file):
     """
     Read RHESSI SRM fits file and extract useful information from it.
@@ -105,14 +85,21 @@ def _read_rhessi_srm_file(srm_file):
 
     Returns
     -------
-    `dict`
-        RHESSI SRM data
+    List of qtables and headers from SRM file.
     """
-    srmrdict = {}
+    ret = list()
     with fits.open(srm_file) as hdul:
-        for i in range(4):
-            srmrdict[str(i)] = [hdul[i].header, hdul[i].data]
-    return srmrdict
+        for hdu_idx in range(len(hdul)):
+            try:
+                cur_hdu = atab.QTable.read(
+                    hdul,
+                    format='fits',
+                    hdu=hdu_idx
+                )
+            except ValueError:
+                cur_hdu = None
+            ret.append({'header': hdul[hdu_idx].header, 'data': cur_hdu})
+    return ret
 
 
 def _read_stix_spec_file(spec_file):
