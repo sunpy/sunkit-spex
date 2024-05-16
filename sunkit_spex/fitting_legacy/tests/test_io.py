@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from sunxspex.sunxspex_fitting.io import (
+from sunkit_spex.fitting_legacy.io import (
     _read_arf,
     _read_pha,
     _read_rhessi_spec_file,
@@ -113,7 +113,7 @@ def test_read_stix_srm_file(mock_open):
 
     hdul = []
     headers = [{}, {'GEOAREA': 2}, {}]
-    data = [{}, {'MATRIX': np.eye(2), 'ENERG_LO': np.array([1, 2]), 'ENERG_HI': np.array([2, 3])}, {'E_MIN': np.array([2, 3]), 'E_MAX':np.array([3, 4])}]
+    data = [{}, {'MATRIX': np.eye(2), 'ENERG_LO': np.array([1, 2]), 'ENERG_HI': np.array([2, 3])}, {'E_MIN': np.array([2, 3]), 'E_MAX': np.array([3, 4])}]
 
     for i in range(len(headers)):
         m = MagicMock()

@@ -35,38 +35,38 @@ from scipy.optimize import minimize
 
 from astropy.table import Table
 
-from sunxspex.logging import get_logger
-from sunxspex.sunxspex_fitting.data_loader import LoadSpec
-from sunxspex.sunxspex_fitting.instruments import rebin_any_array
-from sunxspex.sunxspex_fitting.likelihoods import LogLikelihoods
-from sunxspex.sunxspex_fitting.parameter_handler import Parameters, isnumber
-from sunxspex.sunxspex_fitting.photon_models_for_fitting import (  # noqa
+from sunkit_spex.fitting_legacy.data_loader import LoadSpec
+from sunkit_spex.fitting_legacy.instruments import rebin_any_array
+from sunkit_spex.fitting_legacy.likelihoods import LogLikelihoods
+from sunkit_spex.fitting_legacy.parameter_handler import Parameters, isnumber
+from sunkit_spex.fitting_legacy.photon_models_for_fitting import (  # noqa
     defined_photon_models,
     f_vth,
     thick_fn,
     thick_warm,
 )
-from sunxspex.sunxspex_fitting.rainbow_text import rainbow_text_lines
+from sunkit_spex.fitting_legacy.rainbow_text import rainbow_text_lines
+from sunkit_spex.logging import get_logger
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 logger = get_logger(__name__, 'DEBUG')
 
-__all__ = ["SunXspex", "load"]
+__all__ = ["Fitter", "load"]
 
 # Easily access log-likelihood/fit-stat methods from the one place, if SunXpsex class inherits this then data is duplicated
 LL_CLASS = LogLikelihoods()
 
 
-class SunXspex:
+class Fitter:
     """
     Load's in spectral file(s) and then provide a framework for fitting models to the spectral data.
 
     Parameters
     ----------
     *args : dict
-            Dictionaries for custom data to be passed to `sunxspex.sunxspex_fitting.instruments.CustomLoader`.
+            Dictionaries for custom data to be passed to `sunkit_spex.fitting_legacy.instruments.CustomLoader`.
             These will be added before any instrument file entries from `pha_file`.
 
     pha_file : string or list of strings
@@ -270,7 +270,7 @@ class SunXspex:
             Colour cycle to be used when plotting submodels.
             Default = plt.rcParams['axes.prop_cycle'].by_key()['color']
 
-    _construction_string_sunxspex : str
+    _construction_string_sunkit_spex : str
             String to be returned from __repr__() dunder method.
 
     _corresponding_submod_inputs : list of strings
@@ -368,7 +368,7 @@ class SunXspex:
     Examples
     --------
     # load in 2 spectra, rebin the count channels to have a minimum of 10 counts then undo that rebinning, then fit the data
-    s = SunXspex(pha_file=['filename1.pha', 'filename2.pha'],
+    s = Fitter(pha_file=['filename1.pha', 'filename2.pha'],
                     arf_file=['filename1.arf', 'filename2.arf'],
                     rmf_file=['filename1.rmf', 'filename2.rmf'])
     s.rebin = 10
@@ -401,7 +401,8 @@ class SunXspex:
         self.data = LoadSpec(*args, pha_file=pha_file, arf_file=arf_file, rmf_file=rmf_file, srm_file=srm_file, srm_custom=srm_custom,
                              custom_channel_bins=custom_channel_bins, custom_photon_bins=custom_photon_bins, **kwargs)
 
-        self._construction_string_sunxspex = f"SunXspex({args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
+        self._construction_string_sunkit_spex = (f"Fitter({args}, pha_file={pha_file}, arf_file={arf_file}, rmf_file={rmf_file}, srm_file={srm_file}, "
+                                                 f"srm_custom={srm_custom}, custom_channel_bins={custom_channel_bins}, custom_photon_bins={custom_photon_bins}, **{kwargs})")
 
         self.loglikelihood = "cstat"
 
@@ -649,11 +650,11 @@ class SunXspex:
         self.rParams["Status"], self.rParams["Value"], self.rParams["Bounds"], self.rParams["Error"] = list(_rps.param_status), list(_rps.param_value), list(_rps.param_bounds), list(_rps.param_error)
 
     def add_photon_model(self, function, overwrite=False):
-        """ Add user photon model to fitting namespace.
+        r"""Add user photon model to fitting namespace.
 
         Takes a user defined function intended to be used as a model or model component when
         giving a
-        string to the SunXspex.model property. Puts defined_photon_models[
+        string to the Fitter.model property. Puts defined_photon_models[
         function.__name__]=param_inputs
         in `defined_photon_models` for it to be known to the fititng code. The energies argument
         must be
@@ -687,7 +688,7 @@ class SunXspex:
 
         Example
         -------
-        from fitter import SunXspex, defined_photon_models, add_photon_model
+        from fitter import Fitter, defined_photon_models, add_photon_model
 
         # Define gaussian model (doesn't have to be a lambda function)
         gauss = lambda a, b, c, energies=None: a * np.exp(-((np.mean(energies, axis=1)-b)**2/(
@@ -698,7 +699,7 @@ class SunXspex:
 
         # Now can use it in fitting with string defined model. Will be plotted separately to the
         total model
-        Sx = SunXspex(pha_file=[...])
+        Sx = Fitter(pha_file=[...])
         Sx.model = "gauss+gauss"
         Sx.fit()
         Sx.plot()
@@ -777,7 +778,7 @@ class SunXspex:
             logger.indo(f"Model {function_name} removed.")
         else:
             logger.warning(
-                "Default models imported from sunxspex.sunxspex_fitting.photon_models_for_fitting are protected.")
+                "Default models imported from sunkit_spex.fitting_legacy.photon_models_for_fitting are protected.")
 
     def add_var(self, overwrite=False, quiet=False, **user_kwarg):
         """ Add user variable to fitting namespace.
@@ -818,7 +819,7 @@ class SunXspex:
 
         Example
         -------
-        from fitter import SunXspex, defined_photon_models, add_photon_model, add_var
+        from fitter import Fitter, defined_photon_models, add_photon_model, add_var
 
         # the user variable that might be too costly to run every function call or too hard to
         hard code
@@ -837,7 +838,7 @@ class SunXspex:
 
         # Now can use it in fitting with string defined model. Will be plotted separately to the
         total model
-        Sx = SunXspex(pha_file=[...])
+        Sx = Fitter(pha_file=[...])
         Sx.model = "gauss+gauss"
         Sx.fit()
         Sx.plot()
@@ -845,7 +846,7 @@ class SunXspex:
         for k, i in user_kwarg.items():
             if k in self.dynamic_vars and not overwrite:
                 vb = f"Variable {k} already exists. Please set `overwrite=True`, delete this with " \
-                     f"`del_var({k})`,\nor use a different variable name."
+                    f"`del_var({k})`,\nor use a different variable name."
             elif not k in self.dynamic_vars:
                 vb = f"Argument name {k} already exists **in globals** and is not a good idea to " \
                     f"overwrite. Please use a different variable name."
@@ -2046,7 +2047,8 @@ class SunXspex:
         photon_channel_bins, photon_channel_mids, photon_channel_widths, srm = self._photon_space_reduce(ph_bins=photon_channel_bins,
                                                                                                          ph_mids=photon_channel_mids,
                                                                                                          ph_widths=photon_e_binning,
-                                                                                                         srm=srm)  # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+                                                                                                         # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+                                                                                                         srm=srm)
         # photon_e_binning
 
         # remove the count space reduce since this now needs to reduce the livetimes and baclgrounds if they are there
@@ -2336,7 +2338,8 @@ class SunXspex:
         photon_channel_bins, _, _, srm = self._photon_space_reduce(ph_bins=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
                                                                    ph_mids=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
                                                                    ph_widths=[self.data.loaded_spec_data[spectrum]['photon_channel_binning']],
-                                                                   srm=[self.data.loaded_spec_data[spectrum]['srm']])  # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+                                                                   # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+                                                                   srm=[self.data.loaded_spec_data[spectrum]['srm']])
         photon_channel_bins, srm = photon_channel_bins[0], srm[0]
 
         if type(parameters) == type(None):
@@ -3274,7 +3277,7 @@ class SunXspex:
         res.axhline(0, linestyle=':', color='k')
         res.set_ylim(self.res_ylim)
         # res.set_ylabel('(y$_{Data}$ - y$_{Model}$)/$\sigma_{Error}$')
-        res.set_ylabel('($D - M$)/$\sigma$')
+        res.set_ylabel(r'($D - M$)/$\sigma$')
         res.set_xlim(self.plot_xlims)
         res.set_xlabel("Energy [keV]")
 
@@ -3455,7 +3458,7 @@ class SunXspex:
             res.axhline(0, linestyle=':', color='k')
             res.set_ylim(self.res_ylim)
             # res.set_ylabel('(y$_{Data}$ - y$_{Model}$)/$\sigma_{Error}$')
-            res.set_ylabel('($D - M$)/$\sigma$')
+            res.set_ylabel(r'($D - M$)/$\sigma$')
             res.set_xlim(self.plot_xlims)
             res.set_xlabel("Energy [keV]")
 
@@ -4682,7 +4685,7 @@ class SunXspex:
 
     def __repr__(self):
         """Provide a representation to construct the class from scratch."""
-        return self._construction_string_sunxspex
+        return self._construction_string_sunkit_spex
 
     def __str__(self):
         """Provide a printable, user friendly representation of what the class contains."""
@@ -4703,7 +4706,7 @@ class SunXspex:
 
 
 def load(filename):
-    """ Loads in a saved instance of the SunXspex class.
+    """ Loads in a saved instance of the Fitter class.
 
     Parameters
     ----------
@@ -4718,7 +4721,7 @@ def load(filename):
         loaded = pickle.load(f)
     return loaded
 
-# The following functions allows SunXspex.model take lambda functions and strings as inputs then convert them to named functions
+# The following functions allows Fitter.model take lambda functions and strings as inputs then convert them to named functions
 
 
 def _func_self_contained_check(function_name, function_text):
@@ -4750,7 +4753,7 @@ def _func_self_contained_check(function_name, function_text):
     """
     exec(function_text, globals())
     params, _ = get_func_inputs(globals()[function_name])
-    _test_e_range = np.arange(1.6, 5.01, 0.04)[:, None]
+    _test_e_range = np.arange(1.6, 25.01, 0.04)[:, None]
     _test_params, _test_energies = np.ones(len(params)), np.concatenate((_test_e_range[:-1], _test_e_range[1:]), axis=1)  # one 5 for each param, 2 column array of e-bins
     try:
         _func_to_test = globals()[function_name]

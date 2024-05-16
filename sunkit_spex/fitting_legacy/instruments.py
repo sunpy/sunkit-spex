@@ -478,7 +478,7 @@ class RhessiLoader(InstrumentBlueprint):
 
         Returns
         -------
-        Standard sunxspex dictionary (see docs)
+        Standard sunkit_spex dictionary (see docs)
         """
         # Load spectrum & SRM
         self._spectrum = (spec := rhes_spec.load_spectrum(spectrum_fn))

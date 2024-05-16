@@ -8,8 +8,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from sunxspex.sunxspex_fitting import instruments as inst  # sunxspex.sunxspex_fitting.instruments
-from sunxspex.sunxspex_fitting.parameter_handler import (  # sunxspex.sunxspex_fitting.parameter_handler
+from sunkit_spex.fitting_legacy import instruments as inst
+from sunkit_spex.fitting_legacy.parameter_handler import (
     _make_into_list,
     isnumber,
 )
@@ -27,7 +27,7 @@ class LoadSpec:
     Parameters
     ----------
     *args : dict
-            Dictionaries for custom data to be passed to `sunxspex.sunxspex_fitting.instruments.CustomLoader`.
+            Dictionaries for custom data to be passed to `CustomLoader`.
             These will be added before any instrument file entries from `pha_file`.
 
     pha_file : string or list of strings
@@ -122,7 +122,6 @@ class LoadSpec:
 
         self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
 
-        # from sunxspex.sunxspex_fitting.instruments import * gives us the instrument specific loaders, keys should match up to the "TELESCOP" header entry in spec file
         self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "RHESSI": inst.RhessiLoader}
 
         pha_file, arf_file, rmf_file, srm_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file,

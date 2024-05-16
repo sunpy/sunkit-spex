@@ -126,7 +126,7 @@ class LogLikelihoods:
             return np.sum(remaining)
 
     def gaussian_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        """ Gaussian log-likelihood.
+        r""" Gaussian log-likelihood.
 
         .. math::
          ln(L_{Gauss}) = -\frac{N}{2} ln(2\pi D^{2}) + \frac{1}{2}\Chi^{2}
@@ -150,7 +150,7 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))  # =ln(L)
 
     def chi2(self, model_counts, observed_counts, observed_count_errors):
-        """ Chi-squared fit statistic.
+        r""" Chi-squared fit statistic.
 
         .. math::
          \Chi^{2} = - (\frac{(D - \mu)^{2}}{\sigma})^{2}
@@ -173,7 +173,7 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 
     def poisson_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        """ Poissonian log-likelihood.
+        r""" Poissonian log-likelihood.
 
         .. math::
          ln(L_{Poisson}) = D ln(\mu) - \mu - ln(D!)
@@ -196,7 +196,7 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 
     def cash_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        """ Cash log-likelihood.
+        r""" Cash log-likelihood.
 
         A simplification of the poissonian log-likelihood where the independent data term is
         neglected. Since the data term is neglected the absolute number does not say much
@@ -226,7 +226,7 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 
     def cstat_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        """ C-stat log-likelihood.
+        r""" C-stat log-likelihood.
 
         A simplification of the poissonian log-likelihood where the independent data term
         is replaced using sterling's approximation. Used in the XSPEC fitting software.

@@ -4,8 +4,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from sunxspex.sunxspex_fitting.fitter import SunXspex
-from sunxspex.sunxspex_fitting.instruments import CustomLoader, InstrumentBlueprint
+from sunkit_spex.fitting_legacy.fitter import Fitter
+from sunkit_spex.fitting_legacy.instruments import CustomLoader, InstrumentBlueprint
 
 rng = np.random.default_rng(2022)
 
@@ -51,7 +51,7 @@ def custom_spec():
 
     noise_constant = np.mean(noise)
 
-    custom_spec = SunXspex(custom_dict)
+    custom_spec = Fitter(custom_dict)
 
     # add the model to be used in fitting
     custom_spec.add_photon_model(gauss)
@@ -153,9 +153,9 @@ def test_mcmc_walker_boundary_spread():
     list_of_tuple_bounds3, number_of_values3 = [(1, 10), (0.005, 0.3)], 10
 
     # get `number` entries between all bounds in `value_bounds`
-    spread1 = SunXspex()._boundary_spread(value_bounds=list_of_tuple_bounds1, number=number_of_values1)
-    spread2 = SunXspex()._boundary_spread(value_bounds=list_of_tuple_bounds2, number=number_of_values2)
-    spread3 = SunXspex()._boundary_spread(value_bounds=list_of_tuple_bounds3, number=number_of_values3)
+    spread1 = Fitter()._boundary_spread(value_bounds=list_of_tuple_bounds1, number=number_of_values1)
+    spread2 = Fitter()._boundary_spread(value_bounds=list_of_tuple_bounds2, number=number_of_values2)
+    spread3 = Fitter()._boundary_spread(value_bounds=list_of_tuple_bounds3, number=number_of_values3)
 
     # check values produced are within the bounds
     _assert_in_range(list_of_tuple_bounds1[0], spread1[:, 0])
@@ -204,7 +204,7 @@ def test_passing_instrument_loader_direct():
     custom_user_inst3 = UserCustomInst2(custom_dict)
 
     # pass the classes themselves, not the data or files to the fitter
-    fitter = SunXspex(custom_user_inst1, custom_user_inst2, custom_user_inst3)
+    fitter = Fitter(custom_user_inst1, custom_user_inst2, custom_user_inst3)
 
     # check everything has carried through to where it should be
     assert fitter.data.loaded_spec_data["spectrum1"]._loaded_spec_data == custom_user_inst1._loaded_spec_data, "Failed to pass instrument loader directly to fitter."

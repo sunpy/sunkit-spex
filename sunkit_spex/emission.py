@@ -14,8 +14,8 @@ import logging
 
 import numpy as np
 
-from sunxspex import constants as const
-from sunxspex.integrate import gauss_legendre
+from sunkit_spex import constants as const
+from sunkit_spex.integrate import gauss_legendre
 
 const = const.Constants()
 
@@ -59,7 +59,7 @@ class BrokenPowerLawElectronDistribution:
     --------
 
         >>> import numpy as np
-        >>> from sunxspex.emission import BrokenPowerLawElectronDistribution
+        >>> from sunkit_spex.emission import BrokenPowerLawElectronDistribution
         >>> electron_dist = BrokenPowerLawElectronDistribution(p=5,q=7, eelow=10, eebrk=150,
         ...                                                    eehigh=500)
         >>> electron_dist
@@ -167,7 +167,7 @@ class BrokenPowerLawElectronDistribution:
 
     def __repr__(self):
         return f'{self.__class__.__name__}(p={self.p}, q={self.q}, eelow={self.eelow}, ' \
-               f'eebrk={self.eebrk}, eehigh={self.eehigh}, norm={self.norm})'
+            f'eebrk={self.eebrk}, eehigh={self.eehigh}, norm={self.norm})'
 
 
 def collisional_loss(electron_energy):
@@ -309,9 +309,9 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
         Mean atomic number of plasma
     efd: `bool` (optional)
         True (default) the electron flux distribution (electrons cm^-2 s^-1 keV^-1) is calculated
-        with `~sunxspex.emission.BrokenPowerLawElectronDistribution.flux`. False, the electron
+        with `~sunkit_spex.emission.BrokenPowerLawElectronDistribution.flux`. False, the electron
         density distribution (electrons cm^-3 keV^-1) is calculated with
-        `~sunxspex.emission.BrokenPowerLawElectronDistribution.density`.
+        `~sunkit_spex.emission.BrokenPowerLawElectronDistribution.density`.
 
     Returns
     -------
