@@ -1236,6 +1236,10 @@ class Fitter:
         else:
             param_name_dict_order[key] = param_name_dict_order[_rstatus[4:]]
         return param_name_dict_order
+    
+    def _new_energies(self, energies, gain_slope, gain_offset):
+        """ Get the new energies for a gain shifted sectral grid.  """
+        return np.array(energies)/gain_slope - gain_offset
 
     def _gain_energies(self, energies, array, gain_slope, gain_offset):
         """ Allow a gain shift to be applied.
@@ -1278,9 +1282,60 @@ class Fitter:
         (not with the new energy values they were interpolated to).
         """
         # find the new energy values
-        new_energies = np.array(energies)/gain_slope - gain_offset
+        new_energies = self._new_energies(energies, gain_slope, gain_offset)
         # interpolate the counts to them for them to be used with the original energies
         return interp1d(energies, array, bounds_error=False, fill_value="extrapolate")(new_energies)
+    
+    def gain_response_photon_energies(self, energies, gain_slope, gain_offset):
+        """ Allow a gain shift to be applied the same way as it is in XSPEC.
+
+        The instruemnt response is gain shift, not the output count model.
+
+        The photon model is evaluated at the new energies provided here.
+
+        Parameters
+        ----------
+        energies : array, 2d
+                Original energy bins corresponding to the photon model.
+
+        gain_slope, gain_offset : float or int
+                The gradient and offset, respectively, of the linear transformation
+                applied to the energies.
+
+        Returns
+        -------
+        Array of the new photon energy mid-points and bins.
+        """
+        
+        new_ph_energies_low = self._new_energies(energies[:,0], gain_slope, gain_offset)
+        new_ph_energies_high = self._new_energies(energies[:,1], gain_slope, gain_offset)
+        new_ph_energy_mids = (new_ph_energies_high + new_ph_energies_low)/2
+        # _energies = np.mean(energies, axis=1)
+        
+        # new_mod = model(new_energies, *mod_args)
+        # new_arf = interp1d(_energies, arf, bounds_error=False, fill_value="extrapolate")(new_energies)
+        
+        new_ph_energy_bins = np.vstack((new_ph_energies_low, new_ph_energies_high)).T
+
+        # new_ph_energies_low = self._new_energies(self.data.loaded_spec_data[spectrum]['photon_channel_bins'][:,0], 
+        #                                              kwargs["gain_slope_spectrum"+str(spec_no)], 
+        #                                              kwargs["gain_offset_spectrum"+str(spec_no)])
+        # new_ph_energies_high = self._new_energies(self.data.loaded_spec_data[spectrum]['photon_channel_bins'][:,1], 
+        #                                             kwargs["gain_slope_spectrum"+str(spec_no)], 
+        #                                             kwargs["gain_offset_spectrum"+str(spec_no)])
+        # new_ph_energy_mids = (new_ph_energies_high + new_ph_energies_low)/2
+        # new_ph_energy_bins = np.vstack((new_ph_energies_low, new_ph_energies_high)).T
+        
+        return new_ph_energy_mids, new_ph_energy_bins
+    
+    def gain_response(self, spectrum, new_ph_energy_mids):
+        """ Returns the new SRM that has been gain shifted in photon-space."""
+        arf = self.data.loaded_spec_data[spectrum]["extras"].get("arf.effective_area", None)
+        new_arf = interp1d(self.data.loaded_spec_data[spectrum]['photon_channel_mids'], 
+                            arf, 
+                            bounds_error=False, 
+                            fill_value="extrapolate")(new_ph_energy_mids) if arf is not None else np.ones(len(new_ph_energy_mids))
+        return new_arf[:, None]*self.data.loaded_spec_data[spectrum]['srm']
 
     def _match_kwargs2orig_params(self, original_parameters, expected_kwargs, given_kwargs):
         """ Returns the coorect order of inputs from being arrange with the free ones first.
@@ -1363,24 +1418,36 @@ class Fitter:
             # assign the spectrum parameter values to their model param counterpart
             sep_params = dict(zip(self._orig_params, ordered_kwarg_values))
 
+            srm = kwargs["total_responses"][s]
+            ph_bins = kwargs["photon_channels"][s]
+            ph_binning = kwargs["photon_channel_widths"][s]
+
+            # apply a response gain correction if need be
+            if ("gain_slope_spectrum"+str(s+1) in kwargs) or ("gain_offset_spectrum"+str(s+1) in kwargs):
+                ph_mids, ph_bins = self.gain_response_photon_energies(self.data.loaded_spec_data["spectrum"+str(s+1)]['photon_channel_bins'], 
+                                                                                        kwargs["gain_slope_spectrum"+str(s+1)], 
+                                                                                        kwargs["gain_offset_spectrum"+str(s+1)])
+                srm = self.gain_response("spectrum"+str(s+1), ph_mids)
+                ph_binning = np.diff(ph_bins).flatten()
+
             # calculate the [photon s^-1 cm^-2]
-            m = self._model(**sep_params, energies=kwargs["photon_channels"][s]) * kwargs["photon_channel_widths"][s]  # np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
+            m = self._model(**sep_params, energies=ph_bins) * ph_binning  # np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1]
             cts_model = make_model(energies=kwargs["photon_channels"][s],
                                    photon_model=m,
                                    parameters=None,
-                                   srm=kwargs["total_responses"][s])
+                                   srm=srm)
 
             if "scaled_background_spectrum"+str(s+1) in self._scaled_backgrounds:
                 cts_model += self._scaled_backgrounds["scaled_background_spectrum"+str(s+1)]
 
             # apply a response gain correction if need be
-            if ("gain_slope_spectrum"+str(s+1) in kwargs) or ("gain_offset_spectrum"+str(s+1) in kwargs):
-                cts_model = self._gain_energies(energies=kwargs["count_channel_mids"][s],
-                                                array=cts_model,
-                                                gain_slope=kwargs["gain_slope_spectrum"+str(s+1)],
-                                                gain_offset=kwargs["gain_offset_spectrum"+str(s+1)])
+            # if ("gain_slope_spectrum"+str(s+1) in kwargs) or ("gain_offset_spectrum"+str(s+1) in kwargs):
+            #     cts_model = self._gain_energies(energies=kwargs["count_channel_mids"][s],
+            #                                     array=cts_model,
+            #                                     gain_slope=kwargs["gain_slope_spectrum"+str(s+1)],
+            #                                     gain_offset=kwargs["gain_offset_spectrum"+str(s+1)])
 
             # if the model returns nans then it's a rubbish fit so change to zeros, just to be sure
             cts_model = cts_model if len(LL_CLASS.remove_non_numbers(cts_model[cts_model != 0])) != 0 else np.zeros(cts_model.shape)
@@ -2334,12 +2401,31 @@ class Fitter:
 
         spec_no = int(spectrum.split("spectrum")[1])
 
+        srm = self.data.loaded_spec_data[spectrum]['srm']
+        ph_bins = self.data.loaded_spec_data[spectrum]['photon_channel_bins']
+        ph_mids = self.data.loaded_spec_data[spectrum]['photon_channel_mids']
+        ph_binning = self.data.loaded_spec_data[spectrum]['photon_channel_binning']
+
+        # if the spectrum has been gain shifted then this will be done but if user provides their own values they will take priority
+        if ("gain_slope_spectrum"+str(spec_no) in kwargs) and ("gain_offset_spectrum"+str(spec_no) in kwargs):
+            ph_mids, ph_bins = self.gain_response_photon_energies(self.data.loaded_spec_data[spectrum]['photon_channel_bins'], 
+                                                                                        kwargs["gain_slope_spectrum"+str(spec_no)], 
+                                                                                        kwargs["gain_offset_spectrum"+str(spec_no)])
+            srm = self.gain_response(spectrum, ph_mids)
+            ph_binning = np.diff(ph_bins).flatten()
+        elif (self.rParams["Value", "gain_slope_spectrum"+str(spec_no)] != 1) or (self.rParams["Value", "gain_offset_spectrum"+str(spec_no)] != 0):
+            ph_mids, ph_bins = self.gain_response_photon_energies(self.data.loaded_spec_data[spectrum]['photon_channel_bins'], 
+                                                                                        self.rParams["Value", "gain_slope_spectrum"+str(spec_no)], 
+                                                                                       self.rParams["Value", "gain_offset_spectrum"+str(spec_no)])
+            srm = self.gain_response(spectrum, ph_mids)
+            ph_binning = np.diff(ph_bins).flatten()
+
         # don't waste time on full rows/columns of 0s in the srms
-        photon_channel_bins, _, _, srm = self._photon_space_reduce(ph_bins=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
-                                                                   ph_mids=[self.data.loaded_spec_data[spectrum]['photon_channel_bins']],
-                                                                   ph_widths=[self.data.loaded_spec_data[spectrum]['photon_channel_binning']],
+        photon_channel_bins, _, _, srm = self._photon_space_reduce(ph_bins=[ph_bins],
+                                                                   ph_mids=[ph_mids],
+                                                                   ph_widths=[ph_binning],
                                                                    # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
-                                                                   srm=[self.data.loaded_spec_data[spectrum]['srm']])
+                                                                   srm=[srm])
         photon_channel_bins, srm = photon_channel_bins[0], srm[0]
 
         if type(parameters) == type(None):
@@ -2362,17 +2448,17 @@ class Fitter:
 
         cts_model /= np.diff(self.data.loaded_spec_data[spectrum]['count_channel_bins']).flatten()
 
-        # if the spectrum has been gain shifted then this will be done but if user provides their own values they will take priority
-        if ("gain_slope_spectrum"+str(spec_no) in kwargs) and ("gain_offset_spectrum"+str(spec_no) in kwargs):
-            cts_model = self._gain_energies(energies=self.data.loaded_spec_data[spectrum]['count_channel_mids'],
-                                            array=cts_model,
-                                            gain_slope=kwargs["gain_slope_spectrum"+str(spec_no)],
-                                            gain_offset=kwargs["gain_offset_spectrum"+str(spec_no)])
-        elif (self.rParams["Value", "gain_slope_spectrum"+str(spec_no)] != 1) or (self.rParams["Value", "gain_offset_spectrum"+str(spec_no)] != 0):
-            cts_model = self._gain_energies(energies=self.data.loaded_spec_data[spectrum]['count_channel_mids'],
-                                            array=cts_model,
-                                            gain_slope=self.rParams["Value", "gain_slope_spectrum"+str(spec_no)],
-                                            gain_offset=self.rParams["Value", "gain_offset_spectrum"+str(spec_no)])
+        # # if the spectrum has been gain shifted then this will be done but if user provides their own values they will take priority
+        # if ("gain_slope_spectrum"+str(spec_no) in kwargs) and ("gain_offset_spectrum"+str(spec_no) in kwargs):
+        #     cts_model = self._gain_energies(energies=self.data.loaded_spec_data[spectrum]['count_channel_mids'],
+        #                                     array=cts_model,
+        #                                     gain_slope=kwargs["gain_slope_spectrum"+str(spec_no)],
+        #                                     gain_offset=kwargs["gain_offset_spectrum"+str(spec_no)])
+        # elif (self.rParams["Value", "gain_slope_spectrum"+str(spec_no)] != 1) or (self.rParams["Value", "gain_offset_spectrum"+str(spec_no)] != 0):
+        #     cts_model = self._gain_energies(energies=self.data.loaded_spec_data[spectrum]['count_channel_mids'],
+        #                                     array=cts_model,
+        #                                     gain_slope=self.rParams["Value", "gain_slope_spectrum"+str(spec_no)],
+        #                                     gain_offset=self.rParams["Value", "gain_offset_spectrum"+str(spec_no)])
 
         return self.data.loaded_spec_data[spectrum]['count_channel_mids'], cts_model
 
