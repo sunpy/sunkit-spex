@@ -1322,7 +1322,9 @@ class Fitter:
                             arf, 
                             bounds_error=False, 
                             fill_value="extrapolate")(new_ph_energy_mids) if arf is not None else np.ones(len(new_ph_energy_mids))
-        return new_arf[:, None]*srm
+        new_arf[new_arf<0] = 0
+        arf[arf==0] = 1
+        return new_arf[:, None]*(srm/arf[:,None])
 
     def _match_kwargs2orig_params(self, original_parameters, expected_kwargs, given_kwargs):
         """ Returns the coorect order of inputs from being arrange with the free ones first.
