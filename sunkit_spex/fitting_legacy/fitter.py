@@ -1315,14 +1315,14 @@ class Fitter:
         
         return new_ph_energy_mids, new_ph_energy_bins
     
-    def gain_response(self, spectrum, new_ph_energy_mids):
+    def gain_response(self, spectrum, new_ph_energy_mids, srm):
         """ Returns the new SRM that has been gain shifted in photon-space."""
         arf = self.data.loaded_spec_data[spectrum]["extras"].get("arf.effective_area", None)
         new_arf = interp1d(self.data.loaded_spec_data[spectrum]['photon_channel_mids'], 
                             arf, 
                             bounds_error=False, 
                             fill_value="extrapolate")(new_ph_energy_mids) if arf is not None else np.ones(len(new_ph_energy_mids))
-        return new_arf[:, None]*self.data.loaded_spec_data[spectrum]['srm']
+        return new_arf[:, None]*srm
 
     def _match_kwargs2orig_params(self, original_parameters, expected_kwargs, given_kwargs):
         """ Returns the coorect order of inputs from being arrange with the free ones first.
@@ -1411,17 +1411,17 @@ class Fitter:
 
             # apply a response gain correction if need be
             if ("gain_slope_spectrum"+str(s+1) in kwargs) or ("gain_offset_spectrum"+str(s+1) in kwargs):
-                ph_mids, ph_bins = self.gain_response_photon_energies(self.data.loaded_spec_data["spectrum"+str(s+1)]['photon_channel_bins'], 
-                                                                                        kwargs["gain_slope_spectrum"+str(s+1)], 
-                                                                                        kwargs["gain_offset_spectrum"+str(s+1)])
-                srm = self.gain_response("spectrum"+str(s+1), ph_mids)
+                ph_mids, ph_bins = self.gain_response_photon_energies(kwargs["photon_channels"][s], 
+                                                                      kwargs["gain_slope_spectrum"+str(s+1)], 
+                                                                      kwargs["gain_offset_spectrum"+str(s+1)])
+                srm = self.gain_response("spectrum"+str(s+1), ph_mids, srm)
                 ph_binning = np.diff(ph_bins).flatten()
 
             # calculate the [photon s^-1 cm^-2]
             m = self._model(**sep_params, energies=ph_bins) * ph_binning  # np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1]
-            cts_model = make_model(energies=kwargs["photon_channels"][s],
+            cts_model = make_model(energies=ph_bins,
                                    photon_model=m,
                                    parameters=None,
                                    srm=srm)
@@ -2058,7 +2058,7 @@ class Fitter:
         and finally the number of free parameters (excluding rParams, orig_free_param_len, int).
         """
 
-        photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, _, photon_e_binning, observed_counts, observed_count_errors = self._loadSpec4fit()
+        photon_channel_bins, photon_channel_mids, count_channel_mids, srm, livetime, _, photon_channel_widths, observed_counts, observed_count_errors = self._loadSpec4fit()
 
         self._energy_fitting_indices = self._fit_range(count_channel_mids, self.energy_fitting_range)  # get fitting indices from the bin midpoints
 
@@ -2091,11 +2091,11 @@ class Fitter:
         livetime = [self._cut_counts([lvt]) if not isnumber(lvt) else lvt for lvt in livetime]
 
         # don't waste time on full rows/columns of 0s in the srms
-        photon_channel_bins, photon_channel_mids, photon_channel_widths, srm = self._photon_space_reduce(ph_bins=photon_channel_bins,
-                                                                                                         ph_mids=photon_channel_mids,
-                                                                                                         ph_widths=photon_e_binning,
-                                                                                                         # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
-                                                                                                         srm=srm)
+        # photon_channel_bins, photon_channel_mids, photon_channel_widths, srm = self._photon_space_reduce(ph_bins=photon_channel_bins,
+        #                                                                                                  ph_mids=photon_channel_mids,
+        #                                                                                                  ph_widths=photon_channel_widths,
+        #                                                                                                  # arf (for NuSTAR at least) makes ~half of the rows all zeros (>80 keV), remove them and cut fitting time by a third
+        #                                                                                                  srm=srm)
         # photon_e_binning
 
         # remove the count space reduce since this now needs to reduce the livetimes and baclgrounds if they are there
@@ -2391,13 +2391,13 @@ class Fitter:
             ph_mids, ph_bins = self.gain_response_photon_energies(self.data.loaded_spec_data[spectrum]['photon_channel_bins'], 
                                                                                         kwargs["gain_slope_spectrum"+str(spec_no)], 
                                                                                         kwargs["gain_offset_spectrum"+str(spec_no)])
-            srm = self.gain_response(spectrum, ph_mids)
+            srm = self.gain_response(spectrum, ph_mids, srm)
             ph_binning = np.diff(ph_bins).flatten()
         elif (self.rParams["Value", "gain_slope_spectrum"+str(spec_no)] != 1) or (self.rParams["Value", "gain_offset_spectrum"+str(spec_no)] != 0):
             ph_mids, ph_bins = self.gain_response_photon_energies(self.data.loaded_spec_data[spectrum]['photon_channel_bins'], 
                                                                                         self.rParams["Value", "gain_slope_spectrum"+str(spec_no)], 
                                                                                        self.rParams["Value", "gain_offset_spectrum"+str(spec_no)])
-            srm = self.gain_response(spectrum, ph_mids)
+            srm = self.gain_response(spectrum, ph_mids, srm)
             ph_binning = np.diff(ph_bins).flatten()
 
         # don't waste time on full rows/columns of 0s in the srms
