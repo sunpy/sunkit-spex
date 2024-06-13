@@ -4,5 +4,4 @@
 from .version import __version__
 
 __all__ = []
-from .legacy import fitting_legacy
-from .legacy import io, thermal
+from .legacy import fitting_legacy, io, thermal
