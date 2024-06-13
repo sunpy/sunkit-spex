@@ -15,13 +15,15 @@ from sunkit_spex.legacy.thermal import thermal_emission
 __all__ = ["defined_photon_models", "f_vth", "thick_fn", "thick_warm"]
 
 # The defined models shouldn't have duplicate parameter input names
-defined_photon_models = {"f_vth": ["T", "EM"],
-                         "thick_fn": ["total_eflux", "index", "e_c"],
-                         "thick_warm": ["tot_eflux", "indx", "ec", "plasma_d", "loop_temp", "length"]}
+defined_photon_models = {
+    "f_vth": ["T", "EM"],
+    "thick_fn": ["total_eflux", "index", "e_c"],
+    "thick_warm": ["tot_eflux", "indx", "ec", "plasma_d", "loop_temp", "length"],
+}
 
 
 def f_vth(temperature, emission_measure46, energies=None):
-    """ Calculates optically thin thermal bremsstrahlung radiation as seen from Earth.
+    """Calculates optically thin thermal bremsstrahlung radiation as seen from Earth.
 
     [1] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/f_vth.pro
 
@@ -46,12 +48,12 @@ def f_vth(temperature, emission_measure46, energies=None):
     # turn [[1,2],[2,3],[3,4]] into [1,2,3,4]
     energies = np.unique(np.array(energies).flatten()) << u.keV
     temperature = temperature * 1e6 << u.K
-    emission_measure = emission_measure46 * 1e46 << u.cm**(-3)
+    emission_measure = emission_measure46 * 1e46 << u.cm ** (-3)
     return thermal_emission(energies, temperature, emission_measure).value
 
 
 def thick_fn(total_eflux, index, e_c, energies=None):
-    """ Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
+    """Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
     [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
@@ -88,12 +90,7 @@ def thick_fn(total_eflux, index, e_c, energies=None):
     # we don't care about q at E > eebrk.
     high_break = energies.max() * 10
     output = bremsstrahlung_thick_target(
-        photon_energies=energies,
-        p=index,
-        eebrk=high_break,
-        q=20,
-        eelow=e_c,
-        eehigh=high_break
+        photon_energies=energies, p=index, eebrk=high_break, q=20, eelow=e_c, eehigh=high_break
     )
 
     output[np.isnan(output)] = 0
@@ -104,7 +101,7 @@ def thick_fn(total_eflux, index, e_c, energies=None):
 
 
 def thick_warm(total_eflux, index, e_c, plasma_d, loop_temp, length, energies=None):
-    """ Calculates the warm thick-target bremsstrahlung radiation as seen from Earth.
+    """Calculates the warm thick-target bremsstrahlung radiation as seen from Earth.
 
     [1] Kontar et al, ApJ 2015 (http://adsabs.harvard.edu/abs/2015arXiv150503733K)
     [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/f_thick_warm.pro
@@ -148,21 +145,20 @@ def thick_warm(total_eflux, index, e_c, plasma_d, loop_temp, length, energies=No
 
     ll = tloop**2 / (2 * KK * n_p)  # collisional stopping distance for electrons of Tloop energy
 
-    emin = tloop * 3 * (5 * ll / l)**4
+    emin = tloop * 3 * (5 * ll / l) ** 4
 
     if emin > 0.1:
         print(
-            f"The loop_temp ({loop_temp}), plasma density ({plasma_d}), and loop length ({length}) make emin ({emin}) >0.1. Fixing emin to 0.1.")
+            f"The loop_temp ({loop_temp}), plasma density ({plasma_d}), and loop length ({length}) make emin ({emin}) >0.1. Fixing emin to 0.1."
+        )
         emin = 0.1
 
     lmin = e_c**2 / (2 * KK * n_p) / 3
     if lmin > l:
         print("Minimum length>length")
 
-    em_add = 3 * np.pi / 2 / KK / CC * \
-        np.sqrt(ME_KEV / 8.) * tloop**2 / np.sqrt(emin) * total_eflux * 1e35
+    em_add = 3 * np.pi / 2 / KK / CC * np.sqrt(ME_KEV / 8.0) * tloop**2 / np.sqrt(emin) * total_eflux * 1e35
 
     em46 = em_add * 1e-46  # get EM in units of 10^46 cm^(-3)
 
-    return thick_fn(total_eflux, index, e_c, energies=energies) + \
-        f_vth(loop_temp, em46, energies=energies)
+    return thick_fn(total_eflux, index, e_c, energies=energies) + f_vth(loop_temp, em46, energies=energies)

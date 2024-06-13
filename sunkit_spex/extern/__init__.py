@@ -6,10 +6,8 @@ that this package is distinct from the /cextern directory of the source code
 distribution, as that directory only contains C extension code.
 """
 
-from . import (
-    rhessi
-)
+from . import rhessi
 
 __all__ = [
-    'rhessi',
+    "rhessi",
 ]

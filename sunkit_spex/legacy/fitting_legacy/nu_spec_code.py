@@ -10,7 +10,7 @@ __all__ = ["flux_cts_spec", "col2arr_py", "vrmf2arr_py", "make_srm"]
 
 
 def flux_cts_spec(file, bin_size):
-    """ Takes a .pha file and returns plotting information.
+    """Takes a .pha file and returns plotting information.
 
     Parameters
     ----------
@@ -32,7 +32,7 @@ def flux_cts_spec(file, bin_size):
 
 
 def col2arr_py(data):
-    """ Takes a list of parameters for each energy channel from a .rmf file and returns it in the correct format.
+    """Takes a list of parameters for each energy channel from a .rmf file and returns it in the correct format.
 
     From: https://lost-contact.mit.edu/afs/physics.wisc.edu/home/craigm/lib/idl/util/vcol2arr.pro
 
@@ -62,13 +62,15 @@ def col2arr_py(data):
 
     # this is the quicker way I have chosen to do in Python (this may be revised later but is ~30x faster than way below in Python)
     max_len = np.max([len(r) for r in data])  # find max row length
-    chan_array_py = np.array([[*r, *(max_len-len(r))*[0]] for r in data])  # make each row that length (padding with 0)
+    chan_array_py = np.array(
+        [[*r, *(max_len - len(r)) * [0]] for r in data]
+    )  # make each row that length (padding with 0)
 
     return chan_array_py
 
 
 def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None):
-    """ Takes redistribution parameters for each energy channel from a .rmf file and returns it in the correct format.
+    """Takes redistribution parameters for each energy channel from a .rmf file and returns it in the correct format.
 
     From: https://lost-contact.mit.edu/afs/physics.wisc.edu/home/craigm/lib/idl/spectral/vrmf2arr.pro
 
@@ -168,7 +170,7 @@ def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None
 
     # need to find the starting index so -1, but that means any entry that is
     #  -1 will be where a zero is needed
-    starting_inds = b[1]-1
+    starting_inds = b[1] - 1
 
     # get the  starting indices but the ones that should be 0 are replaced with
     #  the final one in the list at the minute (-1 in starting_inds)
@@ -184,13 +186,13 @@ def vrmf2arr_py(data=None, n_grp_list=None, f_chan_array=None, n_chan_array=None
     # now go through row by row (this is the slowest part and needs to be made faster).
     #  Here we go through each photon channel's number of discrete rows of counts channels.
     for r in range(len(c)):
-        mat_array_py[b[0][r], c[r]:c[r]+d[r]] = data[b[0][r]][new_e[r]:final_inds[r]]
+        mat_array_py[b[0][r], c[r] : c[r] + d[r]] = data[b[0][r]][new_e[r] : final_inds[r]]
 
     return mat_array_py
 
 
 def make_srm(rmf_matrix=(), arf_array=()):
-    """ Takes rmf and arf and produces the spectral response matrix fro NuSTAR.
+    """Takes rmf and arf and produces the spectral response matrix for NuSTAR.
 
     From: https://github.com/ianan/nsigh_nov14/blob/master/make_ns_srm.pro
 
@@ -210,10 +212,10 @@ def make_srm(rmf_matrix=(), arf_array=()):
     """
 
     if len(rmf_matrix) == 0 or len(arf_array) == 0:
-        print('Need both RMF and ARF information to proceed.')
+        print("Need both RMF and ARF information to proceed.")
         return
 
     # srm = np.array([rmf_matrix[r, :] * arf_array[r] for r in range(len(arf_array))]) # each energy bin row in the rmf is multiplied the arf value for the same energy bin
     # this line is >2x faster
-    srm = arf_array[:, None]*rmf_matrix
+    srm = arf_array[:, None] * rmf_matrix
     return srm

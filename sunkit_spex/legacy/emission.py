@@ -10,6 +10,7 @@ References
 .. [2] Thin-Target: https://hesperia.gsfc.nasa.gov/hessi/flarecode/bremdoc.pdf
 
 """
+
 import logging
 
 import numpy as np
@@ -21,9 +22,15 @@ const = const.Constants()
 
 logging = logging.getLogger(__name__)
 
-__all__ = ['BrokenPowerLawElectronDistribution', 'collisional_loss', '_get_integrand',
-           '_integrate_part', '_split_and_integrate', 'bremsstrahlung_thin_target',
-           'bremsstrahlung_thick_target']
+__all__ = [
+    "BrokenPowerLawElectronDistribution",
+    "collisional_loss",
+    "_get_integrand",
+    "_integrate_part",
+    "_split_and_integrate",
+    "bremsstrahlung_thin_target",
+    "bremsstrahlung_thick_target",
+]
 
 
 class BrokenPowerLawElectronDistribution:
@@ -74,9 +81,7 @@ class BrokenPowerLawElectronDistribution:
     """
 
     def __init__(self, *, p, q, eelow, eebrk, eehigh, norm=True):
-        """
-
-        """
+        """ """
         self.p = p
         self.q = q
         self.eelow = eelow
@@ -86,7 +91,7 @@ class BrokenPowerLawElectronDistribution:
         if self.norm:
             n0 = (q - 1.0) / (p - 1.0) * eebrk ** (p - 1) * eelow ** (1 - p)
             n1 = n0 - (q - 1.0) / (p - 1.0)
-            n2 = (1.0 - eebrk ** (q - 1) * eehigh ** (1 - q))
+            n2 = 1.0 - eebrk ** (q - 1) * eehigh ** (1 - q)
             self._norm_factor = 1.0 / (n1 + n2)
             self._n0 = n0
             self._n2 = n2
@@ -96,9 +101,9 @@ class BrokenPowerLawElectronDistribution:
             self._n2 = 1.0
 
     def __eq__(self, other):
-        return all([getattr(self, name) == getattr(other, name)
-                    for name in ['p', 'q', 'eelow', 'eebrk', 'eehigh']]) and isinstance(other,
-                                                                                        self.__class__)
+        return all(
+            [getattr(self, name) == getattr(other, name) for name in ["p", "q", "eelow", "eebrk", "eehigh"]]
+        ) and isinstance(other, self.__class__)
 
     def flux(self, electron_energy):
         """
@@ -118,17 +123,23 @@ class BrokenPowerLawElectronDistribution:
 
         index = np.where(electron_energy < self.eelow)
         if index[0].size > 0:
-            res[index] = 0.
+            res[index] = 0.0
 
         index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
         if index[0].size > 0:
-            res[index] = (self._norm_factor * self._n0 * (self.p - 1.)
-                          * electron_energy[index] ** (-self.p) * self.eelow ** (self.p - 1.))
+            res[index] = (
+                self._norm_factor
+                * self._n0
+                * (self.p - 1.0)
+                * electron_energy[index] ** (-self.p)
+                * self.eelow ** (self.p - 1.0)
+            )
 
         index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
         if index[0].size > 0:
-            res[index] = (self._norm_factor * (self.q - 1.)
-                          * electron_energy[index] ** (-self.q) * self.eebrk ** (self.q - 1.))
+            res[index] = (
+                self._norm_factor * (self.q - 1.0) * electron_energy[index] ** (-self.q) * self.eebrk ** (self.q - 1.0)
+            )
 
         return res
 
@@ -154,25 +165,29 @@ class BrokenPowerLawElectronDistribution:
 
         index = np.where((electron_energy < self.eebrk) & (electron_energy >= self.eelow))
         if index[0].size > 0:
-            res[index] = self._norm_factor * (self._n0 * self.eelow ** (self.p - 1) *
-                                              electron_energy[index] ** (1.0 - self.p) -
-                                              (self.q - 1.0) / (self.p - 1.0) + self._n2)
+            res[index] = self._norm_factor * (
+                self._n0 * self.eelow ** (self.p - 1) * electron_energy[index] ** (1.0 - self.p)
+                - (self.q - 1.0) / (self.p - 1.0)
+                + self._n2
+            )
 
         index = np.where((electron_energy <= self.eehigh) & (electron_energy >= self.eebrk))
         if index[0].size > 0:
-            res[index] = self._norm_factor * (self.eebrk ** (self.q - 1)
-                                              * electron_energy[index] ** (1.0 - self.q)
-                                              - (1.0 - self._n2))
+            res[index] = self._norm_factor * (
+                self.eebrk ** (self.q - 1) * electron_energy[index] ** (1.0 - self.q) - (1.0 - self._n2)
+            )
         return res
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(p={self.p}, q={self.q}, eelow={self.eelow}, ' \
-            f'eebrk={self.eebrk}, eehigh={self.eehigh}, norm={self.norm})'
+        return (
+            f"{self.__class__.__name__}(p={self.p}, q={self.q}, eelow={self.eelow}, "
+            f"eebrk={self.eebrk}, eehigh={self.eehigh}, norm={self.norm})"
+        )
 
 
 def collisional_loss(electron_energy):
     """
-    Compute the energy dependant terms of the collisional energy loss rate for energetic electrons.
+    Compute the energy dependent terms of the collisional energy loss rate for energetic electrons.
 
     Parameters
     ----------
@@ -189,14 +204,14 @@ def collisional_loss(electron_energy):
     Initial version modified from SSW
     `Brm_ELoss <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_eloss.pro>`_
     """
-    electron_rest_mass = const.get_constant('mc2')  # * u.keV #c.m_e * c.c**2
+    electron_rest_mass = const.get_constant("mc2")  # * u.keV #c.m_e * c.c**2
 
     gamma = (electron_energy / electron_rest_mass) + 1.0
 
-    beta = np.sqrt(1.0 - (1.0 / gamma ** 2))
+    beta = np.sqrt(1.0 - (1.0 / gamma**2))
 
     # TODO figure out what number is?
-    energy_loss_rate = np.log(6.9447e+9 * electron_energy) / beta
+    energy_loss_rate = np.log(6.9447e9 * electron_energy) / beta
 
     return energy_loss_rate
 
@@ -239,9 +254,9 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
        `ADS <https://ui.adsabs.harvard.edu/abs/1939AnP...426..178E/abstract>`__
     """
 
-    mc2 = const.get_constant('mc2')
-    alpha = const.get_constant('alpha')
-    twoar02 = const.get_constant('twoar02')
+    mc2 = const.get_constant("mc2")
+    alpha = const.get_constant("alpha")
+    twoar02 = const.get_constant("twoar02")
 
     # Numerical coefficients
     c11 = 4.0 / 3.0
@@ -260,24 +275,24 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
 
     # Calculate energies of scattered electrons and normalized momenta.
     e2 = e1 - k
-    p1 = np.sqrt(e1 ** 2 - 1.0)
-    p2 = np.sqrt(e2 ** 2 - 1.0)
+    p1 = np.sqrt(e1**2 - 1.0)
+    p2 = np.sqrt(e2**2 - 1.0)
 
     # Define frequently used quantities.
     e1e2 = e1 * e2
     p1p2 = p1 * p2
-    p2sum = p1 ** 2 + p2 ** 2
-    k2 = k ** 2
-    e1e23 = e1e2 ** 3
+    p2sum = p1**2 + p2**2
+    k2 = k**2
+    e1e23 = e1e2**3
     pe = p2sum / e1e23
 
     # Define terms in cross section.
     ch1 = (c11 * e1e2 + k2) - (c12 * k2 / e1e2) - (c13 * k2 * pe / e1e2)
-    ch2 = 1.0 + (1.0 / e1e2) + (c21 * pe) + (c22 * k2 + c23 * p1p2 ** 2) / e1e23
+    ch2 = 1.0 + (1.0 / e1e2) + (c21 * pe) + (c22 * k2 + c23 * p1p2**2) / e1e23
 
     # Collect terms.
     crtmp = ch1 * (2.0 * np.log((e1e2 + p1p2 - 1.0) / k) - (p1p2 / e1e2) * ch2)
-    crtmp = z ** 2 * crtmp / (k * p1 ** 2)
+    crtmp = z**2 * crtmp / (k * p1**2)
 
     # Compute the Elwert factor.
     a1 = alpha * z * e1 / p1
@@ -325,8 +340,8 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
     `brm2_fouter.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fouter.pro>`_.
 
     """
-    mc2 = const.get_constant('mc2')
-    clight = const.get_constant('clight')
+    mc2 = const.get_constant("mc2")
+    clight = const.get_constant("clight")
 
     # L=log10 (E), E=l0L and dE=10L ln(10) dL hence the electron_energy * np.log(10) below
     electron_energy = 10**x_log
@@ -335,20 +350,27 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
     pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
 
     density = electron_dist.density(electron_energy)
-    if model == 'thick-target':
-        return (electron_energy * np.log(10) * density * brem_cross * pc
-                / collision_loss / ((electron_energy / mc2) + 1.0))
-    elif model == 'thin-target':
+    if model == "thick-target":
+        return (
+            electron_energy * np.log(10) * density * brem_cross * pc / collision_loss / ((electron_energy / mc2) + 1.0)
+        )
+    elif model == "thin-target":
         if efd:
-            return (electron_energy * np.log(10) * electron_dist.flux(electron_energy)
-                    * brem_cross*(mc2/clight))
+            return electron_energy * np.log(10) * electron_dist.flux(electron_energy) * brem_cross * (mc2 / clight)
         else:
-            return (electron_energy * np.log(10) * electron_dist.flux(electron_energy)
-                    * brem_cross * pc/((electron_energy / mc2) + 1.0))
+            return (
+                electron_energy
+                * np.log(10)
+                * electron_dist.flux(electron_energy)
+                * brem_cross
+                * pc
+                / ((electron_energy / mc2) + 1.0)
+            )
 
 
-def _integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh,
-                    p, q, z, a_lg, b_lg, ll, efd, integrator=None):
+def _integrate_part(
+    *, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z, a_lg, b_lg, ll, efd, integrator=None
+):
     """
     Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
 
@@ -364,7 +386,7 @@ def _integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehig
     rerr : `float`
         Desired relative error for integral evaluation. For example, rerr = 0.01 indicates that
         the estimate of the integral is to be correct to one digit, whereas rerr = 0.001
-        alls for two digits to be correct.
+        calls for two digits to be correct.
     photon_energies : `numpp.array`
         Photon energies
     eelow : `float`
@@ -410,25 +432,34 @@ def _integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehig
     if integrator is None:
         integrator = gauss_legendre
     elif not callable(integrator):
-        raise TypeError('integrator must be a callable')
+        raise TypeError("integrator must be a callable")
 
     # Copy indices over which to carry out the integration
     i = ll[:]
 
-    electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk,
-                                                       eehigh=eehigh)
+    electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, eelow=eelow, eebrk=eebrk, eehigh=eehigh)
 
     for ires in range(2, nlim + 1):
-        npoint = 2 ** ires
+        npoint = 2**ires
         if npoint > maxfcn:
             ier[i] = 1
             return intsum, ier
 
         lastsum = np.copy(intsum)
 
-        intsum[i] = integrator(_get_integrand, a_lg[i], b_lg[i], n=npoint, func_kwargs={
-            'model': model, 'electron_dist': electron_dist, 'photon_energy': photon_energies[i],
-            'z': z, 'efd': efd})
+        intsum[i] = integrator(
+            _get_integrand,
+            a_lg[i],
+            b_lg[i],
+            n=npoint,
+            func_kwargs={
+                "model": model,
+                "electron_dist": electron_dist,
+                "photon_energy": photon_energies[i],
+                "z": z,
+                "efd": efd,
+            },
+        )
 
         # Convergence criterion
         l1 = np.abs(intsum - lastsum)
@@ -440,8 +471,7 @@ def _integrate_part(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehig
             return intsum, ier
 
 
-def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z,
-                         efd, integrator=None):
+def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z, efd, integrator=None):
     """
     Split and integrate the continuous parts of the electron spectrum.
 
@@ -494,12 +524,11 @@ def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
     `Brm2_Dmlin <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlin.pro>`_.
 
     """
-    mc2 = const.get_constant('mc2')
-    clight = const.get_constant('clight')
+    mc2 = const.get_constant("mc2")
+    clight = const.get_constant("clight")
 
     if not eelow <= eebrk <= eehigh:
-        raise ValueError(f'Condition eelow <= eebrek <= eehigh not satisfied '
-                         f'({eelow}<={eebrk}<={eehigh}).')
+        raise ValueError(f"Condition eelow <= eebrek <= eehigh not satisfied " f"({eelow}<={eebrk}<={eehigh}).")
 
     # Create arrays for integral sums and error flags.
     intsum1 = np.zeros_like(photon_energies, dtype=np.float64)
@@ -514,20 +543,33 @@ def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
     P3 = np.where(photon_energies <= eehigh)[0]
 
     # Part 1, below en_val[0] (usually eelow)
-    if model == 'thick-target':
+    if model == "thick-target":
         if P1.size > 0:
-            logging.debug('Part1')
+            logging.debug("Part1")
             a_lg = np.log10(photon_energies[P1])
             b_lg = np.log10(np.full_like(a_lg, eelow))
             i = np.copy(P1)
-            intsum1, ier1 = _integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
-                                            photon_energies=photon_energies,
-                                            eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                            a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
+            intsum1, ier1 = _integrate_part(
+                model=model,
+                maxfcn=maxfcn,
+                rerr=rerr,
+                photon_energies=photon_energies,
+                eelow=eelow,
+                eebrk=eebrk,
+                eehigh=eehigh,
+                p=p,
+                q=q,
+                z=z,
+                a_lg=a_lg,
+                b_lg=b_lg,
+                ll=i,
+                efd=efd,
+                integrator=integrator,
+            )
 
             # ier = 1 indicates no convergence.
             if sum(ier1):
-                raise ValueError('Part 1 integral did not converge for some photon energies.')
+                raise ValueError("Part 1 integral did not converge for some photon energies.")
 
     # Part 2, between enval[0] and en_val[1](usually eelow and eebrk)
 
@@ -538,17 +580,30 @@ def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
         if P1.size > 0:
             aa[P1] = eelow
 
-        logging.debug('Part2')
+        logging.debug("Part2")
         a_lg = np.log10(aa[P2])
         b_lg = np.log10(np.full_like(a_lg, eebrk))
         i = np.copy(P2)
-        intsum2, ier2 = _integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
-                                        photon_energies=photon_energies,
-                                        eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                        a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
+        intsum2, ier2 = _integrate_part(
+            model=model,
+            maxfcn=maxfcn,
+            rerr=rerr,
+            photon_energies=photon_energies,
+            eelow=eelow,
+            eebrk=eebrk,
+            eehigh=eehigh,
+            p=p,
+            q=q,
+            z=z,
+            a_lg=a_lg,
+            b_lg=b_lg,
+            ll=i,
+            efd=efd,
+            integrator=integrator,
+        )
 
         if sum(ier2) > 0:
-            raise ValueError('Part 2 integral did not converge for some photon energies.')
+            raise ValueError("Part 2 integral did not converge for some photon energies.")
 
     # Part 3: between eebrk and eehigh(usually eebrk and eehigh)
     aa = np.copy(photon_energies)
@@ -556,25 +611,38 @@ def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
         if P2.size > 0:
             aa[P2] = eebrk
 
-        logging.debug('Part3')
+        logging.debug("Part3")
         a_lg = np.log10(aa[P3])
         b_lg = np.log10(np.full_like(a_lg, eehigh))
         i = np.copy(P3)
-        intsum3, ier3 = _integrate_part(model=model, maxfcn=maxfcn, rerr=rerr,
-                                        photon_energies=photon_energies,
-                                        eelow=eelow, eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                        a_lg=a_lg, b_lg=b_lg, ll=i, efd=efd, integrator=integrator)
+        intsum3, ier3 = _integrate_part(
+            model=model,
+            maxfcn=maxfcn,
+            rerr=rerr,
+            photon_energies=photon_energies,
+            eelow=eelow,
+            eebrk=eebrk,
+            eehigh=eehigh,
+            p=p,
+            q=q,
+            z=z,
+            a_lg=a_lg,
+            b_lg=b_lg,
+            ll=i,
+            efd=efd,
+            integrator=integrator,
+        )
         if sum(ier3) > 0:
-            raise ValueError('Part 3 integral did not converge for some photon energies.')
+            raise ValueError("Part 3 integral did not converge for some photon energies.")
 
     # TODO check units here
     # Combine 3 parts and convert units and return
-    if model == 'thick-target':
+    if model == "thick-target":
         DmlinO = (intsum1 + intsum2 + intsum3) * (mc2 / clight)
         ier = ier1 + ier2 + ier3
         return DmlinO, ier
-    elif model == 'thin-target':
-        Dmlin = (intsum2 + intsum3)
+    elif model == "thin-target":
+        Dmlin = intsum2 + intsum3
         ier = ier2 + ier3
         return Dmlin, ier
 
@@ -631,9 +699,9 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
     Adapted from SSW `Brm2_ThinTarget
     <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thintarget.pro>`_
     """
-    mc2 = const.get_constant('mc2')
-    clight = const.get_constant('clight')
-    au = const.get_constant('au')
+    mc2 = const.get_constant("mc2")
+    clight = const.get_constant("clight")
+    au = const.get_constant("au")
 
     # Max number of points
     maxfcn = 2048
@@ -645,28 +713,37 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
     rerr = 1e-4
 
     # Numerical coefficient for photo flux
-    fcoeff = (clight / (4 * np.pi * au ** 2)) / mc2 ** 2.
+    fcoeff = (clight / (4 * np.pi * au**2)) / mc2**2.0
 
     # Create arrays for the photon flux and error flags.
     flux = np.zeros_like(photon_energies, dtype=np.float64)
     iergq = np.zeros_like(photon_energies, dtype=np.float64)
 
     if eelow >= eehigh:
-        raise ValueError('eehigh must be larger than eelow!')
+        raise ValueError("eehigh must be larger than eelow!")
 
-    l, = np.where((photon_energies < eehigh) & (photon_energies > 0))
+    (l,) = np.where((photon_energies < eehigh) & (photon_energies > 0))  # noqa: E741
     if l.size > 0:
-        flux[l], iergq[l] = _split_and_integrate(model='thin-target',
-                                                 photon_energies=photon_energies[l], maxfcn=maxfcn,
-                                                 rerr=rerr, eelow=eelow, eebrk=eebrk, eehigh=eehigh,
-                                                 p=p, q=q, z=z, efd=efd, integrator=integrator)
+        flux[l], iergq[l] = _split_and_integrate(
+            model="thin-target",
+            photon_energies=photon_energies[l],
+            maxfcn=maxfcn,
+            rerr=rerr,
+            eelow=eelow,
+            eebrk=eebrk,
+            eehigh=eehigh,
+            p=p,
+            q=q,
+            z=z,
+            efd=efd,
+            integrator=integrator,
+        )
 
         flux *= fcoeff
 
         return flux
     else:
-        raise Warning('The photon energies are higher than the highest electron energy or not '
-                      'greater than zero')
+        raise Warning("The photon energies are higher than the highest electron energy or not " "greater than zero")
 
 
 def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, integrator=None):
@@ -715,10 +792,10 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, int
     <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro>`_
     """
     # Constants
-    mc2 = const.get_constant('mc2')
-    clight = const.get_constant('clight')
-    au = const.get_constant('au')
-    r0 = const.get_constant('r0')
+    mc2 = const.get_constant("mc2")
+    clight = const.get_constant("clight")
+    au = const.get_constant("au")
+    r0 = const.get_constant("r0")
 
     # Max number of points
     maxfcn = 2048
@@ -730,9 +807,9 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, int
     rerr = 1e-4
 
     # Numerical coefficient for photo flux
-    fcoeff = ((clight ** 2 / mc2 ** 4) / (4 * np.pi * au ** 2))
+    fcoeff = (clight**2 / mc2**4) / (4 * np.pi * au**2)
 
-    decoeff = 4.0 * np.pi * (r0 ** 2) * clight
+    decoeff = 4.0 * np.pi * (r0**2) * clight
 
     # Create arrays for the photon flux and error flags.
     flux = np.zeros_like(photon_energies, dtype=np.float64)
@@ -741,18 +818,26 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, int
     if eelow >= eehigh:
         return flux
 
-    i, = np.where((photon_energies < eehigh) & (photon_energies > 0))
+    (i,) = np.where((photon_energies < eehigh) & (photon_energies > 0))
 
     if i.size > 0:
-        flux[i], iergq[i] = _split_and_integrate(model='thick-target',
-                                                 photon_energies=photon_energies[i],
-                                                 maxfcn=maxfcn, rerr=rerr, eelow=eelow,
-                                                 eebrk=eebrk, eehigh=eehigh, p=p, q=q, z=z,
-                                                 efd=False, integrator=integrator)
+        flux[i], iergq[i] = _split_and_integrate(
+            model="thick-target",
+            photon_energies=photon_energies[i],
+            maxfcn=maxfcn,
+            rerr=rerr,
+            eelow=eelow,
+            eebrk=eebrk,
+            eehigh=eehigh,
+            p=p,
+            q=q,
+            z=z,
+            efd=False,
+            integrator=integrator,
+        )
 
         flux = (fcoeff / decoeff) * flux
 
         return flux
     else:
-        raise Warning('The photon energies are higher than the highest electron energy or not '
-                      'greater than zero')
+        raise Warning("The photon energies are higher than the highest electron energy or not " "greater than zero")

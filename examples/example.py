@@ -11,7 +11,7 @@ from matplotlib import pyplot as plt
 
 #####################################################
 # Finally we can download the data.
-x = np.linspace(0, 2*2*np.pi, 100)
+x = np.linspace(0, 2 * 2 * np.pi, 100)
 y = np.sin(x)
 
 plt.plot(x, y)
