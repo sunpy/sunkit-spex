@@ -8,6 +8,7 @@ import numpy as np
 
 from astropy.io import fits
 
+from sunkit_spex.extern import rhessi
 from sunkit_spex.fitting_legacy import instruments as inst
 from sunkit_spex.fitting_legacy.parameter_handler import (
     _make_into_list,
@@ -122,7 +123,7 @@ class LoadSpec:
 
         self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
 
-        self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "RHESSI": inst.RhessiLoader}
+        self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "RHESSI": rhessi.RhessiLoader}
 
         pha_file, arf_file, rmf_file, srm_file, srm_custom, custom_channel_bins, instruments = self._sort_files(pha_file=pha_file,
                                                                                                                 arf_file=arf_file,

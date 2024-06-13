@@ -6,8 +6,7 @@ import numpy as np
 from astropy.io import fits
 import astropy.table as atab
 
-__all__ = ["_read_pha", "_read_arf", "_read_rmf", "_read_rhessi_spec_file", "_read_rhessi_srm_file",
-           "_read_stix_spec_file", "_read_stix_srm_file"]
+__all__ = ["_read_pha", "_read_arf", "_read_rmf"]
 
 
 def _read_pha(file):
@@ -72,78 +71,3 @@ def _read_rmf(file):
         data = hdul[2].data
 
     return data['energ_lo'], data['energ_hi'], data['n_grp'], data['f_chan'], data['n_chan'], data['matrix']
-
-
-def _read_rhessi_srm_file(srm_file):
-    """
-    Read RHESSI SRM fits file and extract useful information from it.
-
-    Parameters
-    ----------
-    srm_file : `str`, `file-like` or `pathlib.Path`
-        A RHESSI SRM fits file (see `~astropy.fits.io.open` for details)
-
-    Returns
-    -------
-    List of qtables and headers from SRM file.
-    """
-    ret = list()
-    with fits.open(srm_file) as hdul:
-        for hdu_idx in range(len(hdul)):
-            try:
-                cur_hdu = atab.QTable.read(
-                    hdul,
-                    format='fits',
-                    hdu=hdu_idx
-                )
-            except ValueError:
-                cur_hdu = None
-            ret.append({'header': hdul[hdu_idx].header, 'data': cur_hdu})
-    return ret
-
-
-def _read_stix_spec_file(spec_file):
-    """
-    Read STIX spectral fits file and extracts useful information from it.
-
-    Parameters
-    ----------
-    spec_file : `str`, `file-like` or `pathlib.Path`
-            STIX spectral fits file (see `~astropy.fits.io.open` for details)
-
-    Returns
-    -------
-    `dict`
-        STIX spectral data.
-    """
-    sdict = {}
-    with fits.open(spec_file) as hdul:
-        for i in range(5):
-            sdict[str(i)] = [hdul[i].header, hdul[i].data]
-    return sdict
-
-
-def _read_stix_srm_file(srm_file):
-    """
-    Read a STIX SRM spectral fits file and extract useful information from it.
-
-    Parameters
-    ----------
-    srm_file : `str` or `pathlib.Path`
-        STIX SRM fits file
-
-    Returns
-    -------
-    `dict`
-        STIX SRM data (photon bins, count bins, and SRM in units of [counts/keV/photons]).
-    """
-    with fits.open(srm_file) as hdul:
-        d0 = hdul[1].header
-        d1 = hdul[1].data
-        d3 = hdul[2].data
-
-    pcb = np.concatenate((d1['ENERG_LO'][:, None], d1['ENERG_HI'][:, None]), axis=1)
-
-    return {"photon_energy_bin_edges": pcb,
-            "count_energy_bin_edges": np.concatenate((d3['E_MIN'][:, None], d3['E_MAX'][:, None]), axis=1),
-            "drm": d1['MATRIX']*d0["GEOAREA"]}
