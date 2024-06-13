@@ -4,4 +4,4 @@
 from .version import __version__
 
 __all__ = []
-from . import fitting_legacy, io, thermal, extern
+from . import extern, fitting_legacy, io, thermal

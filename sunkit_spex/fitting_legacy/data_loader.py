@@ -10,10 +10,7 @@ from astropy.io import fits
 
 from sunkit_spex.extern import rhessi
 from sunkit_spex.fitting_legacy import instruments as inst
-from sunkit_spex.fitting_legacy.parameter_handler import (
-    _make_into_list,
-    isnumber,
-)
+from sunkit_spex.fitting_legacy.parameter_handler import _make_into_list, isnumber
 
 __all__ = ["LoadSpec"]
 
@@ -121,7 +118,10 @@ class LoadSpec:
     def __init__(self, *args, pha_file=None, arf_file=None, rmf_file=None, srm_file=None, srm_custom=None, custom_channel_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file},srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
+        self._construction_string = (
+            f"LoadSpec(*{args},pha_file={pha_file},arf_file={arf_file},rmf_file={rmf_file}"
+            f"srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
+        )
 
         self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "RHESSI": rhessi.RhessiLoader}
 

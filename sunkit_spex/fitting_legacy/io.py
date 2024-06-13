@@ -1,10 +1,8 @@
 """
 The ``io`` module contains code to read instrument specific spectral data.
 """
-import numpy as np
 
 from astropy.io import fits
-import astropy.table as atab
 
 __all__ = ["_read_pha", "_read_arf", "_read_rmf"]
 
