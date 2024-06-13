@@ -35,18 +35,18 @@ from scipy.optimize import minimize
 
 from astropy.table import Table
 
-from sunkit_spex.fitting_legacy.data_loader import LoadSpec
-from sunkit_spex.fitting_legacy.instruments import rebin_any_array
-from sunkit_spex.fitting_legacy.likelihoods import LogLikelihoods
-from sunkit_spex.fitting_legacy.parameter_handler import Parameters, isnumber
-from sunkit_spex.fitting_legacy.photon_models_for_fitting import (  # noqa
+from sunkit_spex.legacy.fitting_legacy.data_loader import LoadSpec
+from sunkit_spex.legacy.fitting_legacy.instruments import rebin_any_array
+from sunkit_spex.legacy.fitting_legacy.likelihoods import LogLikelihoods
+from sunkit_spex.legacy.fitting_legacy.parameter_handler import Parameters, isnumber
+from sunkit_spex.legacy.fitting_legacy.photon_models_for_fitting import (  # noqa
     defined_photon_models,
     f_vth,
     thick_fn,
     thick_warm,
 )
-from sunkit_spex.fitting_legacy.rainbow_text import rainbow_text_lines
-from sunkit_spex.logging import get_logger
+from sunkit_spex.legacy.fitting_legacy.rainbow_text import rainbow_text_lines
+from sunkit_spex.legacy.fitting_legacy.logging import get_logger
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
