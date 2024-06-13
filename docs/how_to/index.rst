@@ -9,3 +9,5 @@ you quickly accomplish common tasks.
 
 .. toctree::
    :maxdepth: 1
+
+   ../generated/gallery/index
