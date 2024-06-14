@@ -9,8 +9,11 @@ import numpy as np
 from astropy.io import fits
 
 from sunkit_spex.extern import rhessi
-from sunkit_spex.fitting_legacy import instruments as inst
-from sunkit_spex.fitting_legacy.parameter_handler import _make_into_list, isnumber
+from sunkit_spex.legacy.fitting_legacy import instruments as inst  # sunkit_spex.fitting_legacy.instruments
+from sunkit_spex.legacy.fitting_legacy.parameter_handler import (  # sunkit_spex.fitting_legacy.parameter_handler
+    _make_into_list,
+    isnumber,
+)
 
 __all__ = ["LoadSpec"]
 

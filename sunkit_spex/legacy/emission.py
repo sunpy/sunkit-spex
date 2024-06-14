@@ -14,8 +14,8 @@ import logging
 
 import numpy as np
 
-from sunkit_spex import constants as const
-from sunkit_spex.integrate import gauss_legendre
+from sunkit_spex.legacy import constants as const
+from sunkit_spex.legacy.integrate import gauss_legendre
 
 const = const.Constants()
 
@@ -59,7 +59,7 @@ class BrokenPowerLawElectronDistribution:
     --------
 
         >>> import numpy as np
-        >>> from sunkit_spex.emission import BrokenPowerLawElectronDistribution
+        >>> from sunkit_spex.legacy.emission import BrokenPowerLawElectronDistribution
         >>> electron_dist = BrokenPowerLawElectronDistribution(p=5,q=7, eelow=10, eebrk=150,
         ...                                                    eehigh=500)
         >>> electron_dist

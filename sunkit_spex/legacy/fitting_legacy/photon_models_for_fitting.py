@@ -9,8 +9,8 @@ import numpy as np
 
 from astropy import units as u
 
-from ..emission import bremsstrahlung_thick_target  # bremsstrahlung_thin_target
-from ..thermal import thermal_emission
+from sunkit_spex.legacy.emission import bremsstrahlung_thick_target  # bremsstrahlung_thin_target
+from sunkit_spex.legacy.thermal import thermal_emission
 
 __all__ = ["defined_photon_models", "f_vth", "thick_fn", "thick_warm"]
 
