@@ -1,0 +1,6 @@
+Update the RHESSI instrument loader
+
+- Move location to :py:class:`sunkit_spex.extern.rhessi.RhessiLoader`
+- Move all "I/O" RHESSI code into :py:mod:`sunkit_spex.extern.rhessi` too
+- Remove broken/codependent STIX loader.
+- Have RHESSI loader auto-pick the correct response based on the fitting times; warn if time range spans an attenuator state change.
