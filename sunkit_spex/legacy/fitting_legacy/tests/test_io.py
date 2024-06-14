@@ -2,15 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from sunkit_spex.legacy.fitting_legacy.io import (
-    _read_arf,
-    _read_pha,
-    _read_rhessi_spec_file,
-    _read_rhessi_srm_file,
-    _read_rmf,
-    _read_stix_spec_file,
-    _read_stix_srm_file,
-)
+from sunkit_spex.legacy.fitting_legacy.io import _read_arf, _read_pha, _read_rmf
 
 
 @patch('astropy.io.fits.open')
