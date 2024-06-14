@@ -5,4 +5,5 @@ from .version import __version__
 
 __all__ = []
 from . import extern
-from .legacy import fitting_legacy, io, thermal
+from .legacy import fitting_legacy
+from .models.photon.thermal import io, thermal
