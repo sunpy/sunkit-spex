@@ -676,7 +676,7 @@ plt.rcParams['font.size'] = default_font_size
 #
 # First, load in your data files, here we load in 2 spectra
 
-_dir = "../data/nustar/Glesener2020/"
+_dir = "./nustar/Glesener2020/"
 # in the files I have, the ARF and RMF file have different names to the PHA files so cannot use the PHA file name to help find the others so...
 spec = Fitter(pha_file=[_dir+'nu20312001001A06_cl_grade0_sr_grp.pha',
                         _dir+'nu20312001001B06_cl_grade0_sr_grp.pha'],
@@ -748,7 +748,7 @@ plt.rcParams['font.size'] = default_font_size
 # First, load in your data files, here we load in 1 spectrum
 
 
-_dir = "../data/nustar/Glesener2020/"
+_dir = "./nustar/Glesener2020/"
 spec = Fitter(pha_file=_dir+'nu20312001001B06_cl_grade0_sr_grp.pha',
               arf_file=_dir+'nu20312001001B06_cl_grade0_sr.arf',
               rmf_file=_dir+'nu20312001001B06_cl_grade0_sr.rmf')
@@ -805,7 +805,7 @@ plt.rcParams['font.size'] = default_font_size
 #
 # First, load in your data files, here we load in 2 spectra
 
-_dir = "../data/nustar/Glesener2020/"
+_dir = "./nustar/Glesener2020/"
 spec = Fitter(pha_file=[_dir+'nu20312001001A06_cl_grade0_sr_grp.pha',
                         _dir+'nu20312001001B06_cl_grade0_sr_grp.pha'],
               arf_file=[_dir+'nu20312001001A06_cl_grade0_sr.arf',
