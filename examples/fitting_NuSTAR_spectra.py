@@ -197,7 +197,7 @@ spec.undo_rebin = "all"
 #
 # To save the fitting class to a file called 'test.pickle'.
 
-spec.save("../savedFits/test.pickle")
+spec.save("./test.pickle")
 
 #####################################################
 #
@@ -206,7 +206,7 @@ spec.save("../savedFits/test.pickle")
 # To load a saved session back in
 
 
-new_spec = load("../savedFits/test.pickle")
+new_spec = load("./test.pickle")
 
 print(new_spec.params)
 
