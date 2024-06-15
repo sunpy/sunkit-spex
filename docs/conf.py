@@ -108,7 +108,7 @@ sphinx_gallery_conf = {
     "filename_pattern": "^((?!skip_).)*$",
     "examples_dirs": example_dir,
     "gallery_dirs": path.joinpath("generated", "gallery"),
-    "default_thumb_file": path.joinpath("logo", "sunpy_icon_128x128.png"),
+    # "default_thumb_file": path.joinpath("logo", "sunpy_icon_128x128.png"),
     "abort_on_example_error": False,
     "plot_gallery": "True",
     "remove_config_comments": True,
