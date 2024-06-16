@@ -4,7 +4,8 @@ Fitting Attenuated RHESSI Spectra
 =================================
 
 
-Attenuated RHESSI example [Download data files here](https://drive.google.com/file/d/1FMRVh8E0jCh3mj15r_Fy8g_RhbmlGIj-)
+Fitting attenuated RHESSI Spectra
+
 This is looking at the M9 class flare observed by RHESSI from [Knuth+Glesener 2020](https://iopscience.iop.org/article/10.3847/1538-4357/abb779).
 
 We perform spectroscopy on the interval where the thick attenuator is inserted.

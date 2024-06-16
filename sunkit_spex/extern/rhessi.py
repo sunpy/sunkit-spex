@@ -1,6 +1,8 @@
 import copy
 import warnings
 
+import sunpy.time
+
 from astropy.io import fits
 import astropy.table as atab
 import astropy.units as u
@@ -93,7 +95,7 @@ class RhessiLoader(instruments.InstrumentBlueprint):
             self.start_data_time, self.end_data_time
 
         # Assume unattenuated SRM until spectroscopy interval is specified
-        UNATTENUATED_STATE = 0
+        UNATTENUATED_STATE = 1
         self._loaded_spec_data = {
             'photon_channel_bins': photon_bins,
             'photon_channel_binning': photon_binning,
@@ -203,14 +205,17 @@ class RhessiLoader(instruments.InstrumentBlueprint):
                     "covers attenuator state change. Don't trust this fit!"
                 )
 
-        new_att_state = 0
-        for i in range(len(self._attenuator_state_info['states']) - 1):
-            state = self._attenuator_state_info['states'][i]
-            if change_times[i] < start_time and end_time < change_times[i+1]:
-                new_att_state = state
-                break
-
+        n_states = len(self._attenuator_state_info['states'])
+        new_att_state = self._attenuator_state_info['states'][0]  # default to first
+        if n_states > 1:
+            for i in range(n_states-1):
+                state = self._attenuator_state_info['states'][i]
+                if change_times[i] < start_time and end_time < change_times[i+1]:
+                    new_att_state = state
+                    break
         self._loaded_spec_data['srm'] = self._srm['srm_options'][new_att_state].astype(float)
+
+
 
     def _update_event_data_with_times(self):
         """
@@ -239,7 +244,7 @@ class RhessiLoader(instruments.InstrumentBlueprint):
                     stime=self._start_event_time,
                     full_data=self._spectrum['counts_err'],
                     etime=self._end_event_time
-                )**2)
+                )**2, axis=0)
             )
         )
 
@@ -691,15 +696,12 @@ def load_spectrum(spec_fn: str):
 
 def _extract_attenunator_info(att_dat) -> dict[str, list]:
     '''Pull out attenuator states and times'''
-    # swap the UNIX year with the date_obs year
-    # they don't match because the UNIX year is not the reference year
-    # as per Kim Tolbert
-    obs_year = atime.Time(att_dat.header['DATE_OBS']).datetime.year
-    dtimes = atime.Time(att_dat.data['SP_ATTEN_STATE$$TIME'], format='unix').datetime[0]
-    dtimes = [dt.replace(year=obs_year) for dt in dtimes]
+    n_attenuator_changes = att_dat.data['SP_ATTEN_STATE$$TIME'].size
+    atten_change_times = atime.Time(att_dat.data['SP_ATTEN_STATE$$TIME'], format='utime').utc
+    atten_change_times = atten_change_times.reshape(n_attenuator_changes)  # reshape so always 1d array
     return {
-        'change_times': atime.Time(dtimes, format='datetime'),
-        'states': list(*att_dat.data['SP_ATTEN_STATE$$STATE'])
+        'change_times': atten_change_times,
+        'states': att_dat.data['SP_ATTEN_STATE$$STATE'].reshape(n_attenuator_changes).tolist()
     }
 
 
