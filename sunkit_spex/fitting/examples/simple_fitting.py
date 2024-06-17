@@ -1,5 +1,7 @@
 """
-This is a file to show...
+This is a file to show a very basic fitting of data where the model are
+generated in a different space (photon-space) which are converted using 
+a response matrix to the data-space (count-space).
 
 Things assumed:
 * Square response where the count and photon energy axes are identical
@@ -18,7 +20,8 @@ from sunkit_spex.fitting.models.physical.gaussian import GaussianPhotonModel
 from sunkit_spex.fitting.models.physical.straight_line import StraightLinePhotonModel
 from sunkit_spex.fitting.statistics.gaussian import chi_squared
 
-
+# decide whether to save the figure at the end
+SAVE_FIG = False
 # this should keep "random" stuff is the same ech run
 np.random.seed(seed=10)
 
@@ -31,6 +34,7 @@ def plot_fake_photon_spectrum(axis,
                               photon_energies, 
                               photon_values, 
                               title="Fake Photon Spectrum"):
+    """ Plots the fake photon spectrum. """
 
     axis.plot(photon_energies, photon_values)
     axis.set_xlabel("Energy [keV]")
@@ -38,6 +42,10 @@ def plot_fake_photon_spectrum(axis,
     axis.set_title(title)
 
 def response_matrix(photon_energies):
+    """ 
+    Generate a square matrix with off-diagonal terms to mimic an 
+    instrument response matrix. 
+    """
     # fake SRM
     fake_srm = np.identity(photon_energies.size)
 
@@ -49,7 +57,7 @@ def response_matrix(photon_energies):
         # add a diagonal feature
         _x = 50
         if c>=_x:
-            off_diag[-_x] = np.random.rand(1)
+            off_diag[-_x] = np.random.rand(1)[0]
         
         # add a vertical feature in 
         _y = 200
@@ -64,6 +72,7 @@ def response_matrix(photon_energies):
     return fake_srm
 
 def plot_fake_srm(axis, fake_srm, photon_energies, title="Fake SRM"):
+    """ Plots the fake response matrix. """
 
     axis.imshow(fake_srm, 
                 origin="lower", 
@@ -83,20 +92,32 @@ def plot_fake_count_spectrum(axis,
                              total_count_spectrum, 
                              total_count_spectrum_wnoise,
                              title="Fake Count Spectrum"):
+    """ Plots the fake count spectrum and its componenets. """
 
-    axis.plot(photon_energies, photon_model_features, label="photon model features")
-    axis.plot(photon_energies, gaussian_feature, label="gaussian feature")
-    axis.plot(photon_energies, total_count_spectrum, label="total fake spectrum")
-    axis.plot(photon_energies, total_count_spectrum_wnoise, label="total fake spectrum + noise")
+    axis.plot(photon_energies, 
+              photon_model_features, 
+              label="photon model features")
+    axis.plot(photon_energies, 
+              gaussian_feature, 
+              label="gaussian feature")
+    axis.plot(photon_energies, 
+              total_count_spectrum, 
+              label="total fake spectrum")
+    axis.plot(photon_energies, 
+              total_count_spectrum_wnoise, 
+              label="total fake spectrum + noise",
+              lw=0.5)
     axis.set_xlabel("Energy [keV]")
     axis.set_ylabel("cts s$^{-1}$ keV$^{-1}$")
     axis.set_title(title)
     axis.legend()
 
 def plot_fake_count_spectrum_fit(axis, 
+                                 photon_energies, 
                                  total_count_spectrum_wnoise,
                                  fitted_count_spectrum,
                                  title="Fake Count Spectrum Fit"):
+    """ Plot the fitted result. """
 
     axis.plot(photon_energies, total_count_spectrum_wnoise, label="total fake spectrum + noise")
     axis.plot(ph_energies, fitted_count_spectrum, ls=":", label="model fit")
@@ -106,6 +127,7 @@ def plot_fake_count_spectrum_fit(axis,
     axis.legend()
 
 def plot_table_of_results(ax, row_labels, column_labels, cell_text):
+    """ A function to make a table showing the fitted results. """
     ax.axis("off")
     ax.table(cellText=cell_text, 
              cellColours=None, 
@@ -116,6 +138,7 @@ def plot_table_of_results(ax, row_labels, column_labels, cell_text):
              colColours=None, 
              colLoc='center', 
              bbox=[0,0,1,1])
+    
 
 if __name__=="__main__":
     #*******************************************************************
@@ -193,34 +216,47 @@ if __name__=="__main__":
     # Plot the results
     #*******************************************************************
 
-    fig = plt.figure(layout="constrained")
+    fig = plt.figure(layout="constrained", figsize=(14,7))
 
     gs = GridSpec(2, 3, figure=fig)
 
     # plto the fake photon spectrum to be converted to count-space
     ax1 = fig.add_subplot(gs[0, 0])
     plot_fake_photon_spectrum(ax1, 
-                              photon_energies, 
+                              ph_energies, 
                               ph_model(ph_energies), 
                               title="Fake Photon Spectrum")
     
     # the fake response
     ax2 = fig.add_subplot(gs[0, 1])
-    plot_fake_srm(ax2, srm, photon_energies, title="Fake SRM")
+    plot_fake_srm(ax2, srm, ph_energies, title="Fake SRM")
 
     # the count spectrum to fir with it's components highlighted
     ax3 = fig.add_subplot(gs[0, 2])
     plot_fake_count_spectrum(ax3, 
-                             photon_energies, 
+                             ph_energies, 
                              (ph_model | srm_model)(ph_energies), 
                              GaussianCountModel(**fake_gauss)(ph_energies), 
                              fake_count_model, 
                              fake_count_model_wn,
                              title="Fake Count Spectrum")
+    ax3.text(70, 
+             170, 
+             "(ph_model(m,c,a1,b1,c1) | srm)",
+             ha="right", 
+             c="tab:blue",
+             weight="bold")
+    ax3.text(70, 
+             150, 
+             "+ Gaussian(a2,b2,c2)",
+             ha="right", 
+             c="tab:orange",
+             weight="bold")
     
     # the count spectrum fitted with Scipy
     ax4 = fig.add_subplot(gs[1, 0])
     plot_fake_count_spectrum_fit(ax4, 
+                                 ph_energies, 
                                  fake_count_model_wn,
                                  count_model_4fit.evaluate(ph_energies, *opt_res.x),
                                  title="Fake Count Spectrum Fit with Scipy")
@@ -228,13 +264,16 @@ if __name__=="__main__":
     # the count spectrum fitted with Astropy
     ax5 = fig.add_subplot(gs[1, 1])
     plot_fake_count_spectrum_fit(ax5, 
+                                 ph_energies, 
                                  fake_count_model_wn,
                                  astropy_fitted_result(ph_energies),
                                  title="Fake Count Spectrum Fit with Astropy")
     
     # the fitted value result compared to true values
     ax6 = fig.add_subplot(gs[1, 2])
-    row_labels = (tuple(fake_cont)+tuple(fake_line)+tuple(fake_gauss))
+    row_labels = (tuple(fake_cont)+\
+                  tuple(f"{p}1" for p in tuple(fake_line))+\
+                    tuple(f"{p}2" for p in tuple(fake_gauss)))
     column_labels = ("True Values", "Guess Values", "Scipy Fit", "Astropy Fit")
     true_vals = np.array(tuple(fake_cont.values())+\
                          tuple(fake_line.values())+\
@@ -247,5 +286,8 @@ if __name__=="__main__":
     cell_vals = np.vstack((true_vals,guess_vals,scipy_vals,astropy_vals)).T
     cell_text = np.round(np.vstack((true_vals,guess_vals,scipy_vals,astropy_vals)).T, 2).astype(str)
     plot_table_of_results(ax6, row_labels, column_labels, cell_text)
+
+    if SAVE_FIG:
+        plt.savefig("./astropy-fitting-example.pdf", bbox_inches="tight")
 
     plt.show()
