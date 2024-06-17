@@ -5,6 +5,7 @@ a response matrix to the data-space (count-space).
 
 Things assumed:
 * Square response where the count and photon energy axes are identical
+* No errors are included in the fitting statistic
 """
 
 import matplotlib.pyplot as plt
