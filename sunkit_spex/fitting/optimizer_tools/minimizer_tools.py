@@ -1,8 +1,9 @@
 from scipy.optimize import minimize
 
+
 def scipy_minimize(objective_func, param_guesses, args, **kwargs):
     """ A function to optimize fitted parameters to data.
-    
+
     Parameters
     ----------
     objective_func : `function`
@@ -11,12 +12,12 @@ def scipy_minimize(objective_func, param_guesses, args, **kwargs):
     param_guesses : `ndarray`
         Initial guesses of the independent variables.
 
-    args : 
+    args :
         Any arguments required to be passed to the objective function
-        after the param_guesses. 
+        after the param_guesses.
         E.g., `objective_func(param_guesses, *args)`.
 
-    kwargs : 
+    kwargs :
         Passed to `scipy.optimize.minimize`.
         A default value for the method is chosen to be "Nelder-Mead".
 
@@ -28,8 +29,8 @@ def scipy_minimize(objective_func, param_guesses, args, **kwargs):
 
     method = kwargs.pop("method", "Nelder-Mead")
 
-    return minimize(objective_func, 
-                    param_guesses, 
+    return minimize(objective_func,
+                    param_guesses,
                     args=args,
-                    method=method, 
+                    method=method,
                     **kwargs)

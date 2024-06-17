@@ -1,8 +1,10 @@
-from astropy.modeling import Fittable1DModel, Parameter
 import numpy as np
 
+from astropy.modeling import Fittable1DModel, Parameter
+
+
 class GaussianCountModel(Fittable1DModel):
-    
+
     a = Parameter(default=1, min=0, description="Scalar for Gaussian.")
     b = Parameter(default=0, min=0, description="X-offset for Gaussian.")
     c = Parameter(default=1, description="Sigma for Gaussian.")
