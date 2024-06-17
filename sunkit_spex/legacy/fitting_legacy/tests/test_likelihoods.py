@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.testing import assert_allclose
 
-from sunkit_spex.fitting_legacy.likelihoods import LogLikelihoods
+from sunkit_spex.legacy.fitting_legacy.likelihoods import LogLikelihoods
 
 
 def test_cstat():

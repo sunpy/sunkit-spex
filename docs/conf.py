@@ -9,6 +9,8 @@
 
 # -- Project information -----------------------------------------------------
 
+import pathlib
+
 from sunkit_spex import __version__
 project = 'sunkit-spex'
 copyright = '2020, The SunPy Community'
@@ -35,7 +37,8 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx_automodapi.automodapi',
     'sphinx_automodapi.smart_resolver',
-    'sphinx_changelog'
+    'sphinx_changelog',
+    'sphinx_gallery.gen_gallery'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -99,3 +102,18 @@ graphviz_dot_args = [
     '-Gfontsize=10',
     '-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif'
 ]
+
+# -- Options for the Sphinx gallery -------------------------------------------
+path = pathlib.Path.cwd()
+example_dir = path.parent.joinpath("examples")
+sphinx_gallery_conf = {
+    "backreferences_dir": str(path.joinpath("generated", "modules")),
+    "filename_pattern": "^((?!skip_).)*$",
+    "examples_dirs": example_dir,
+    "gallery_dirs": path.joinpath("generated", "gallery"),
+    "default_thumb_file": path.joinpath("logo", "sunpy_icon_128x128.png"),
+    "abort_on_example_error": False,
+    "plot_gallery": "True",
+    "remove_config_comments": True,
+    "only_warn_on_example_error": True,
+}
