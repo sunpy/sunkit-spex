@@ -49,7 +49,10 @@ from sunkit_spex.legacy.fitting_legacy.photon_models_for_fitting import (  # noq
 from sunkit_spex.legacy.fitting_legacy.rainbow_text import rainbow_text_lines
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+try:
+    warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+except AttributeError:
+    warnings.filterwarnings("ignore", category=np.exceptions.VisibleDeprecationWarning)
 
 logger = get_logger(__name__, 'DEBUG')
 
