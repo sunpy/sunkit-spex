@@ -94,8 +94,6 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         self._start_event_time, self._end_event_time =\
             self.start_data_time, self.end_data_time
 
-        # Assume unattenuated SRM until spectroscopy interval is specified
-        UNATTENUATED_STATE = 1
         self._loaded_spec_data = {
             'photon_channel_bins': photon_bins,
             'photon_channel_binning': photon_binning,
@@ -103,7 +101,7 @@ class RhessiLoader(instruments.InstrumentBlueprint):
             'count_channel_bins': channel_bins,
             'count_channel_binning': (ch_de := np.diff(channel_bins, axis=1).flatten()),
             'count_channel_mids': channel_bins[:, 0] + ch_de/2,
-            'srm': srm['srm_options'][UNATTENUATED_STATE],
+            'srm': list(srm['srm_options'].values())[0],  # default to first state
             'extras': dict()
         }
         self._update_event_data_with_times()
