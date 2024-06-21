@@ -72,6 +72,7 @@ class Meta(dict):
     axis-awareness.  If specific pieces of metadata have a known way to behave during
     rebinning, this can be handled by subclasses or mixins.
     """
+
     def __init__(self, header=None, comments=None, axes=None, data_shape=None):
         self.__ndcube_can_slice__ = True
         self.__ndcube_can_rebin__ = True
@@ -89,8 +90,7 @@ class Meta(dict):
         else:
             comments = dict(comments)
             if not set(comments.keys()).issubset(set(header_keys)):
-                raise ValueError(
-                    "All comments must correspond to a value in header under the same key.")
+                raise ValueError("All comments must correspond to a value in header under the same key.")
             self._comments = comments
 
         if data_shape is None:
@@ -101,40 +101,42 @@ class Meta(dict):
         if axes is None:
             self._axes = dict()
         else:
-            if not (isinstance(data_shape, collections.abc.Iterable) and
-                    all([isinstance(i, numbers.Integral) for i in data_shape])):
-                raise TypeError("If axes is set, data_shape must be an iterable giving "
-                                "the length of each axis of the associated cube.")
+            if not (
+                isinstance(data_shape, collections.abc.Iterable)
+                and all([isinstance(i, numbers.Integral) for i in data_shape])
+            ):
+                raise TypeError(
+                    "If axes is set, data_shape must be an iterable giving "
+                    "the length of each axis of the associated cube."
+                )
             axes = dict(axes)
             if not set(axes.keys()).issubset(set(header_keys)):
-                raise ValueError(
-                    "All axes must correspond to a value in header under the same key.")
-            self._axes = dict([(key, self._sanitize_axis_value(axis, header[key], key))
-                               for key, axis in axes.items()])
+                raise ValueError("All axes must correspond to a value in header under the same key.")
+            self._axes = dict([(key, self._sanitize_axis_value(axis, header[key], key)) for key, axis in axes.items()])
 
     def _sanitize_axis_value(self, axis, value, key):
-        axis_err_msg = ("Values in axes must be an integer or iterable of integers giving "
-                        f"the data axis/axes associated with the metadata.  axis = {axis}.")
+        axis_err_msg = (
+            "Values in axes must be an integer or iterable of integers giving "
+            f"the data axis/axes associated with the metadata.  axis = {axis}."
+        )
         if isinstance(axis, numbers.Integral):
             axis = (axis,)
         if len(axis) == 0:
             return ValueError(axis_err_msg)
         if self.shape is None:
-            raise TypeError("Meta instance does not have a shape so new metadata "
-                            "cannot be assigned to an axis.")
+            raise TypeError("Meta instance does not have a shape so new metadata " "cannot be assigned to an axis.")
         # Verify each entry in axes is an iterable of ints or a scalar.
-        if not (isinstance(axis, collections.abc.Iterable) and all([isinstance(i, numbers.Integral)
-                                                                    for i in axis])):
+        if not (isinstance(axis, collections.abc.Iterable) and all([isinstance(i, numbers.Integral) for i in axis])):
             return ValueError(axis_err_msg)
         axis = np.asarray(axis)
         if _not_scalar(value):
             axis_shape = tuple(self.shape[axis])
             if not _is_grid_aligned(value, axis_shape) and not _is_axis_aligned(value, axis_shape):
                 raise ValueError(
-                    f"{key} must have shape {tuple(self.shape[axis])} "
-                    f"as its associated axes {axis}, ",
+                    f"{key} must have shape {tuple(self.shape[axis])} " f"as its associated axes {axis}, ",
                     f"or same length as number of associated axes ({len(axis)}). "
-                    f"Has shape {value.shape if hasattr(value, 'shape') else len(value)}")
+                    f"Has shape {value.shape if hasattr(value, 'shape') else len(value)}",
+                )
         return axis
 
     @property
@@ -172,8 +174,7 @@ class Meta(dict):
             If True, overwrites the entry of the name name if already present.
         """
         if name in self.keys() and overwrite is not True:
-            raise KeyError(f"'{name}' already exists. "
-                           "To update an existing metadata entry set overwrite=True.")
+            raise KeyError(f"'{name}' already exists. " "To update an existing metadata entry set overwrite=True.")
         if comment is not None:
             self._comments[name] = comment
         if axis is not None:
@@ -202,7 +203,8 @@ class Meta(dict):
                         f"must either have same length as number associated axes ({len(axis)}), "
                         f"or the same shape as associated data axes {tuple(self.shape[axis])}. "
                         f"val shape = {val.shape if hasattr(val, 'shape') else (len(val),)}\n"
-                        "We recommend using the 'add' method to set values.")
+                        "We recommend using the 'add' method to set values."
+                    )
         super().__setitem__(key, val)
 
     def __getitem__(self, item):
@@ -222,8 +224,7 @@ class Meta(dict):
             if isinstance(item, (numbers.Integral, slice)):
                 item = [item]
             naxes = len(self.shape)
-            item = np.array(list(item) + [slice(None)] * (naxes - len(item)),
-                            dtype=object)
+            item = np.array(list(item) + [slice(None)] * (naxes - len(item)), dtype=object)
 
             # Edit data shape and calculate which axis will be dropped.
             dropped_axes = np.zeros(naxes, dtype=bool)
@@ -244,8 +245,7 @@ class Meta(dict):
                         stop = self.shape[i] - stop
                     new_shape[i] = stop - start
                 else:
-                    raise TypeError("Unrecognized slice type. "
-                                    "Must be an int, slice and tuple of the same.")
+                    raise TypeError("Unrecognized slice type. " "Must be an int, slice and tuple of the same.")
             kept_axes = np.invert(dropped_axes)
             new_meta._data_shape = new_shape[kept_axes]
 
@@ -255,9 +255,7 @@ class Meta(dict):
                 drop_key = False
                 if axis is not None:
                     # Calculate new axis indices.
-                    new_axis = np.asarray(list(
-                        set(axis).intersection(set(np.arange(naxes)[kept_axes]))
-                        ))
+                    new_axis = np.asarray(list(set(axis).intersection(set(np.arange(naxes)[kept_axes]))))
                     if len(new_axis) == 0:
                         new_axis = None
                     else:
@@ -280,11 +278,11 @@ class Meta(dict):
                         # Slice metadata value.
                         try:
                             new_value = value[new_item]
-                        except:
+                        except:  # noqa: E722
                             # If value cannot be sliced by fancy slicing, convert it
                             # it to an array, slice it, and then if necessary, convert
                             # it back to its original type.
-                            new_value = (np.asanyarray(value)[new_item])
+                            new_value = np.asanyarray(value)[new_item]
                             if hasattr(new_value, "__len__"):
                                 new_value = type(value)(new_value)
                         # If axis-aligned metadata sliced down to length 1, convert to scalar.
@@ -294,8 +292,7 @@ class Meta(dict):
                     if drop_key:
                         new_meta.remove(key)
                     else:
-                        new_meta.add(key, new_value, self.comments.get(key, None), new_axis,
-                                     overwrite=True)
+                        new_meta.add(key, new_value, self.comments.get(key, None), new_axis, overwrite=True)
 
             return new_meta
 
@@ -318,25 +315,26 @@ class Meta(dict):
         # Sanitize input.
         data_shape = self.shape
         if not isinstance(rebinned_axes, set):
-            raise TypeError(
-                f"rebinned_axes must be a set. type of rebinned_axes is {type(rebinned_axes)}")
+            raise TypeError(f"rebinned_axes must be a set. type of rebinned_axes is {type(rebinned_axes)}")
         if not all([isinstance(dim, numbers.Integral) for dim in rebinned_axes]):
             raise ValueError("All elements of rebinned_axes must be ints.")
         list_axes = list(rebinned_axes)
         if min(list_axes) < 0 or max(list_axes) >= len(data_shape):
-            raise ValueError(
-                f"Elements in rebinned_axes must be in range 0--{len(data_shape)-1} inclusive.")
+            raise ValueError(f"Elements in rebinned_axes must be in range 0--{len(data_shape)-1} inclusive.")
         if len(new_shape) != len(data_shape):
-            raise ValueError(f"new_shape must be a tuple of same length as data shape: "
-                             f"{len(new_shape)} != {len(self.shape)}")
+            raise ValueError(
+                f"new_shape must be a tuple of same length as data shape: " f"{len(new_shape)} != {len(self.shape)}"
+            )
         if not all([isinstance(dim, numbers.Integral) for dim in new_shape]):
             raise TypeError("bin_shape must contain only integer types.")
         # Remove axis-awareness from grid-aligned metadata associated with rebinned axes.
         new_meta = copy.deepcopy(self)
         null_set = set()
         for name, axes in self.axes.items():
-            if (_is_grid_aligned(self[name], tuple(self.shape[axes]))
-                and set(axes).intersection(rebinned_axes) != null_set):
+            if (
+                _is_grid_aligned(self[name], tuple(self.shape[axes]))
+                and set(axes).intersection(rebinned_axes) != null_set
+            ):
                 del new_meta._axes[name]
         # Update data shape.
         new_meta._data_shape = np.asarray(new_shape).astype(int)
@@ -344,15 +342,7 @@ class Meta(dict):
 
 
 def _not_scalar(value):
-    return (
-        (
-         hasattr(value, "shape")
-         or hasattr(value, "__len__")
-        )
-        and not
-        (
-         isinstance(value, str)
-        ))
+    return (hasattr(value, "shape") or hasattr(value, "__len__")) and not (isinstance(value, str))
 
 
 def _is_scalar(value):
