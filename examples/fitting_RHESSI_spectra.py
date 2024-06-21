@@ -35,12 +35,11 @@ warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 # Download the example data
 
 dl = Downloader()
-base_url = 'https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Frhessi&files='
-file_names = ['20021005_103800_spec.fits',
-              '20021005_103800_srm.fits']
+base_url = "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Frhessi&files="
+file_names = ["20021005_103800_spec.fits", "20021005_103800_srm.fits"]
 
 for fname in file_names:
-    dl.enqueue_file(base_url+fname, path="./rhessi/")
+    dl.enqueue_file(base_url + fname, path="./rhessi/")
 files = dl.download()
 
 #####################################################
@@ -71,14 +70,14 @@ rhess_spec = RhessiLoader(spectrum_fn="./rhessi/20021005_103800_spec.fits", srm_
 # Default energy range plotted is all energies but the user can define an energy rangem or ranges.
 # Ranges are inclusive at the bounds and here we see the 5$-$10 keV, 10$-$30 keV, and 25$-$50 keV ranges.
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=time_profile_size)
 
 # the line that actually plots
 rhess_spec.lightcurve(energy_ranges=[[5, 10], [10, 30], [25, 50]])
 
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
@@ -96,22 +95,22 @@ rhess_spec.update_event_times(Time("2002-10-05T10:41:20"), Time("2002-10-05T10:4
 #
 # Plot again
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=time_profile_size)
 rhess_spec.lightcurve(energy_ranges=[[5, 10], [10, 30], [25, 50]])
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
 # We can also see the X-ray evolution via a spectrogram.
 
 # plot spectrogram
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=(15, 10))
 rhess_spec.spectrogram()
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
@@ -209,7 +208,7 @@ rhess_spec_fit = fitter.fit(tol=tol)
 #
 # Let's plot the result. Since a background has been set it will be displayed in grey behind all other models and data.
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 
 # the line that actually plots
@@ -221,7 +220,7 @@ for a in axes:
     a.set_ylim(ylims)
     a.set_xscale("log")
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
@@ -233,7 +232,7 @@ plt.rcParams['font.size'] = default_text
 # However, this has been difficult in the past in software like OSPEX and so fitting usually been done by subtracting the background from the event time and fitting the model to the result (i.e., fitting the event-background with the model). To replicate this method we make use of the `data2data_minus_background` setter; we set this to True.
 
 
-fitter.data.loaded_spec_data['spectrum1'].data2data_minus_background = True
+fitter.data.loaded_spec_data["spectrum1"].data2data_minus_background = True
 
 #####################################################
 #
@@ -288,7 +287,7 @@ fitter.fit(tol=tol)
 #
 # Plot again plot
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 
 # the line that actually plots
@@ -300,7 +299,7 @@ for a in axes:
     a.set_ylim(ylims)
     a.set_xscale("log")
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
@@ -310,7 +309,7 @@ plt.rcParams['font.size'] = default_text
 # If the user wishes to undo this and wants to return to using the model+background fitting the event method then set
 # `data2data_minus_background` back to False like so.
 
-fitter.data.loaded_spec_data['spectrum1'].data2data_minus_background = False
+fitter.data.loaded_spec_data["spectrum1"].data2data_minus_background = False
 
 #####################################################
 #
@@ -349,7 +348,7 @@ corner_plot_ress_spec = fitter.corner_mcmc()
 # Plot final spectral results.
 
 # start plot
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 
 # the line that actually plots
@@ -361,7 +360,7 @@ for a in axes:
     a.set_ylim(ylims)
     a.set_xscale("log")
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 
 #####################################################
 #

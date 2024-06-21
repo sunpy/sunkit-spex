@@ -88,14 +88,14 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         # Assume unattenuated SRM until spectroscopy interval is specified
         UNATTENUATED_STATE = 0
         self._loaded_spec_data = {
-            'photon_channel_bins': photon_bins,
-            'photon_channel_binning': photon_binning,
-            'photon_channel_mids': photon_bins[:, 0] + photon_binning/2,
-            'count_channel_bins': channel_bins,
-            'count_channel_binning': (ch_de := np.diff(channel_bins, axis=1).flatten()),
-            'count_channel_mids': channel_bins[:, 0] + ch_de/2,
-            'srm': list(srm['srm_options'].values())[0],  # default to first state
-            'extras': dict()
+            "photon_channel_bins": photon_bins,
+            "photon_channel_binning": photon_binning,
+            "photon_channel_mids": photon_bins[:, 0] + photon_binning / 2,
+            "count_channel_bins": channel_bins,
+            "count_channel_binning": (ch_de := np.diff(channel_bins, axis=1).flatten()),
+            "count_channel_mids": channel_bins[:, 0] + ch_de / 2,
+            "srm": list(srm["srm_options"].values())[0],  # default to first state
+            "extras": dict(),
         }
         self._update_event_data_with_times()
         self._original_data = copy.deepcopy(self._loaded_spec_data)
@@ -199,15 +199,15 @@ class RhessiLoader(instruments.InstrumentBlueprint):
                     "covers attenuator state change. Don't trust this fit!"
                 )
 
-        n_states = len(self._attenuator_state_info['states'])
-        new_att_state = self._attenuator_state_info['states'][0]  # default to first
+        n_states = len(self._attenuator_state_info["states"])
+        new_att_state = self._attenuator_state_info["states"][0]  # default to first
         if n_states > 1:
-            for i in range(n_states-1):
-                state = self._attenuator_state_info['states'][i]
-                if change_times[i] < start_time and end_time < change_times[i+1]:
+            for i in range(n_states - 1):
+                state = self._attenuator_state_info["states"][i]
+                if change_times[i] < start_time and end_time < change_times[i + 1]:
                     new_att_state = state
                     break
-        self._loaded_spec_data['srm'] = self._srm['srm_options'][new_att_state].astype(float)
+        self._loaded_spec_data["srm"] = self._srm["srm_options"][new_att_state].astype(float)
 
     def _update_event_data_with_times(self):
         """
@@ -229,12 +229,14 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         )
         # do not assume Poisson error
         self._loaded_spec_data["count_error"] = (
-            err := np.sqrt(np.sum(
-                self._data_time_select(
-                    stime=self._start_event_time,
-                    full_data=self._spectrum['counts_err'],
-                    etime=self._end_event_time
-                )**2, axis=0)
+            err := np.sqrt(
+                np.sum(
+                    self._data_time_select(
+                        stime=self._start_event_time, full_data=self._spectrum["counts_err"], etime=self._end_event_time
+                    )
+                    ** 2,
+                    axis=0,
+                )
             )
         )
 
@@ -692,13 +694,13 @@ def load_spectrum(spec_fn: str):
 
 
 def _extract_attenunator_info(att_dat) -> dict[str, list]:
-    '''Pull out attenuator states and times'''
-    n_attenuator_changes = att_dat.data['SP_ATTEN_STATE$$TIME'].size
-    atten_change_times = atime.Time(att_dat.data['SP_ATTEN_STATE$$TIME'], format='utime').utc
+    """Pull out attenuator states and times"""
+    n_attenuator_changes = att_dat.data["SP_ATTEN_STATE$$TIME"].size
+    atten_change_times = atime.Time(att_dat.data["SP_ATTEN_STATE$$TIME"], format="utime").utc
     atten_change_times = atten_change_times.reshape(n_attenuator_changes)  # reshape so always 1d array
     return {
-        'change_times': atten_change_times,
-        'states': att_dat.data['SP_ATTEN_STATE$$STATE'].reshape(n_attenuator_changes).tolist()
+        "change_times": atten_change_times,
+        "states": att_dat.data["SP_ATTEN_STATE$$STATE"].reshape(n_attenuator_changes).tolist(),
     }
 
 

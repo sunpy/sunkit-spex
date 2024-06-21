@@ -7,7 +7,7 @@ This notebook provides a quick overlook of the fitting code in sunkit-spex and s
 
 We also use a user defined function.
 
-The fitting code is not optimised for this purpose but it can be used. This notebook isn't necessarily here to show or recommend that data of this type be fitted using theis code. This is to show an example of how a user might start to organise their own (X-ray?) spectroscopic data in the form that this software was designed to work with and how to provide the fitting class with the needed dictionary structure.
+The fitting code is not optimised for this purpose but it can be used. This notebook isn't necessarily here to show or recommend that data of this type be fitted using this code. This is to show an example of how a user might start to organise their own (X-ray?) spectroscopic data in the form that this software was designed to work with and how to provide the fitting class with the needed dictionary structure.
 
 This Notebook has been run on my Macbook (processor: Intel i5-7360U @ 2.3 GHz).
 
@@ -57,7 +57,7 @@ def gauss(a, b, c, energies=None):
     A 1d array output of the model.
     """
     mid_x = np.mean(energies, axis=1)
-    return a * np.exp(-((mid_x-b)**2/(2*c**2)))
+    return a * np.exp(-((mid_x - b) ** 2 / (2 * c**2)))
 
 
 #####################################################
@@ -68,20 +68,18 @@ def gauss(a, b, c, energies=None):
 
 
 maxi, step = 1e3, 1
-chan_bins = np.stack((np.arange(0, maxi, step), np.arange(step, maxi+step, step)), axis=-1)
+chan_bins = np.stack((np.arange(0, maxi, step), np.arange(step, maxi + step, step)), axis=-1)
 gauss_mod1 = gauss(1.3e4, 350, 60, energies=chan_bins)
 gauss_mod2 = gauss(3e3, 600, 60, energies=chan_bins)
-noise = np.random.randint(low=10, high=100, size=(len(chan_bins)))/100*5
+noise = np.random.randint(low=10, high=100, size=(len(chan_bins))) / 100 * 5
 
 fake_data = gauss_mod1 + gauss_mod2 + noise
 
 #####################################################
 #
-# Create a simple dictionary with teh custom data information
+# Create a simple dictionary with the custom data information
 
-custom_dict = {"count_channel_bins": chan_bins,
-               "counts": fake_data
-               }  # counts with noise
+custom_dict = {"count_channel_bins": chan_bins, "counts": fake_data}  # counts with noise
 
 #####################################################
 #
@@ -194,21 +192,21 @@ minimiser_results = custom_spec.fit()
 # We can plot the result and have complete control other the resulting plot. Here we plot the general output then change the y-scale back to linear just to observe the fake data.
 
 # plot the normal output
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = custom_spec.plot()
 axes[0].set_ylim(ylims)
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 
 # change the y-scale back to linear
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = custom_spec.plot()
 for a in axes:
     a.set_yscale("linear")
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 print(custom_spec.params)
 
 #####################################################
@@ -261,21 +259,21 @@ print(custom_spec.mcmc_table)
 
 # + jupyter={"outputs_hidden": false} pycharm={"name": "#%%\n"}
 # plot the normal output
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = custom_spec.plot()
 axes[0].set_ylim(ylims)
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 
 # change the y-scale back to linear
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = custom_spec.plot()
 for a in axes:
     a.set_yscale("linear")
 plt.show()
-plt.rcParams['font.size'] = default_text
+plt.rcParams["font.size"] = default_text
 
 
 #####################################################

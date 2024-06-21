@@ -5,6 +5,7 @@ Fitting NuSTAR Spectra
 
 This notebook provides a quick overlook of the fitting code in sunkut-spex and some real examples of fitting NuSTAR spectra with comparisons to published works.
 """
+
 import warnings
 
 import matplotlib.pyplot as plt
@@ -34,16 +35,18 @@ x_limits, y_limits = [1.6, 8.5], [1e-1, 1e3]
 
 dl = Downloader()
 
-base_url = 'https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2Fm3_time2628&files='
-file_names = ['nu80414202001A06_chu23_S_cl_grade0_sr.pha',
-              'nu80414202001A06_chu23_S_cl_grade0_sr.arf',
-              'nu80414202001A06_chu23_S_cl_grade0_sr.rmf',
-              'nu80414202001B06_chu23_S_cl_grade0_sr.pha',
-              'nu80414202001B06_chu23_S_cl_grade0_sr.arf',
-              'nu80414202001B06_chu23_S_cl_grade0_sr.rmf']
+base_url = "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2Fm3_time2628&files="
+file_names = [
+    "nu80414202001A06_chu23_S_cl_grade0_sr.pha",
+    "nu80414202001A06_chu23_S_cl_grade0_sr.arf",
+    "nu80414202001A06_chu23_S_cl_grade0_sr.rmf",
+    "nu80414202001B06_chu23_S_cl_grade0_sr.pha",
+    "nu80414202001B06_chu23_S_cl_grade0_sr.arf",
+    "nu80414202001B06_chu23_S_cl_grade0_sr.rmf",
+]
 
 for fname in file_names:
-    dl.enqueue_file(base_url+fname, path="./nustar/m3_time2628/")
+    dl.enqueue_file(base_url + fname, path="./nustar/m3_time2628/")
 files = dl.download()
 
 #####################################################
@@ -53,7 +56,7 @@ files = dl.download()
 
 # First, load in your data files, here we load in 1 spectrum
 _dir = "./nustar/m3_time2628/"
-spec = Fitter(pha_file=[_dir+'nu80414202001A06_chu23_S_cl_grade0_sr.pha'])
+spec = Fitter(pha_file=[_dir + "nu80414202001A06_chu23_S_cl_grade0_sr.pha"])
 
 #####################################################
 #
@@ -109,7 +112,7 @@ print(spec.params)
 # Plot the result with the `plot` method:
 
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_single_plot_size)
 
 # the only line needed to plot the result
@@ -119,7 +122,7 @@ for a in axes:
     a.set_xlim(x_limits)
     a.set_ylim(y_limits)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
@@ -221,14 +224,14 @@ new_spec.fit(tol=1e-6)  # Scipy minimize tolerance of 1e-6
 #
 # rebin=10 means the count bins were combined so that all bins had at least 10 counts in them or were ignored
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_single_plot_size)
 axes, res_axes = new_spec.plot(rebin=10)
 for a in axes:
     a.set_xlim(x_limits)
     a.set_ylim(y_limits)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
@@ -263,14 +266,14 @@ plt.show()
 
 corner_plot = spec.corner_mcmc()
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_single_plot_size)
 axes, res_axes = spec.plot()
 for a in axes:
     a.set_xlim(x_limits)
     a.set_ylim(y_limits)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
@@ -284,14 +287,14 @@ spec.mcmc_table
 #
 # An alternative to plotting a number of random MCMC samples as faded lines being the MAP the user can plot a colour map showing where all run models (that are not burned) accumulate counts. This will obviously take longer.
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_single_plot_size)
 axes, res_axes = spec.plot(hex_grid=True)
 for a in axes:
     a.set_xlim(x_limits)
     a.set_ylim(y_limits)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
@@ -303,16 +306,20 @@ plt.rcParams['font.size'] = default_font_size
 #
 # Download data files
 
-base_url = 'https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2Fm10_1616_1620&files='
-file_names = ['nu80415202001A06_chu13_N_cl_grade0_sr.pha',
-              'nu80415202001A06_chu13_N_cl_grade0_sr.arf',
-              'nu80415202001A06_chu13_N_cl_grade0_sr.rmf',
-              'nu80415202001B06_chu13_N_cl_grade0_sr.pha',
-              'nu80415202001B06_chu13_N_cl_grade0_sr.arf',
-              'nu80415202001B06_chu13_N_cl_grade0_sr.rmf']
+base_url = (
+    "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2Fm10_1616_1620&files="
+)
+file_names = [
+    "nu80415202001A06_chu13_N_cl_grade0_sr.pha",
+    "nu80415202001A06_chu13_N_cl_grade0_sr.arf",
+    "nu80415202001A06_chu13_N_cl_grade0_sr.rmf",
+    "nu80415202001B06_chu13_N_cl_grade0_sr.pha",
+    "nu80415202001B06_chu13_N_cl_grade0_sr.arf",
+    "nu80415202001B06_chu13_N_cl_grade0_sr.rmf",
+]
 
 for fname in file_names:
-    dl.enqueue_file(base_url+fname, path="./nustar/m10_1616_1620/")
+    dl.enqueue_file(base_url + fname, path="./nustar/m10_1616_1620/")
 files = dl.download()
 
 #####################################################
@@ -320,8 +327,9 @@ files = dl.download()
 # load in your data files, here we load in 2 spectra
 
 _dir = "./nustar/m10_1616_1620/"
-spec = Fitter(pha_file=[_dir+'nu80415202001A06_chu13_N_cl_grade0_sr.pha',
-                        _dir+'nu80415202001B06_chu13_N_cl_grade0_sr.pha'])
+spec = Fitter(
+    pha_file=[_dir + "nu80415202001A06_chu13_N_cl_grade0_sr.pha", _dir + "nu80415202001B06_chu13_N_cl_grade0_sr.pha"]
+)
 
 #####################################################
 #
@@ -367,19 +375,19 @@ print(spec.show_params)
 
 minimised_params = spec.fit()
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = spec.plot(rebin=5)
 for a in axes:
     a.set_xlim(x_limits)
     a.set_ylim(y_limits)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 try:
     spec.data._group_cts()
-except:
-    pass
+except TypeError as e:
+    print(e)
 
 #####################################################
 #
@@ -480,7 +488,7 @@ spec.energy_fitting_range = {"spectrum1": [[2.5, 4], [4.5, 8.1]], "spectrum2": [
 #
 # then fit and plot again...
 minimised_params = spec.fit()
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 try:
     axes, res_axes = spec.plot(rebin=12)
@@ -488,9 +496,9 @@ try:
         a.set_xlim(x_limits)
         a.set_ylim(y_limits)
     plt.show()
-    plt.rcParams['font.size'] = default_font_size
-except ValueError:
-    pass
+    plt.rcParams["font.size"] = default_font_size
+except ValueError as e:
+    print(e)
 
 #####################################################
 #
@@ -518,7 +526,8 @@ print("Defined models:\n", spec.defined_photon_models)
 def gauss(a, b, c, energies=None):
     # energies is given as energy bins, e.g., [[2.5,2.6], [2.6,2.7], [2.7,2.8], ...], so...
     mid_x = np.mean(energies, axis=1)
-    return a * np.exp(-((mid_x-b)**2/(2*c**2)))
+    return a * np.exp(-((mid_x - b) ** 2 / (2 * c**2)))
+
 
 #####################################################
 #
@@ -531,7 +540,7 @@ spec.add_photon_model(gauss)
 #
 # Now defined_photon_models is `{'f_vth': ['T', 'EM'], 'thick_fn': ['total_eflux', 'index', 'e_c'], ..., 'gauss': ['a', 'b', 'c']}` and can use the gauss function:
 
-print("Defined models, user\'s now included':\n", spec.defined_photon_models)
+print("Defined models, user's now included':\n", spec.defined_photon_models)
 
 #####################################################
 #
@@ -558,7 +567,7 @@ spec.params["EM1_spectrum1"] = {"Value": 1.7, "Bounds": (0.5, 3.5)}
 # then fit and plot again...
 minimised_params = spec.fit()
 
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 try:
     axes, res_axes = spec.plot()
@@ -566,16 +575,16 @@ try:
         a.set_xlim(x_limits)
         a.set_ylim(y_limits)
     plt.show()
-    plt.rcParams['font.size'] = default_font_size
-except ValueError:
-    pass
+    plt.rcParams["font.size"] = default_font_size
+except ValueError as e:
+    print(e)
 
 
 #####################################################
 #
 # If the user's model function requires complicated variables/constants/etc., say large array loaded from a file, then this will not be seen if the session is save and loaded back in another time. To avoid this see the `add_var` function which works in a similar way to `add_photon_model` but for variables to be seen when pickling.
 #
-# In additon to `add_photon_model` and `add_var` also having an `overwrite` input they also come with methods to remove any user added models or variables, such as `del_photon_model` and `del_var` which take the model/variable name as a string, respectively.
+# In addition to `add_photon_model` and `add_var` also having an `overwrite` input they also come with methods to remove any user added models or variables, such as `del_photon_model` and `del_var` which take the model/variable name as a string, respectively.
 #
 # # Can alter the gain parameters
 #
@@ -603,16 +612,20 @@ gles_xlims, gles_ylims = [2, 12], [1e1, 1e4]
 #
 # Download data files
 
-base_url = 'https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2FGlesener2020&files='
-file_names = ['nu20312001001B06_cl_grade0_sr_grp.pha',
-              'nu20312001001B06_cl_grade0_sr.arf',
-              'nu20312001001B06_cl_grade0_sr.rmf',
-              'nu20312001001A06_cl_grade0_sr_grp.pha',
-              'nu20312001001A06_cl_grade0_sr.arf',
-              'nu20312001001A06_cl_grade0_sr.rmf']
+base_url = (
+    "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2FGlesener2020&files="
+)
+file_names = [
+    "nu20312001001B06_cl_grade0_sr_grp.pha",
+    "nu20312001001B06_cl_grade0_sr.arf",
+    "nu20312001001B06_cl_grade0_sr.rmf",
+    "nu20312001001A06_cl_grade0_sr_grp.pha",
+    "nu20312001001A06_cl_grade0_sr.arf",
+    "nu20312001001A06_cl_grade0_sr.rmf",
+]
 
 for fname in file_names:
-    dl.enqueue_file(base_url+fname, path="./nustar/Glesener2020/")
+    dl.enqueue_file(base_url + fname, path="./nustar/Glesener2020/")
 files = dl.download()
 
 
@@ -623,9 +636,11 @@ files = dl.download()
 
 _dir = "./nustar/Glesener2020/"
 # in the files I have, the ARF and RMF file have different names to the PHA files so cannot use the PHA file name to help find the others so...
-spec = Fitter(pha_file=_dir+'nu20312001001B06_cl_grade0_sr_grp.pha',
-              arf_file=_dir+'nu20312001001B06_cl_grade0_sr.arf',
-              rmf_file=_dir+'nu20312001001B06_cl_grade0_sr.rmf')
+spec = Fitter(
+    pha_file=_dir + "nu20312001001B06_cl_grade0_sr_grp.pha",
+    arf_file=_dir + "nu20312001001B06_cl_grade0_sr.arf",
+    rmf_file=_dir + "nu20312001001B06_cl_grade0_sr.rmf",
+)
 
 #####################################################
 #
@@ -660,14 +675,14 @@ spec.rParams["gain_slope_spectrum1"] = {"Status": "fixed", "Value": 0.95}
 spec.fit(tol=1e-8)
 
 # plot the result
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_single_plot_size)
 axes, res_axes = spec.plot()
 for a in axes:
     a.set_xlim(gles_xlims)
     a.set_ylim(gles_ylims)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 
 #####################################################
@@ -678,12 +693,11 @@ plt.rcParams['font.size'] = default_font_size
 
 _dir = "./nustar/Glesener2020/"
 # in the files I have, the ARF and RMF file have different names to the PHA files so cannot use the PHA file name to help find the others so...
-spec = Fitter(pha_file=[_dir+'nu20312001001A06_cl_grade0_sr_grp.pha',
-                        _dir+'nu20312001001B06_cl_grade0_sr_grp.pha'],
-              arf_file=[_dir+'nu20312001001A06_cl_grade0_sr.arf',
-                        _dir+'nu20312001001B06_cl_grade0_sr.arf'],
-              rmf_file=[_dir+'nu20312001001A06_cl_grade0_sr.rmf',
-                        _dir+'nu20312001001B06_cl_grade0_sr.rmf'])
+spec = Fitter(
+    pha_file=[_dir + "nu20312001001A06_cl_grade0_sr_grp.pha", _dir + "nu20312001001B06_cl_grade0_sr_grp.pha"],
+    arf_file=[_dir + "nu20312001001A06_cl_grade0_sr.arf", _dir + "nu20312001001B06_cl_grade0_sr.arf"],
+    rmf_file=[_dir + "nu20312001001A06_cl_grade0_sr.rmf", _dir + "nu20312001001B06_cl_grade0_sr.rmf"],
+)
 
 #####################################################
 #
@@ -720,14 +734,14 @@ spec.rParams["gain_slope_spectrum2"] = spec.rParams["gain_slope_spectrum1"]
 spec.fit(tol=1e-8)
 
 # plot the result
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = spec.plot()
 for a in axes:
     a.set_xlim(gles_xlims)
     a.set_ylim(gles_ylims)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
@@ -749,9 +763,11 @@ plt.rcParams['font.size'] = default_font_size
 
 
 _dir = "./nustar/Glesener2020/"
-spec = Fitter(pha_file=_dir+'nu20312001001B06_cl_grade0_sr_grp.pha',
-              arf_file=_dir+'nu20312001001B06_cl_grade0_sr.arf',
-              rmf_file=_dir+'nu20312001001B06_cl_grade0_sr.rmf')
+spec = Fitter(
+    pha_file=_dir + "nu20312001001B06_cl_grade0_sr_grp.pha",
+    arf_file=_dir + "nu20312001001B06_cl_grade0_sr.arf",
+    rmf_file=_dir + "nu20312001001B06_cl_grade0_sr.rmf",
+)
 
 #####################################################
 #
@@ -789,14 +805,14 @@ spec.rParams["gain_slope_spectrum1"] = {"Status": "fixed", "Value": 0.95}
 spec.fit(tol=1e-10)
 
 # plot the result
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_single_plot_size)
 axes, res_axes = spec.plot()
 for a in axes:
     a.set_xlim(gles_xlims)
     a.set_ylim(gles_ylims)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
@@ -806,12 +822,11 @@ plt.rcParams['font.size'] = default_font_size
 # First, load in your data files, here we load in 2 spectra
 
 _dir = "./nustar/Glesener2020/"
-spec = Fitter(pha_file=[_dir+'nu20312001001A06_cl_grade0_sr_grp.pha',
-                        _dir+'nu20312001001B06_cl_grade0_sr_grp.pha'],
-              arf_file=[_dir+'nu20312001001A06_cl_grade0_sr.arf',
-                        _dir+'nu20312001001B06_cl_grade0_sr.arf'],
-              rmf_file=[_dir+'nu20312001001A06_cl_grade0_sr.rmf',
-                        _dir+'nu20312001001B06_cl_grade0_sr.rmf'])
+spec = Fitter(
+    pha_file=[_dir + "nu20312001001A06_cl_grade0_sr_grp.pha", _dir + "nu20312001001B06_cl_grade0_sr_grp.pha"],
+    arf_file=[_dir + "nu20312001001A06_cl_grade0_sr.arf", _dir + "nu20312001001B06_cl_grade0_sr.arf"],
+    rmf_file=[_dir + "nu20312001001A06_cl_grade0_sr.rmf", _dir + "nu20312001001B06_cl_grade0_sr.rmf"],
+)
 
 #####################################################
 #
@@ -849,14 +864,14 @@ spec.rParams["gain_slope_spectrum2"] = spec.rParams["gain_slope_spectrum1"]
 spec.fit(tol=1e-5)
 
 # plot the result
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = spec.plot()
 for a in axes:
     a.set_xlim(gles_xlims)
     a.set_ylim(gles_ylims)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
@@ -870,7 +885,7 @@ plt.rcParams['font.size'] = default_font_size
 # | Index                            | 6.3$^{+0.7}_{-0.7}$                     | 7.09$\pm$0.04                   | 7.02$\pm$0.26                   |
 # | Low Energy Cut-off [keV]         | 6.5$^{+0.9}_{-0.9}$                     | 7.00$\pm$0.04                   | 6.66$\pm$0.25                   |
 #
-# All parameter values appear to be within error margins (or extrememly close). This is more impresive when the errors calculated in this work for the minimised values assumes the parameter's have a Gaussian and independent posterior distribution (which is clearly not the case) and so these errors are likely to be larger; to be investigated with an MCMC.
+# All parameter values appear to be within error margins (or extremely close). This is more impressive when the errors calculated in this work for the minimised values assumes the parameter's have a Gaussian and independent posterior distribution (which is clearly not the case) and so these errors are likely to be larger; to be investigated with an MCMC.
 #
 # The simultaneous fit of FPMA&B with the cold thick target model and the warm thick model is not able to be performed in OSPEX.
 #
@@ -891,16 +906,18 @@ dunc_xlims, dunc_ylims = [2.5, 11], [1e0, 4e4]
 
 dl = Downloader()
 
-base_url = 'https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2FDuncan2021&files='
-file_names = ['nu80410201001A06_1618_p_chu2_N_sr.pha',
-              'nu80410201001A06_1618_p_chu2_N_sr.arf',
-              'nu80410201001A06_1618_p_chu2_N_sr.rmf',
-              'nu80410201001B06_1618_p_chu2_N_sr.pha',
-              'nu80410201001B06_1618_p_chu2_N_sr.arf',
-              'nu80410201001B06_1618_p_chu2_N_sr.rmf']
+base_url = "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2FDuncan2021&files="
+file_names = [
+    "nu80410201001A06_1618_p_chu2_N_sr.pha",
+    "nu80410201001A06_1618_p_chu2_N_sr.arf",
+    "nu80410201001A06_1618_p_chu2_N_sr.rmf",
+    "nu80410201001B06_1618_p_chu2_N_sr.pha",
+    "nu80410201001B06_1618_p_chu2_N_sr.arf",
+    "nu80410201001B06_1618_p_chu2_N_sr.rmf",
+]
 
 for fname in file_names:
-    dl.enqueue_file(base_url+fname, path="./nustar/Duncan2021/")
+    dl.enqueue_file(base_url + fname, path="./nustar/Duncan2021/")
 files = dl.download()
 
 
@@ -909,8 +926,7 @@ files = dl.download()
 # First, load in your data files, here we load in 2 spectra
 
 _dir = "./nustar/Duncan2021/"
-spec = Fitter(pha_file=[_dir+'nu80410201001A06_1618_p_chu2_N_sr.pha',
-                        _dir+'nu80410201001B06_1618_p_chu2_N_sr.pha'])
+spec = Fitter(pha_file=[_dir + "nu80410201001A06_1618_p_chu2_N_sr.pha", _dir + "nu80410201001B06_1618_p_chu2_N_sr.pha"])
 
 #####################################################
 #
@@ -976,14 +992,14 @@ spec.fit(tol=1e-10)
 #####################################################
 #
 # plot the result
-plt.rcParams['font.size'] = spec_font_size
+plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = spec.plot()
 for a in axes:
     a.set_xlim(dunc_xlims)
     a.set_ylim(dunc_ylims)
 plt.show()
-plt.rcParams['font.size'] = default_font_size
+plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
