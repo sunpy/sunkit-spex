@@ -10,14 +10,17 @@ from astropy.table import Table
 from sunpy.data import manager
 from sunpy.io.special.genx import read_genx
 
-__all__ = ['load_chianti_lines_lite', 'load_chianti_continuum',
-           'read_abundance_genx', 'load_xray_abundances']
+__all__ = ["load_chianti_lines_lite", "load_chianti_continuum", "read_abundance_genx", "load_xray_abundances"]
 
 
-@manager.require('chianti_lines',
-                 ['https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav',
-                  'https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav'],
-                 '2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677')
+@manager.require(
+    "chianti_lines",
+    [
+        "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav",
+        "https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav",
+    ],
+    "2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677",
+)
 def load_chianti_lines_lite():
     """
     Read X-ray emission line info from an IDL sav file produced by CHIANTI.
@@ -70,7 +73,7 @@ def load_chianti_lines_lite():
     and divided by 4 pi observer_dist**2 to get physical values at the observer.
     """
     # Read linefile
-    linefile = manager.get('chianti_lines')
+    linefile = manager.get("chianti_lines")
     contents = scipy.io.readsav(linefile)
     out = contents["out"]
 
@@ -86,8 +89,7 @@ def load_chianti_lines_lite():
     for j, lines in enumerate(out["lines"]):
         # Extract line element index and peak energy.
         line_elements.append(lines["IZ"] + 1)  # TODO: Confirm lines["IZ"] is indeed atomic number - 1
-        line_peak_energies.append(u.Quantity(lines["WVL"], unit=wvl_units).to(
-            energy_unit, equivalencies=u.spectral()))
+        line_peak_energies.append(u.Quantity(lines["WVL"], unit=wvl_units).to(energy_unit, equivalencies=u.spectral()))
         # Sort line info in ascending energy.
         ordd = np.argsort(np.array(line_peak_energies[j]))
         line_elements[j] = line_elements[j][ordd]
@@ -104,7 +106,7 @@ def load_chianti_lines_lite():
     # Normalize line intensities by EM and integrate over whole sky to get intensity at source.
     # This means that physical intensities can be calculated by dividing by
     # 4 * pi * R**2 where R is the observer distance.
-    line_colEMs = 10.**_clean_array_dims(out["LOGEM_ISOTHERMAL"]) / u.cm**5
+    line_colEMs = 10.0 ** _clean_array_dims(out["LOGEM_ISOTHERMAL"]) / u.cm**5
     line_intensities /= line_colEMs
     line_intensities *= 4 * np.pi * u.sr
 
@@ -112,22 +114,30 @@ def load_chianti_lines_lite():
     line_intensities_per_EM_at_source = xarray.DataArray(
         line_intensities.value,
         dims=["lines", "temperature"],
-        coords={"logT": ("temperature", _clean_array_dims(out["LOGT_ISOTHERMAL"])),
-                "peak_energy": ("lines", line_peak_energies),
-                "atomic_number": ("lines", line_elements)},
-        attrs={"units": {"data": line_intensities.unit,
-                         "peak_energy": line_peak_energies.unit},
-               "file": linefile,
-               "element_index": contents["zindex"],
-               "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])})
+        coords={
+            "logT": ("temperature", _clean_array_dims(out["LOGT_ISOTHERMAL"])),
+            "peak_energy": ("lines", line_peak_energies),
+            "atomic_number": ("lines", line_elements),
+        },
+        attrs={
+            "units": {"data": line_intensities.unit, "peak_energy": line_peak_energies.unit},
+            "file": linefile,
+            "element_index": contents["zindex"],
+            "chianti_doc": _clean_chianti_doc(contents["chianti_doc"]),
+        },
+    )
 
     return line_intensities_per_EM_at_source
 
 
-@manager.require('chianti_continuum',
-                 ['https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav',
-                  'https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav'],
-                 'aadf4355931b4c241ac2cd5669e89928615dc1b55c9fce49a155b70915a454dd')
+@manager.require(
+    "chianti_continuum",
+    [
+        "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav",
+        "https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav",
+    ],
+    "aadf4355931b4c241ac2cd5669e89928615dc1b55c9fce49a155b70915a454dd",
+)
 def load_chianti_continuum():
     """
     Read X-ray continuum emission info from an IDL sav file produced by CHIANTI
@@ -167,30 +177,36 @@ def load_chianti_continuum():
     continuum_intensities = xarray.DataArray(
         intensities,
         dims=["element_index", "temperature", "wavelength"],
-        coords={"element_index": contents["zindex"],
-                "temperature": contents["ctemp"],
-                "wavelength": _clean_array_dims(contents["edge_str"]["WVL"])},
-        attrs={"units": {"data": intensity_unit,
-                         "temperature": temperature_unit,
-                         "wavelength": wave_unit},
-               "file": contfile,
-               "wavelength_edges": _clean_array_dims(contents["edge_str"]["WVLEDGE"]) * wave_unit,
-               "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
-               })
+        coords={
+            "element_index": contents["zindex"],
+            "temperature": contents["ctemp"],
+            "wavelength": _clean_array_dims(contents["edge_str"]["WVL"]),
+        },
+        attrs={
+            "units": {"data": intensity_unit, "temperature": temperature_unit, "wavelength": wave_unit},
+            "file": contfile,
+            "wavelength_edges": _clean_array_dims(contents["edge_str"]["WVLEDGE"]) * wave_unit,
+            "chianti_doc": _clean_chianti_doc(contents["chianti_doc"]),
+        },
+    )
     return continuum_intensities
 
 
-@manager.require('xray_abundances',
-                 ['https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/xray_abun_file.genx',
-                  'https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/xray_abun_file.genx'],
-                 '92c0e1f9a83da393cc38840752fda5a5b44c5b18a4946e5bf12c208771fe0fd3')
+@manager.require(
+    "xray_abundances",
+    [
+        "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/xray_abun_file.genx",
+        "https://lmsal.com/solarsoft/ssw/packages/xray/dbase/chianti/xray_abun_file.genx",
+    ],
+    "92c0e1f9a83da393cc38840752fda5a5b44c5b18a4946e5bf12c208771fe0fd3",
+)
 def load_xray_abundances(abundance_type=None):
     """
     Returns the abundances written in the xray_abun_file.genx
 
     The abundances are taken from CHIANTI and MEWE.  The source filenames are:
     cosmic sun_coronal sun_coronal_ext sun_hybrid sun_hybrid_ext sun_photospheric mewe_cosmic mewe_solar
-    The first six come fron Chianti, the last two from Mewe.  They are:
+    The first six come from Chianti, the last two from Mewe.  They are:
     cosmic sun_coronal sun_coronal_ext sun_hybrid sun_hybrid_ext sun_photospheric mewe_cosmic mewe_solar
     These abundances are used with CHIANTI_KEV.  MEWE_KEV can only use the two mewe sourced
     abundance distributions unless using a heavily modified rel_abun structure for all of the elements.
@@ -226,7 +242,7 @@ def load_xray_abundances(abundance_type=None):
     except KeyError:
         pass
     n_elements = len(contents[list(contents.keys())[0]])
-    columns = [np.arange(1, n_elements+1)] + list(contents.values())
+    columns = [np.arange(1, n_elements + 1)] + list(contents.values())
     names = ["atomic number"] + list(contents.keys())
     abundances = Table(columns, names=names)
 
@@ -271,14 +287,14 @@ def _clean_array_dims(arr, dtype=None):
 
 
 def _clean_string_dims(arr):
-    result = [str(s, 'utf-8') for s in arr]
+    result = [str(s, "utf-8") for s in arr]
     if len(result) == 1:
         result = result[0]
     return result
 
 
 def _combine_strings(arr):
-    result = [".".join([str(ss, 'utf-8') for ss in s]) for s in arr]
+    result = [".".join([str(ss, "utf-8") for ss in s]) for s in arr]
     if len(result) == 1:
         result = result[0]
     return result
@@ -287,7 +303,7 @@ def _combine_strings(arr):
 def _clean_units(arr):
     result = []
     for a in arr:
-        unit = str(a, 'utf-8')
+        unit = str(a, "utf-8")
         unit_components = unit.split()
         for i, component in enumerate(unit_components):
             # Remove plurals
@@ -310,9 +326,9 @@ def _clean_units(arr):
 
 def _clean_chianti_doc(arr):
     chianti_doc = {}
-    chianti_doc["ion_file"] = str(arr[0][0], 'utf-8')
-    chianti_doc["ion_ref"] = "{0}.{1}.{2}".format(str(arr["ion_ref"][0][0], 'utf-8'),
-                                                  str(arr["ion_ref"][0][1], 'utf-8'),
-                                                  str(arr["ion_ref"][0][2], 'utf-8'))
-    chianti_doc["version"] = str(arr[0][2], 'utf-8')
+    chianti_doc["ion_file"] = str(arr[0][0], "utf-8")
+    chianti_doc["ion_ref"] = "{0}.{1}.{2}".format(  # noqa: UP030
+        str(arr["ion_ref"][0][0], "utf-8"), str(arr["ion_ref"][0][1], "utf-8"), str(arr["ion_ref"][0][2], "utf-8")
+    )
+    chianti_doc["version"] = str(arr[0][2], "utf-8")
     return chianti_doc

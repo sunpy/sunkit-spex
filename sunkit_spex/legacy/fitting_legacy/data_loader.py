@@ -82,7 +82,7 @@ class LoadSpec:
 
     group_spec : spectrum (str), group_min (int), _orig_in_extras (bool)
             Returns new bins and new binned counts, count errors, and effective exposures for a given spectrum and
-            minimun bin gorup number.
+            minimum bin group number.
 
     Attributes
     ----------
@@ -90,7 +90,7 @@ class LoadSpec:
             Spectrum identifiers as keys with the spectrum's instrument as a string for values.
 
     intrument_loaders : dict
-            Dictionary with keys of the supported instruments and values of their repsective loaders.
+            Dictionary with keys of the supported instruments and values of their respective loaders.
 
     loaded_spec_data : dict
             All loaded spectral data.
@@ -203,7 +203,7 @@ class LoadSpec:
         custom_channel_bins = custom_channel_bins if type(custom_channel_bins) == list else [custom_channel_bins]
 
         # check if arf and rmf and custom srm is either None in which case everything is found via the pha
-        #  file naming (a list of None the same length as the pha input will also acheive this) or if there
+        #  file naming (a list of None the same length as the pha input will also achieve this) or if there
         #  is a corresponding arf, rmf, and srm for every pha file
         assert ((type(arf_file) == type(None)) and (type(arf_file) == type(None)) and (len(file_pha) >= 1)) \
             or \
@@ -272,7 +272,7 @@ class LoadSpec:
                     # works for 'NuSTAR' and 'RHESSI'
                     _instruments_names.append(hdul[0].header["TELESCOP"])
                 else:
-                    print("How do I know the instument?")
+                    print("How do I know the instrument?")
         return _instruments_names
 
     @property
@@ -352,7 +352,7 @@ class LoadSpec:
         Parameters
         ----------
         old_bins, new_bins, old_counts, new_counts, old_effective_exposures : np.array
-                Array of the original counts/bins, and effective exposures. New bins are needed and shuold already
+                Array of the original counts/bins, and effective exposures. New bins are needed and should already
                 have new counts.
 
         Returns
@@ -501,7 +501,7 @@ class LoadSpec:
         bin_mids = np.mean(new_bins, axis=1)
         ctr = (new_counts / new_binning) / new_effective_exposure
         # old way the now ctr_err = (np.sqrt(new_counts) / new_binning) / new_effective_exposure
-        ctr_err = counts_error / new_binning / new_effective_exposure  # no guarentee always will have poisson errors
+        ctr_err = counts_error / new_binning / new_effective_exposure  # no guarantee always will have poisson errors
 
         return new_bins, new_counts, counts_error, new_binning, bin_mids, ctr, ctr_err, new_effective_exposure, _orig_in_extras
 

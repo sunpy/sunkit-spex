@@ -29,7 +29,7 @@ def gauss(a, b, c, energies=None):
     A 1d array output of the model.
     """
     mid_x = np.mean(energies, axis=1)
-    return a * np.exp(-((mid_x - b) ** 2 / (2 * c ** 2)))
+    return a * np.exp(-((mid_x - b) ** 2 / (2 * c**2)))
 
 
 @pytest.fixture
@@ -44,10 +44,8 @@ def custom_spec():
 
     fake_data = gauss_mod1 + gauss_mod2 + noise
 
-    # create a simple dictionary with teh custom data information
-    custom_dict = {"count_channel_bins": chan_bins,
-                   "counts": fake_data
-                   }  # counts with noise
+    # create a simple dictionary with the custom data information
+    custom_dict = {"count_channel_bins": chan_bins, "counts": fake_data}  # counts with noise
 
     noise_constant = np.mean(noise)
 
@@ -115,9 +113,9 @@ def test_fitter_plot(custom_spec):
 
 def test_fitter_load(custom_spec, tmp_path):
     custom_spec, a, b = custom_spec
-    savefile = tmp_path / 'test'
+    savefile = tmp_path / "test"
     custom_spec.save(str(savefile))
-    with open(tmp_path / 'test.pickle', 'rb') as d:
+    with open(tmp_path / "test.pickle", "rb") as d:
         cs = pickle.load(d)
 
     cs.params["a1_spectrum1"] = [1e4, (5e2, 5e4)]
@@ -173,17 +171,19 @@ def test_passing_instrument_loader_direct():
             # set up default values, only need these fields to be populated
             _count_length_default = np.ones(len(spec_data_dict["count_channel_bins"]))
             _chan_mids_default = np.mean(spec_data_dict["count_channel_bins"], axis=1)
-            _default_spec_data = {"photon_channel_bins": spec_data_dict["count_channel_bins"],
-                                  "photon_channel_mids": _chan_mids_default,
-                                  "photon_channel_binning": _count_length_default,
-                                  "count_channel_mids": _chan_mids_default,
-                                  "count_channel_binning": _count_length_default,
-                                  "count_error": _count_length_default,
-                                  "count_rate": spec_data_dict["counts"],
-                                  "count_rate_error": _count_length_default,
-                                  "effective_exposure": 1,
-                                  "srm": np.identity(len(spec_data_dict["counts"])),
-                                  "extras": {}}
+            _default_spec_data = {
+                "photon_channel_bins": spec_data_dict["count_channel_bins"],
+                "photon_channel_mids": _chan_mids_default,
+                "photon_channel_binning": _count_length_default,
+                "count_channel_mids": _chan_mids_default,
+                "count_channel_binning": _count_length_default,
+                "count_error": _count_length_default,
+                "count_rate": spec_data_dict["counts"],
+                "count_rate_error": _count_length_default,
+                "effective_exposure": 1,
+                "srm": np.identity(len(spec_data_dict["counts"])),
+                "extras": {},
+            }
             _default_spec_data.update(spec_data_dict)
             self._loaded_spec_data = _default_spec_data
 
@@ -198,7 +198,7 @@ def test_passing_instrument_loader_direct():
     fake_data = bin_edges[:-1]
     custom_dict = {"count_channel_bins": chan_bins, "counts": fake_data}
 
-    # pass the fake data to the different intrument classes defined
+    # pass the fake data to the different instrument classes defined
     custom_user_inst1 = CustomLoader(custom_dict)
     custom_user_inst2 = UserCustomInst1(custom_dict)
     custom_user_inst3 = UserCustomInst2(custom_dict)
@@ -207,6 +207,12 @@ def test_passing_instrument_loader_direct():
     fitter = Fitter(custom_user_inst1, custom_user_inst2, custom_user_inst3)
 
     # check everything has carried through to where it should be
-    assert fitter.data.loaded_spec_data["spectrum1"]._loaded_spec_data == custom_user_inst1._loaded_spec_data, "Failed to pass instrument loader directly to fitter."
-    assert fitter.data.loaded_spec_data["spectrum2"]._loaded_spec_data == custom_user_inst2._loaded_spec_data, "Failed to pass instrument loader directly to fitter."
-    assert fitter.data.loaded_spec_data["spectrum3"]._loaded_spec_data == custom_user_inst3._loaded_spec_data, "Failed to pass instrument loader directly to fitter."
+    assert (
+        fitter.data.loaded_spec_data["spectrum1"]._loaded_spec_data == custom_user_inst1._loaded_spec_data
+    ), "Failed to pass instrument loader directly to fitter."
+    assert (
+        fitter.data.loaded_spec_data["spectrum2"]._loaded_spec_data == custom_user_inst2._loaded_spec_data
+    ), "Failed to pass instrument loader directly to fitter."
+    assert (
+        fitter.data.loaded_spec_data["spectrum3"]._loaded_spec_data == custom_user_inst3._loaded_spec_data
+    ), "Failed to pass instrument loader directly to fitter."

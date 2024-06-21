@@ -56,14 +56,16 @@ class LogLikelihoods:
 
         self._construction_string = "LogLikelihoods()"
         # dictionary of all likelihood functions? E.g.,
-        self.log_likelihoods = {"gaussian": self.gaussian_loglikelihood,
-                                "chi2": self.chi2,
-                                "poisson": self.poisson_loglikelihood,
-                                "cash": self.cash_loglikelihood,
-                                "cstat": self.cstat_loglikelihood}
+        self.log_likelihoods = {
+            "gaussian": self.gaussian_loglikelihood,
+            "chi2": self.chi2,
+            "poisson": self.poisson_loglikelihood,
+            "cash": self.cash_loglikelihood,
+            "cstat": self.cstat_loglikelihood,
+        }
 
     def _remove_nans(self, _lhoods):
-        """ Removes Nans in the output array from any /0 data entries.
+        """Removes Nans in the output array from any /0 data entries.
 
         This does not affect the fitting since this will be true for all models fitting the same data.
         This can only complicate things if your model gave out nans or infs for some reason which would
@@ -84,7 +86,7 @@ class LogLikelihoods:
         return _lhoods[~np.isnan(_lhoods)]
 
     def remove_non_numbers(self, _lhoods):
-        """ Removes Nans, infs, -infs in the output array from any /0 data entries.
+        """Removes Nans, infs, -infs in the output array from any /0 data entries.
 
         This does not affect the fitting since this will be true for all models fitting the same data.
         This can only complicate things if your model gave out nans or infs for some reason which would
@@ -106,7 +108,7 @@ class LogLikelihoods:
         return _lhoods[np.isfinite(_lhoods)]
 
     def _check_numbers_left(self, remaining):
-        """ Check if there are any numbers left after all Nans, infs, and -infs have been remove and return the sum.
+        """Check if there are any numbers left after all Nans, infs, and -infs have been remove and return the sum.
 
         If no numbers left then return -np.inf since it is a rubbish fit.
 
@@ -126,7 +128,7 @@ class LogLikelihoods:
             return np.sum(remaining)
 
     def gaussian_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        r""" Gaussian log-likelihood.
+        r"""Gaussian log-likelihood.
 
         .. math::
          ln(L_{Gauss}) = -\frac{N}{2} ln(2\pi D^{2}) + \frac{1}{2}\Chi^{2}
@@ -144,13 +146,15 @@ class LogLikelihoods:
         A float, the gaussian log-likelihood (to be maximised).
         """
 
-        likelihoods = -(len(observed_counts)/2) * np.log(2*np.pi*np.array(observed_count_errors)**2) + (1/2) * self.chi2(model_counts, observed_counts, observed_count_errors)
+        likelihoods = -(len(observed_counts) / 2) * np.log(2 * np.pi * np.array(observed_count_errors) ** 2) + (
+            1 / 2
+        ) * self.chi2(model_counts, observed_counts, observed_count_errors)
 
         # best value is first whole term, if the chi squared section has any value then it is always subtracted
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))  # =ln(L)
 
     def chi2(self, model_counts, observed_counts, observed_count_errors):
-        r""" Chi-squared fit statistic.
+        r"""Chi-squared fit statistic.
 
         .. math::
          \Chi^{2} = - (\frac{(D - \mu)^{2}}{\sigma})^{2}
@@ -167,13 +171,15 @@ class LogLikelihoods:
         A float, the chi-squared fit statistic (to be maximised).
         """
 
-        likelihoods = -((np.array(observed_counts)-np.array(model_counts).flatten()) / np.array(observed_count_errors))**2
+        likelihoods = -(
+            ((np.array(observed_counts) - np.array(model_counts).flatten()) / np.array(observed_count_errors)) ** 2
+        )
 
         # best value is 0, every other value is negative
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 
     def poisson_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        r""" Poissonian log-likelihood.
+        r"""Poissonian log-likelihood.
 
         .. math::
          ln(L_{Poisson}) = D ln(\mu) - \mu - ln(D!)
@@ -191,12 +197,16 @@ class LogLikelihoods:
         """
 
         # proper Poisson log-likelihood, factorial and all
-        likelihoods = np.array(observed_counts) * np.log(np.array(model_counts)) - np.array(model_counts) - np.log(factorial(observed_counts))
+        likelihoods = (
+            np.array(observed_counts) * np.log(np.array(model_counts))
+            - np.array(model_counts)
+            - np.log(factorial(observed_counts))
+        )
 
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 
     def cash_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        r""" Cash log-likelihood.
+        r"""Cash log-likelihood.
 
         A simplification of the poissonian log-likelihood where the independent data term is
         neglected. Since the data term is neglected the absolute number does not say much
@@ -226,7 +236,7 @@ class LogLikelihoods:
         return self._check_numbers_left(self.remove_non_numbers(likelihoods))
 
     def cstat_loglikelihood(self, model_counts, observed_counts, observed_count_errors):
-        r""" C-stat log-likelihood.
+        r"""C-stat log-likelihood.
 
         A simplification of the poissonian log-likelihood where the independent data term
         is replaced using sterling's approximation. Used in the XSPEC fitting software.
@@ -254,12 +264,16 @@ class LogLikelihoods:
         A float, the c-stat log-likelihood (to be maximised).
         """
 
-        model_counts, observed_counts, observed_count_errors = np.array(model_counts).ravel(), np.array(observed_counts), np.array(observed_count_errors)
+        model_counts, observed_counts, observed_count_errors = (
+            np.array(model_counts).ravel(),
+            np.array(observed_counts),
+            np.array(observed_count_errors),
+        )
 
         # C-stat (XSPEC) - has data term in it so the lower the -2*ln(L) number the better the fit, this is the ln(L) though
         # Best value is 0, if obs_counts>mod_counts or obs_counts<mod_counts then likelihoods<0
         # Obvious since e^0=1
-        likelihoods = observed_counts * (np.log(model_counts/observed_counts) + 1) - model_counts
+        likelihoods = observed_counts * (np.log(model_counts / observed_counts) + 1) - model_counts
 
         # if zero observed counts in a bin, then Stirling Approx. not good (only good for obs_counts>=1, if =0 then ->-inf, but Poisson->-mod_counts)
         # defer to Poisson for the nans in this case

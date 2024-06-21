@@ -6,8 +6,7 @@ The following code is purely to plot multicoloured lines of text for plotting pu
 import matplotlib.pyplot as plt
 
 
-def rainbow_text_lines(xy, strings, colors, orientation='horizontal',
-                       ax=None, **kwargs):
+def rainbow_text_lines(xy, strings, colors, orientation="horizontal", ax=None, **kwargs):
     """
     *** NOT MY FUNCTION. ADAPTED FROM: https://matplotlib.org/stable/gallery/text_labels_and_annotations/rainbow_text.html ***
     *** USES ANNOTATE INSTEAD OF TEXT AND DELTA_X/Y UPDATE FOR TEXT IS APPLIED DIFFERENTLY. ***
@@ -41,9 +40,9 @@ def rainbow_text_lines(xy, strings, colors, orientation='horizontal',
     t = ax.transData
     canvas = ax.figure.canvas
 
-    assert orientation in ['horizontal', 'vertical']
-    if orientation == 'vertical':
-        kwargs.update(rotation=90, verticalalignment='bottom')
+    assert orientation in ["horizontal", "vertical"]
+    if orientation == "vertical":
+        kwargs.update(rotation=90, verticalalignment="bottom")
 
     for s, c in zip(strings, colors):
         text = ax.annotate(s + " ", xy, color=c, transform=t, **kwargs)
@@ -52,7 +51,7 @@ def rainbow_text_lines(xy, strings, colors, orientation='horizontal',
         text.draw(canvas.get_renderer())
         ex = text.get_window_extent()
         bbox_width, bbox_height = ax.get_window_extent().width, ax.get_window_extent().height  # box size of plot
-        if orientation == 'horizontal':
-            xy = [xy[0], xy[1]-ex.height/bbox_height]
+        if orientation == "horizontal":
+            xy = [xy[0], xy[1] - ex.height / bbox_height]
         else:
-            xy = [xy[0]+ex.width/bbox_width, xy[1]]
+            xy = [xy[0] + ex.width / bbox_width, xy[1]]
