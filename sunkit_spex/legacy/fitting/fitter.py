@@ -832,7 +832,9 @@ class Fitter:
             )
             logger.indo(f"Model {function_name} removed.")
         else:
-            logger.warning("Default models imported from sunkit_spex.fitting.photon_models_for_fitting are protected.")
+            logger.warning(
+                "Default models imported from sunkit_spex.fitting_legacy.photon_models_for_fitting are protected."
+            )
 
     def add_var(self, overwrite=False, quiet=False, **user_kwarg):
         """Add user variable to fitting namespace.
