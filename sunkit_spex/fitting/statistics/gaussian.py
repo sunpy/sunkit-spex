@@ -1,5 +1,7 @@
 import numpy as np
 
+__all__ = ["chi_squared"]
+
 
 def chi_squared(data_y, model_y):
     """

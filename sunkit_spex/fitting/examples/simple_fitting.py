@@ -15,23 +15,16 @@ from matplotlib.gridspec import GridSpec
 
 from astropy.modeling import fitting
 
-from sunkit_spex.fitting.models.data.gaussian import GaussianCountModel
-from sunkit_spex.fitting.models.matrix.matrix import MatrixModel
-from sunkit_spex.fitting.models.physical.gaussian import GaussianPhotonModel
-from sunkit_spex.fitting.models.physical.straight_line import StraightLinePhotonModel
+from sunkit_spex.data.simulated_data import simulate_square_response_matrix
 from sunkit_spex.fitting.objective_functions.optimising_functions import minimize_func
 from sunkit_spex.fitting.optimizer_tools.minimizer_tools import scipy_minimize
 from sunkit_spex.fitting.statistics.gaussian import chi_squared
+from sunkit_spex.models.instrument_response import MatrixModel
+from sunkit_spex.models.models import GaussianModel
+from sunkit_spex.models.models import StraightLineModel
 
-# decide whether to save the figure at the end
-SAVE_FIG = False
 # this should keep "random" stuff is the same ech run
 np.random.seed(seed=10)
-
-
-def photon_energies(start, stop, inc):
-    """ Get a `ndarray` of energies. """
-    return np.arange(start, stop, inc)
 
 
 def plot_fake_photon_spectrum(axis,
@@ -44,39 +37,6 @@ def plot_fake_photon_spectrum(axis,
     axis.set_xlabel("Energy [keV]")
     axis.set_ylabel("ph s$^{-1}$ cm$^{-2}$ keV$^{-1}$")
     axis.set_title(title)
-
-
-def response_matrix(photon_energies):
-    """
-    Generate a square matrix with off-diagonal terms to mimic an
-    instrument response matrix.
-    """
-    # fake SRM
-    fake_srm = np.identity(photon_energies.size)
-
-    # add some off-diagonal terms
-    for c, r in enumerate(fake_srm):
-        # add some features into the fake SRM
-        off_diag = np.random.rand(c)*0.005
-
-        # add a diagonal feature
-        _x = 50
-        if c >= _x:
-            off_diag[-_x] = np.random.rand(1)[0]
-
-        # add a vertical feature in
-        _y = 200
-        __y = 30
-        if c > _y+100:
-            off_diag[_y-__y//2:_y+__y//2] = (np.arange(2*(__y//2))
-                                             * np.random.rand(2*(__y//2))
-                                             * 5e-4)
-
-        # put these features in the fake_srm row and normalize
-        r[:off_diag.size] = off_diag
-        r /= np.sum(r)
-
-    return fake_srm
 
 
 def plot_fake_srm(axis, fake_srm, photon_energies, title="Fake SRM"):
@@ -165,23 +125,23 @@ if __name__ == "__main__":
     # define the photon energies
     start, inc = 1.6, 0.04
     stop = 80+inc/2
-    ph_energies = photon_energies(start, stop, inc)
+    ph_energies = np.arange(start, stop, inc)
 
     # let's start making a fake photon spectrum
     fake_cont = {"m": -1, "c": 100}
     fake_line = {"a": 100, "b": 30, "c": 2}
     # use a straight line model for a continuum, Gaussian for a line
-    ph_model = (StraightLinePhotonModel(**fake_cont) 
-                + GaussianPhotonModel(**fake_line))
+    ph_model = (StraightLineModel(**fake_cont) 
+                + GaussianModel(**fake_line))
 
     # now want a response matrix
-    srm = response_matrix(ph_energies)
+    srm = simulate_square_response_matrix(ph_energies.size)
     srm_model = MatrixModel(matrix=srm)
 
     # now work on a count model
     fake_gauss = {"a": 70, "b": 40, "c": 2}
     # the brackets are very necessary
-    ct_model = (ph_model | srm_model) + GaussianCountModel(**fake_gauss)
+    ct_model = (ph_model | srm_model) + GaussianModel(**fake_gauss)
 
     # generate fake count data to (almost) fit
     fake_count_model = ct_model(ph_energies)
@@ -203,10 +163,10 @@ if __name__ == "__main__":
     guess_gauss = {"a": 350, "b": 39, "c": 0.5}  
 
     # define a new model since we have a rough idea of the mode we should use
-    ph_mod_4fit = (StraightLinePhotonModel(**guess_cont) 
-                   + GaussianPhotonModel(**guess_line))
+    ph_mod_4fit = (StraightLineModel(**guess_cont) 
+                   + GaussianModel(**guess_line))
     count_model_4fit = ((ph_mod_4fit | srm_model) 
-                        + GaussianCountModel(**guess_gauss))
+                        + GaussianModel(**guess_gauss))
 
     # let's fit the fake data
     opt_res = scipy_minimize(minimize_func,
@@ -221,10 +181,10 @@ if __name__ == "__main__":
     # ******************************************************************
 
     # try and ensure we start fresh with new model definitions
-    ph_mod_4astropyfit = StraightLinePhotonModel(**guess_cont) + \
-        GaussianPhotonModel(**guess_line)
+    ph_mod_4astropyfit = StraightLineModel(**guess_cont) + \
+        GaussianModel(**guess_line)
     count_model_4astropyfit = (ph_mod_4fit | srm_model) + \
-        GaussianCountModel(**guess_gauss)
+        GaussianModel(**guess_gauss)
 
     astropy_fit = fitting.LevMarLSQFitter()
 
@@ -256,7 +216,7 @@ if __name__ == "__main__":
     plot_fake_count_spectrum(ax3,
                              ph_energies,
                              (ph_model | srm_model)(ph_energies),
-                             GaussianCountModel(**fake_gauss)(ph_energies),
+                             GaussianModel(**fake_gauss)(ph_energies),
                              fake_count_model,
                              fake_count_model_wn,
                              title="Fake Count Spectrum")
@@ -310,8 +270,5 @@ if __name__ == "__main__":
                                     scipy_vals, 
                                     astropy_vals)).T, 2).astype(str)
     plot_table_of_results(ax6, row_labels, column_labels, cell_text)
-
-    if SAVE_FIG:
-        plt.savefig("./astropy-fitting-example.pdf", bbox_inches="tight")
 
     plt.show()

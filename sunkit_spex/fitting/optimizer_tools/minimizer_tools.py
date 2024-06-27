@@ -1,7 +1,9 @@
 from scipy.optimize import minimize
 
+__all__ = ["scipy_minimize"]
 
-def scipy_minimize(objective_func, param_guesses, args, **kwargs):
+
+def scipy_minimize(objective_func, param_guesses, objective_func_args, **kwargs):
     """ A function to optimize fitted parameters to data.
 
     Parameters
@@ -12,10 +14,10 @@ def scipy_minimize(objective_func, param_guesses, args, **kwargs):
     param_guesses : `ndarray`
         Initial guesses of the independent variables.
 
-    args :
+    objective_func_args : `tuple`
         Any arguments required to be passed to the objective function
         after the param_guesses.
-        E.g., `objective_func(param_guesses, *args)`.
+        E.g., `objective_func(param_guesses, *objective_func_args)`.
 
     kwargs :
         Passed to `scipy.optimize.minimize`.
@@ -31,6 +33,6 @@ def scipy_minimize(objective_func, param_guesses, args, **kwargs):
 
     return minimize(objective_func,
                     param_guesses,
-                    args=args,
+                    args=objective_func_args,
                     method=method,
                     **kwargs)
