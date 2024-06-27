@@ -1,5 +1,6 @@
 __all__ = ["minimize_func"]
 
+
 def minimize_func(params, data_y, model_x, model_func, statistic_func):
     """
     Minimization function.

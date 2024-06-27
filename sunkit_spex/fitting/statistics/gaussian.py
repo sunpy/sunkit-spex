@@ -22,4 +22,4 @@ def chi_squared(data_y, model_y):
     `float`
         The value to be optimized that compares the model to the data.
     """
-    return np.sum((data_y - model_y)**2)
+    return np.sum((data_y - model_y) ** 2)

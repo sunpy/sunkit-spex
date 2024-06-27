@@ -4,7 +4,7 @@ __all__ = ["scipy_minimize"]
 
 
 def scipy_minimize(objective_func, param_guesses, objective_func_args, **kwargs):
-    """ A function to optimize fitted parameters to data.
+    """A function to optimize fitted parameters to data.
 
     Parameters
     ----------
@@ -31,8 +31,4 @@ def scipy_minimize(objective_func, param_guesses, objective_func_args, **kwargs)
 
     method = kwargs.pop("method", "Nelder-Mead")
 
-    return minimize(objective_func,
-                    param_guesses,
-                    args=objective_func_args,
-                    method=method,
-                    **kwargs)
+    return minimize(objective_func, param_guesses, args=objective_func_args, method=method, **kwargs)

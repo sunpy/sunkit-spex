@@ -18,7 +18,6 @@ a square response matrix to the data-space (count-space).
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm
-from matplotlib.gridspec import GridSpec
 
 from astropy.modeling import fitting
 
@@ -27,8 +26,7 @@ from sunkit_spex.fitting.objective_functions.optimising_functions import minimiz
 from sunkit_spex.fitting.optimizer_tools.minimizer_tools import scipy_minimize
 from sunkit_spex.fitting.statistics.gaussian import chi_squared
 from sunkit_spex.models.instrument_response import MatrixModel
-from sunkit_spex.models.models import GaussianModel
-from sunkit_spex.models.models import StraightLineModel
+from sunkit_spex.models.models import GaussianModel, StraightLineModel
 
 #####################################################
 #
@@ -43,7 +41,7 @@ np.random.seed(seed=10)
 # Can define the photon energies
 
 start, inc = 1.6, 0.04
-stop = 80+inc/2
+stop = 80 + inc / 2
 ph_energies = np.arange(start, stop, inc)
 
 #####################################################
@@ -53,8 +51,7 @@ ph_energies = np.arange(start, stop, inc)
 sim_cont = {"slope": -1, "intercept": 100}
 sim_line = {"amplitude": 100, "mean": 30, "stddev": 2}
 # use a straight line model for a continuum, Gaussian for a line
-ph_model = (StraightLineModel(**sim_cont) 
-            + GaussianModel(**sim_line))
+ph_model = StraightLineModel(**sim_cont) + GaussianModel(**sim_line)
 
 plt.figure()
 plt.plot(ph_energies, ph_model(ph_energies))
@@ -71,13 +68,9 @@ srm = simulate_square_response_matrix(ph_energies.size)
 srm_model = MatrixModel(matrix=srm)
 
 plt.figure()
-plt.imshow(srm,
-            origin="lower",
-            extent=[ph_energies[0],
-                    ph_energies[-1],
-                    ph_energies[0],
-                    ph_energies[-1]],
-            norm=LogNorm())
+plt.imshow(
+    srm, origin="lower", extent=[ph_energies[0], ph_energies[-1], ph_energies[0], ph_energies[-1]], norm=LogNorm()
+)
 plt.ylabel("Photon Energies [keV]")
 plt.xlabel("Count Energies [keV]")
 plt.title("Simulated SRM")
@@ -101,45 +94,24 @@ sim_count_model = ct_model(ph_energies)
 #
 # Add some noise
 
-sim_count_model_wn = (sim_count_model 
-                        + (2*np.random.rand(sim_count_model.size)-1)
-                        * np.sqrt(sim_count_model))
+sim_count_model_wn = sim_count_model + (2 * np.random.rand(sim_count_model.size) - 1) * np.sqrt(sim_count_model)
 
 #####################################################
 #
 # Can plot all the different components in the simulated count spectrum
 
 plt.figure()
-plt.plot(ph_energies,
-            (ph_model | srm_model)(ph_energies),
-            label="photon model features")
-plt.plot(ph_energies,
-            GaussianModel(**sim_gauss)(ph_energies),
-            label="gaussian feature")
-plt.plot(ph_energies,
-            sim_count_model,
-            label="total sim. spectrum")
-plt.plot(ph_energies,
-            sim_count_model_wn,
-            label="total sim. spectrum + noise",
-            lw=0.5)
+plt.plot(ph_energies, (ph_model | srm_model)(ph_energies), label="photon model features")
+plt.plot(ph_energies, GaussianModel(**sim_gauss)(ph_energies), label="gaussian feature")
+plt.plot(ph_energies, sim_count_model, label="total sim. spectrum")
+plt.plot(ph_energies, sim_count_model_wn, label="total sim. spectrum + noise", lw=0.5)
 plt.xlabel("Energy [keV]")
 plt.ylabel("cts s$^{-1}$ keV$^{-1}$")
 plt.title("Simulated Count Spectrum")
 plt.legend()
 
-plt.text(80,
-            170,
-            "(ph_model(sl,in,am1,mn1,sd1) | srm)",
-            ha="right",
-            c="tab:blue",
-            weight="bold")
-plt.text(80,
-            150,
-            "+ Gaussian(am2,mn2,sd2)",
-            ha="right",
-            c="tab:orange",
-            weight="bold")
+plt.text(80, 170, "(ph_model(sl,in,am1,mn1,sd1) | srm)", ha="right", c="tab:blue", weight="bold")
+plt.text(80, 150, "+ Gaussian(am2,mn2,sd2)", ha="right", c="tab:orange", weight="bold")
 plt.show()
 
 #####################################################
@@ -148,38 +120,28 @@ plt.show()
 #
 # Get some initial guesses that are off from the simulated data above
 
-guess_cont = {"slope": -0.5, "intercept": 80}  
-guess_line = {"amplitude": 150, "mean": 32, "stddev": 5}  
-guess_gauss = {"amplitude": 350, "mean": 39, "stddev": 0.5}  
+guess_cont = {"slope": -0.5, "intercept": 80}
+guess_line = {"amplitude": 150, "mean": 32, "stddev": 5}
+guess_gauss = {"amplitude": 350, "mean": 39, "stddev": 0.5}
 
 #####################################################
 #
 # Define a new model since we have a rough idea of the mode we should use
 
-ph_mod_4fit = (StraightLineModel(**guess_cont) 
-                + GaussianModel(**guess_line))
-count_model_4fit = ((ph_mod_4fit | srm_model) 
-                    + GaussianModel(**guess_gauss))
+ph_mod_4fit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
+count_model_4fit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
 
 #####################################################
 #
 # Let's fit the simulated data and plot the result
 
-opt_res = scipy_minimize(minimize_func,
-                            count_model_4fit.parameters,
-                            (sim_count_model_wn,
-                            ph_energies,
-                            count_model_4fit,
-                            chi_squared))
+opt_res = scipy_minimize(
+    minimize_func, count_model_4fit.parameters, (sim_count_model_wn, ph_energies, count_model_4fit, chi_squared)
+)
 
 plt.figure()
-plt.plot(ph_energies, 
-              sim_count_model_wn, 
-              label="total sim. spectrum + noise")
-plt.plot(ph_energies, 
-            count_model_4fit.evaluate(ph_energies, *opt_res.x), 
-            ls=":", 
-            label="model fit")
+plt.plot(ph_energies, sim_count_model_wn, label="total sim. spectrum + noise")
+plt.plot(ph_energies, count_model_4fit.evaluate(ph_energies, *opt_res.x), ls=":", label="model fit")
 plt.xlabel("Energy [keV]")
 plt.ylabel("cts s$^{-1}$ keV$^{-1}$")
 plt.title("Simulated Count Spectrum Fit with Scipy")
@@ -193,25 +155,16 @@ plt.show()
 #
 # Try and ensure we start fresh with new model definitions
 
-ph_mod_4astropyfit = StraightLineModel(**guess_cont) + \
-    GaussianModel(**guess_line)
-count_model_4astropyfit = (ph_mod_4fit | srm_model) + \
-    GaussianModel(**guess_gauss)
+ph_mod_4astropyfit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
+count_model_4astropyfit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
 
 astropy_fit = fitting.LevMarLSQFitter()
 
-astropy_fitted_result = astropy_fit(count_model_4astropyfit,
-                                    ph_energies,
-                                    sim_count_model_wn)
+astropy_fitted_result = astropy_fit(count_model_4astropyfit, ph_energies, sim_count_model_wn)
 
 plt.figure()
-plt.plot(ph_energies, 
-              sim_count_model_wn, 
-              label="total sim. spectrum + noise")
-plt.plot(ph_energies, 
-            astropy_fitted_result(ph_energies), 
-            ls=":", 
-            label="model fit")
+plt.plot(ph_energies, sim_count_model_wn, label="total sim. spectrum + noise")
+plt.plot(ph_energies, astropy_fitted_result(ph_energies), ls=":", label="model fit")
 plt.xlabel("Energy [keV]")
 plt.ylabel("cts s$^{-1}$ keV$^{-1}$")
 plt.title("Simulated Count Spectrum Fit with Astropy")
@@ -224,33 +177,26 @@ plt.show()
 
 plt.figure(layout="constrained")
 
-row_labels = (tuple(sim_cont) +
-                tuple(f"{p}1" for p in tuple(sim_line)) +
-                tuple(f"{p}2" for p in tuple(sim_gauss)))
+row_labels = tuple(sim_cont) + tuple(f"{p}1" for p in tuple(sim_line)) + tuple(f"{p}2" for p in tuple(sim_gauss))
 column_labels = ("True Values", "Guess Values", "Scipy Fit", "Astropy Fit")
-true_vals = np.array(tuple(sim_cont.values()) +
-                        tuple(sim_line.values()) +
-                        tuple(sim_gauss.values()))
-guess_vals = np.array(tuple(guess_cont.values()) +
-                        tuple(guess_line.values()) +
-                        tuple(guess_gauss.values()))
+true_vals = np.array(tuple(sim_cont.values()) + tuple(sim_line.values()) + tuple(sim_gauss.values()))
+guess_vals = np.array(tuple(guess_cont.values()) + tuple(guess_line.values()) + tuple(guess_gauss.values()))
 scipy_vals = opt_res.x
 astropy_vals = astropy_fitted_result.parameters
 cell_vals = np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T
-cell_text = np.round(np.vstack((true_vals, 
-                                guess_vals, 
-                                scipy_vals, 
-                                astropy_vals)).T, 2).astype(str)
+cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T, 2).astype(str)
 
 plt.axis("off")
-plt.table(cellText=cell_text,
-            cellColours=None,
-            cellLoc='center',
-            rowLabels=row_labels,
-            rowColours=None,
-            colLabels=column_labels,
-            colColours=None,
-            colLoc='center',
-            bbox=[0, 0, 1, 1])
+plt.table(
+    cellText=cell_text,
+    cellColours=None,
+    cellLoc="center",
+    rowLabels=row_labels,
+    rowColours=None,
+    colLabels=column_labels,
+    colColours=None,
+    colLoc="center",
+    bbox=[0, 0, 1, 1],
+)
 
 plt.show()

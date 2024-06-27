@@ -6,7 +6,6 @@ __all__ = ["MatrixModel"]
 
 
 class MatrixModel(Fittable1DModel):
-
     def __init__(self, matrix):
         self.matrix = Parameter(default=matrix, description="The matrix with which to multiply the input.", fixed=True)
         super().__init__()
