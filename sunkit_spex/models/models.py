@@ -8,7 +8,7 @@ __all__ = ["StraightLineModel", "GaussianModel"]
 
 
 class StraightLineModel(Fittable1DModel):
-    slope = Parameter(default=1, description="Gradiant of a straight line model.")
+    slope = Parameter(default=1, description="Gradient of a straight line model.")
     intercept = Parameter(default=0, description="Y-intercept of a straight line model.")
 
     @staticmethod
