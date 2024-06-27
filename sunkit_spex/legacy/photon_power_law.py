@@ -9,11 +9,8 @@ PHOTON_RATE_UNIT = u.ph / u.keV / u.cm**2 / u.s
 
 @u.quantity_input
 def integrate_power_law(
-    energy: u.keV,
-    norm_energy: u.keV,
-    norm: PHOTON_RATE_UNIT,
-    index: u.one
-) -> (PHOTON_RATE_UNIT * u.keV):
+    energy: u.keV, norm_energy: u.keV, norm: PHOTON_RATE_UNIT, index: u.one
+) -> PHOTON_RATE_UNIT * u.keV:
     r"""Evaluate the antiderivative of a power law at a given energy or vector of energies.
 
     The power law antiderivative evaluated by this function is assumed to take the following form,
@@ -46,7 +43,7 @@ def integrate_power_law(
     arg = (energy / norm_energy).to(u.one)
     if index == 1:
         return prefactor * np.log(arg)
-    return (prefactor / (1 - index)) * arg**(1 - index)
+    return (prefactor / (1 - index)) * arg ** (1 - index)
 
 
 @u.quantity_input
@@ -56,7 +53,7 @@ def compute_broken_power_law(
     norm_flux: PHOTON_RATE_UNIT,
     break_energy: u.keV,
     lower_index: u.one,
-    upper_index: u.one
+    upper_index: u.one,
 ) -> PHOTON_RATE_UNIT:
     r"""Analytically evaluate a photon-space broken power law and bin the flux.
 
@@ -103,7 +100,7 @@ def compute_broken_power_law(
     """
 
     if energy_edges.size <= 1:
-        raise ValueError('Need at least two energy edges.')
+        raise ValueError("Need at least two energy edges.")
     if norm_flux == 0:
         return np.zeros(energy_edges.size - 1) << PHOTON_RATE_UNIT
 
@@ -115,18 +112,8 @@ def compute_broken_power_law(
     lower = energy_edges[condition]
     upper = energy_edges[~condition]
 
-    up_integ = functools.partial(
-        integrate_power_law,
-        norm_energy=norm_energy,
-        norm=up_norm,
-        index=upper_index
-    )
-    low_integ = functools.partial(
-        integrate_power_law,
-        norm_energy=norm_energy,
-        norm=low_norm,
-        index=lower_index
-    )
+    up_integ = functools.partial(integrate_power_law, norm_energy=norm_energy, norm=up_norm, index=upper_index)
+    low_integ = functools.partial(integrate_power_law, norm_energy=norm_energy, norm=low_norm, index=lower_index)
 
     lower_portion = low_integ(energy=lower[1:]) - low_integ(energy=lower[:-1])
     upper_portion = up_integ(energy=upper[1:]) - up_integ(energy=upper[:-1])
@@ -134,16 +121,12 @@ def compute_broken_power_law(
     twixt_portion = []
     # bin between the portions is comprised of both power laws
     if lower.size > 0 and upper.size > 0:
-        twixt_portion = np.diff(
-            low_integ(energy=u.Quantity([lower[-1], break_energy]))
-        )
-        twixt_portion += np.diff(
-            up_integ(energy=u.Quantity([break_energy, upper[0]]))
-        )
+        twixt_portion = np.diff(low_integ(energy=u.Quantity([lower[-1], break_energy])))
+        twixt_portion += np.diff(up_integ(energy=u.Quantity([break_energy, upper[0]])))
 
     ret = np.concatenate((lower_portion, twixt_portion, upper_portion))
     if ret.size != (energy_edges.size - 1):
-        raise ValueError('Bin or edge size mismatch. Bug?')
+        raise ValueError("Bin or edge size mismatch. Bug?")
 
     # go back to units of cm2/sec/keV
     return ret / np.diff(energy_edges)
@@ -151,12 +134,9 @@ def compute_broken_power_law(
 
 @u.quantity_input
 def compute_power_law(
-    energy_edges: u.keV,
-    norm_energy: u.keV,
-    norm_flux: PHOTON_RATE_UNIT,
-    index: u.one
+    energy_edges: u.keV, norm_energy: u.keV, norm_flux: PHOTON_RATE_UNIT, index: u.one
 ) -> PHOTON_RATE_UNIT:
-    r'''Single power law, defined by setting the break energy to -inf and the lower index to nan.
+    r"""Single power law, defined by setting the break energy to -inf and the lower index to nan.
 
     Parameters
     ----------
@@ -176,34 +156,30 @@ def compute_power_law(
         Photon power law, where the flux in each energy bin is equal
         to the power law analytically averaged over each bin.
 
-    '''
+    """
     return compute_broken_power_law(
         energy_edges=energy_edges,
         norm_energy=norm_energy,
         norm_flux=norm_flux,
         break_energy=-np.inf << u.keV,
         lower_index=np.nan,
-        upper_index=index
+        upper_index=index,
     )
 
 
 @u.quantity_input
 def _compute_broken_power_law_normalizations(
-    norm_flux: PHOTON_RATE_UNIT,
-    norm_energy: u.keV,
-    break_energy: u.keV,
-    lower_index: u.one,
-    upper_index: u.one
+    norm_flux: PHOTON_RATE_UNIT, norm_energy: u.keV, break_energy: u.keV, lower_index: u.one, upper_index: u.one
 ) -> PHOTON_RATE_UNIT:
-    '''(internal)
+    """(internal)
     give the correct upper and lower power law normalizations given the
     desired flux and locations of break & norm energies
-    '''
+    """
     energy_arg = (break_energy / norm_energy).to(u.one)
     if norm_energy < break_energy:
         low_norm = norm_flux
-        up_norm = norm_flux * energy_arg**(upper_index - lower_index)
+        up_norm = norm_flux * energy_arg ** (upper_index - lower_index)
     else:
         up_norm = norm_flux
-        low_norm = norm_flux * energy_arg**(lower_index - upper_index)
+        low_norm = norm_flux * energy_arg ** (lower_index - upper_index)
     return u.Quantity((up_norm, low_norm))

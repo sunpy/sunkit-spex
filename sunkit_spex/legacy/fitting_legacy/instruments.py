@@ -1,5 +1,5 @@
 """
-The following code is for instrument specific classes each using their own methods to create and edit their `_loaded_spec_data` attrbutes.
+The following code is for instrument specific classes each using their own methods to create and edit their `_loaded_spec_data` attributes.
 
 Tips that I have been following:
     * None of the instrument loaders should have public attributes; ie., all attributes should be preceded with `_`
@@ -15,7 +15,7 @@ from . import nu_spec_code as nu_spec
 
 __all__ = ["NustarLoader", "CustomLoader", "rebin_any_array"]
 
-# Get a default class for the instrument specfic loaders
+# Get a default class for the instrument specific loaders
 # Once the instrument specific loaders inherit from this then all they really have to do is get the spectral
 #    data they want to fit in the correct dictionary form and assigned to `self._loaded_spec_data`.
 
@@ -40,7 +40,7 @@ class InstrumentBlueprint:
                       "extras":{"any_extra_info":or_empty_dict}
                      };
             (2) provide instrument specific methods such as time/spatial/spectral range selectors
-                and SRM rebinning methods that then update the `_loaded_spec_data` attrbute
+                and SRM rebinning methods that then update the `_loaded_spec_data` attribute
                 appropriately.
 
     Instrument loader classes are expected to receive the PHA spctral file (`pha_file`) as the first
@@ -48,7 +48,7 @@ class InstrumentBlueprint:
     `custom_channel_bins`). Obviously not all of these files need be used and so just pass then through
     as **kwargs.
 
-    The `DataLoader` class in data_loader.py then creates a dictionary attrbute called `loaded_spec_data`
+    The `DataLoader` class in data_loader.py then creates a dictionary attribute called `loaded_spec_data`
     (note no underscore) that is then getable by the user when spectral fitting with the `Fitter` class
     in fitter.py where the keys are each spectum's ID (e.g, spectrum1, spectrum2, etc.).
     """
@@ -343,7 +343,7 @@ class NustarLoader(InstrumentBlueprint):
         Returns
         -------
         The lower/higher photon bin edges (e_lo_rmf, e_hi_rmf), the number of counts channels activated by each photon channel (ngrp),
-        starting indices of the count channel groups (fchan), number counts channels from each starting index (nchan), the coresponding
+        starting indices of the count channel groups (fchan), number counts channels from each starting index (nchan), the corresponding
         counts/photon value for each count and photon entry (matrix), and the redistribution matrix (redist_m: with rows of photon channels,
         columns of counts channels, and in the units of counts/photon).
         """
