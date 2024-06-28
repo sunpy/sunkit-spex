@@ -1,3 +1,7 @@
+"""
+This module contains functions that can evaluate models and return a fit statistic.
+"""
+
 __all__ = ["minimize_func"]
 
 

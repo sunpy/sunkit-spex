@@ -30,11 +30,6 @@ from sunkit_spex.models.models import GaussianModel, StraightLineModel
 
 #####################################################
 #
-# This should keep "random" stuff the same each run
-np.random.seed(seed=10)
-
-#####################################################
-#
 # Start by creating simulated data and instrument.
 # This would all be provided by a given observation.
 #
@@ -93,8 +88,8 @@ sim_count_model = ct_model(ph_energies)
 #####################################################
 #
 # Add some noise
-
-sim_count_model_wn = sim_count_model + (2 * np.random.rand(sim_count_model.size) - 1) * np.sqrt(sim_count_model)
+np_rand = np.random.default_rng(seed=10)
+sim_count_model_wn = sim_count_model + (2 * np_rand.random(sim_count_model.size) - 1) * np.sqrt(sim_count_model)
 
 #####################################################
 #

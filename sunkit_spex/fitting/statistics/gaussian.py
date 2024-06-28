@@ -1,3 +1,7 @@
+"""
+This module contains functions that compute a fit statistic between two data-sets.
+"""
+
 import numpy as np
 
 __all__ = ["chi_squared"]
