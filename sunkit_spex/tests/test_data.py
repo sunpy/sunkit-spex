@@ -17,13 +17,10 @@ def test_simulate_square_response_matrix():
     exp_res1 = [[1]]
 
     array2 = simulate_square_response_matrix(2)
-    exp_res2 = [[1,0],
-                [0.00475727, 0.99524273]]
+    exp_res2 = [[1, 0], [0.00475727, 0.99524273]]
 
     array3 = simulate_square_response_matrix(3)
-    exp_res3 = [[1, 0, 0.],
-                [0.00475727, 0.99524273, 0.],
-                [0.00103306, 0.00412088, 0.99484607]]
+    exp_res3 = [[1, 0, 0.0], [0.00475727, 0.99524273, 0.0], [0.00103306, 0.00412088, 0.99484607]]
 
     assert_allclose(array0, exp_res0, rtol=1e-3)
     assert_allclose(array1, exp_res1, rtol=1e-3)

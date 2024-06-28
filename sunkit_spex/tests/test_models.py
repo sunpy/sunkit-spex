@@ -7,8 +7,7 @@ from numpy.testing import assert_allclose, assert_array_equal
 
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
 from sunkit_spex.models.instrument_response import MatrixModel
-from sunkit_spex.models.models import StraightLineModel
-from sunkit_spex.models.models import GaussianModel
+from sunkit_spex.models.models import GaussianModel, StraightLineModel
 
 
 def test_StraightLineModel():
@@ -23,10 +22,11 @@ def test_StraightLineModel():
     assert_allclose(exp_res0, ans0_0, rtol=1e-3)
     assert_allclose(ans0_0, ans0_1, rtol=1e-3)
 
+
 def test_GaussianModel():
     """Test the Gaussian model evaluation methods to a known output."""
-    sim_x0 = np.arange(-1,2)*np.sqrt(2*np.log(2))
-    model_params0 = {"amplitude": 10, "mean": 0, "stddev":1}
+    sim_x0 = np.arange(-1, 2) * np.sqrt(2 * np.log(2))
+    model_params0 = {"amplitude": 10, "mean": 0, "stddev": 1}
     sim_model0 = GaussianModel(**model_params0)
     exp_res0 = [5, 10, 5]
     ans0_0 = sim_model0(sim_x0)
@@ -34,6 +34,7 @@ def test_GaussianModel():
 
     assert_allclose(exp_res0, ans0_0, rtol=1e-3)
     assert_allclose(ans0_0, ans0_1, rtol=1e-3)
+
 
 def test_MatrixModel():
     """Test the matrix model contents and compound model behaviour."""
