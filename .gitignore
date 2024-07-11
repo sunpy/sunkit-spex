@@ -147,6 +147,7 @@ docs/_build
 docs/generated
 docs/api
 docs/whatsnew/latest_changelog.txt
+docs/sg_execution_times.rst
 sunkit_spex/version.py
 htmlcov/
 
