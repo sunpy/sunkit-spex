@@ -1,8 +1,6 @@
 import copy
 import warnings
 
-import sunpy.time
-
 from astropy.io import fits
 import astropy.table as atab
 import astropy.units as u
@@ -12,6 +10,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from sunkit_spex.legacy.fitting import instruments
+from sunpy.time import time  # noqa: F401
+
+from sunkit_spex.legacy.fitting_legacy import instruments
 
 
 class RhessiLoader(instruments.InstrumentBlueprint):
@@ -192,12 +193,13 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         """
         start_time, end_time = self._start_event_time, self._end_event_time
         change_times = self._attenuator_state_info["change_times"]
-        for t in change_times:
-            if start_time <= t <= end_time:
-                warnings.warn(
-                    f"\ndo not update event times to ({start_time}, {end_time}): "
-                    "covers attenuator state change. Don't trust this fit!"
-                )
+        if len(change_times) > 1:
+            for t in change_times:
+                if start_time <= t <= end_time:
+                    warnings.warn(
+                        f"\ndo not update event times to ({start_time}, {end_time}): "
+                        "covers attenuator state change. Don't trust this fit!"
+                    )
 
         n_states = len(self._attenuator_state_info["states"])
         new_att_state = self._attenuator_state_info["states"][0]  # default to first
