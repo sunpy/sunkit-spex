@@ -1,0 +1,1 @@
+Remove redundant 'legacy' in module from `~sunkit_spex.legacy.fitting_legacy` to `~sunkit_spex.legacy.fitting`.
