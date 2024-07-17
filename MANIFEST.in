@@ -1,3 +1,7 @@
+# Exclude specific files
+# All files which are tracked by git and not explicitly excluded here are included by setuptools_scm
+# Prune folders
+
 include README.rst
 include CHANGES.rst
 include setup.cfg
@@ -15,3 +19,7 @@ prune docs/_build
 prune docs/api
 
 global-exclude *.pyc *.o
+
+# This subpackage is only used in development checkouts
+# and should not be included in built tarballs
+prune sunkit_spex/_dev
