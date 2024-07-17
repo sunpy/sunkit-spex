@@ -2,8 +2,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
-from sunkit_spex import emission
-from sunkit_spex.integrate import fixed_quad, gauss_legendre
+from sunkit_spex.legacy import emission
+from sunkit_spex.legacy.integrate import fixed_quad, gauss_legendre
 
 
 def test_broken_power_law_electron_distribution():

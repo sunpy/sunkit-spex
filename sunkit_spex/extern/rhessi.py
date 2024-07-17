@@ -9,7 +9,7 @@ import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import numpy as np
 
-from sunkit_spex.legacy.fitting_legacy import instruments
+from sunkit_spex.legacy.fitting import instruments
 
 
 class RhessiLoader(instruments.InstrumentBlueprint):
@@ -622,7 +622,7 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         -------
         None.
         """
-        self.__warn = False if (type(start) != type(None)) and (type(end) != type(None)) else True
+        self.__warn = False if (start is not None) and (end is not None) else True
 
         if background:
             self.start_background_time, self.end_background_time = start, end
