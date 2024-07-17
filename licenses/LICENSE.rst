@@ -1,10 +1,4 @@
-This project is based upon the OpenAstronomy package template
-(https://github.com/OpenAstronomy/package-template/) which is licensed under the terms
-of the following licence.
-
----
-
-Copyright (c) 2018, OpenAstronomy Developers
+Copyright (c) 2024, The SunPy Community
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,

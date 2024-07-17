@@ -1,5 +1,6 @@
+*************************
 sunkit-spex Documentation
-=========================
+*************************
 
 Everything you need to know about sunkit-spex.
 
@@ -25,6 +26,7 @@ will help you know where to look for certain things:
 
 .. toctree::
    :maxdepth: 2
+   :caption: Contents:
 
    tutorials/index
    how_to/index
