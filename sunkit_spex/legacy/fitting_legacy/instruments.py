@@ -6,21 +6,18 @@ Tips that I have been following:
     * Only obvious and useful methods and setters should be public, all else preceded with `_`
 """
 
+import warnings
 from os import path as os_path
 
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import numpy as np
 
 from astropy.time import Time
 
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
-
-import warnings
-
 from . import io
 from . import nu_spec_code as nu_spec
 from . import stix_spec_code as stix_spec
-
 
 __all__ = ["NustarLoader", "StixLoader", "CustomLoader", "rebin_any_array"]
 
@@ -443,7 +440,7 @@ class StixLoader(InstrumentBlueprint):
             Returns True if the data to be fitted has been converted to event time minus background.
 
     end_background_time : `astropy.Time`
-            Returns the set backgroun end time.
+            Returns the set background end time.
 
     end_event_time : `astropy.Time`
             Returns the set event end time.
@@ -551,11 +548,11 @@ class StixLoader(InstrumentBlueprint):
             Array of time bins per spectrum.
 
     _time_fmt
-            Format for astropy to convert teh times with.
+            Format for astropy to convert the times with.
             Default: "isot"
 
     _time_scale
-            Scale for astropy to convert teh times with.
+            Scale for astropy to convert the times with.
             Default: "utc"
 
     """
@@ -726,14 +723,14 @@ class StixLoader(InstrumentBlueprint):
     def data2data_minus_background(self, boolean):
         """ ***Property Setter*** Allows the data to be changed to be event-background.
 
-        Original data is stroed in `_full_data` attribute. Default fitting will essentially have this as False and fit the event
+        Original data is stored in `_full_data` attribute. Default fitting will essentially have this as False and fit the event
         time data with model+background (recommended). If this is set to True then the data to be fitting will be converted to
         the event time data minus the background data and fitting with just model; this is the way STIX/OSPEX analysis has been
         done in the past but is not strictly correct.
 
         To convert back to fitting the event time data with model+background then this setter need only be set to False again.
 
-        Everytime a background is set this is set to False.
+        Every time a background is set this is set to False.
 
         Parameters
         ----------
@@ -1320,7 +1317,7 @@ class StixLoader(InstrumentBlueprint):
             _lcs.append(lc)
             _lcs_err.append(e_range_ctr_err)
             _p = ax.plot(_ts, lc,
-                         label=f"{er[0]}$-${er[-1]} keV")  # incase of uncommon time binning just plot cts/s per bin edge
+                         label=f"{er[0]}$-${er[-1]} keV")  # in case of uncommon time binning just plot cts/s per bin edge
             ax.errorbar(np.mean(np.reshape(_ts, (int(len(_ts) / 2), -1)), axis=1), e_range_ctr, yerr=e_range_ctr_err,
                         c=_p[0].get_color(), ls="")  # error bar in middle of the bin
 

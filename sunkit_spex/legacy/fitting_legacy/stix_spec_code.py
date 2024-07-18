@@ -5,9 +5,8 @@ The following code is used to make SRM/counts data in consistent units from STIX
 import numpy as np
 
 from astropy import units as u
-from astropy.time import Time, TimeDelta
 from astropy.io import fits
-
+from astropy.time import Time, TimeDelta
 
 __all__ = ["_get_spec_file_info", "_spec_file_units_check", "_get_srm_file_info"]
 
@@ -79,8 +78,8 @@ def _get_spec_file_info(spec_file):
     counts_err = cts_rate_err * lvt[:, None] * time_del[:, None]
     counts = cts_rates * lvt[:, None] * time_del[:, None]
 
-    # Adding the 3% above 10 keV, 5% bellow 10keV  or 7% systematic errors bellow 7keV - matching OSPEX
-    #Getting the array with percentages coresponding to each energy bin
+    # Adding the 3% above 10 keV, 5% below 10keV  or 7% systematic errors below 7keV - matching OSPEX
+    #Getting the array with percentages corresponding to each energy bin
     energy_bin_low = channel_bins[:,0]
     energy_conditions = [energy_bin_low < 7, (energy_bin_low < 10) & (energy_bin_low >= 7), energy_bin_low >= 10]
     percentage = [0.07, 0.05, 0.03]
