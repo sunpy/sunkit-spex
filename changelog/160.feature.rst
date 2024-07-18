@@ -1,0 +1,4 @@
+Add STIX instrument loader
+
+- Update the STIX data loading functions in `sunkit_spex.legacy.fitting_legacy.stix_spec_code`
+- Add the STIX loader to :py:class:`sunkit_spex.legacy.fitting_legacy.instruments.StixLoader`
