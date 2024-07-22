@@ -1,5 +1,5 @@
 [codespell]
-skip = *.asdf,*.fits,*.fts,*.header,*.json,*.xsh,*cache*,*egg*,*extern*,.git,.idea,.tox,_build,*truncated,*.svg,.asv_env,.history
+skip = ,*.fits,*.fts,*.header,*.json,*.xsh,*cache*,*egg*,*extern*,.git,.idea,.tox,_build,*truncated,*.svg,.asv_env,.history,sunkit_spex/fitting_legacy/*
 ignore-words-list =
     alog,
     nd,
@@ -9,5 +9,9 @@ ignore-words-list =
     te,
     upto,
     afile,
-    precessed,
-    precess
+    combin,
+    livetime,
+    livetimes,
+    sav,
+    selt
+
