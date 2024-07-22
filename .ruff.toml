@@ -5,6 +5,7 @@ exclude = [
   "__pycache__",
   "build",
   "sunkit-spex/version.py",
+  "sunkit_spex/legacy/fitting_legacy"
 ]
 
 [lint]
@@ -25,7 +26,8 @@ extend-ignore = [
 "setup.py" = ["INP001"]
 "conftest.py" = ["INP001"]
 "docs/conf.py" = [
-  "E402"  # Module imports not at top of file
+  "E402",  # Module imports not at top of file
+  "F403"
 ]
 "docs/*.py" = [
   "INP001",  # Implicit-namespace-package. The examples are not a package.
@@ -35,3 +37,6 @@ extend-ignore = [
 
 [lint.pydocstyle]
 convention = "numpy"
+
+[lint.flake8-pytest-style]
+parametrize-names-type = "csv"
