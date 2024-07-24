@@ -3,7 +3,7 @@ import numpy.testing as npt
 
 import astropy.units as u
 
-from sunkit_spex import photon_power_law as ppl
+from sunkit_spex.legacy import photon_power_law as ppl
 
 
 def test_different_bins():
