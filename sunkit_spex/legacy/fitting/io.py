@@ -25,7 +25,7 @@ def _read_pha(file):
         data = hdul[1].data
         header_for_livetime = hdul[0].header
 
-    return data['channel'], data['counts'], header_for_livetime['LIVETIME']
+    return data["channel"], data["counts"], header_for_livetime["LIVETIME"]
 
 
 def _read_arf(file):
@@ -45,7 +45,7 @@ def _read_arf(file):
     with fits.open(file) as hdul:
         data = hdul[1].data
 
-    return data['energ_lo'], data['energ_hi'], data['specresp']
+    return data["energ_lo"], data["energ_hi"], data["specresp"]
 
 
 def _read_rmf(file):
@@ -68,4 +68,4 @@ def _read_rmf(file):
     with fits.open(file) as hdul:
         data = hdul[2].data
 
-    return data['energ_lo'], data['energ_hi'], data['n_grp'], data['f_chan'], data['n_chan'], data['matrix']
+    return data["energ_lo"], data["energ_hi"], data["n_grp"], data["f_chan"], data["n_chan"], data["matrix"]
