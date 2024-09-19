@@ -23,7 +23,7 @@ from parfive import Downloader
 import astropy.time as atime
 
 from sunkit_spex.extern import rhessi
-from sunkit_spex.legacy.fitting_legacy import fitter
+from sunkit_spex.legacy.fitting import fitter
 
 #####################################################
 #

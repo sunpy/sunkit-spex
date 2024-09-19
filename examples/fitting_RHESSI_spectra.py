@@ -24,10 +24,13 @@ from parfive import Downloader
 from astropy.time import Time
 
 from sunkit_spex.extern.rhessi import RhessiLoader
-from sunkit_spex.legacy.fitting_legacy.fitter import Fitter
+from sunkit_spex.legacy.fitting.fitter import Fitter
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+try:
+    warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+except AttributeError:
+    warnings.filterwarnings("ignore", category=np.exceptions.VisibleDeprecationWarning)
 
 
 #####################################################

@@ -12,10 +12,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from parfive import Downloader
 
-from sunkit_spex.legacy.fitting_legacy.fitter import Fitter, load
+from sunkit_spex.legacy.fitting.fitter import Fitter, load
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+try:
+    warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+except AttributeError:
+    warnings.filterwarnings("ignore", category=np.exceptions.VisibleDeprecationWarning)
 
 
 #####################################################

@@ -12,8 +12,6 @@ import numpy as np
 from sunkit_spex.legacy.fitting import instruments
 from sunpy.time import time  # noqa: F401
 
-from sunkit_spex.legacy.fitting_legacy import instruments
-
 
 class RhessiLoader(instruments.InstrumentBlueprint):
     """
@@ -86,8 +84,6 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         # avoid SRM setting issues
         self._start_event_time, self._end_event_time = self.start_data_time, self.end_data_time
 
-        # Assume unattenuated SRM until spectroscopy interval is specified
-        UNATTENUATED_STATE = 0
         self._loaded_spec_data = {
             "photon_channel_bins": photon_bins,
             "photon_channel_binning": photon_binning,
