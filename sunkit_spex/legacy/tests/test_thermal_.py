@@ -5,7 +5,7 @@ import pytest
 
 import astropy.units as u
 
-from sunkit_spex import thermal
+from sunkit_spex.legacy import thermal
 
 # Manually load file that was used to compile expected flux values.
 thermal.setup_continuum_parameters(
