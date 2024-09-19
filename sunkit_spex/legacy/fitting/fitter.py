@@ -41,8 +41,7 @@ from sunkit_spex.legacy.fitting.likelihoods import LogLikelihoods
 from sunkit_spex.legacy.fitting.logging import get_logger
 from sunkit_spex.legacy.fitting.parameter_handler import Parameters, isnumber
 from sunkit_spex.legacy.fitting.photon_models_for_fitting import defined_photon_models  # noqa
-from sunkit_spex.legacy.fitting.photon_models_for_fitting import f_vth  # noqa
-from sunkit_spex.legacy.fitting.photon_models_for_fitting import thick_fn  # noqa
+from sunkit_spex.legacy.fitting.photon_models_for_fitting import f_vth, thick_fn, thick_warm  # noqa
 from sunkit_spex.legacy.fitting.rainbow_text import rainbow_text_lines
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)

@@ -131,8 +131,10 @@ plt.rcParams["font.size"] = default_font_size
 #
 # ## The data loader class
 # The data loader class (LoadSpec in data_loader.py) makes use of instrument specific loaders. Each instrument loader's job is to essentially create the following dictionary for each loaded spectrum, found with the attribute `_loaded_spec_data` in the instrument class which makes up the loader class's `loaded_spec_data` attribute. E.g., with NuSTAR:
-# ```python
-# nust_loader._loaded_spec_data = {"photon_channel_bins":channel_bins,
+#
+# .. code ::
+#
+#   nust_loader._loaded_spec_data = {"photon_channel_bins":channel_bins,
 #                                  "photon_channel_mids":np.mean(channel_bins, axis=1),
 #                                  "photon_channel_binning":channel_binning,
 #                                  "count_channel_bins":channel_bins,
@@ -158,11 +160,9 @@ plt.rcParams["font.size"] = default_font_size
 #                                            "rmf.matrix":matrix,
 #                                            "rmf.redistribution_matrix":redist_m}
 #                                 }
-# ```
-# such that,
-# ```python
-# self.loaded_spec_data = {"spectrum1":inst_loader, ...}
-# ```
+#
+# such that, ``self.loaded_spec_data = {"spectrum1":inst_loader, ...}``
+#
 # ### Multiple ways to set the fitting range
 #
 # Fit the energy range while missing bins:
@@ -244,7 +244,7 @@ mcmc_result = spec.run_mcmc(steps_per_walker=100)
 
 #####################################################
 #
-# To add more MCMC runs when running the it again instead of overwriting, set ```append_runs=True```.
+# To add more MCMC runs when running the it again instead of overwriting, set  append_runs=True``.
 
 mcmc_result = spec.run_mcmc(steps_per_walker=50, append_runs=True)
 
@@ -410,39 +410,47 @@ except TypeError as e:
 # ### A Note On Parameter Handling
 #
 # **Setting spec.params["param_spec"] = string will set the Status, spec.params["param_spec"] = int or float will set the Value, spec.params["param_spec"] = tuple will set the Bounds.** E.g.,
-# ```python
-# spec.params["T1_spectrum1"] = {"Value":3.05, "Bounds":(2.5, 6)}
-# ```
-# is the same as doing
-# ```python
-# spec.params["T1_spectrum1"] = 3.05
-# spec.params["T1_spectrum1"] = (2.5, 6)
-# ```
-# or
-# ```python
-# spec.params["T1_spectrum1"] = [3.05, (2.5, 6)]
-# ```
+# .. code:: python
 #
-# ***
+#    spec.params["T1_spectrum1"] = {"Value":3.05, "Bounds":(2.5, 6)}
+#
+# is the same as doing
+# .. code:: python
+#
+#    spec.params["T1_spectrum1"] = 3.05
+#    spec.params["T1_spectrum1"] = (2.5, 6)
+#
+# or
+#
+# .. code:: python
+#
+#    spec.params["T1_spectrum1"] = [3.05, (2.5, 6)]
+#
+#
 #
 # **To tie one parameter to another** we can either set that parameter to the one we want to tie it to or use ["tie", "tied", "bind", "tether", "join", "joined", "in_a_relationship_with"] with _param_to_tie_to. E.g.,
-# ```python
-# spec.params["EM1_spectrum2"] = spec.params["EM1_spectrum1"]
-# spec.params["EM1_spectrum2"] = "JoIn_EM1_spectrum1"
-# spec.params["EM1_spectrum2"] = {"Status":"bind_EM1_spectrum1"}
-# ```
+#
+# .. code:: python
+#
+#    spec.params["EM1_spectrum2"] = spec.params["EM1_spectrum1"]
+#    spec.params["EM1_spectrum2"] = "JoIn_EM1_spectrum1"
+#    spec.params["EM1_spectrum2"] = {"Status":"bind_EM1_spectrum1"}
+#
 #
 # **To stop a parameter from varying** we can set its Status to ["frozen", "freeze", "chill", "fix", "fixed", "secure", "stick", "glue", "preserve", "cannot_move", "cant_move", "canny_move", "married"]. E.g.,
-# ```python
-# spec.params["C_spectrum1"] = "fix"
-# spec.params["C_spectrum1"] = {"Status":"frozen"}
-# ```
+#
+# .. code:: python
+#
+#    spec.params["C_spectrum1"] = "fix"
+#    spec.params["C_spectrum1"] = {"Status":"frozen"}
+#
 #
 # **To allow a parameter to vary** after being fixed simply set its Status to any of these ["free", "thaw", "loose", "unrestrained", "release", "released", "can_move", "single"]. E.g.,
-# ```python
-# spec.params["C_spectrum1"] = "free"
-# spec.params["C_spectrum1"] = {"Status":"thaw"}
-# ```
+# .. code:: python
+#
+#    spec.params["C_spectrum1"] = "free"
+#    spec.params["C_spectrum1"] = {"Status":"thaw"}
+#
 #
 # ### Other (equivalent) ways to define the same model:
 #
@@ -466,14 +474,14 @@ spec.model = model_2therm
 #
 # If a model if defined via a string (e.g., "C*(f_vth + f_vth)") then the component models will be plotted in different colours once plotted. These other methods will only allow the total resultant model to be plotted but allow for more complex models to be created by the user.
 #
-# ***
+#
 #
 # To ensure normal behaviour by all the code, make sure the function is self-contained; i.e., it can be run from its source code in a different directory. Any packages used that are not defined in the fitter module will need to be included in the function if the user wants to be able to save out and load in the fitting class and have full functionality (anything that includes pickle will not like this; e.g., parallelisation, etc.). Warnings will inform the user if their function is not self-contained and information given to help make it so.
 #
 #
 # Obviously if a package is needed that is imported outside the scope of the model function (which, when loaded back in will not be seen), or if the function is too complicated in some way, the same model can renewed in the new session via `renew_model` for any fitting to take place (this will not reset the parameter/rparameter tables).
 #
-# ***
+#
 #
 # If the user wants to define any sub-models (and use like `f_vth` above) then they can add these with the `add_photon_model()` function (see below).
 #
@@ -748,15 +756,15 @@ plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
-# For the thermal and cold thick target total model we compare:
+# For the thermal and cold thick target total model we compare::
 #
-# | Model Parameter                  | OSPEX (Glesener et al. 2020, just FPMB)       |This Work (just FPMB)           | This Work (FPMA&B)                |
-# | :---                             |    :----:                                     |     :----:                     |                              ---: |
-# | Temperature [MK]                 | 10.3$^{+0.7}_{-0.7}$                          | 10.12$\pm$0.10                 | 9.77$\pm$0.06                     |
-# | Emission Measure [cm$^{-3}$]     | 5.0$^{+1.3}_{-1.3}\times$10$^{45}$            | 4.86$\pm$0.01$\times$10$^{45}$ | 4.66$\pm$0.05$\times$10$^{45}$    |
-# | Electron Flux [e$^{-}$ s$^{-1}$] | 2.1$^{+1.2}_{-1.2}\times$10$^{35}$            | 2.17$\pm$0.06$\times$10$^{35}$ | 2.25$\pm$0.02$\times$10$^{35}$    |
-# | Index                            | 6.2$^{+0.6}_{-0.6}$                           | 5.83$\pm$0.09                  | 6.09$\pm$0.05                     |
-# | Low Energy Cut-off [keV]         | 6.2$^{+0.9}_{-0.9}$                           | 6.66$\pm$0.05                  | 6.52$\pm$0.05                     |
+#    | Model Parameter                  | OSPEX (Glesener et al. 2020, just FPMB)       |This Work (just FPMB)           | This Work (FPMA&B)                |
+#    | :---                             |    :----:                                     |     :----:                     |                              ---: |
+#    | Temperature [MK]                 | 10.3$^{+0.7}_{-0.7}$                          | 10.12$\pm$0.10                 | 9.77$\pm$0.06                     |
+#    | Emission Measure [cm$^{-3}$]     | 5.0$^{+1.3}_{-1.3}\times$10$^{45}$            | 4.86$\pm$0.01$\times$10$^{45}$ | 4.66$\pm$0.05$\times$10$^{45}$    |
+#    | Electron Flux [e$^{-}$ s$^{-1}$] | 2.1$^{+1.2}_{-1.2}\times$10$^{35}$            | 2.17$\pm$0.06$\times$10$^{35}$ | 2.25$\pm$0.02$\times$10$^{35}$    |
+#    | Index                            | 6.2$^{+0.6}_{-0.6}$                           | 5.83$\pm$0.09                  | 6.09$\pm$0.05                     |
+#    | Low Energy Cut-off [keV]         | 6.2$^{+0.9}_{-0.9}$                           | 6.66$\pm$0.05                  | 6.52$\pm$0.05                     |
 #
 # ## Now let's recreate Figure 4 (right) where NuSTAR FPMB is fitted with a warm thick target model.
 #
@@ -878,15 +886,15 @@ plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
-# For the warm thick target total model
+# For the warm thick target total model::
 #
-# | Model Parameter                  | OSPEX (Glesener et al. 2020, just FPMB) |This Work (just FPMB)            | This Work (FPMA&B)              |
-# | :---                             |    :----:                               |     :----:                      |                            ---: |
-# | Temperature [MK]                 | 10.2$^{+0.7}_{-0.7}$                    | 11.34$\pm$0.24                  | 11.27$\pm$0.39                  |
-# | Plasma Density [cm$^{-3}$]       | 6.0$^{+2.0}_{-2.0}\times$10$^{9}$       | 4.86$\pm$0.03$\times$10$^{9}$   | 4.71$\pm$0.14$\times$10$^{9}$   |
-# | Electron Flux [e$^{-}$ s$^{-1}$] | 1.8$^{+0.8}_{-0.8}\times$10$^{35}$      | 2.06$\pm$0.02$\times$10$^{35}$  | 2.04$\pm$0.05$\times$10$^{35}$  |
-# | Index                            | 6.3$^{+0.7}_{-0.7}$                     | 7.09$\pm$0.04                   | 7.02$\pm$0.26                   |
-# | Low Energy Cut-off [keV]         | 6.5$^{+0.9}_{-0.9}$                     | 7.00$\pm$0.04                   | 6.66$\pm$0.25                   |
+#    | Model Parameter                  | OSPEX (Glesener et al. 2020, just FPMB) |This Work (just FPMB)            | This Work (FPMA&B)              |
+#    | :---                             |    :----:                               |     :----:                      |                            ---: |
+#    | Temperature [MK]                 | 10.2$^{+0.7}_{-0.7}$                    | 11.34$\pm$0.24                  | 11.27$\pm$0.39                  |
+#    | Plasma Density [cm$^{-3}$]       | 6.0$^{+2.0}_{-2.0}\times$10$^{9}$       | 4.86$\pm$0.03$\times$10$^{9}$   | 4.71$\pm$0.14$\times$10$^{9}$   |
+#    | Electron Flux [e$^{-}$ s$^{-1}$] | 1.8$^{+0.8}_{-0.8}\times$10$^{35}$      | 2.06$\pm$0.02$\times$10$^{35}$  | 2.04$\pm$0.05$\times$10$^{35}$  |
+#    | Index                            | 6.3$^{+0.7}_{-0.7}$                     | 7.09$\pm$0.04                   | 7.02$\pm$0.26                   |
+#    | Low Energy Cut-off [keV]         | 6.5$^{+0.9}_{-0.9}$                     | 7.00$\pm$0.04                   | 6.66$\pm$0.25                   |
 #
 # All parameter values appear to be within error margins (or extremely close). This is more impressive when the errors calculated in this work for the minimised values assumes the parameter's have a Gaussian and independent posterior distribution (which is clearly not the case) and so these errors are likely to be larger; to be investigated with an MCMC.
 #
@@ -1022,7 +1030,7 @@ plt.rcParams["font.size"] = default_font_size
 #
 # Although these values are slightly different, it is important to note that XSPEC and sunkit-spex work from different atomic databases. We also note that for a similar isothermal fit the temperature can drop/rise if the emission measure rises/drops and so fitting not just one but two of these models allows for these to vary more. We do see that this work (for this microflare) produces higher temperatures but correspondingly lower emission measures.
 #
-# ***
+#
 #
 # **Code is still under construction. The vast majority of code has documentation but still working on it. Plotting code is generally a mess but, again, a work in progress.**
 #

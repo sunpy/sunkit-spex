@@ -112,7 +112,6 @@ custom_dict = {"count_channel_bins": chan_bins, "counts": fake_data}  # counts w
 #
 # * counts_rate_model [counts s^2] = photon_model [photons s^2 cm^-2] # spectral_response_matrix [counts photon^-1 cm^2]
 #
-# + [markdown] jupyter={"outputs_hidden": false} pycharm={"name": "#%% md\n"}
 # Going back to this example, to help fit the noise added to the fake data we simply take the mean of the added noise and can include that in the model. This especially helps in the sections of the data where the noise is dominant. Obviously there are more robust ways to do this but this will do here.
 
 
