@@ -82,7 +82,7 @@ def gauss_legendre(func, a, b, n=5, args=(), func_kwargs={}):
     array([0.99999998])
     >>> gauss_legendre(np.cos,0.0,np.pi/2,n=5)
     array([1.])
-    >>> np.sin(np.pi/2)-np.sin(0)  # analytical result
+    >>> float(np.sin(np.pi/2)-np.sin(0))  # analytical result
     1.0
     """
     a = np.atleast_1d(a)
@@ -147,7 +147,7 @@ def fixed_quad(func, a, b, n=5, args=(), func_kwargs={}):
     array(0.99999998)
     >>> fixed_quad(np.cos,0.0,np.pi/2,n=5)
      array(1.)
-    >>> np.sin(np.pi/2)-np.sin(0)  # analytical result
+    >>> float(np.sin(np.pi/2)-np.sin(0))  # analytical result
     1.0
 
     """
