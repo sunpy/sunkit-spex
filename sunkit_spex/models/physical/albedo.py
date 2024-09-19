@@ -13,6 +13,11 @@ def albedo(spec, energy: Quantity[u.keV], theta: Quantity[u.deg, 0, 90], anisotr
     r"""
     Add albedo correction to input spectrum
 
+    Correct input model spectrum for the component reflected by the solar atmosphere following [Kontar20006]_ using
+    precomputed green matrices from SSW.
+
+    .. [Kontar20006] https://doi.org/10.1051/0004-6361:20053672
+
     Parameters
     ----------
     spec :
@@ -32,12 +37,12 @@ def albedo(spec, energy: Quantity[u.keV], theta: Quantity[u.deg, 0, 90], anisotr
     >>> e = np.linspace(5,  500, 1000)
     >>> e_c = e[:-1] + np.diff(e)
     >>> s = 125*e_c**-3
-    >>> corrected = albedo(s, energy, theta=45*u.deg)
+    >>> corrected = albedo(s, e, theta=45*u.deg)
     """
     base_url = "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/albedo/"
     mu = np.cos(theta)
 
-    # what bout 0 and 1 i assume so close to 05 and 95 that it doesn't matter
+    # what about 0 and 1 assume so close to 05 and 95 that it doesn't matter
     # load precomputed green matrices
     if 0.5 <= mu <= 0.95:
         low = 5 * np.floor(mu * 20)
@@ -71,9 +76,9 @@ def albedo(spec, energy: Quantity[u.keV], theta: Quantity[u.deg, 0, 90], anisotr
     interp = RegularGridInterpolator((energy_grid_centers.to_value(u.keV), energy_grid_centers.to_value(u.keV)), albedo)
 
     de = np.diff(energy)
-    engery_centers = energy[:-1] + de / 2
+    energy_centers = energy[:-1] + de / 2
 
-    X, Y = np.meshgrid(engery_centers.to_value(u.keV), engery_centers.to_value(u.keV))
+    X, Y = np.meshgrid(energy_centers.to_value(u.keV), energy_centers.to_value(u.keV))
     albedo_interp = interp((X, Y))
 
     albedo_interp = albedo_interp * de.value / anisotropy
