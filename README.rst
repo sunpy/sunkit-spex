@@ -1,48 +1,96 @@
-A package for solar X-ray spectroscopy.
----------------------------------------
+***************
+``sunkit-spex``
+***************
 
-.. image:: http://img.shields.io/badge/powered%20by-SunPy-orange.svg?style=flat
++-----------------------------------+-----------------------------------+-----------------------------------+
+|           Release                 |           Development             |           Community               |
++===================================+===================================+===================================+
+|       |Latest PyPi Version|       |        |Python Versions|          |         |Matrix Chat Room|        |
++-----------------------------------+-----------------------------------+-----------------------------------+
+|         |Zenodo - Latest DOI|     |     |Project Status: Active|      |       |Powered by Sunpy|          |
++-----------------------------------+-----------------------------------+-----------------------------------+
+|         |Stable docs|             |  |Continuous Integration Status|  |                                   |
++-----------------------------------+-----------------------------------+-----------------------------------+
+|                                   |  |CodeCov Code Coverage|          |                                   |
++-----------------------------------+-----------------------------------+-----------------------------------+
+
+
+
+.. |Latest PyPi Version| image:: https://img.shields.io/pypi/v/sunkit-spex.svg
+   :target: https://pypi.python.org/pypi/sunkit-spex/
+
+.. |Python Versions| image:: https://img.shields.io/pypi/pyversions/sunkit-spex
+   :target: https://pypi.python.org/pypi/sunkit-spex/
+
+.. |Matrix Chat Room| image:: https://img.shields.io/matrix/sunxspex:openastronomy.org.svg?colorB=%23FE7900&label=Chat&logo=matrix&server_fqdn=matrix.org
+   :target: https://app.element.io/#/room/#sunxspex:openastronomy.org
+
+.. |Project Status: Active| image:: https://www.repostatus.org/badges/latest/active.svg
+   :target: https://www.repostatus.org/#active
+
+.. |Zenodo - Latest DOI| image:: https://zenodo.org/badge/175066331.svg
+   :target: https://zenodo.org/doi/10.5281/zenodo.11526911
+
+.. |Continuous Integration Status| image:: https://github.com/sunpy/sunkit-spex/actions/workflows/ci.yml/badge.svg?branch=main
+   :target: https://github.com/sunpy/sunkit-spex/actions/workflows/ci.yml
+
+.. |CodeCov Code Coverage| image:: https://codecov.io/gh/sunpy/sunkit-spex/graph/badge.svg?token=42ghDinUal
+   :target: https://codecov.io/gh/sunpy/sunkit-spex
+
+.. |Powered by Sunpy| image:: http://img.shields.io/badge/powered%20by-SunPy-orange.svg?style=flat
     :target: http://www.sunpy.org
     :alt: Powered by SunPy Badge
 
-License
--------
+.. |Stable docs| image:: https://readthedocs.org/projects/sunkit-spex/badge/?version=stable
+    :target: https://sunkit-spex.readthedocs.io/en/stable/?badge=stable
+    :alt: Documentation Status
 
-This project is Copyright (c) The SunPy Community and licensed under
-the terms of the BSD 3-Clause license. This package is based upon
-the `Openastronomy packaging guide <https://github.com/OpenAstronomy/packaging-guide>`_
-which is licensed under the BSD 3-clause licence. See the licenses folder for
-more information.
 
+``sunkit-spex`` is a Python software package that provides fundamental tools for fitt
+
+Installation
+============
+
+
+Usage
+=====
+
+If you are new to ``sunkit-spex``, the best place to start is the `example gallery <https://sunkit-spex.readthedocs.io/en/stable/generated/gallery/index.html>`__ it includes a collection of short, specific examples of using ``sunkit-spex``.
+
+Changes
+=======
+
+See our `changelog <https://sunkit-spex.readthedocs.io/en/stable/whatsnew/changelog.html>`__. for the latest changes in ``sunkit-spex``.
+
+Getting Help
+============
+
+For more information or to ask questions about ``sunkit-spex`` please check out:
+
+-  `sunkit-spex documentation <https://sunkit-spex.readthedocs.io/en/stable/?badge=stable>`__
+-  `sunkit-spex chat`_
+
+Acknowledging or Citing ``sunkit-spex``
+=================================
+
+If you use ``sunkit-spex`` in your scientific work, we would appreciate your citing it in your publications |Zenodo - Latest DOI|.
+The continued growth and development of ``sunkit-spex`` is dependent on the community being aware of ``sunkit-spex``.
 
 Contributing
-------------
+============
 
-We love contributions! sunkit-spex is open source,
-built on open source, and we'd love to have you hang out in our community.
+sunkit-spex is a community-driven open-source project that welcomes any and all contributions.
+Whether you are a developer, student, or user, you can help by contributing code, documentation, or community support.
 
-**Imposter syndrome disclaimer**: We want your help. No, really.
+If you would like to get involved, there are many different ways to contribute to the sunkit-spex.
 
-There may be a little voice inside your head that is telling you that you're not
-ready to be an open source contributor; that your skills aren't nearly good
-enough to contribute. What could you possibly offer a project like this one?
+Help is always welcome, so come and say hello by joining the `sunkit-spex chat`_ and look over the `Issues list`_ for the ideal places to start.
 
-We assure you - the little voice in your head is wrong. If you can write code at
-all, you can contribute code to open source. Contributing to open source
-projects is a fantastic way to advance one's coding skills. Writing perfect code
-isn't the measure of a good developer (that would disqualify all of us!); it's
-trying to create something, making mistakes, and learning from those
-mistakes. That's how we all improve, and we are happy to help others learn.
+.. _Issues list: https://github.com/sunpy/sunkit-spex/issues?q=is%3Aissue+is%3Aopen
 
-Being an open source contributor doesn't just mean writing code, either. You can
-help out by writing documentation, tests, or even giving feedback about the
-project (and yes - that includes giving feedback about the contribution
-process). Some of these contributions may be the most valuable to the project as
-a whole, because you're coming to the project with fresh eyes, so you can see
-the errors and assumptions that seasoned contributors have glossed over.
+Code of Conduct
+===============
 
-Note: This disclaimer was originally written by
-`Adrienne Lowe <https://github.com/adriennefriend>`_ for a
-`PyCon talk <https://www.youtube.com/watch?v=6Uj746j9Heo>`_, and was adapted by
-sunkit-spex based on its use in the README file for the
-`MetPy project <https://github.com/Unidata/MetPy>`_.
+When you are interacting with the ``sunkit-spex`` and th wider SunPy Community you are asked to follow our `Code of Conduct <https://sunpy.org/coc>`__.
+
+.. _sunkit-spex chat: https://app.element.io/#/room/#sunxspex:openastronomy.org
