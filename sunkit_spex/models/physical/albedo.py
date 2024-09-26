@@ -1,6 +1,8 @@
 import warnings
 import functools
 
+from functools import lru_cache
+
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from scipy.io import readsav
@@ -128,7 +130,7 @@ def albedo(energy, theta, anisotropy=1):
     Correct input model spectrum for the component reflected by the solar atmosphere following [Kontar20006]_ using
     precomputed green matrices from SSW.
 
-    .. [Kontar20006] https://doi.org/10.1051/0004-6361:20053672
+    .. [Kontar2006] https://doi.org/10.1051/0004-6361:20053672
 
     Parameters
     ----------
