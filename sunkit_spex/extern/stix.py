@@ -406,11 +406,11 @@ class STIXLoader(instruments.InstrumentBlueprint):
         )
         srm = srm[:, data_inds2match[0]]
 
-        photon_bins = srm_photon_bins if type(photon_bins) == type(None) else photon_bins
+        photon_bins = srm_photon_bins if type(photon_bins) is type(None) else photon_bins
         photon_binning = np.diff(photon_bins).flatten()
 
         # from the srm file #channel_binning = np.diff(channel_bins).flatten()
-        channel_bins = obs_channel_bins if type(channel_bins) == type(None) else channel_bins
+        channel_bins = obs_channel_bins if type(channel_bins) is type(None) else channel_bins
 
         # default is no background and all data is the spectrum to be fitted
         self._full_obs_time = [self._time_bins_perspec[0, 0], self._time_bins_perspec[-1, -1]]
@@ -590,11 +590,11 @@ class STIXLoader(instruments.InstrumentBlueprint):
         -------
         Indexed array.
         """
-        if (type(stime) == type(None)) and (type(etime) == type(None)):
+        if (type(stime) is type(None)) and (type(etime) is type(None)):
             return full_data
-        elif type(stime) == type(None):
+        elif type(stime) is type(None):
             return full_data[np.where(self._time_bins_perspec[:, 1] <= etime)]
-        elif type(etime) == type(None):
+        elif type(etime) is type(None):
             return full_data[np.where(stime <= self._time_bins_perspec[:, 0])]
         else:
             return full_data[
@@ -714,7 +714,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
         elif isinstance(evt_stime, type(self._full_obs_time[0])):
             # if user has provided an astropy time already
             _t = evt_stime
-        elif type(evt_stime) == type(None):
+        elif type(evt_stime) is type(None):
             # set to None to reset
             _t = self._full_obs_time[0]
         else:
@@ -764,7 +764,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
         elif isinstance(evt_etime, type(self._full_obs_time[1])):
             # if user has provided an astropy time already
             _t = evt_etime
-        elif type(evt_etime) == type(None):
+        elif type(evt_etime) is type(None):
             # set to None to reset
             _t = self._full_obs_time[1]
         else:
@@ -793,7 +793,9 @@ class STIXLoader(instruments.InstrumentBlueprint):
         -------
         None.
         """
-        if (type(self._start_background_time) != type(None)) and (type(self._end_background_time) != type(None)):
+        if (type(self._start_background_time) is not type(None)) and (
+            type(self._end_background_time) is not type(None)
+        ):
             # check that bg_start<bg_end
             if self._start_background_time >= self._end_background_time:
                 if self.__warn:
@@ -888,7 +890,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
         elif isinstance(bg_stime, type(self._full_obs_time[0])):
             # if user has provided an astropy time already
             _t = bg_stime
-        elif type(bg_stime) == type(None):
+        elif type(bg_stime) is type(None):
             # set to None to reset
             _t = None
         else:
@@ -898,10 +900,10 @@ class STIXLoader(instruments.InstrumentBlueprint):
 
         _set_bg_stime = (
             (not hasattr(self, "_end_background_time"))
-            or (type(_t) == type(None))
+            or (type(_t) is type(None))
             or (
                 hasattr(self, "_end_background_time")
-                and ((type(self._end_background_time) == type(None)) or (_t < self._end_background_time))
+                and ((type(self._end_background_time) is type(None)) or (_t < self._end_background_time))
             )
         )
         if _set_bg_stime:
@@ -950,7 +952,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
         elif isinstance(bg_etime, type(self._full_obs_time[1])):
             # if user has provided an astropy time already
             _t = bg_etime
-        elif type(bg_etime) == type(None):
+        elif type(bg_etime) is type(None):
             # set to None to reset
             _t = None
         else:
@@ -960,10 +962,10 @@ class STIXLoader(instruments.InstrumentBlueprint):
 
         _set_bg_etime = (
             (not hasattr(self, "_start_background_time"))
-            or (type(_t) == type(None))
+            or (type(_t) is type(None))
             or (
                 hasattr(self, "_start_background_time")
-                and ((type(self._start_background_time) == type(None)) or (self._start_background_time < _t))
+                and ((type(self._start_background_time) is type(None)) or (self._start_background_time < _t))
             )
         )
         if _set_bg_etime:
@@ -1022,7 +1024,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
         -------
         `mdates.MinuteLocator`.
         """
-        obs_dt = np.diff(self._full_obs_time)[0].to_value("s") if type(_obs_dt) == type(None) else _obs_dt
+        obs_dt = np.diff(self._full_obs_time)[0].to_value("s") if type(_obs_dt) is type(None) else _obs_dt
         if obs_dt > 3600 * 12:
             return mdates.MinuteLocator(byminute=[0], interval=1)
         elif 3600 * 3 < obs_dt <= 3600 * 12:
@@ -1123,7 +1125,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
 
         """
         # just make sure we have a list of lists for the energy ranges
-        if type(energy_ranges) == type(None):
+        if type(energy_ranges) is type(None):
             energy_ranges = [
                 [
                     self._loaded_spec_data["count_channel_bins"][0, 0],
@@ -1138,7 +1140,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
             )
             return
 
-        ax = axes if type(axes) != type(None) else plt.gca()
+        ax = axes if type(axes) is not type(None) else plt.gca()
         _def_fs = plt.rcParams["font.size"]
 
         _lcs, _lcs_err = [], []
@@ -1191,9 +1193,9 @@ class STIXLoader(instruments.InstrumentBlueprint):
         )  # stop region label overlapping axis spine
         if (
             hasattr(self, "_start_background_time")
-            and (type(self._start_background_time) != type(None))
+            and (type(self._start_background_time) is not type(None))
             and hasattr(self, "_end_background_time")
-            and (type(self._end_background_time) != type(None))
+            and (type(self._end_background_time) is not type(None))
         ):
             ax.axvspan(
                 *self._atimes2mdates([self._start_background_time, self._end_background_time]),
@@ -1276,7 +1278,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
 
         """
 
-        ax = axes if type(axes) != type(None) else plt.gca()
+        ax = axes if type(axes) is not type(None) else plt.gca()
 
         _cmap = "plasma" if "cmap" not in kwargs else kwargs["cmap"]
         kwargs.pop("cmap", None)
@@ -1333,9 +1335,9 @@ class STIXLoader(instruments.InstrumentBlueprint):
         )  # stop region label overlapping axis spine
         if (
             hasattr(self, "_start_background_time")
-            and (type(self._start_background_time) != type(None))
+            and (type(self._start_background_time) is not type(None))
             and hasattr(self, "_end_background_time")
-            and (type(self._end_background_time) != type(None))
+            and (type(self._end_background_time) is not type(None))
         ):
             ax.hlines(y=etop, xmin=start_bg_time, xmax=end_bg_time, alpha=0.9, color="orange", capstyle="butt", lw=10)
             ax.annotate("BG", (start_bg_time, _y_pos), color="orange", va="top", size=_def_fs - 2)
@@ -1383,7 +1385,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
         ar.select_time(start="2002-10-05T10:41:20", end="2002-10-05T10:42:24")
 
         """
-        self.__warn = False if (type(start) != type(None)) and (type(end) != type(None)) else True
+        self.__warn = False if (type(start) is not type(None)) and (type(end) is not type(None)) else True
 
         if background:
             self.start_background_time, self.end_background_time = start, end
