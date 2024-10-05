@@ -8,7 +8,7 @@ from astropy.time import Time, TimeDelta
 from astropy import units as u
 from astropy.io import fits
 
-from sunkit_spex.legacy.fitting_legacy import instruments
+from sunkit_spex.legacy.fitting import instruments
 
 
 class STIXLoader(instruments.InstrumentBlueprint):
