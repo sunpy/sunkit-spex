@@ -11,11 +11,11 @@ from astropy.io import fits
 from sunkit_spex.legacy.fitting_legacy import instruments
 
 
-class StixLoader(instruments.InstrumentBlueprint):
+class STIXLoader(instruments.InstrumentBlueprint):
     """
-    Loader specifically for processed STIX spectrogram data.
+    Loader specifically for processed STIX spectrogram data exported from the IDL software.
 
-    This loader has the same format as the STIX/RHESSI loader from the older version of sunkit-spex (sunxspex).
+    This loader has the same format as the STIX/RHESSI loader from the older version of sunkit-spex (sunxspex, in leggacy fitting now).
     Once the format of the instrument loaders is decided, the loader should be moved to sunkit_spex.extern
 
     StixLoader Specifics
@@ -288,7 +288,7 @@ class StixLoader(instruments.InstrumentBlueprint):
             cts_rates = stix_dict["1"][1]["RATE"]
             cts_rate_err = stix_dict["1"][1]["STAT_ERR"]
         else:
-            print("I don't know what units STIX has.")
+            raise ValueError("I don't know what units STIX has.")
 
         return cts_rates, cts_rate_err
 

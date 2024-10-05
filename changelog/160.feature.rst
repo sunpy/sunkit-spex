@@ -1,3 +1,1 @@
-Add STIX instrument loader
-
-- Add the STIX loader to :py:class:`sunkit_spex.extern.stix.StixLoader`
+Add STIX instrument loader `~sunkit_spex.extern.stix.STIXLoader`
