@@ -153,12 +153,12 @@ class STIXLoader(instruments.InstrumentBlueprint):
 
     """
 
-    def __init__(self, spectrum_fn, srm_fn, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
+    def __init__(self, spectrum_file, srm_file, custom_channel_bins=None, custom_photon_bins=None, **kwargs):
         """Construct a string to show how the class was constructed (`_construction_string`) and set the `_loaded_spec_data` dictionary attribute."""
 
-        self._construction_string = f"StixLoader(spectrum_fn={spectrum_fn},srm_fn={srm_fn},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
+        self._construction_string = f"StixLoader(spectrum_file={spectrum_file},srm_file={srm_file},custom_channel_bins={custom_channel_bins},custom_photon_bins={custom_photon_bins},**{kwargs})"
         self._loaded_spec_data = self._load1spec(
-            spectrum_fn, srm_fn, channel_bins=custom_channel_bins, photon_bins=custom_photon_bins
+            spectrum_file, srm_file, channel_bins=custom_channel_bins, photon_bins=custom_photon_bins
         )
 
         self._time_fmt, self._time_scale = "isot", "utc"
