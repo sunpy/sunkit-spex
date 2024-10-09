@@ -6,6 +6,7 @@ Tips that I have been following:
     * Only obvious and useful methods and setters should be public, all else preceded with `_`
 """
 
+import warnings
 from os import path as os_path
 
 import numpy as np

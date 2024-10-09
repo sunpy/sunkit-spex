@@ -1,0 +1,1 @@
+Add STIX instrument loader `~sunkit_spex.extern.stix.STIXLoader`
