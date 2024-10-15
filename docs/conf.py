@@ -7,11 +7,23 @@
 import datetime
 import pathlib
 
+from packaging.version import Version
+
 # -- Project information -----------------------------------------------------
 
 # The full version, including alpha/beta/rc tags
 from sunkit_spex import __version__
-release = __version__
+
+_version = Version(__version__)
+version = release = str(_version)
+# Avoid "post" appearing in version string in rendered docs
+if _version.is_postrelease:
+    version = release = _version.base_version
+# Avoid long githashes in rendered Sphinx docs
+elif _version.is_devrelease:
+    version = release = f"{_version.base_version}.dev{_version.dev}"
+is_development = _version.is_devrelease
+is_release = not(_version.is_prerelease or _version.is_devrelease)
 
 project = "sunkit-spex"
 author = "The SunPy Community"
@@ -54,7 +66,7 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # Treat everything in single ` as a Python reference.
-default_role = 'py:obj'
+default_role = "py:obj"
 
 # -- Options for intersphinx extension ---------------------------------------
 
