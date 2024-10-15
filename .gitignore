@@ -79,6 +79,9 @@ docs/_build/
 # automodapi
 docs/api
 docs/sg_execution_times.rst
+docs/generated/
+examples/rhessi/
+examples/sunxspexRhessiSpectralFitting.pickle
 
 # PyBuilder
 .pybuilder/

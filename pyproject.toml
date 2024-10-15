@@ -46,7 +46,11 @@ docs = [
   "sphinx",
   "sphinx-automodapi",
   "packaging",
+  "sphinx-changelog",
+  "sphinx-gallery",
+  "sunpy-sphinx-theme",
 ]
+
 [project.urls]
 repository = "https://sunkit-spex.readthedocs.io"
 
