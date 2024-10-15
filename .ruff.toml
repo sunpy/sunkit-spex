@@ -1,11 +1,12 @@
 target-version = "py310"
-line-length = 110
+line-length = 120
 exclude = [
   ".git,",
   "__pycache__",
   "build",
-  "sunkit-spex/version.py",
-  "sunkit_spex/legacy/fitting_legacy"
+  "sunkit_spex/version.py",
+  "sunkit_spex/legacy/fitting",
+  "sunkit_spex/extern/",
 ]
 
 [lint]
@@ -40,3 +41,9 @@ convention = "numpy"
 
 [lint.flake8-pytest-style]
 parametrize-names-type = "csv"
+
+[format]
+exclude = [
+  "sunkit_spex/_dev/scm_version.py",
+  "docs/conf.py",
+]
