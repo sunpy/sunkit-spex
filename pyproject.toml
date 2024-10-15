@@ -27,7 +27,9 @@ dependencies = [
     "quadpy",
     "scipy",
     "sunpy",
-    "xarray"
+    "xarray",
+    "gwcs",
+    "ndcube",
 ]
 
 dynamic = ["version"]
