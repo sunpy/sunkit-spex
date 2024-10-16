@@ -85,11 +85,7 @@ intersphinx_mapping = {
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 
-try:
-    from sunpy_sphinx_theme.conf import *
-except ImportError:
-    html_theme = "sunpy"
-
+html_theme = "sunpy"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
@@ -113,7 +109,6 @@ sphinx_gallery_conf = {
     "filename_pattern": "^((?!skip_).)*$",
     "examples_dirs": example_dir,
     "gallery_dirs": path.joinpath("generated", "gallery"),
-    # "default_thumb_file": path.joinpath("logo", "sunpy_icon_128x128.png"),
     "abort_on_example_error": False,
     "plot_gallery": "True",
     "remove_config_comments": True,
