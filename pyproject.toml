@@ -66,18 +66,6 @@ exclude = ["sunkit_spex._dev*"]
 write_to = "sunkit_spex/_version.py"
 
 [ tool.gilesbot ]
-#  [ tool.gilesbot.circleci_artifacts ]
-#    enabled = true
-#
-#  [ tool.gilesbot.circleci_artifacts.figure_report ]
-#    url = ".tmp/py38-figure/figure_test_images/fig_comparison.html"
-#    message = "Click details to see the figure test comparisons, for py38-figure."
-#    report_on_fail = true
-#
-#  [ tool.gilesbot.circleci_artifacts.figure_report_devdeps ]
-#    url = ".tmp/py39-figure-devdeps/figure_test_images/fig_comparison.html"
-#    message = "Click details to see the figure test comparisons for py39-figure-devdeps."
-#    report_on_fail = true
 
   [ tool.gilesbot.pull_requests ]
     enabled = true
