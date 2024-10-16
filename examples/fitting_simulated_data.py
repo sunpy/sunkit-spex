@@ -17,17 +17,12 @@ a square response matrix to the data-space (count-space).
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import LogNorm
 
 import astropy.units as u
 from astropy.modeling import fitting
-from astropy.modeling.functional_models import Gaussian1D, Linear1D
-from astropy.visualization import quantity_support
+from astropy.modeling.functional_models import Linear1D
 
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
-from sunkit_spex.fitting.objective_functions.optimising_functions import minimize_func
-from sunkit_spex.fitting.optimizer_tools.minimizer_tools import scipy_minimize
-from sunkit_spex.fitting.statistics.gaussian import chi_squared
 from sunkit_spex.models.instrument_response import MatrixModel
 from sunkit_spex.models.models import GaussianModel, StraightLineModel
 from sunkit_spex.spectrum import Spectrum
@@ -53,12 +48,12 @@ sim_line = {"edges":False,"amplitude": 100 * u.ph, "mean": 30 * u.keV, "stddev":
 # use a straight line model for a continuum, Gaussian for a line
 ph_model = StraightLineModel(**sim_cont) + GaussianModel(**sim_line)
 
-with quantity_support():
-    plt.figure()
-    plt.plot(ph_energies, ph_model(ph_energies))
-    plt.xlabel(f"Energy [{ph_energies.unit}]")
-    plt.title("Simulated Photon Spectrum")
-    plt.show()
+# with quantity_support():
+#     plt.figure()
+#     plt.plot(ph_energies, ph_model(ph_energies))
+#     plt.xlabel(f"Energy [{ph_energies.unit}]")
+#     plt.title("Simulated Photon Spectrum")
+#     plt.show()
 
 #####################################################
 #
@@ -69,23 +64,23 @@ srm_model = MatrixModel(
     matrix=srm * u.ct / u.ph, input_axis=SpectralAxis(ph_energies), output_axis=SpectralAxis(ph_energies)
 )
 
-with quantity_support():
-    plt.figure()
-    plt.imshow(
-        srm_model.matrix.value,
-        origin="lower",
-        extent=(
-            srm_model.inputs_axis[0].value,
-            srm_model.inputs_axis[-1].value,
-            srm_model.output_axis[0].value,
-            srm_model.output_axis[-1].value,
-        ),
-        norm=LogNorm(),
-    )
-    plt.ylabel(f"Photon Energies [{srm_model.inputs_axis.unit}]")
-    plt.xlabel(f"Count Energies [{srm_model.output_axis.unit}]")
-    plt.title("Simulated SRM")
-    plt.show()
+# with quantity_support():
+#     plt.figure()
+#     plt.imshow(
+#         srm_model.matrix.value,
+#         origin="lower",
+#         extent=(
+#             srm_model.inputs_axis[0].value,
+#             srm_model.inputs_axis[-1].value,
+#             srm_model.output_axis[0].value,
+#             srm_model.output_axis[-1].value,
+#         ),
+#         norm=LogNorm(),
+#     )
+#     plt.ylabel(f"Photon Energies [{srm_model.inputs_axis.unit}]")
+#     plt.xlabel(f"Count Energies [{srm_model.output_axis.unit}]")
+#     plt.title("Simulated SRM")
+#     plt.show()
 
 #####################################################
 #
@@ -115,19 +110,19 @@ obs_spec = Spectrum(sim_count_model_wn.reshape(-1), spectral_axis=ph_energies)
 #
 # Can plot all the different components in the simulated count spectrum
 
-with quantity_support():
-    plt.figure()
-    plt.plot(ph_energies, (ph_model | srm_model)(ph_energies), label="photon model features")
-    plt.plot(ph_energies, GaussianModel(**sim_gauss)(ph_energies), label="gaussian feature")
-    plt.plot(ph_energies, sim_count_model, label="total sim. spectrum")
-    plt.plot(obs_spec._spectral_axis, obs_spec.data, label="total sim. spectrum + noise", lw=0.5)
-    plt.xlabel(f"Energy [{ph_energies.unit}]")
-    plt.title("Simulated Count Spectrum")
-    plt.legend()
-
-    plt.text(80, 170, "(ph_model(sl,in,am1,mn1,sd1) | srm)", ha="right", c="tab:blue", weight="bold")
-    plt.text(80, 150, "+ Gaussian(am2,mn2,sd2)", ha="right", c="tab:orange", weight="bold")
-    plt.show()
+# with quantity_support():
+#     plt.figure()
+#     plt.plot(ph_energies, (ph_model | srm_model)(ph_energies), label="photon model features")
+#     plt.plot(ph_energies, GaussianModel(**sim_gauss)(ph_energies), label="gaussian feature")
+#     plt.plot(ph_energies, sim_count_model, label="total sim. spectrum")
+#     plt.plot(obs_spec._spectral_axis, obs_spec.data, label="total sim. spectrum + noise", lw=0.5)
+#     plt.xlabel(f"Energy [{ph_energies.unit}]")
+#     plt.title("Simulated Count Spectrum")
+#     plt.legend()
+#
+#     plt.text(80, 170, "(ph_model(sl,in,am1,mn1,sd1) | srm)", ha="right", c="tab:blue", weight="bold")
+#     plt.text(80, 150, "+ Gaussian(am2,mn2,sd2)", ha="right", c="tab:orange", weight="bold")
+#     plt.show()
 
 #####################################################
 #
@@ -143,23 +138,23 @@ guess_gauss = {"edges":False,"amplitude": 350 * u.ct, "mean": 39 * u.keV, "stdde
 #
 # Define a new model since we have a rough idea of the mode we should use
 
-ph_mod_4fit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
-count_model_4fit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
+# ph_mod_4fit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
+# count_model_4fit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
 
 #####################################################
 #
 # Let's fit the simulated data and plot the result
 
-opt_res = scipy_minimize(minimize_func, count_model_4fit.parameters, (obs_spec, count_model_4fit, chi_squared))
+# opt_res = scipy_minimize(minimize_func, count_model_4fit.parameters, (obs_spec, count_model_4fit, chi_squared))
 
-with quantity_support():
-    plt.figure()
-    plt.plot(ph_energies, sim_count_model_wn, label="total sim. spectrum + noise")
-    plt.plot(ph_energies, count_model_4fit.evaluate(ph_energies.value, *opt_res.x), ls=":", label="model fit")
-    plt.xlabel(f"Energy [{ph_energies.unit}]")
-    plt.title("Simulated Count Spectrum Fit with Scipy")
-    plt.legend()
-    plt.show()
+# with quantity_support():
+#     plt.figure()
+#     plt.plot(ph_energies, sim_count_model_wn, label="total sim. spectrum + noise")
+#     plt.plot(ph_energies, count_model_4fit.evaluate(ph_energies.value, *opt_res.x), ls=":", label="model fit")
+#     plt.xlabel(f"Energy [{ph_energies.unit}]")
+#     plt.title("Simulated Count Spectrum Fit with Scipy")
+#     plt.legend()
+#     plt.show()
 
 
 #####################################################
@@ -168,8 +163,9 @@ with quantity_support():
 #
 # Try and ensure we start fresh with new model definitions
 
-ph_mod_4astropyfit = Linear1D(**guess_cont) + Gaussian1D(**guess_line)
-count_model_4astropyfit = (ph_mod_4astropyfit | srm_model) + Gaussian1D(**guess_gauss)
+ph_mod_4astropyfit = Linear1D(**guess_cont)  # + Gaussian1D(**guess_line)
+ph_mod_4astropyfit.output_units = {"y": u.ph}
+count_model_4astropyfit = ph_mod_4astropyfit | srm_model  # + Gaussian1D(**guess_gauss)
 
 astropy_fit = fitting.LevMarLSQFitter()
 
