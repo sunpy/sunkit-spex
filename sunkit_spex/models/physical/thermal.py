@@ -6,12 +6,13 @@ from scipy import interpolate, stats
 
 import astropy.units as u
 
+from sunpy.data import manager
+
 from sunkit_spex.models.physical.io import (
     load_chianti_continuum,
     load_chianti_lines_lite,
     load_xray_abundances,
 )
-from sunpy.data import manager
 
 __all__ = [
     "thermal_emission",

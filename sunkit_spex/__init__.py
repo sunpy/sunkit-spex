@@ -1,9 +1,7 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+from .version import version as __version__
 
-
-from .version import __version__
-
-__all__ = []
 from . import extern
 from .legacy import fitting
 from .models.physical import io, thermal
+
+__all__ = []
