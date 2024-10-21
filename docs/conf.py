@@ -104,15 +104,6 @@ graphviz_dot_args = [
 # so a file named "default.css" will overwrite the builtin "default.css".
 # html_static_path = ["_static"]
 
-graphviz_dot_args = [
-    "-Nfontsize=10",
-    "-Nfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
-    "-Efontsize=10",
-    "-Efontname=Helvetica Neue, Helvetica, Arial, sans-serif",
-    "-Gfontsize=10",
-    "-Gfontname=Helvetica Neue, Helvetica, Arial, sans-serif",
-]
-
 # -- Options for the Sphinx gallery -------------------------------------------
 path = pathlib.Path.cwd()
 example_dir = path.parent.joinpath("examples")
