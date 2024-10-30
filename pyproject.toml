@@ -49,7 +49,6 @@ docs = [
   "packaging",
   "sphinx-changelog",
   "sphinx-gallery",
-  "sunpy-sphinx-theme",
 ]
 
 [project.urls]
