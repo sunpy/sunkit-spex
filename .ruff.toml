@@ -84,6 +84,10 @@ extend-ignore = [
 "test_*.py" = [
   "E402", # Module level import not at top of cell
 ]
+# Be a bit more lax on legacy
+"sunkit_spex/legacy/tests/*.py" = [
+  "PT011", # `pytest.raises(ValueError)` is too broad
+]
 
 [lint.pydocstyle]
 convention = "numpy"
