@@ -56,7 +56,9 @@ extend-ignore = [
   "RUF013",  # PEP 484 prohibits implicit `Optional`
   "RUF015",  # Prefer `next(iter(...))` over single element slice
   # PEP8 Naming
-  "N802",  # Mixed case variables
+  "N802", # Function name should be lowercase
+  "N803", # Argument name should be lowercase
+  "N806", # Variable in function should be lowercase
 ]
 
 [lint.per-file-ignores]
@@ -72,6 +74,7 @@ extend-ignore = [
 ]
 "examples/**.py" = [
   "T201", # allow use of print in examples
+  "INP001",
 ]
 "__init__.py" = ["E402", "F401", "F403", "F405"]
 "test_*.py" = ["B011", "D", "E402", "PGH001", "S101"]

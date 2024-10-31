@@ -566,7 +566,7 @@ def chianti_kev_lines_Fe2():
     return inputs, ssw_output
 
 
-@pytest.mark.parametrize("ssw", (fvth_simple,))
+@pytest.mark.parametrize("ssw", [fvth_simple])
 def test_thermal_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.thermal_emission(*input_args)
@@ -574,7 +574,7 @@ def test_thermal_emission_against_ssw(ssw):
     np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
 
 
-@pytest.mark.parametrize("ssw", (chianti_kev_cont_simple, chianti_kev_cont_Fe2))
+@pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, chianti_kev_cont_Fe2])
 def test_continuum_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.continuum_emission(*input_args)
@@ -582,7 +582,7 @@ def test_continuum_emission_against_ssw(ssw):
     np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
 
 
-@pytest.mark.parametrize("ssw", (chianti_kev_lines_simple, chianti_kev_lines_Fe2))
+@pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
 def test_line_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.line_emission(*input_args)
@@ -626,5 +626,4 @@ def test_energy_out_of_range_warning():
         warnings.simplefilter("always")
         # Trigger a warning.
         output = thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3)  # noqa
-        print(w[0].category)
         assert issubclass(w[0].category, UserWarning)

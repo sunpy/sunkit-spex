@@ -102,7 +102,7 @@ class BrokenPowerLawElectronDistribution:
 
     def __eq__(self, other):
         return all(
-            [getattr(self, name) == getattr(other, name) for name in ["p", "q", "eelow", "eebrk", "eehigh"]]
+            getattr(self, name) == getattr(other, name) for name in ["p", "q", "eelow", "eebrk", "eehigh"]
         ) and isinstance(other, self.__class__)
 
     def flux(self, electron_energy):
@@ -211,9 +211,8 @@ def collisional_loss(electron_energy):
     beta = np.sqrt(1.0 - (1.0 / gamma**2))
 
     # TODO figure out what number is?
-    energy_loss_rate = np.log(6.9447e9 * electron_energy) / beta
+    return np.log(6.9447e9 * electron_energy) / beta
 
-    return energy_loss_rate
 
 
 def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
@@ -301,9 +300,8 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     fe = (a2 / a1) * (1.0 - np.exp(-2.0 * np.pi * a1)) / (1.0 - np.exp(-2.0 * np.pi * a2))
 
     # Compute the differential cross section (units cm^2).
-    cross_section = twoar02 * fe * crtmp
+    return twoar02 * fe * crtmp
 
-    return cross_section
 
 
 def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
@@ -354,18 +352,18 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
         return (
             electron_energy * np.log(10) * density * brem_cross * pc / collision_loss / ((electron_energy / mc2) + 1.0)
         )
-    elif model == "thin-target":
+    if model == "thin-target":
         if efd:
             return electron_energy * np.log(10) * electron_dist.flux(electron_energy) * brem_cross * (mc2 / clight)
-        else:
-            return (
-                electron_energy
-                * np.log(10)
-                * electron_dist.flux(electron_energy)
-                * brem_cross
-                * pc
-                / ((electron_energy / mc2) + 1.0)
-            )
+        return (
+            electron_energy
+            * np.log(10)
+            * electron_dist.flux(electron_energy)
+            * brem_cross
+            * pc
+            / ((electron_energy / mc2) + 1.0)
+        )
+    return None
 
 
 def _integrate_part(
@@ -469,6 +467,7 @@ def _integrate_part(
         # If all point have reached criterion return value and flags
         if i.size == 0:
             return intsum, ier
+    return None
 
 
 def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, eehigh, p, q, z, efd, integrator=None):
@@ -641,10 +640,11 @@ def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
         DmlinO = (intsum1 + intsum2 + intsum3) * (mc2 / clight)
         ier = ier1 + ier2 + ier3
         return DmlinO, ier
-    elif model == "thin-target":
+    if model == "thin-target":
         Dmlin = intsum2 + intsum3
         ier = ier2 + ier3
         return Dmlin, ier
+    return None
 
 
 def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=True, integrator=None):
@@ -742,8 +742,7 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
         flux *= fcoeff
 
         return flux
-    else:
-        raise Warning("The photon energies are higher than the highest electron energy or not " "greater than zero")
+    raise Warning("The photon energies are higher than the highest electron energy or not " "greater than zero")
 
 
 def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, integrator=None):
@@ -836,8 +835,6 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, int
             integrator=integrator,
         )
 
-        flux = (fcoeff / decoeff) * flux
+        return (fcoeff / decoeff) * flux
 
-        return flux
-    else:
-        raise Warning("The photon energies are higher than the highest electron energy or not " "greater than zero")
+    raise Warning("The photon energies are higher than the highest electron energy or not " "greater than zero")

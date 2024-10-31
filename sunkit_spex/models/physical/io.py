@@ -111,7 +111,7 @@ def load_chianti_lines_lite():
     line_intensities *= 4 * np.pi * u.sr
 
     # Put data into intuitive structure and return it.
-    line_intensities_per_EM_at_source = xarray.DataArray(
+    return xarray.DataArray(
         line_intensities.value,
         dims=["lines", "temperature"],
         coords={
@@ -127,7 +127,6 @@ def load_chianti_lines_lite():
         },
     )
 
-    return line_intensities_per_EM_at_source
 
 
 @manager.require(
@@ -174,7 +173,7 @@ def load_chianti_continuum():
     intensities *= 4 * np.pi
     intensity_unit *= u.sr
     # Put file data into intuitive structure and return data.
-    continuum_intensities = xarray.DataArray(
+    return xarray.DataArray(
         intensities,
         dims=["element_index", "temperature", "wavelength"],
         coords={
@@ -189,7 +188,6 @@ def load_chianti_continuum():
             "chianti_doc": _clean_chianti_doc(contents["chianti_doc"]),
         },
     )
-    return continuum_intensities
 
 
 @manager.require(
@@ -242,11 +240,10 @@ def load_xray_abundances(abundance_type=None):
     except KeyError:
         pass
     n_elements = len(contents[list(contents.keys())[0]])
-    columns = [np.arange(1, n_elements + 1)] + list(contents.values())
-    names = ["atomic number"] + list(contents.keys())
-    abundances = Table(columns, names=names)
+    columns = [np.arange(1, n_elements + 1), *list(contents.values())]
+    names = ["atomic number", *list(contents.keys())]
+    return Table(columns, names=names)
 
-    return abundances
 
 
 def read_abundance_genx(filename):
