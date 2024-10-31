@@ -1,13 +1,12 @@
 """Module for model components required for instrument response models."""
 
-import astropy.units as u
 from astropy.modeling import Fittable1DModel, Parameter
 
 __all__ = ["MatrixModel"]
 
 
 class MatrixModel(Fittable1DModel):
-    input_units = {"x": u.ph}
+    # input_units = {"x": u.ph}
     c = Parameter(fixed=True)
 
     def __init__(self, matrix, input_axis, output_axis, c):
@@ -21,13 +20,13 @@ class MatrixModel(Fittable1DModel):
         # Requires input must have a specific dimensionality
         return x @ self.matrix * c
 
-    # @property
-    # def input_units(self):
-    #     return {"x": u.ph}
-    #
-    # @property
-    # def return_units(self):
-    #     return {"y": u.ct}
+    @property
+    def input_units(self):
+        return self.inputs_units
+
+    @input_units.setter
+    def input_units(self, units):
+        self.inputs_units = units
 
     @staticmethod
     def _parameter_units_for_data_units(inputs_unit, outputs_unit):

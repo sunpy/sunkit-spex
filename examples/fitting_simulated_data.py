@@ -67,6 +67,7 @@ srm = simulate_square_response_matrix(ph_energies.size)
 srm_model = MatrixModel(
     matrix=srm, input_axis=SpectralAxis(ph_energies), output_axis=SpectralAxis(ph_energies), c=1 * u.ct / u.ph
 )
+srm_model.inputs_units = {"x": u.ph}
 
 with quantity_support():
     plt.figure()
