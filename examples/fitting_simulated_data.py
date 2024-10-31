@@ -28,9 +28,7 @@ from sunkit_spex.data.simulated_data import simulate_square_response_matrix
 from sunkit_spex.fitting.objective_functions.optimising_functions import minimize_func
 from sunkit_spex.fitting.optimizer_tools.minimizer_tools import scipy_minimize
 from sunkit_spex.fitting.statistics.gaussian import chi_squared
-# from sunkit_spex.extern.astropy.modeling import CompoundModel, fix_inputs
 from sunkit_spex.models.instrument_response import MatrixModel
-from sunkit_spex.models.models import GaussianModel, StraightLineModel
 from sunkit_spex.spectrum import Spectrum
 from sunkit_spex.spectrum.spectrum import SpectralAxis
 
@@ -73,7 +71,7 @@ srm_model = MatrixModel(
 with quantity_support():
     plt.figure()
     plt.imshow(
-        srm_model.matrix.value,
+        srm_model.matrix,
         origin="lower",
         extent=(
             srm_model.inputs_axis[0].value,
@@ -94,7 +92,7 @@ with quantity_support():
 
 sim_gauss = {"edges":False,"amplitude": 70 * u.ct, "mean": 40 * u.keV, "stddev": 2 * u.keV}
 # the brackets are very necessary
-ct_model = (ph_model | srm_model) + GaussianModel(**sim_gauss)
+ct_model = (ph_model | srm_model) + Gaussian1D(**sim_gauss)
 
 #####################################################
 #
@@ -119,7 +117,7 @@ obs_spec = Spectrum(sim_count_model_wn.reshape(-1), spectral_axis=ph_energies)
 with quantity_support():
     plt.figure()
     plt.plot(ph_energies, (ph_model | srm_model)(ph_energies), label="photon model features")
-    plt.plot(ph_energies, GaussianModel(**sim_gauss)(ph_energies), label="gaussian feature")
+    plt.plot(ph_energies, Gaussian1D(**sim_gauss)(ph_energies), label="gaussian feature")
     plt.plot(ph_energies, sim_count_model, label="total sim. spectrum")
     plt.plot(obs_spec._spectral_axis, obs_spec.data, label="total sim. spectrum + noise", lw=0.5)
     plt.xlabel(f"Energy [{ph_energies.unit}]")
@@ -144,8 +142,8 @@ guess_gauss = {"edges":False,"amplitude": 350 * u.ct, "mean": 39 * u.keV, "stdde
 #
 # Define a new model since we have a rough idea of the mode we should use
 
-ph_mod_4fit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
-count_model_4fit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
+ph_mod_4fit = Linear1D(**guess_cont) + Gaussian1D(**guess_line)
+count_model_4fit = (ph_mod_4fit | srm_model) + Gaussian1D(**guess_gauss)
 
 #####################################################
 #
