@@ -128,7 +128,6 @@ def load_chianti_lines_lite():
     )
 
 
-
 @manager.require(
     "chianti_continuum",
     [
@@ -243,7 +242,6 @@ def load_xray_abundances(abundance_type=None):
     columns = [np.arange(1, n_elements + 1), *list(contents.values())]
     names = ["atomic number", *list(contents.keys())]
     return Table(columns, names=names)
-
 
 
 def read_abundance_genx(filename):

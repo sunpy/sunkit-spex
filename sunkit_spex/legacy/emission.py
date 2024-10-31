@@ -214,7 +214,6 @@ def collisional_loss(electron_energy):
     return np.log(6.9447e9 * electron_energy) / beta
 
 
-
 def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     """
     Compute the relativistic electron-ion bremsstrahlung cross section
@@ -301,7 +300,6 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
 
     # Compute the differential cross section (units cm^2).
     return twoar02 * fe * crtmp
-
 
 
 def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):

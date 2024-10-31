@@ -46,7 +46,6 @@ def gwcs_from_array(array):
     #     tabular_gwcs._input_unit = orig_array.unit
 
 
-
 class SpectralAxis(SpectralCoord):
     """
     Coordinate object representing spectral values corresponding to a specific

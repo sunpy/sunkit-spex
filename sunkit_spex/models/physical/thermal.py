@@ -469,7 +469,6 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     return flux * LINE_GRID["intensity unit"] / energy_bin_widths
 
 
-
 def _interpolate_continuum_intensities(data_grid, log10T_grid, energy_grid_keV, energy_keV, log10T):
     # Determine valid range based on limits of intensity grid's spectral extent
     # and the normalized temperature component of intensity.

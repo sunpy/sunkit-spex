@@ -94,7 +94,6 @@ def gauss_legendre(func, a, b, n=5, args=(), func_kwargs={}):
     return np.sum(wi * func(xi, *args, **func_kwargs), axis=1)
 
 
-
 def fixed_quad(func, a, b, n=5, args=(), func_kwargs={}):
     """
     Compute a definite integral using fixed-order Gaussian quadrature.
