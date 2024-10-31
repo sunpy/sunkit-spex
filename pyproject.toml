@@ -16,7 +16,7 @@ authors = [
   { name = "The SunPy Community", email = "sunpy@googlegroups.com" },
 ]
 dependencies = [
-    "astropy @ git+https://github.com/samaloney/astropy.git@bugfix-model-changing-units",
+    "astropy @ git+https://github.com/samaloney/astropy.git@v6.1.4dev",
     "corner>=2.2",
     "emcee>=3.1",
     "matplotlib>=3.7",
