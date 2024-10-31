@@ -10,6 +10,7 @@ class MatrixModel(Fittable1DModel):
     c = Parameter(fixed=True)
 
     def __init__(self, matrix, input_axis, output_axis, c):
+        self._input_units = None
         self.inputs_axis = input_axis
         self.output_axis = output_axis
         self.matrix = matrix
@@ -22,11 +23,11 @@ class MatrixModel(Fittable1DModel):
 
     @property
     def input_units(self):
-        return self.inputs_units
+        return self._input_units
 
     @input_units.setter
     def input_units(self, units):
-        self.inputs_units = units
+        self._input_units = units
 
     @staticmethod
     def _parameter_units_for_data_units(inputs_unit, outputs_unit):
