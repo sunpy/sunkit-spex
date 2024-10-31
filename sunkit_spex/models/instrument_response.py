@@ -7,18 +7,19 @@ __all__ = ["MatrixModel"]
 
 
 class MatrixModel(Fittable1DModel):
-    matrix = Parameter(description="The matrix with which to multiply the input.", fixed=True)
+    input_units = {"x": u.ph}
+    c = Parameter(fixed=True)
 
-    def __init__(self, matrix, input_axis, output_axis):
-        # self.matrix = Parameter(default=matrix, description="The matrix with which to multiply the input.", fixed=True)
+    def __init__(self, matrix, input_axis, output_axis, c):
         self.inputs_axis = input_axis
         self.output_axis = output_axis
-        super().__init__(matrix)
+        self.matrix = matrix
+        super().__init__(c)
+        # self.matrix.value = self.matrix.value.flatten()
 
-    @staticmethod
-    def evaluate(x, matrix):
+    def evaluate(self, x, c):
         # Requires input must have a specific dimensionality
-        return x @ matrix.reshape(1961, 1961)
+        return x @ self.matrix * c
 
     # @property
     # def input_units(self):
@@ -28,5 +29,6 @@ class MatrixModel(Fittable1DModel):
     # def return_units(self):
     #     return {"y": u.ct}
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"matrix": u.ct / u.ph}
+    @staticmethod
+    def _parameter_units_for_data_units(inputs_unit, outputs_unit):
+        return {"c": outputs_unit["y"] / inputs_unit["x"]}
