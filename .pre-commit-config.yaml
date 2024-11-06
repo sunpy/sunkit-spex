@@ -1,19 +1,18 @@
 repos:
     # This should be before any formatting hooks like isort
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: "v0.5.2"
+    rev: "v0.6.9"
     hooks:
       - id: ruff
         args: ["--fix"]
-      # Run the formatter.
       - id: ruff-format
   - repo: https://github.com/PyCQA/isort
     rev: 5.13.2
     hooks:
       - id: isort
-        exclude: ".*(.fits|.fts|.fit|.header|.txt|tca.*|extern.*)$"
+        exclude: ".*(.fits|.fts|.fit|.header|.txt|tca.*|extern.*|sunkit_spex/extern)$"
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+    rev: v5.0.0
     hooks:
       - id: check-ast
       - id: check-case-conflict

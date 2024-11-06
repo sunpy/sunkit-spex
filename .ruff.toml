@@ -1,11 +1,12 @@
-target-version = "py39"
+target-version = "py310"
 line-length = 120
 exclude = [
   ".git,",
   "__pycache__",
   "build",
   "sunkit_spex/version.py",
-  "sunkit_spex/legacy/fitting"
+  "sunkit_spex/legacy/fitting",
+  "sunkit_spex/extern/",
 ]
 
 [lint]
@@ -21,22 +22,28 @@ extend-ignore = [
   "PT023", # Always use () on pytest decorators
 ]
 
-
 [lint.per-file-ignores]
 # Part of configuration, not a package.
 "setup.py" = ["INP001"]
 "conftest.py" = ["INP001"]
-"docs/conf.py" = ["E402", "F403"]
+"docs/conf.py" = [
+  "E402",  # Module imports not at top of file
+  "F403"
+]
 "docs/*.py" = [
   "INP001",  # Implicit-namespace-package. The examples are not a package.
 ]
 "__init__.py" = ["E402", "F401", "F403"]
 "test_*.py" = ["B011", "D", "E402", "PGH001", "S101"]
-# Need to import clients to register them, but don't use them in file
-#"sunpy/net/__init__.py" = ["F811"]
 
 [lint.pydocstyle]
 convention = "numpy"
 
 [lint.flake8-pytest-style]
 parametrize-names-type = "csv"
+
+[format]
+exclude = [
+  "sunkit_spex/_dev/scm_version.py",
+  "docs/conf.py",
+]
