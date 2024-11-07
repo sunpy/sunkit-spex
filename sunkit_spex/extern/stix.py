@@ -6,6 +6,8 @@ import numpy as np
 
 from astropy.time import Time, TimeDelta
 from astropy import units as u
+import astropy.table as atab
+import astropy.time as atime
 from astropy.io import fits
 
 from sunkit_spex.legacy.fitting import instruments
@@ -310,7 +312,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
         """
         return self._get_srm_file_info(f_srm)
 
-    def _get_srm_file_info(self, srm_file):
+    def _get_srm_file_info(self, srm_file: str):
         """Return all STIX SRM data needed for fitting.
 
         SRM units returned as counts ph^(-1) cm^(2).
@@ -318,38 +320,45 @@ class STIXLoader(instruments.InstrumentBlueprint):
         Parameters
         ----------
         srm_file : str
-                String for the STIX SRM spectral file under investigation.
+                String for the STIX SRM spectral file
 
         Returns
         -------
-        A 2d array of the photon and channel bin edges (photon_bins, channel_bins), number of sub-set channels
-        in the energy bin (ngrp), starting index of each sub-set of channels (fchan), number of channels in each
-        sub-set (nchan), 2d array that is the spectral response (srm).
+        Dictionary of relevant SRM data.
+        Notably returns all available SRM states from the given SRM .fits file.
         """
+        srm_file_dat = list()
         with fits.open(srm_file) as hdul:
-            d0 = hdul[1].header
-            d1 = hdul[1].data
-            d3 = hdul[2].data
+            for hdu_idx in range(len(hdul)):
+                try:
+                    cur_hdu = atab.QTable.read(hdul, format="fits", hdu=hdu_idx)
+                except ValueError:
+                    cur_hdu = None
+                srm_file_dat.append({"header": hdul[hdu_idx].header, "data": cur_hdu})
 
-        pcb = np.concatenate((d1["ENERG_LO"][:, None], d1["ENERG_HI"][:, None]), axis=1)
+        # handle attenuated responses and `None` simultaneously
+        all_srms = srm_options_by_attenuator_state(srm_file_dat)
 
-        srmfsdict = {
-            "photon_energy_bin_edges": pcb,
-            "count_energy_bin_edges": np.concatenate((d3["E_MIN"][:, None], d3["E_MAX"][:, None]), axis=1),
-            "drm": d1["MATRIX"] * d0["GEOAREA"],
+        sample_key = list(all_srms.keys())[0]
+        sample_srm = all_srms[sample_key]["data"]
+        low_photon_bins = sample_srm["ENERG_LO"]
+        high_photon_bins = sample_srm["ENERG_HI"]
+        photon_bins = np.column_stack((low_photon_bins, high_photon_bins)).to_value(u.keV)
+
+        geo_area = srm_file_dat[1]["header"]["GEOAREA"]
+
+        channels = srm_file_dat[2]["data"]
+        channel_bins = np.column_stack((channels["E_MIN"], channels["E_MAX"])).to_value(u.keV)
+
+        # need srm units in counts ph^(-1) cm^(2)
+        ret_srms = {
+            state: srm["data"]["MATRIX"].data * np.diff(channel_bins, axis=1).flatten() * geo_area
+            for (state, srm) in all_srms.items()
         }
 
-        photon_bins = srmfsdict["photon_energy_bin_edges"]
+        self._attenuator_state_info = _extract_attenunator_info(srm_file_dat[3])
 
-        srm = srmfsdict["drm"]  # counts ph^-1 keV^-1
-
-        channel_bins = srmfsdict["count_energy_bin_edges"]
-
-        # srm units counts ph^(-1) kev^(-1); i.e., photons cm^(-2) go in and counts cm^(-2) kev^(-1) comes out # https://hesperia.gsfc.nasa.gov/ssw/hessi/doc/params/hsi_params_srm.htm#***
-        # need srm units are counts ph^(-1) cm^(2)
-        srm = srm * np.diff(channel_bins, axis=1).flatten()
-
-        return photon_bins, channel_bins, srm
+        return dict(channel_bins=channel_bins, photon_bins=photon_bins, srm_options=ret_srms)
 
     def _load1spec(self, spectrum_fn, srm_fn, channel_bins=None, photon_bins=None):
         """Loads all the information in for a given spectrum.
@@ -398,8 +407,12 @@ class STIXLoader(instruments.InstrumentBlueprint):
             self._count_rate_error_perspec,
         ) = self._getspec(spectrum_fn)
 
+        self._srm = self._getsrm(srm_fn)
+        srm_photon_bins = self._srm["photon_bins"]
+        srm_channel_bins = self._srm["channel_bins"]
         # needs an srm file load it in
-        srm_photon_bins, srm_channel_bins, srm = self._getsrm(srm_fn)
+        srm = self._srm["srm_options"][0]
+
         # make sure the SRM will only produce counts to match the data
         data_inds2match = np.where(
             (obs_channel_bins[0, 0] <= srm_channel_bins[:, 0]) & (srm_channel_bins[:, 1] <= obs_channel_bins[-1, -1])
@@ -476,6 +489,31 @@ class STIXLoader(instruments.InstrumentBlueprint):
             "srm": srm,
             "extras": {"pha.file": spectrum_fn, "srm.file": srm_fn, "counts=data-bg": False},
         }  # this might make it easier to add different observations together
+
+    def _update_srm_state(self):
+        """
+        Updates SRM state (attenuator state) given the event times.
+        If the times span attenuator states, throws an error.
+        """
+        start_time, end_time = self._start_event_time, self._end_event_time
+        change_times = self._attenuator_state_info["change_times"]
+        if len(change_times) > 1:
+            for t in change_times:
+                if start_time <= t <= end_time:
+                    warnings.warn(
+                        f"\ndo not update event times to ({start_time}, {end_time}): "
+                        "covers attenuator state change. Don't trust this fit!"
+                    )
+
+        n_states = len(self._attenuator_state_info["states"])
+        new_att_state = self._attenuator_state_info["states"][0]  # default to first
+        if n_states > 1:
+            for i in range(n_states - 1):
+                state = self._attenuator_state_info["states"][i]
+                if change_times[i] < start_time and end_time < change_times[i + 1]:
+                    new_att_state = state
+                    break
+        self._loaded_spec_data["srm"] = self._srm["srm_options"][new_att_state].astype(float)
 
     @property
     def data2data_minus_background(self):
@@ -615,6 +653,8 @@ class STIXLoader(instruments.InstrumentBlueprint):
             if self.__warn:
                 self.__time_warning()
             return
+
+        self._update_srm_state()
 
         # sum counts over time range
         self._loaded_spec_data["counts"] = np.sum(
@@ -1393,3 +1433,27 @@ class STIXLoader(instruments.InstrumentBlueprint):
             self.start_event_time, self.end_event_time = start, end
 
         self.__warn = True
+
+def _extract_attenunator_info(att_dat) -> dict[str, list]:
+    """Pull out attenuator states and times"""
+    n_attenuator_changes = att_dat["data"]["SP_ATTEN_STATE$$TIME"].size
+    atten_change_times = atime.Time(att_dat["data"]["SP_ATTEN_STATE$$TIME"], format="utime").utc
+    atten_change_times = atten_change_times.reshape(n_attenuator_changes)  # reshape so always 1d array
+    return {
+        "change_times": atten_change_times,
+        "states": att_dat["data"]["SP_ATTEN_STATE$$STATE"].reshape(n_attenuator_changes).tolist(),
+    }
+
+
+def srm_options_by_attenuator_state(hdu_list: list[dict[str, atab.QTable]]) -> dict[int, np.ndarray]:
+    """Enumerate all possible SRMs for RHESSI based on attenuator state"""
+    ret = dict()
+    for hdu in hdu_list:
+        if hdu["data"] is None:
+            continue
+        if "MATRIX" not in hdu["data"].columns:
+            continue
+        state = hdu["header"]["filter"]
+        ret[state] = hdu
+
+    return ret
