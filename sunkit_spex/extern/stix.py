@@ -1446,7 +1446,7 @@ def _extract_attenunator_info(att_dat) -> dict[str, list]:
 
 
 def srm_options_by_attenuator_state(hdu_list: list[dict[str, atab.QTable]]) -> dict[int, np.ndarray]:
-    """Enumerate all possible SRMs for RHESSI based on attenuator state"""
+    """Enumerate all possible SRMs for STIX based on attenuator state"""
     ret = dict()
     for hdu in hdu_list:
         if hdu["data"] is None:
