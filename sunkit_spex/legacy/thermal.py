@@ -462,9 +462,7 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     # Scale flux by observer distance, emission measure and spectral bin width
     # and put into correct units.
     energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) * u.keV
-    flux = flux * LINE_GRID["intensity unit"] / energy_bin_widths
-
-    return flux
+    return flux * LINE_GRID["intensity unit"] / energy_bin_widths
 
 
 def _interpolate_continuum_intensities(data_grid, log10T_grid, energy_grid_keV, energy_keV, log10T):

@@ -566,7 +566,7 @@ def chianti_kev_lines_Fe2():
     return inputs, ssw_output
 
 
-@pytest.mark.parametrize("ssw", (fvth_simple,))
+@pytest.mark.parametrize("ssw", [fvth_simple])
 def test_thermal_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.thermal_emission(*input_args)
@@ -574,7 +574,7 @@ def test_thermal_emission_against_ssw(ssw):
     np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
 
 
-@pytest.mark.parametrize("ssw", (chianti_kev_cont_simple, chianti_kev_cont_Fe2))
+@pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, chianti_kev_cont_Fe2])
 def test_continuum_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.continuum_emission(*input_args)
@@ -582,7 +582,7 @@ def test_continuum_emission_against_ssw(ssw):
     np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
 
 
-@pytest.mark.parametrize("ssw", (chianti_kev_lines_simple, chianti_kev_lines_Fe2))
+@pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
 def test_line_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.line_emission(*input_args)
@@ -591,32 +591,34 @@ def test_line_emission_against_ssw(ssw):
 
 
 def test_scalar_energy_input():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
         thermal.thermal_emission(10 * u.keV, 6 * u.MK, 1e44 / u.cm**3)
 
 
 def test_len1_energy_input():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
         thermal.thermal_emission([10] * u.keV, 6 * u.MK, 1e44 / u.cm**3)
 
 
 def test_energy_out_of_range_error():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="All input energy values must be within the range"):
         thermal.thermal_emission([0.01, 10] * u.keV, 6 * u.MK, 1e44 / u.cm**3)
 
 
 def test_temperature_out_of_range_error():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="All input temperature values must be within the range"):
         thermal.thermal_emission([5, 10] * u.keV, 0.1 * u.MK, 1e44 / u.cm**3)
 
 
 def test_relative_abundance_negative_input():
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Relative abundances cannot be negative."):
         thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, relative_abundances=((26, -1)))
 
 
 def test_relative_abundance_invalid_atomic_number_input():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError, match="Relative abundances can only be set for elements with atomic numbers in range"
+    ):
         thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, relative_abundances=((100, 1)))
 
 
@@ -626,5 +628,4 @@ def test_energy_out_of_range_warning():
         warnings.simplefilter("always")
         # Trigger a warning.
         output = thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3)  # noqa
-        print(w[0].category)
         assert issubclass(w[0].category, UserWarning)
