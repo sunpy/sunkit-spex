@@ -40,12 +40,10 @@ def gwcs_from_array(array):
                 return u.Quantity(super().pixel_to_world_values(*args, **kwargs))
             return super().pixel_to_world(*args, **kwargs).to(orig_array.unit, equivalencies=u.spectral())
 
-    tabular_gwcs = SpectralGWCS(forward_transform=forward_transform, input_frame=coord_frame, output_frame=spec_frame)
+    return SpectralGWCS(forward_transform=forward_transform, input_frame=coord_frame, output_frame=spec_frame)
 
     # Store the intended unit from the origin input array
     #     tabular_gwcs._input_unit = orig_array.unit
-
-    return tabular_gwcs
 
 
 class SpectralAxis(SpectralCoord):
@@ -61,7 +59,7 @@ class SpectralAxis(SpectralCoord):
         are interpreted as bin edges or bin centers. Defaults to "centers".
     """
 
-    _equivalent_unit = SpectralCoord._equivalent_unit + (u.pixel,)
+    _equivalent_unit = (*SpectralCoord._equivalent_unit, u.pixel)
 
     def __new__(cls, value, *args, bin_specification="centers", **kwargs):
         # Enforce pixel axes are ascending
@@ -113,8 +111,7 @@ class SpectralAxis(SpectralCoord):
         """
         if hasattr(self, "_bin_edges"):
             return self._bin_edges
-        else:
-            return self._edges_from_centers(self.value, self.unit)
+        return self._edges_from_centers(self.value, self.unit)
 
 
 class Spectrum(NDCube):
@@ -180,7 +177,7 @@ class Spectrum(NDCube):
         if data is not None:
             if not isinstance(data, u.Quantity):
                 raise ValueError("Flux must be a `Quantity` object.")
-            elif data.isscalar:
+            if data.isscalar:
                 data = u.Quantity([data])
 
         # Ensure that the unit information codified in the quantity object is

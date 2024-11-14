@@ -19,6 +19,7 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.exceptions import VisibleDeprecationWarning
 from parfive import Downloader
 
 from astropy.time import Time
@@ -28,7 +29,7 @@ from sunkit_spex.legacy.fitting.fitter import Fitter
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 try:
-    warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+    warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)
 except AttributeError:
     warnings.filterwarnings("ignore", category=np.exceptions.VisibleDeprecationWarning)
 

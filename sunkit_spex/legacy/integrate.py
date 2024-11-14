@@ -91,9 +91,7 @@ def gauss_legendre(func, a, b, n=5, args=(), func_kwargs={}):
         xi,
         wi,
     ) = _legendre_roots(a, b, n)
-    integral = np.sum(wi * func(xi, *args, **func_kwargs), axis=1)
-
-    return integral
+    return np.sum(wi * func(xi, *args, **func_kwargs), axis=1)
 
 
 def fixed_quad(func, a, b, n=5, args=(), func_kwargs={}):

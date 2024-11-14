@@ -18,12 +18,13 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.exceptions import VisibleDeprecationWarning
 
 from sunkit_spex.legacy.fitting.fitter import Fitter
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 try:
-    warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
+    warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)
 except AttributeError:
     warnings.filterwarnings("ignore", category=np.exceptions.VisibleDeprecationWarning)
 
@@ -74,7 +75,7 @@ maxi, step = 1e3, 1
 chan_bins = np.stack((np.arange(0, maxi, step), np.arange(step, maxi + step, step)), axis=-1)
 gauss_mod1 = gauss(1.3e4, 350, 60, energies=chan_bins)
 gauss_mod2 = gauss(3e3, 600, 60, energies=chan_bins)
-noise = np.random.randint(low=10, high=100, size=(len(chan_bins))) / 100 * 5
+noise = np.random.default_rng().integers(low=10, high=100, size=(len(chan_bins))) / 100 * 5
 
 fake_data = gauss_mod1 + gauss_mod2 + noise
 
