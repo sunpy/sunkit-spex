@@ -439,6 +439,13 @@ class Fitter:
         # attribute to determine how the class is pickled
         self._pickle_reason = "normal"
 
+        # for alebdo correction
+        self.albedo_corr = False
+
+        self.albedo_angle = 0
+
+        self.albedo_anisotropy = 1
+
     @property
     def model(self):
         """***Property*** Allows a model to be set and a parameter table to be generated straight away.
@@ -1453,6 +1460,7 @@ class Fitter:
         # return counts s^-1 (keV^-1 has been multiplied out) photon_channel_widths=ph_e_binning
 
         cts_models = []
+        albedo_excess_models = []
         # loop through the parameter groups (params for spectrum1, then for spectrum2, etc)
         for s, pgs in enumerate(self._param_groups):
             # take the spectrum parameters (e.g., [p2_spectrum1,p1_spectrum1]) and order to be the same as the model parameters (e.g., [p1,p2])
@@ -1469,8 +1477,8 @@ class Fitter:
             )  # np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1]
-            cts_model = make_model(
-                energies=kwargs["photon_channels"][s], photon_model=m, parameters=None, srm=kwargs["total_responses"][s]
+            cts_model, cts_albedo_exess = make_model(
+                energies=kwargs["photon_channels"][s], photon_model=m, parameters=None, srm=kwargs["total_responses"][s], albedo_corr=self.albedo_corr, albedo_angle =self.albedo_angle, albedo_anisotropy=self.albedo_anisotropy
             )
 
             if "scaled_background_spectrum" + str(s + 1) in self._scaled_backgrounds:
@@ -1496,7 +1504,20 @@ class Fitter:
                 cts_model[None, :]
             )  # need [None, :] these lines get rid of a dimension meaning later concatenation fails
 
-        return cts_models
+            if cts_albedo_exess.size > 0:
+                cts_albedo_exess = (
+                    cts_albedo_exess
+                    if len(LL_CLASS.remove_non_numbers(cts_albedo_exess[cts_albedo_exess != 0])) != 0
+                    else np.zeros(cts_albedo_exess.shape)
+                )
+
+                albedo_excess_models.append(
+                    cts_albedo_exess[None, :]
+                )  # need [None, :] these lines get rid of a dimension meaning later concatenation fails
+            else:
+                albedo_excess_models.append(np.array([[]]))
+
+        return cts_models, albedo_excess_models
 
     def _pseudo_model(self, free_params_list, tied_or_frozen_params_list, param_name_list_order, **other_inputs):
         """Bridging method between the input args (free,other) and different ordered args for the model calculation.
@@ -1776,7 +1797,7 @@ class Fitter:
         """
 
         # make sure only the free parameters are getting varied so put them first
-        mu = self._pseudo_model(
+        mu, _ = self._pseudo_model(
             free_params_list,
             tied_or_frozen_params_list,
             param_name_list_order,
@@ -2492,7 +2513,7 @@ class Fitter:
         tied_or_frozen_params_list.extend(list(update_fixed_params.values()))
 
         # make sure only the free parameters are getting varied
-        mu = self._pseudo_model(
+        mu, alebdo_excess_count = self._pseudo_model(
             free_params_list,
             tied_or_frozen_params_list,
             param_name_list_order,
@@ -2502,18 +2523,22 @@ class Fitter:
             total_responses=srm,
             **kwargs,
         )
+
         # turn counts s^-1 into counts s^-1 keV^-1
         for m, e in enumerate(e_binning):
             mu[m][0] /= e
+            if np.array(alebdo_excess_count[m][0]).size > 0:
+                alebdo_excess_count[m][0] /= e
 
         self._energy_fitting_indices = _energy_fitting_indices_orig
         # numpy is better to store but all models need to be the same length, this might not be the case
         try:
-            return np.concatenate(tuple(mu))
+            return np.concatenate(tuple(mu)), np.concatenate(tuple(alebdo_excess_count))
+
         except ValueError:
             return [mu[i][0] for i in range(len(mu))]
 
-    def _calc_counts_model(self, photon_model, parameters=None, spectrum="spectrum1", include_bg=False, **kwargs):
+    def _calc_counts_model(self, photon_model, parameters=None, spectrum="spectrum1", include_bg=False, for_plotting=False, **kwargs):
         """Easily calculate a spectrum's count model from the parameter table and user photon model.
 
         Given a model (a calculated model array or a photon model function) then calcutes the counts
@@ -2572,12 +2597,24 @@ class Fitter:
             )
             return
 
-        cts_model = make_model(
-            energies=photon_channel_bins,
-            photon_model=m * np.diff(photon_channel_bins).flatten(),
-            parameters=None,
-            srm=srm,
-        )
+        if for_plotting:
+            cts_model, _ = make_model(
+                energies=photon_channel_bins,
+                photon_model=m * np.diff(photon_channel_bins).flatten(),
+                parameters=None,
+                srm=srm,
+                albedo_corr=False
+            )
+
+        else:
+            cts_model, _ = make_model(
+                energies=photon_channel_bins,
+                photon_model=m * np.diff(photon_channel_bins).flatten(),
+                parameters=None,
+                srm=srm,
+                albedo_corr=self.albedo_corr,
+                albedo_angle=self.albedo_angle
+            )
 
         if include_bg and ("scaled_background_" + spectrum in self._scaled_backgrounds):
             cts_model += self._scaled_backgrounds["scaled_background_" + spectrum]
@@ -2693,6 +2730,7 @@ class Fitter:
                         photon_model=self._submod_functions[p],
                         parameters=self._submod_value_inputs[s - 1][p],
                         spectrum="spectrum" + str(s),
+                        for_plotting=True
                     )
                     spec_submods.append(cts_mod)
                 all_spec_submods.append(spec_submods)
@@ -3231,6 +3269,7 @@ class Fitter:
                 name: (_params[mcmc_freepar_labels.index(val)] if type(val) == str else val)
                 for name, val in _spec_rpars.items()
             }
+            _rpars['for_plotting'] = True
             e_mids, ctr = self._calc_counts_model(
                 photon_model=self._model, parameters=_pars, spectrum="spectrum" + str(s + 1), include_bg=True, **_rpars
             )
@@ -3559,7 +3598,7 @@ class Fitter:
         count_rate_model), and a 1d array of energies for residual plotting (energy_channels_res), respectively.
         """
         rebin_val, rebin_spec = rebin_and_spec[0], rebin_and_spec[1]
-        energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = data_arrays
+        energy_channels, energy_channel_error, count_rates, count_rate_errors, albedo_excess_count, count_rate_model = data_arrays
         if type(rebin_val) != type(None):
             if rebin_spec in list(self.data.loaded_spec_data.keys()):
                 (
@@ -3714,7 +3753,7 @@ class Fitter:
         -------
         Spectrum axes and residuals axes.
         """
-        energy_channels, energy_channel_error, count_rates, count_rate_errors, count_rate_model = data_arrays
+        energy_channels, energy_channel_error, count_rates, count_rate_errors, albedo_excess_count, count_rate_model = data_arrays
 
         axs = axes if type(axes) != type(None) else plt.gca()
         fitting_range = fitting_range if type(fitting_range) != type(None) else self.energy_fitting_range
@@ -3794,6 +3833,9 @@ class Fitter:
         if self._plr:
             axs.plot(energy_channels, count_rate_model, linewidth=2, color="k")
             res.plot(energy_channels_res, residuals, color="k", alpha=0.8)  # , drawstyle='steps-mid'
+
+            if self.albedo_corr and albedo_excess_count.size > 0:
+                axs.plot(energy_channels, albedo_excess_count, color="grey")
 
         if self._latest_fit_run == "mcmc":
             _rebin_info = (
@@ -4268,7 +4310,7 @@ class Fitter:
         self._scaled_backgrounds = self._scaled_background_rates_full
 
         # only need enough axes for the number of spectra to plot so doesn't matter if more axes are given
-        models = self._get_models(number_of_models=number_of_plots)
+        models, albedo_excess_count = self._get_models(number_of_models=number_of_plots)
 
         axes, res_axes = [], []
         _count_rates, _count_rate_errors = [], []
@@ -4282,6 +4324,7 @@ class Fitter:
                         self.data.loaded_spec_data["spectrum" + str(s + 1)]["count_channel_binning"] / 2,
                         self.data.loaded_spec_data["spectrum" + str(s + 1)]["count_rate"],
                         self.data.loaded_spec_data["spectrum" + str(s + 1)]["count_rate_error"],
+                        albedo_excess_count[s],
                         models[s],
                     ),
                     axes=ax,
@@ -4308,6 +4351,7 @@ class Fitter:
                         self.data.loaded_spec_data["spectrum" + str(s)]["count_channel_binning"] / 2,
                         np.mean(np.array(_count_rates), axis=0),
                         np.sqrt(np.sum(np.array(_count_rate_errors) ** 2, axis=0)) / len(_count_rate_errors),
+                        np.array([]),
                         np.mean(models, axis=0),
                     ),
                     axes=ax,
@@ -5600,7 +5644,7 @@ def imports():
     return _imps
 
 
-def make_model(energies=None, photon_model=None, parameters=None, srm=None):
+def make_model(energies=None, photon_model=None, parameters=None, srm=None, albedo_corr=False, albedo_angle=0, albedo_anisotropy=1):
     """Takes a photon model array ( or function if you provide the pinputs with parameters), the spectral response matrix and returns a model count spectrum.
 
     Parameters
@@ -5632,6 +5676,103 @@ def make_model(energies=None, photon_model=None, parameters=None, srm=None):
     else:
         photon_spec = photon_model(energies, *parameters)
 
+    if albedo_corr:
+        photon_spec, albedo_excess_phot  = albedo(photon_spec, energies, albedo_angle, anisotropy=albedo_anisotropy)
+        albedo_excess_count = np.matmul(albedo_excess_phot, srm)
+    else:
+        albedo_excess_count = np.array([])
+
     model_cts_spectrum = np.matmul(photon_spec, srm)
 
-    return model_cts_spectrum
+    return model_cts_spectrum, albedo_excess_count
+
+#####
+# Function to calculate the albedo correction, adapted from Shane's PR request
+#####
+import numpy as np
+from scipy.interpolate import RegularGridInterpolator
+from scipy.io import readsav
+
+import astropy.units as u
+from astropy.units import Quantity
+
+from sunpy.data import cache
+
+
+def albedo(spec, energy, theta, anisotropy=1):
+    r"""
+    Add albedo correction to input spectrum
+
+    Correct input model spectrum for the component reflected by the solar atmosphere following [Kontar20006]_ using
+    precomputed green matrices from SSW.
+
+    .. [Kontar20006] https://doi.org/10.1051/0004-6361:20053672
+
+    Parameters
+    ----------
+    spec :
+     Input spectrum
+    energy :
+     Energy edges associated with the spectrum
+    theta :
+     Angle between Sun-observer line and X-ray source
+    anisotropy :
+     Ratio of the flux in observer direction to the flux downwards, anisotropy=1 (default) the source is isotropic
+
+    Example
+    -------
+    >>> import astropy.units as u
+    >>> import numpy as np
+    >>> from sunkit_spex.models.physical import albedo
+    >>> e = np.linspace(5,  500, 1000)
+    >>> e_c = e[:-1] + np.diff(e)
+    >>> s = 125*e_c**-3
+    >>> corrected = albedo(s, e, theta=45*u.deg)
+    """
+    base_url = "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/albedo/"
+    mu = np.cos(theta)
+
+    # what about 0 and 1 assume so close to 05 and 95 that it doesn't matter
+    # load precomputed green matrices
+    if 0.5 <= mu <= 0.95:
+        low = 5 * np.floor(mu * 20)
+        high = 5 * np.ceil(mu * 20)
+        low_name = f"green_compton_mu{low:03.0f}.dat"
+        high_name = f"green_compton_mu{high:03.0f}.dat"
+        low_file = cache.download(base_url + low_name)
+        high_file = cache.download(base_url + high_name)
+        green = readsav(low_file)
+        albedo_low = green["p"].albedo[0]
+        green_high = readsav(high_file)
+        albedo_high = green_high["p"].albedo[0]
+        # why 20?
+        albedo = albedo_low + (albedo_high - albedo_low) * (mu - (np.floor(mu * 20)) / 20)
+
+    elif mu < 0.5:
+        file = "green_compton_mu005.dat"
+        file = cache.download(base_url + file)
+        green = readsav(file)
+        albedo = green["p"].albedo[0]
+    elif mu > 0.95:
+        file = "green_compton_mu095.dat"
+        file = cache.download(base_url + file)
+        green = readsav(file)
+        albedo = green["p"].albedo[0]
+
+    albedo = albedo.T
+    energy_grid_edges = green["p"].edges[0]
+    energy_grid_centers = energy_grid_edges[:, 0] + (np.diff(energy_grid_edges, axis=1) / 2).reshape(-1)
+
+    interp = RegularGridInterpolator((energy_grid_centers, energy_grid_centers), albedo)
+
+    de = np.diff(energy)
+    #energy_centers = energy[:-1] + de / 2
+
+    energy_centers = np.mean(energy, axis=1)
+
+    X, Y = np.meshgrid(energy_centers, energy_centers)
+    albedo_interp = interp((X, Y))
+
+    albedo_interp = albedo_interp * de / anisotropy
+
+    return spec + spec @ albedo_interp.T, spec @ albedo_interp.T
