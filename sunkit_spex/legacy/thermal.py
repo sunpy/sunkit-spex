@@ -154,7 +154,7 @@ def setup_line_parameters(filename=None):
         "It (and its unit) therefore must be multiplied by emission measure and "
         "divided by 4 * pi * observer_distance**2 to get observed values."
     )
-    line_grid["line peaks keV"] = (line_info.peak_energy.data * line_info.attrs["units"]["peak_energy"]).to_value(
+    line_grid["line peaks keV"] = (line_info.peak_energy.data << line_info.attrs["units"]["peak_energy"]).to_value(
         u.keV, equivalencies=u.spectral()
     )
     line_grid["log10T"] = line_info.logT.data
