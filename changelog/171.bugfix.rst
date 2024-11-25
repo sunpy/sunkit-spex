@@ -1,2 +1,1 @@
-- Update the unit attachment operator in :func:`sunkit_spex.legacy.thermal.thermal_emission`.
-  Fixes bug which caused energy units to get squared.
+Fixes bug which caused energy units to get squared; update the way units are assigned in `~sunkit_spex.legacy.thermal.thermal_emission`.
