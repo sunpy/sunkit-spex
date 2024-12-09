@@ -356,7 +356,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
             for (state, srm) in all_srms.items()
         }
 
-        self._attenuator_state_info = _extract_attenunator_info(srm_file_dat[3])
+        self._attenuator_state_info = _extract_attenunator_info(srm_file_dat[3], self._full_obs_time[1])
 
         return dict(channel_bins=channel_bins, photon_bins=photon_bins, srm_options=ret_srms)
 
@@ -407,6 +407,10 @@ class STIXLoader(instruments.InstrumentBlueprint):
             self._count_rate_error_perspec,
         ) = self._getspec(spectrum_fn)
 
+        # Full observation time range
+        self._full_obs_time = [self._time_bins_perspec[0, 0], self._time_bins_perspec[-1, -1]]
+
+        # Loading in the SRM
         self._srm = self._getsrm(srm_fn)
         srm_photon_bins = self._srm["photon_bins"]
         srm_channel_bins = self._srm["channel_bins"]
@@ -426,7 +430,6 @@ class STIXLoader(instruments.InstrumentBlueprint):
         channel_bins = obs_channel_bins if type(channel_bins) is type(None) else channel_bins
 
         # default is no background and all data is the spectrum to be fitted
-        self._full_obs_time = [self._time_bins_perspec[0, 0], self._time_bins_perspec[-1, -1]]
         counts = np.sum(
             self._data_time_select(
                 stime=self._full_obs_time[0], full_data=self._counts_perspec, etime=self._full_obs_time[1]
@@ -495,6 +498,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
         Updates SRM state (attenuator state) given the event times.
         If the times span attenuator states, throws an error.
         """
+
         start_time, end_time = self._start_event_time, self._end_event_time
         change_times = self._attenuator_state_info["change_times"]
         if len(change_times) > 1:
@@ -503,12 +507,14 @@ class STIXLoader(instruments.InstrumentBlueprint):
                     warnings.warn(
                         f"\ndo not update event times to ({start_time}, {end_time}): "
                         "covers attenuator state change. Don't trust this fit!"
+                        "\n Note: This error will appear if doing spectral fitting with multiple spectra"
+                        " and the selected event times are correct (this is because the _update_time funtion"
+                        " which initiates _update_srm runs for every event start/end time setting). In that case, ignore the warning."
                     )
-
         n_states = len(self._attenuator_state_info["states"])
         new_att_state = self._attenuator_state_info["states"][0]  # default to first
         if n_states > 1:
-            for i in range(n_states - 1):
+            for i in range(n_states):
                 state = self._attenuator_state_info["states"][i]
                 if change_times[i] < start_time and end_time < change_times[i + 1]:
                     new_att_state = state
@@ -1434,11 +1440,14 @@ class STIXLoader(instruments.InstrumentBlueprint):
 
         self.__warn = True
 
-def _extract_attenunator_info(att_dat) -> dict[str, list]:
+def _extract_attenunator_info(att_dat, spectrum_end_time) -> dict[str, list]:
     """Pull out attenuator states and times"""
     n_attenuator_changes = att_dat["data"]["SP_ATTEN_STATE$$TIME"].size
     atten_change_times = atime.Time(att_dat["data"]["SP_ATTEN_STATE$$TIME"], format="utime").utc
     atten_change_times = atten_change_times.reshape(n_attenuator_changes)  # reshape so always 1d array
+
+    atten_change_times = np.append(atten_change_times, spectrum_end_time)
+    
     return {
         "change_times": atten_change_times,
         "states": att_dat["data"]["SP_ATTEN_STATE$$STATE"].reshape(n_attenuator_changes).tolist(),
