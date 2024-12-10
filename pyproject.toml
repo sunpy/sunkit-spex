@@ -29,7 +29,7 @@ dependencies = [
     "scipy>=1.11",
     "sunpy>=6.0",
     "xarray>=2022.10",
-    "gwcs>=0.19",
+    "gwcs>=0.21.0",
     "ndcube>=2.1",
 ]
 
@@ -45,10 +45,10 @@ tests = [
 docs = [
   "sphinx",
   "sphinx-automodapi",
+  "sunpy-sphinx-theme",
   "packaging",
   "sphinx-changelog",
   "sphinx-gallery",
-  "sunpy-sphinx-theme",
 ]
 
 [project.urls]

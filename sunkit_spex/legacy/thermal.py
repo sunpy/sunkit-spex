@@ -154,7 +154,7 @@ def setup_line_parameters(filename=None):
         "It (and its unit) therefore must be multiplied by emission measure and "
         "divided by 4 * pi * observer_distance**2 to get observed values."
     )
-    line_grid["line peaks keV"] = (line_info.peak_energy.data * line_info.attrs["units"]["peak_energy"]).to_value(
+    line_grid["line peaks keV"] = (line_info.peak_energy.data << line_info.attrs["units"]["peak_energy"]).to_value(
         u.keV, equivalencies=u.spectral()
     )
     line_grid["log10T"] = line_info.logT.data
@@ -462,9 +462,7 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     # Scale flux by observer distance, emission measure and spectral bin width
     # and put into correct units.
     energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) * u.keV
-    flux = flux * LINE_GRID["intensity unit"] / energy_bin_widths
-
-    return flux
+    return flux * LINE_GRID["intensity unit"] / energy_bin_widths
 
 
 def _interpolate_continuum_intensities(data_grid, log10T_grid, energy_grid_keV, energy_keV, log10T):
