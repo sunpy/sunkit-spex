@@ -93,7 +93,7 @@ write_to = "sunkit_spex/_version.py"
   package = "sunkit-spex"
   filename = "CHANGELOG.rst"
   directory = "changelog/"
-  issue_format = "`#{issue} https:github.com/sunpy/sunkit-spex/changelog/pull/{issue}>`__"
+  issue_format = "`#{issue} <https://github.com/sunpy/sunkit-spex/pull/{issue}>`__"
   title_format = "{version} ({project_date})"
 
   [[tool.towncrier.type]]
