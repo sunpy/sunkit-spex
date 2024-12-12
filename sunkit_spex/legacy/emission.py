@@ -24,12 +24,12 @@ logging = logging.getLogger(__name__)
 
 __all__ = [
     "BrokenPowerLawElectronDistribution",
-    "collisional_loss",
     "_get_integrand",
     "_integrate_part",
     "_split_and_integrate",
-    "bremsstrahlung_thin_target",
     "bremsstrahlung_thick_target",
+    "bremsstrahlung_thin_target",
+    "collisional_loss",
 ]
 
 

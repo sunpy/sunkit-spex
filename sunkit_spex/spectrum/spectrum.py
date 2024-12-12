@@ -8,7 +8,7 @@ from astropy.coordinates import SpectralCoord
 from astropy.modeling.tabular import Tabular1D
 from astropy.utils import lazyproperty
 
-__all__ = ["gwcs_from_array", "SpectralAxis", "Spectrum"]
+__all__ = ["SpectralAxis", "Spectrum", "gwcs_from_array"]
 
 
 def gwcs_from_array(array):
