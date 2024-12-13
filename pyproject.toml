@@ -90,7 +90,7 @@ write_to = "sunkit_spex/_version.py"
 # TODO: This should be in towncrier.toml but Giles currently only works looks in
 # pyproject.toml we should move this back when it's fixed.
 [tool.towncrier]
-  package = "sunkit-spex"
+  package = "sunkit_spex"
   filename = "CHANGELOG.rst"
   directory = "changelog/"
   issue_format = "`#{issue} <https://github.com/sunpy/sunkit-spex/pull/{issue}>`__"
