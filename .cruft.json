@@ -1,6 +1,6 @@
 {
   "template": "https://github.com/sunpy/package-template",
-  "commit": "cd21e0d710513a891ed03f29e8afd6e0b9217f04",
+  "commit": "c60ccf2ddc71d3cf126cea15132a15da307864f7",
   "checkout": null,
   "context": {
     "cookiecutter": {
@@ -10,6 +10,12 @@
       "author_name": "The SunPy Community",
       "author_email": "sunpy@googlegroups.com",
       "project_url": "https://sunkit-spex.readthedocs.io",
+      "github_repo": "",
+      "sourcecode_url": "",
+      "download_url": "https://pypi.org/project/sunkit-spex",
+      "documentation_url": "",
+      "changelog_url": "",
+      "issue_tracker_url": "",
       "license": "BSD 3-Clause",
       "minimum_python_version": "3.10",
       "use_compiled_extensions": "n",
