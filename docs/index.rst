@@ -27,6 +27,14 @@ will help you know where to look for certain things:
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+<<<<<<<
+=======
+
+   whatsnew/index
+
+Indices and tables
+==================
+>>>>>>>
 
    tutorials/index
    how_to/index
