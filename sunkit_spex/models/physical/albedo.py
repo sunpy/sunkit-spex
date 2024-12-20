@@ -1,61 +1,93 @@
-import warnings
-import functools
-
 from functools import lru_cache
 
 import numpy as np
+from numpy.typing import NDArray
 from scipy.interpolate import RegularGridInterpolator
 from scipy.io import readsav
 
-# from astropy.units import Quantity
-from astropy.modeling import Fittable1DModel, Parameter
+import astropy.units as u
+from astropy.modeling import FittableModel, Parameter
+from astropy.units import Quantity
 
 from sunpy.data import cache
 
-__all__ = ["AlbedoModel"]
+__all__ = ["Albedo", "get_albedo_matrix"]
 
 
-class AlbedoModel(Fittable1DModel):
-    def __init__(self, energy, anisotropy, theta):
-        self.energy = energy
-        self.anisotropy = Parameter(
-            default=anisotropy, description="The anisotropy used for albedo correction", fixed=True
-        )
-        self.theta = Parameter(
-            default=theta, description="Angle between the flare and the telescope in radians", fixed=True
-        )
-        super().__init__()
+class Albedo(FittableModel):
+    r"""
+    Aldedo model which adds albdeo correction to input spectrum.
 
-    def evaluate(self, count_model):
-        """Corrects the composite count model for albedo. To be used as: ct_model = (ph_model|srm)|albedo"""
-        albedo_matrix_T = albedo(self.energy, self.theta.value, self.anisotropy.value)
+    Following [Kontar2006]_ using precomputed green matrices distributed as part of SSW_.
 
-        return count_model + count_model @ albedo_matrix_T
+    .. [Kontar2006] https://doi.org/10.1051/0004-6361:20053672
+    .. [SSW] https://www.lmsal.com/solarsoft/
+
+    Parameters
+    ==========
+    energy_edges :
+        Energy edges associated with input spectrum
+    theta :
+        Angle between Sun-observer line and X-ray source
+    anisotropy :
+        Ratio of the flux in observer direction to the flux downwards, 1 for an isotropic source
+
+    Examples
+    ========
+     >>> import astropy.units as u
+     >>> import numpy as np
+     >>> from astropy.modeling.powerlaws import PowerLaw1D
+     >>> from sunkit_spex.models.physical.albedo import Albedo
+     >>> e_edges = np.linspace(10, 300, 10) * u.keV
+     >>> e_centers = e_edges[0:-1] + (0.5 * np.diff(e_edges))
+     >>> source = PowerLaw1D(amplitude=100*u.ph, x_0=10*u.keV, alpha=4)
+     >>> observed = source | Albedo(energy_edges=e_edges)
+     >>> observed(e_centers)
+     <Quantity [6.09547957e+00, 9.75099578e-02, 1.91466233e-02, 5.27952213e-03,
+           1.88744944e-03, 8.34602265e-04, 4.31433126e-04, 2.49285636e-04,
+           1.53959474e-04] ph>
+    """
+
+    theta = Parameter(
+        name="theta",
+        default=0,
+        unit=u.deg,
+        min=-90,
+        max=90,
+        description="Angle between the observer and the source",
+        fixed=True,
+    )
+    anisotropy = Parameter(default=1, description="The anisotropy used for albedo correction", fixed=True)
+
+    n_inputs = 1
+    n_outputs = 1
+
+    def __init__(self, *args, **kwargs):
+        self.energy_edges = kwargs.pop("energy_edges")
+        return super().__init__(*args, **kwargs)
+
+    def evaluate(self, spectrum, theta, anisotropy):
+        albedo_matrix_T = get_albedo_matrix(self.energy_edges, theta, anisotropy)
+        return spectrum + spectrum @ albedo_matrix_T
 
 
-# Wrapper for chaching function with numpy array args
-def np_cache(function):
-    @functools.cache
-    def cached_wrapper(*args, **kwargs):
-        args = [np.array(a) if isinstance(a, tuple) else a for a in args]
-        kwargs = {k: np.array(v) if isinstance(v, tuple) else v for k, v in kwargs.items()}
+@lru_cache
+def _get_green_matrix(theta: float) -> RegularGridInterpolator:
+    r"""
+    Get greens matrix for given angle.
 
-        return function(*args, **kwargs)
+    Interpolates pre-computed green matrices for fixed angles. The resulting greens matrix is then loaded into an
+    interpolator for later energy interpolation.
 
-    @functools.wraps(function)
-    def wrapper(*args, **kwargs):
-        args = [tuple(a) if isinstance(a, np.ndarray) else a for a in args]
-        kwargs = {k: tuple(v) if isinstance(v, np.ndarray) else v for k, v in kwargs.items()}
-        return cached_wrapper(*args, **kwargs)
+    Parameters
+    ==========
+    theta : float
+        Angle between the observer and the source
 
-    wrapper.cache_info = cached_wrapper.cache_info
-    wrapper.cache_clear = cached_wrapper.cache_clear
-
-    return wrapper
-
-
-@functools.cache
-def load_green_matrices(theta):
+    Returns
+    =======
+        Greens matrix interpolator
+    """
     mu = np.cos(theta)
 
     base_url = "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/albedo/"
@@ -88,32 +120,41 @@ def load_green_matrices(theta):
 
     albedo = albedo.T
 
-    # energy_grid_edges = green["p"].edges[0] * u.keV
+    # By construction in keV
     energy_grid_edges = green["p"].edges[0]
-
     energy_grid_centers = energy_grid_edges[:, 0] + (np.diff(energy_grid_edges, axis=1) / 2).reshape(-1)
 
-    # interp_green_matrix = RegularGridInterpolator((energy_grid_centers.to_value(u.keV), energy_grid_centers.to_value(u.keV)), albedo)
-    interp_green_matrix = RegularGridInterpolator((energy_grid_centers, energy_grid_centers), albedo)
+    green_matrix_interpolator = RegularGridInterpolator((energy_grid_centers, energy_grid_centers), albedo)
 
-    return interp_green_matrix
+    return green_matrix_interpolator
 
 
-@np_cache
-def calc_albedo_matrix(energy, interp_green_matrix, anisotropy):
-    # Re-introduce units
-    # energy = energy * u.keV
-    de = np.diff(energy)
-    energy_centers = energy[:-1] + de / 2
+@lru_cache
+def _calculate_albedo_matrix(energy_edges: tuple[float], theta: float, anisotropy: float) -> NDArray:
+    r"""
+    Calculate green matrix for given energies and angle.
 
-    # X, Y = np.meshgrid(energy_centers.to_value(u.keV), energy_centers.to_value(u.keV))
+    Interpolates precomputed green matrices for given energies and angle.
+
+    Parameters
+    ==========
+    energy_edges :
+        Energy edges associated with the spectrum
+    theta :
+        Angle between the observer and the source
+    anisotropy :
+        Ratio of the flux in observer direction to the flux downwards, 1 for an isotropic source
+    """
+    albedo_interpolator = _get_green_matrix(theta)
+    de = np.diff(energy_edges)
+    energy_centers = energy_edges[:-1] + de / 2
+
     X, Y = np.meshgrid(energy_centers, energy_centers)
 
-    albedo_interp = interp_green_matrix((X, Y))
+    albedo_interp = albedo_interpolator((X, Y))
 
     # Scale by anisotropy
-    # albedo_interp = albedo_interp * de.value / anisotropy
-    albedo_interp = albedo_interp * de / anisotropy
+    albedo_interp = (albedo_interp * de) / anisotropy
 
     # Take a transpose
     albedo_interp_T = albedo_interp.T
@@ -121,49 +162,46 @@ def calc_albedo_matrix(energy, interp_green_matrix, anisotropy):
     return albedo_interp_T
 
 
-# @u.quantity_input
-# def albedo(energy: Quantity[u.keV], theta: Quantity[u.deg, 0, 90], anisotropy=1):
-def albedo(energy, theta, anisotropy=1):
+@u.quantity_input
+def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], anisotropy=1):
     r"""
-    Add albedo correction to input spectrum
+    Get albedo correction matrix.
 
-    Correct input model spectrum for the component reflected by the solar atmosphere following [Kontar20006]_ using
-    precomputed green matrices from SSW.
+    Matrix used to correct a photon spectrum for the component reflected by the solar atmosphere following
+    [Kontar2006]_ using precomputed green matrices distributed as part of SSW_.
 
     .. [Kontar2006] https://doi.org/10.1051/0004-6361:20053672
+    .. [SSW] https://www.lmsal.com/solarsoft/
 
     Parameters
     ----------
-    spec :
-        Input count spectrum
-    energy :
+    energy_edges :
         Energy edges associated with the spectrum
     theta :
         Angle between Sun-observer line and X-ray source
     anisotropy :
-        Ratio of the flux in observer direction to the flux downwards, anisotropy=1 (default) the source is isotropic
+        Ratio of the flux in observer direction to the flux downwards, 1 for an isotropic source
 
     Example
     -------
     >>> import astropy.units as u
     >>> import numpy as np
-    >>> from sunkit_spex.models.physical.albedo import albedo
-    >>> e = np.linspace(5,  500, 1000)
-    >>> e_c = e[:-1] + np.diff(e)
-    >>> s = 125*e_c**-3
-    >>> albedo_matrix = albedo(e, theta=0.2)
-    >>> corrected = s + s@albedo_matrix
+    >>> from sunkit_spex.models.physical.albedo import get_albedo_matrix
+    >>> e = np.linspace(5,  500, 5)*u.keV
+    >>> albedo_matrix = get_albedo_matrix(e,theta=45*u.deg)
+    >>> albedo_matrix
+    array([[3.80274484e-01, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00],
+       [5.10487362e-01, 8.35309813e-07, 0.00000000e+00, 0.00000000e+00],
+       [3.61059918e-01, 2.48711099e-01, 2.50744411e-09, 0.00000000e+00],
+       [3.09323903e-01, 2.66485260e-01, 1.23563372e-01, 1.81846722e-10]])
     """
-
-    # Add check for energy range restricted by the Green matrices
-    if energy[0] < 3 or energy[-1] > 600:
-        warnings.warn("\nCount energies are required to be >= 3keV and <=600 keV ")
-
-    # Green matrix for a given theta
-    interp_green = load_green_matrices(theta)
-
-    # Transpose of a matrix used for albedo correction, need to strip energy of units otherwise problem with caching
-    # albedo_matrix_T = calc_albedo_matrix(energy.value, interp_green, anisotropy)
-    albedo_matrix_T = calc_albedo_matrix(energy, interp_green, anisotropy)
-
-    return albedo_matrix_T
+    if energy_edges[0].to_value(u.keV) < 3 or energy_edges[-1].to_value(u.keV) > 600:
+        raise ValueError("Supported energy range 3 <= E <= 600 keV")
+    theta = np.array(theta).squeeze() << theta.unit
+    if np.abs(theta) > 90 * u.deg:
+        raise ValueError(f"Theta must be between -90 and 90 degrees: {theta}.")
+    anisotropy = np.array(anisotropy).squeeze()
+    albedo_matrix = _calculate_albedo_matrix(
+        tuple(energy_edges.to_value(u.keV)), theta.to_value(u.deg), anisotropy.item()
+    )
+    return albedo_matrix
