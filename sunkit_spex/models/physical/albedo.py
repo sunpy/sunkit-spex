@@ -18,7 +18,7 @@ class Albedo(FittableModel):
     r"""
     Aldedo model which adds albdeo correction to input spectrum.
 
-    Following [Kontar2006]_ using precomputed green matrices distributed as part of SSW_.
+    Following [Kontar2006]_ using precomputed green matrices distributed as part of [SSW]_.
 
     .. [Kontar2006] https://doi.org/10.1051/0004-6361:20053672
     .. [SSW] https://www.lmsal.com/solarsoft/
@@ -34,20 +34,43 @@ class Albedo(FittableModel):
 
     Examples
     ========
-     >>> import astropy.units as u
-     >>> import numpy as np
-     >>> from astropy.modeling.powerlaws import PowerLaw1D
-     >>> from sunkit_spex.models.physical.albedo import Albedo
-     >>> e_edges = np.linspace(10, 300, 10) * u.keV
-     >>> e_centers = e_edges[0:-1] + (0.5 * np.diff(e_edges))
-     >>> source = PowerLaw1D(amplitude=100*u.ph, x_0=10*u.keV, alpha=4)
-     >>> observed = source | Albedo(energy_edges=e_edges)
-     >>> observed(e_centers)
-     <Quantity [6.09547957e+00, 9.75099578e-02, 1.91466233e-02, 5.27952213e-03,
-           1.88744944e-03, 8.34602265e-04, 4.31433126e-04, 2.49285636e-04,
-           1.53959474e-04] ph>
+    .. plot::
+        :include-source:
+
+        import astropy.units as u
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        from astropy.modeling.powerlaws import PowerLaw1D
+        from astropy.visualization import quantity_support
+
+        from sunkit_spex.models.physical.albedo import Albedo
+
+        e_edges = np.linspace(5, 550, 600) * u.keV
+        e_centers = e_edges[0:-1] + (0.5 * np.diff(e_edges))
+        source = PowerLaw1D(amplitude=1*u.ph/(u.cm*u.s), x_0=5*u.keV, alpha=3)
+        albedo = Albedo(energy_edges=e_edges)
+        observed = source | albedo
+
+        with quantity_support():
+            plt.figure()
+            plt.plot(e_centers,  source(e_centers), 'k', label='Source')
+            for i, t in enumerate([0, 45, 90]*u.deg):
+                albedo.theta = t
+                plt.plot(e_centers,  observed(e_centers), '--', label=f'Observed, theta={t}', color=f'C{i+1}')
+                plt.plot(e_centers,  observed(e_centers) - source(e_centers), ':',
+                         label=f'Reflected, theta={t}', color=f'C{i+1}')
+
+            plt.ylim(1e-6,  1)
+            plt.xlim(5, 550)
+            plt.loglog()
+            plt.legend()
+            plt.show()
+
     """
 
+    n_inputs = 1
+    n_outputs = 1
     theta = Parameter(
         name="theta",
         default=0,
@@ -55,20 +78,17 @@ class Albedo(FittableModel):
         min=-90,
         max=90,
         description="Angle between the observer and the source",
-        fixed=True,
+        fixed=False,
     )
     anisotropy = Parameter(default=1, description="The anisotropy used for albedo correction", fixed=True)
 
-    n_inputs = 1
-    n_outputs = 1
-
     def __init__(self, *args, **kwargs):
         self.energy_edges = kwargs.pop("energy_edges")
-        return super().__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     def evaluate(self, spectrum, theta, anisotropy):
-        albedo_matrix_T = get_albedo_matrix(self.energy_edges, theta, anisotropy)
-        return spectrum + spectrum @ albedo_matrix_T
+        albedo_matrix = get_albedo_matrix(self.energy_edges, theta, anisotropy)
+        return spectrum + spectrum @ albedo_matrix
 
 
 @lru_cache
@@ -124,9 +144,7 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
     energy_grid_edges = green["p"].edges[0]
     energy_grid_centers = energy_grid_edges[:, 0] + (np.diff(energy_grid_edges, axis=1) / 2).reshape(-1)
 
-    green_matrix_interpolator = RegularGridInterpolator((energy_grid_centers, energy_grid_centers), albedo)
-
-    return green_matrix_interpolator
+    return RegularGridInterpolator((energy_grid_centers, energy_grid_centers), albedo)
 
 
 @lru_cache
@@ -157,9 +175,7 @@ def _calculate_albedo_matrix(energy_edges: tuple[float], theta: float, anisotrop
     albedo_interp = (albedo_interp * de) / anisotropy
 
     # Take a transpose
-    albedo_interp_T = albedo_interp.T
-
-    return albedo_interp_T
+    return albedo_interp.T
 
 
 @u.quantity_input
@@ -167,11 +183,8 @@ def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], ani
     r"""
     Get albedo correction matrix.
 
-    Matrix used to correct a photon spectrum for the component reflected by the solar atmosphere following
-    [Kontar2006]_ using precomputed green matrices distributed as part of SSW_.
-
-    .. [Kontar2006] https://doi.org/10.1051/0004-6361:20053672
-    .. [SSW] https://www.lmsal.com/solarsoft/
+    Matrix used to correct a photon spectrum for the component reflected by the solar atmosphere following interpolated
+    to given angle and energy indices.
 
     Parameters
     ----------
@@ -201,7 +214,4 @@ def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], ani
     if np.abs(theta) > 90 * u.deg:
         raise ValueError(f"Theta must be between -90 and 90 degrees: {theta}.")
     anisotropy = np.array(anisotropy).squeeze()
-    albedo_matrix = _calculate_albedo_matrix(
-        tuple(energy_edges.to_value(u.keV)), theta.to_value(u.deg), anisotropy.item()
-    )
-    return albedo_matrix
+    return _calculate_albedo_matrix(tuple(energy_edges.to_value(u.keV)), theta.to_value(u.deg), anisotropy.item())

@@ -4,10 +4,12 @@ Reference
 
 Software and API.
 
+.. automodapi:: sunkit_spex
 
 .. toctree::
    :maxdepth: 2
 
-   fitting/index
-   models/index
-   legacy/index
+
+   fitting
+   models
+   legacy
