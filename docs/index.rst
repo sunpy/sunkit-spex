@@ -28,12 +28,15 @@ will help you know where to look for certain things:
    :maxdepth: 2
    :caption: Contents:
 
-   whatsnew/index
-
-Indices and tables
-
    tutorials/index
    how_to/index
    discussion/index
    reference/index
    whatsnew/index
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
