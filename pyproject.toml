@@ -121,12 +121,10 @@ write_to = "sunkit_spex/_version.py"
       name = "Documentation"
       showcontent = true
 
-<<<<<<<
     [[tool.towncrier.type]]
       directory = "trivial"
       name = "Internal Changes"
       showcontent = true
-=======
 [tool.setuptools_scm]
 write_to = "sunkit_spex/_version.py"
 
