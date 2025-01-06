@@ -189,4 +189,3 @@ write_to = "sunkit_spex/_version.py"
   directory = "trivial"
   name = "Internal Changes"
   showcontent = true
->>>>>>>
