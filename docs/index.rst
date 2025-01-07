@@ -33,3 +33,10 @@ will help you know where to look for certain things:
    discussion/index
    reference/index
    whatsnew/index
+
+Indices and tables
+==================
+
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`

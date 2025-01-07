@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.integrate._quadrature import _cached_roots_legendre
 
-__all__ = ["gauss_legendre", "fixed_quad"]
+__all__ = ["fixed_quad", "gauss_legendre"]
 
 
 def _legendre_roots(a, b, n=5):

@@ -10,7 +10,7 @@ from astropy.table import Table
 from sunpy.data import manager
 from sunpy.io.special.genx import read_genx
 
-__all__ = ["load_chianti_lines_lite", "load_chianti_continuum", "read_abundance_genx", "load_xray_abundances"]
+__all__ = ["load_chianti_continuum", "load_chianti_lines_lite", "load_xray_abundances", "read_abundance_genx"]
 
 
 @manager.require(

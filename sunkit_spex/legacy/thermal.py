@@ -11,12 +11,12 @@ from sunpy.data import manager
 from .io import load_chianti_continuum, load_chianti_lines_lite, load_xray_abundances
 
 __all__ = [
-    "thermal_emission",
     "continuum_emission",
     "line_emission",
     "setup_continuum_parameters",
-    "setup_line_parameters",
     "setup_default_abundances",
+    "setup_line_parameters",
+    "thermal_emission",
 ]
 
 doc_string_params = """
