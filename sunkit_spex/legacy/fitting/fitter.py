@@ -34,6 +34,11 @@ from scipy.linalg import LinAlgError
 from scipy.optimize import minimize
 
 from astropy.table import Table
+import astropy.units as u
+
+from sunpy.data import cache
+
+from scipy.io import readsav
 
 from sunkit_spex.legacy.fitting.data_loader import LoadSpec
 from sunkit_spex.legacy.fitting.instruments import rebin_any_array
@@ -43,6 +48,7 @@ from sunkit_spex.legacy.fitting.parameter_handler import Parameters, isnumber
 from sunkit_spex.legacy.fitting.photon_models_for_fitting import defined_photon_models  # noqa
 from sunkit_spex.legacy.fitting.photon_models_for_fitting import f_vth, thick_fn, thick_warm  # noqa
 from sunkit_spex.legacy.fitting.rainbow_text import rainbow_text_lines
+from sunkit_spex.legacy.fitting.albedo import get_albedo_matrix
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 try:
@@ -5689,15 +5695,6 @@ def make_model(energies=None, photon_model=None, parameters=None, srm=None, albe
 #####
 # Function to calculate the albedo correction, adapted from Shane's PR request
 #####
-import numpy as np
-from scipy.interpolate import RegularGridInterpolator
-from scipy.io import readsav
-
-import astropy.units as u
-from astropy.units import Quantity
-
-from sunpy.data import cache
-
 
 def albedo(spec, energy, theta, anisotropy=1):
     r"""
@@ -5729,50 +5726,7 @@ def albedo(spec, energy, theta, anisotropy=1):
     >>> s = 125*e_c**-3
     >>> corrected = albedo(s, e, theta=45*u.deg)
     """
-    base_url = "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/albedo/"
-    mu = np.cos(theta)
+    
+    albedo_matrix = get_albedo_matrix(energy*u.keV, theta, anisotropy)
 
-    # what about 0 and 1 assume so close to 05 and 95 that it doesn't matter
-    # load precomputed green matrices
-    if 0.5 <= mu <= 0.95:
-        low = 5 * np.floor(mu * 20)
-        high = 5 * np.ceil(mu * 20)
-        low_name = f"green_compton_mu{low:03.0f}.dat"
-        high_name = f"green_compton_mu{high:03.0f}.dat"
-        low_file = cache.download(base_url + low_name)
-        high_file = cache.download(base_url + high_name)
-        green = readsav(low_file)
-        albedo_low = green["p"].albedo[0]
-        green_high = readsav(high_file)
-        albedo_high = green_high["p"].albedo[0]
-        # why 20?
-        albedo = albedo_low + (albedo_high - albedo_low) * (mu - (np.floor(mu * 20)) / 20)
-
-    elif mu < 0.5:
-        file = "green_compton_mu005.dat"
-        file = cache.download(base_url + file)
-        green = readsav(file)
-        albedo = green["p"].albedo[0]
-    elif mu > 0.95:
-        file = "green_compton_mu095.dat"
-        file = cache.download(base_url + file)
-        green = readsav(file)
-        albedo = green["p"].albedo[0]
-
-    albedo = albedo.T
-    energy_grid_edges = green["p"].edges[0]
-    energy_grid_centers = energy_grid_edges[:, 0] + (np.diff(energy_grid_edges, axis=1) / 2).reshape(-1)
-
-    interp = RegularGridInterpolator((energy_grid_centers, energy_grid_centers), albedo)
-
-    de = np.diff(energy)
-    #energy_centers = energy[:-1] + de / 2
-
-    energy_centers = np.mean(energy, axis=1)
-
-    X, Y = np.meshgrid(energy_centers, energy_centers)
-    albedo_interp = interp((X, Y))
-
-    albedo_interp = albedo_interp * de / anisotropy
-
-    return spec + spec @ albedo_interp.T, spec @ albedo_interp.T
+    return spec + spec @ albedo_matrix, spec @ albedo_matrix
