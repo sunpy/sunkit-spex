@@ -87,7 +87,7 @@ class Albedo(FittableModel):
         super().__init__(*args, **kwargs)
 
     def evaluate(self, spectrum, theta, anisotropy):
-        albedo_matrix = get_albedo_matrix(self.energy_edges, theta, anisotropy)
+        albedo_matrix = get_albedo_matrix(self.energy_edges, self.theta, anisotropy)
         return spectrum + spectrum @ albedo_matrix
 
 
