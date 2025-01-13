@@ -82,13 +82,21 @@ class Albedo(FittableModel):
     )
     anisotropy = Parameter(default=1, description="The anisotropy used for albedo correction", fixed=True)
 
+    _input_units_allow_dimensionless = True
+
     def __init__(self, *args, **kwargs):
         self.energy_edges = kwargs.pop("energy_edges")
         super().__init__(*args, **kwargs)
 
     def evaluate(self, spectrum, theta, anisotropy):
-        albedo_matrix = get_albedo_matrix(self.energy_edges, self.theta, anisotropy)
+        if hasattr(theta, "unit"):
+            albedo_matrix = get_albedo_matrix(self.energy_edges, theta, anisotropy)
+        else:
+            albedo_matrix = get_albedo_matrix(self.energy_edges, theta*u.deg, anisotropy)
         return spectrum + spectrum @ albedo_matrix
+
+    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        return {"theta": u.deg}
 
 
 @lru_cache
@@ -179,7 +187,7 @@ def _calculate_albedo_matrix(energy_edges: tuple[float], theta: float, anisotrop
 
 
 @u.quantity_input
-def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], anisotropy=1):
+def get_albedo_matrix(energy_edges: Quantity[u.keV], theta:Quantity[u.deg], anisotropy=1):
     r"""
     Get albedo correction matrix.
 
@@ -211,6 +219,7 @@ def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], ani
     if energy_edges[0].to_value(u.keV) < 3 or energy_edges[-1].to_value(u.keV) > 600:
         raise ValueError("Supported energy range 3 <= E <= 600 keV")
     theta = np.array(theta).squeeze() << theta.unit
+    # theta = np.array(theta)*u.deg
     if np.abs(theta) > 90 * u.deg:
         raise ValueError(f"Theta must be between -90 and 90 degrees: {theta}.")
     anisotropy = np.array(anisotropy).squeeze()
