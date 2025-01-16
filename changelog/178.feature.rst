@@ -1,0 +1,1 @@
+For thermal emission in `~sunkit_spex.legacy.thermal.thermal_emission`, the output flux is set to 0 for input energies above CHIANTI energy grid and raises an error if input energies are below the energy grid.
