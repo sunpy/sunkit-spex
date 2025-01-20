@@ -48,6 +48,7 @@ extensions = [
     "sphinx_automodapi.smart_resolver",
     "sphinx_changelog",
     "sphinx_gallery.gen_gallery",
+    "matplotlib.sphinxext.plot_directive"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
