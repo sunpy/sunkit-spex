@@ -733,8 +733,7 @@ def _error_if_input_outside_valid_range(input_values, grid_range, param_name, pa
             grid_range = u.Quantity(grid_range, unit=param_unit).to_value(message_unit)
             param_unit = message_unit
         message = (
-            f"All input {param_name} values must be within the range "
-            f"{grid_range[0]}--{grid_range[1]} {param_unit}. "
+            f"All input {param_name} values must be within the range {grid_range[0]}--{grid_range[1]} {param_unit}. "
         )
         raise ValueError(message)
 
