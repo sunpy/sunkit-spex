@@ -204,7 +204,7 @@ class Spectrum(NDCube):
         if spectral_axis is not None:
             # Ensure that the spectral axis is an astropy Quantity
             if not isinstance(spectral_axis, u.Quantity):
-                raise ValueError("Spectral axis must be a `Quantity` or " "`SpectralAxis` object.")
+                raise ValueError("Spectral axis must be a `Quantity` or `SpectralAxis` object.")
 
             # If a spectral axis is provided as an astropy Quantity, convert it
             # to a SpectralAxis object.

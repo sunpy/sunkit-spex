@@ -154,6 +154,6 @@ def fixed_quad(func, a, b, n=5, args=(), func_kwargs={}):
     x, w = _cached_roots_legendre(n)
     x = np.real(x)
     if np.any(np.isinf(a)) or np.any(np.isinf(b)):
-        raise ValueError("Gaussian quadrature is only available for " "finite limits.")
+        raise ValueError("Gaussian quadrature is only available for finite limits.")
     y = (b - a).reshape(-1, 1) * (x + 1) / 2.0 + a.reshape(-1, 1)
     return np.squeeze((b - a).reshape(1, -1) / 2.0 * np.sum(w * func(y, *args, **func_kwargs), axis=1))
