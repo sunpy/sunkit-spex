@@ -197,6 +197,7 @@ def _calculate_albedo_matrix(energy_edges: tuple[float], theta: float, anisotrop
     return albedo_interp.T
 
 
+@quantity_input
 def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], anisotropy=1):
     r"""
     Get albedo correction matrix.
