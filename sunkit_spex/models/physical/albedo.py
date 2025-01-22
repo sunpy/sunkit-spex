@@ -11,7 +11,7 @@ from astropy.units import Quantity
 
 from sunpy.data import cache
 
-__all__ = ["Albedo","get_albedo_matrix"]
+__all__ = ["Albedo", "get_albedo_matrix"]
 
 
 class Albedo(FittableModel):
@@ -84,28 +84,21 @@ class Albedo(FittableModel):
 
     _input_units_allow_dimensionless = True
 
-    def __init__(self, *args,
-                 **kwargs):
-
+    def __init__(self, *args, **kwargs):
         self.energy_edges = kwargs.pop("energy_edges")
 
-        super().__init__(*args,
-                         **kwargs)
-
-    
+        super().__init__(*args, **kwargs)
 
     def evaluate(self, spectrum, theta, anisotropy):
-
         if not isinstance(theta, Quantity):
-            theta = theta*u.deg
- 
+            theta = theta * u.deg
+
         albedo_matrix = get_albedo_matrix(self.energy_edges, theta, anisotropy)
 
         return spectrum + spectrum @ albedo_matrix
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"theta": u.deg}
-
 
 
 @lru_cache
