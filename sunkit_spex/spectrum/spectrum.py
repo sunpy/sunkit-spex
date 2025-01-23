@@ -11,6 +11,9 @@ from astropy.utils import lazyproperty
 __all__ = ["gwcs_from_array", "SpectralAxis", "Spectrum"]
 
 
+__doctest_requires__ = {"Spectrum": ["ndcube>=2.3"]}
+
+
 def gwcs_from_array(array):
     """
     Create a new WCS from provided tabular data. This defaults to being
