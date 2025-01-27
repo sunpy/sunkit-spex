@@ -99,7 +99,7 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         self.update_background_times(self._start_event_time, self._end_event_time)
 
     @property
-    def subtract_background(self):
+    def subtract_background(self) -> bool:
         """
         States whether the the data is event minus background or not.
         """
@@ -672,6 +672,24 @@ class RhessiLoader(instruments.InstrumentBlueprint):
     def end_background_time(self, new_time: atime.Time):
         time_depr_warn('background')
         self.update_background_times(self._start_background_time, new_time)
+
+    # "retroactive" properties for specifying background subtraction,
+    # like in older versions.
+    @property
+    def data2data_minus_background(self) -> bool:
+        warnings.warn(
+            "Please use the `subtract_background` property instead.",
+            stacklevel=2
+        )
+        return self.subtract_background
+
+    @data2data_minus_background.setter
+    def data2data_minus_background(self, do_subtract: bool):
+        warnings.warn(
+            "Please use the `subtract_background` property instead.",
+            stacklevel=2
+        )
+        self.subtract_background = do_subtract
 
 
 def load_spectrum(spec_fn: str):
