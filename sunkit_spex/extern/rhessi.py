@@ -28,13 +28,13 @@ class RhessiLoader(instruments.InstrumentBlueprint):
     [1] https://heasarc.gsfc.nasa.gov/xanadu/xspec/manual/XSappendixStatistics.html
     """
 
-    def __init__(self, spectrum_fn, srm_fn, **kwargs):
+    def __init__(self, spectrum_fn, srm_fn):
         """
         Spectrum and SRM files are both required: attenuator state change times
             are in the spectrum file,
             and the state determines which SRM will be used.
         """
-        self._construction_string = f"RhessiLoader(spectrum_fn={spectrum_fn}, " f"srm_fn={srm_fn}," f"**{kwargs})"
+        self._construction_string = f"RhessiLoader(spectrum_fn={spectrum_fn}, " f"srm_fn={srm_fn})"
         self._systematic_error = 0
         self.load_prepare_spectrum_srm(spectrum_fn, srm_fn)
         self._start_background_time, self._end_background_time = None, None
@@ -801,3 +801,10 @@ def load_srm(srm_file: str):
     }
 
     return dict(channel_bins=channel_bins, photon_bins=photon_bins, srm_options=ret_srms)
+
+
+class LegacyRhessiLoader(RhessiLoader):
+    '''Allow legacy `Fitter` to load in RHESSI data with the expected args format'''
+    def __init__(self, spec_fn, **kw):
+        srm_fn = kw.pop('srm_file')
+        super().__init__(spec_fn, srm_fn)
