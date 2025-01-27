@@ -37,7 +37,6 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         self._construction_string = f"RhessiLoader(spectrum_fn={spectrum_fn}, " f"srm_fn={srm_fn})"
         self._systematic_error = 0
         self.load_prepare_spectrum_srm(spectrum_fn, srm_fn)
-        self._start_background_time, self._end_background_time = None, None
 
     @property
     def systematic_error(self):
@@ -96,6 +95,8 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         }
         self._update_event_data_with_times()
         self._original_data = copy.deepcopy(self._loaded_spec_data)
+        # Set these times to sensible defaults
+        self.update_background_times(self._start_event_time, self._end_event_time)
 
     @property
     def subtract_background(self):
@@ -630,6 +631,48 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         else:
             self.start_event_time, self.end_event_time = start, end
 
+    # "retroactive" properties for setting the times like in older versions,
+    # for legacy compatibility.
+    @property
+    def start_event_time(self):
+        time_depr_warn('event')
+        return self._start_event_time
+
+    @start_event_time.setter
+    def start_event_time(self, new_time: atime.Time):
+        time_depr_warn('event')
+        self.update_event_times(new_time, self._end_event_time)
+
+    @property
+    def end_event_time(self):
+        time_depr_warn('event')
+        return self._end_event_time
+
+    @end_event_time.setter
+    def end_event_time(self, new_time: atime.Time):
+        time_depr_warn('event')
+        self.update_event_times(self._start_event_time, new_time)
+
+    @property
+    def start_background_time(self):
+        time_depr_warn('background')
+        return self._start_background_time
+
+    @start_background_time.setter
+    def start_background_time(self, new_time: atime.Time):
+        time_depr_warn('background')
+        self.update_background_times(new_time, self._end_background_time)
+
+    @property
+    def end_background_time(self):
+        time_depr_warn('background')
+        return self._end_background_time
+
+    @end_background_time.setter
+    def end_background_time(self, new_time: atime.Time):
+        time_depr_warn('background')
+        self.update_background_times(self._start_background_time, new_time)
+
 
 def load_spectrum(spec_fn: str):
     """Return all RHESSI data needed for fitting.
@@ -807,3 +850,11 @@ class LegacyRhessiLoader(RhessiLoader):
     def __init__(self, spec_fn, **kw):
         srm_fn = kw.pop('srm_file')
         super().__init__(spec_fn, srm_fn)
+
+
+def time_depr_warn(partial_name: str):
+    warnings.warn(
+        "This time-related property is deprecated. "
+        f"In the future, please use `RhessiLoader.update_{partial_name}_times`",
+        stacklevel=2
+    )
