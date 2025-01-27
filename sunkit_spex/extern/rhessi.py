@@ -445,10 +445,9 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         elif len(np.shape(energy_ranges)) == 1:
             energy_ranges = [energy_ranges]
         elif len(np.shape(energy_ranges)) == 0:
-            print(
+            raise ValueError(
                 "The `energy_ranges` input should be a range of two energy values (e.g., [4,8] meaning 4-8 keV inclusive) or a list of these ranges."
             )
-            return
 
         ax = axes or plt.gca()
         font_size = plt.rcParams["font.size"]
@@ -462,11 +461,11 @@ class RhessiLoader(instruments.InstrumentBlueprint):
 
         # plot each energy range
         time_binning = (flat_times[1:] - flat_times[:-1]).to_value("s")
+        left_edges, right_edges = self._loaded_spec_data["count_channel_bins"].T
         for er in energy_ranges:
-            i = np.where(
-                (self._loaded_spec_data["count_channel_bins"][:, 0] >= er[0])
-                & (self._loaded_spec_data["count_channel_bins"][:, -1] <= er[-1])
-            )
+            # Restrict the energy range to the data energy bins
+            ea, eb = max(er[0], left_edges[0]), min(er[1], right_edges[-1])
+            i = np.where((left_edges >= ea) & (right_edges <= eb))
             e_range_cts = np.sum(self._spectrum["counts"][:, i].reshape((len(time_binning), -1)), axis=1)
 
             if rebin_time > 1:
@@ -475,7 +474,7 @@ class RhessiLoader(instruments.InstrumentBlueprint):
 
             e_range_ctr, e_range_ctr_err = e_range_cts / time_binning, np.sqrt(e_range_cts) / time_binning
             lc = e_range_ctr
-            p = ax.stairs(lc, flat_times.datetime, label=f"{er[0]}$-${er[-1]} keV")
+            p = ax.stairs(lc, flat_times.datetime, label=f"{ea}$-${eb} keV")
             ax.errorbar(
                 x=time_mids.datetime, y=e_range_ctr, yerr=e_range_ctr_err, c=p.get_edgecolor(), ls=""
             )  # error bar in middle of the bin
