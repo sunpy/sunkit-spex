@@ -259,6 +259,9 @@ def continuum_emission(
     {doc_string_params}"""
     # Convert inputs to known units and confirm they are within range.
     energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+    _error_if_low_energy_input_outside_valid_range(
+        energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+    )
     _warn_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
     _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
