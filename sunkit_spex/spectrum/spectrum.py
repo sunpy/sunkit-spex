@@ -9,6 +9,7 @@ from astropy.modeling.tabular import Tabular1D
 from astropy.utils import lazyproperty
 
 __all__ = ["SpectralAxis", "Spectrum", "gwcs_from_array"]
+__doctest_requires__ = {"Spectrum": ["ndcube>=2.3"]}
 
 
 def gwcs_from_array(array):
