@@ -18,7 +18,7 @@ __all__ = ["defined_photon_models", "f_vth", "thick_fn", "thick_warm"]
 defined_photon_models = {
     "f_vth": ["T", "EM"],
     "thick_fn": ["total_eflux", "index", "e_c"],
-    "thick_warm": ["tot_eflux", "indx", "ec", "plasma_d", "loop_temp", "length"],
+    "thick_warm": ["tot_eflux", "index", "ec", "plasma_d", "loop_temp", "length"],
 }
 
 
