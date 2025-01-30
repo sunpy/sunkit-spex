@@ -218,7 +218,10 @@ def thermal_emission(
         min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
         max(CONTINUUM_GRID["energy range keV"][1], LINE_GRID["energy range keV"][1]),
     )
-    _error_if_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
+    # raise an error if energy_range_min() < energy_endges_keV[1]
+    _error_if_low_energy_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
+    # warning if energy_range.max() > energy_endges_keV[1], outside this range flux=0
+    _warn_if_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
     temp_range = (
         min(CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]),
         max(CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]),
@@ -256,7 +259,10 @@ def continuum_emission(
     {doc_string_params}"""
     # Convert inputs to known units and confirm they are within range.
     energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
-    _error_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
+    _error_if_low_energy_input_outside_valid_range(
+        energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+    )
+    _warn_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
     _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, relative_abundances)
@@ -734,6 +740,15 @@ def _error_if_input_outside_valid_range(input_values, grid_range, param_name, pa
             param_unit = message_unit
         message = (
             f"All input {param_name} values must be within the range {grid_range[0]}--{grid_range[1]} {param_unit}. "
+        )
+        raise ValueError(message)
+
+
+def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
+    if input_values.min() < grid_range[0]:
+        message = (
+            f"Lower bound of the input {param_name} must be within the range "
+            f"{grid_range[0]}--{grid_range[1]} {param_unit}. "
         )
         raise ValueError(message)
 
