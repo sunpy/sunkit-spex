@@ -80,7 +80,9 @@ class Albedo(FittableModel):
         description="Angle between the observer and the source",
         fixed=False,
     )
-    anisotropy = Parameter(name="anisotropy", default=1, description="The anisotropy used for albedo correction", fixed=True)
+    anisotropy = Parameter(
+        name="anisotropy", default=1, description="The anisotropy used for albedo correction", fixed=True
+    )
 
     _input_units_allow_dimensionless = True
 
