@@ -191,9 +191,9 @@ def setup_default_abundances(filename=None):
 
 
 # Read line, continuum and abundance data into global variables.
-CONTINUUM_GRID = setup_continuum_parameters()
-LINE_GRID = setup_line_parameters()
-DEFAULT_ABUNDANCES = setup_default_abundances()
+CONTINUUM_GRID = None
+LINE_GRID = None
+DEFAULT_ABUNDANCES = None
 DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
 
@@ -218,6 +218,11 @@ def thermal_emission(
     {doc_string_params}"""
     # Convert inputs to known units and confirm they are within range.
     energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+    global CONTINUUM_GRID, LINE_GRID
+    if CONTINUUM_GRID is None:
+        CONTINUUM_GRID = setup_continuum_parameters()
+    if LINE_GRID is None:
+        LINE_GRID = setup_line_parameters()
     energy_range = (
         min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
         max(CONTINUUM_GRID["energy range keV"][1], LINE_GRID["energy range keV"][1]),
@@ -259,6 +264,9 @@ def continuum_emission(
 
     {doc_string_params}"""
     # Convert inputs to known units and confirm they are within range.
+    global CONTINUUM_GRID
+    if CONTINUUM_GRID is None:
+        CONTINUUM_GRID = setup_continuum_parameters()
     energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
     _error_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
     _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
@@ -289,6 +297,9 @@ def line_emission(
     {docstring_params}"""
     # Convert inputs to known units and confirm they are within range.
     energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+    global LINE_GRID
+    if LINE_GRID is None:
+        LINE_GRID = setup_line_parameters()
     _warn_if_input_outside_valid_range(energy_edges_keV, LINE_GRID["energy range keV"], "energy", "keV")
     _error_if_input_outside_valid_range(temperature_K, LINE_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
@@ -753,6 +764,9 @@ def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, par
 
 
 def _calculate_abundances(abundance_type, relative_abundances):
+    global DEFAULT_ABUNDANCES
+    if DEFAULT_ABUNDANCES is None:
+        DEFAULT_ABUNDANCES = setup_default_abundances()
     abundances = DEFAULT_ABUNDANCES[abundance_type].data
     if relative_abundances:
         # Convert input relative abundances to array where
