@@ -412,10 +412,7 @@ class RhessiLoader(instruments.InstrumentBlueprint):
     def lightcurve(self, energy_ranges=None, axes=None, rebin_time=1):
         """Creates a RHESSI lightcurve.
 
-        Helps the user see the RHESSI time profile. The defined event time (defined either through `start_event_time`,
-        `end_event_time` setters, or `select_time(...)` method) is shown with a purple shaded region and if a background
-        time (defined either through `start_background_time`, `end_background_time` setters, or
-        `select_time(...,background=True)` method) is defined then it is shown with an orange shaded region.
+        The background and event times are highlighted based on what the user has set.
 
         Parameters
         ----------
@@ -515,10 +512,7 @@ class RhessiLoader(instruments.InstrumentBlueprint):
     def spectrogram(self, axes=None, rebin_time=1, rebin_energy=1, **kwargs):
         """Creates a RHESSI spectrogram.
 
-        Helps the user see the RHESSI time and energy evolution. The defined event time (defined either through
-        `start_event_time`, `end_event_time` setters, or `select_time(...)` method) is shown with a violet line
-        and if a background time (defined either through `start_background_time`, `end_background_time` setters,
-        or `select_time(...,background=True)` method) is defined then it is shown with an orange line.
+        The background and event times are highlighted based on what the user has set.
 
         Parameters
         ----------
@@ -603,33 +597,6 @@ class RhessiLoader(instruments.InstrumentBlueprint):
         ax.annotate("Evt", (start_evt_time, _y_pos), color="#F37AFF", va="top", size=_def_fs - 2)
 
         return ax
-
-    def select_time(self, start=None, end=None, background=False):
-        """Provides method to set start and end time of the event or background in one line.
-
-        Parameters
-        ----------
-        start, end : str, `astropy.Time`, None
-                String to be given to astropy's Time, `astropy.Time` is used directly, None sets the
-                start/end event time to be the first time of the data. None doesn't add, or will remove,
-                any background data in `_loaded_spec_data["extras"]` if background is set to True.
-                Default: None
-
-        background : bool
-                Determines whether the start and end times are for the event (False) or background
-                time (True).
-                Default: False
-
-        Returns
-        -------
-        None.
-        """
-        self.__warn = False if (start is not None) and (end is not None) else True
-
-        if background:
-            self.start_background_time, self.end_background_time = start, end
-        else:
-            self.start_event_time, self.end_event_time = start, end
 
     # "retroactive" properties for setting the times like in older versions,
     # for legacy compatibility.

@@ -118,20 +118,6 @@ plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
-# An alternative to set the event and background times like above is by using the `select_time` method. E.g.,
-#
-# .. code-block::python
-#
-#    ress_spec.loaded_spec_data["spectrum1"].select_time(start="2002-10-05T10:38:32", end="2002-10-05T10:40:32", background=True)
-#
-#    ress_spec.loaded_spec_data["spectrum1"].select_time(start="2002-10-05T10:41:20", end="2002-10-05T10:42:24")
-#
-# Both and end and a start time needs to be defined for the background, whereas the event time is assumed to
-# commence/finish at the first/final data time if the start/end time is not given.
-#
-
-#####################################################
-#
 # Now let's get going with a model and explicitly stating a fit statistic
 
 fitter = Fitter(rhess_spec)
