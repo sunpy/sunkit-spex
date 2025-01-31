@@ -158,7 +158,7 @@ class Spectrum(NDCube):
     <sunkit_spex.spectrum.spectrum.Spectrum object at ...
     NDCube
     ------
-    Dimensions: [10.] pix
+    Shape: (10,)
     Physical Types of Axes: [('em.energy',)]
     Unit: W
     Data Type: float64
