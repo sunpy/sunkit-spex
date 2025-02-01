@@ -5,7 +5,7 @@ This module contains functions that can evaluate models and return a fit statist
 __all__ = ["minimize_func"]
 
 
-def minimize_func(params, data_y, model_x, model_func, statistic_func):
+def minimize_func(params, obs_spec, model_func, statistic_func):
     """
     Minimization function.
 
@@ -32,5 +32,5 @@ def minimize_func(params, data_y, model_x, model_func, statistic_func):
     `float`
         The value to be optimized that compares the model to the data.
     """
-    model_y = model_func.evaluate(model_x, *params)
-    return statistic_func(data_y, model_y)
+    model_y = model_func.evaluate(obs_spec._spectral_axis.value, *params)
+    return statistic_func(obs_spec.data, model_y)
