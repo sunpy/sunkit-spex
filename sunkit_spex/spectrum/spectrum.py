@@ -12,6 +12,9 @@ __all__ = ["SpectralAxis", "Spectrum", "gwcs_from_array"]
 __doctest_requires__ = {"Spectrum": ["ndcube>=2.3"]}
 
 
+__doctest_requires__ = {"Spectrum": ["ndcube>=2.3"]}
+
+
 def gwcs_from_array(array):
     """
     Create a new WCS from provided tabular data. This defaults to being
