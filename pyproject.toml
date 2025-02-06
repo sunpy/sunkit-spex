@@ -1,7 +1,7 @@
 [build-system]
 requires = [
-  "setuptools>=56,!=61.0.0",
-  "setuptools_scm[toml]>=6.2",
+  "setuptools>=62.1",
+  "setuptools_scm[toml]>=8.0.0",
   "wheel",
 ]
 build-backend = "setuptools.build_meta"
@@ -65,7 +65,7 @@ include = ["sunkit_spex*"]
 exclude = ["sunkit_spex._dev*"]
 
 [tool.setuptools_scm]
-write_to = "sunkit_spex/_version.py"
+version_file = "sunkit_spex/_version.py"
 
 [tool.gilesbot]
   [tool.gilesbot.pull_requests]
