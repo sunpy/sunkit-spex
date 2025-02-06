@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 import copy
 import warnings
 
@@ -5,6 +7,12 @@ import numpy as np
 from scipy import interpolate, stats
 
 import astropy.units as u
+
+import astropy.units as u
+from astropy.modeling import FittableModel, Parameter
+from astropy.units import Quantity
+
+from sunpy.data import cache
 
 from sunpy.data import manager
 
@@ -15,12 +23,13 @@ from sunkit_spex.models.physical.io import (
 )
 
 __all__ = [
+    "ThermalEmission",
+    "thermal_emission",
     "continuum_emission",
     "line_emission",
     "setup_continuum_parameters",
-    "setup_default_abundances",
     "setup_line_parameters",
-    "thermal_emission",
+    "setup_default_abundances",
 ]
 
 doc_string_params = """
@@ -71,6 +80,199 @@ Returns
 flux: `astropy.units.Quantity`
     The photon flux as a function of temperature and energy.
 """
+
+class ThermalEmission(FittableModel):
+    r"""
+    """
+    n_inputs = 1
+    n_outputs = 1
+    
+    temperature = Parameter(
+        name="temperature",
+        default=1e7,
+        min=1e6,
+        max=1e8,
+        unit=u.K,
+        description="Temperature of the plasma",
+        fixed=False,
+    )
+    
+    emission_measure = Parameter(
+        name="emission_measure",
+        default=1e8, 
+        unit=(u.cm ** (-3)),
+        description="Emission measure of the observer", 
+        fixed=False)
+    
+    observer_distance = Parameter(
+        name="observer_distance",
+        default=1,
+        min = 0.01,
+        unit=u.AU,
+        description="Distance to the observer",
+        fixed=True) 
+
+    input_units_equivalencies = {'keV': u.spectral(),'K':u.temperature_energy()}
+    _input_units_allow_dimensionless = True
+
+    def __init__(self,
+                  temperature=u.Quantity(temperature.default,temperature.unit), 
+                  emission_measure=u.Quantity(emission_measure.default,emission_measure.unit), 
+                  observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
+                  abundance_type="sun_coronal_ext",
+                  relative_abundances=None,
+                 **kwargs):
+
+        self.energy_edges = kwargs.pop("energy_edges")
+        self.abundance_type = abundance_type
+        self.relative_abundances = relative_abundances
+
+        super().__init__(temperature=temperature,emission_measure=emission_measure,observer_distance=observer_distance,
+                         **kwargs)
+
+    def evaluate(self, spectrum, temperature, emission_measure, observer_distance):
+
+        # if not isinstance(temperature, Quantity):
+        #     temperature = temperature * u.K
+
+        # if not isinstance(emission_measure, Quantity):
+        #     emission_measure = emission_measure * (u.cm ** (-3))
+
+        # if not isinstance(observer_distance, Quantity):
+        #     observer_distance = (observer_distance * u.AU).to(u.cm)
+        # else:
+        #     observer_distance = observer_distance.to(u.cm)
+
+        flux = thermal_emission(self.energy_edges,
+            temperature,
+            emission_measure,
+            observer_distance,
+            self.abundance_type,
+            self.relative_abundances
+            )
+        
+        if hasattr(temperature, "unit"):
+            return flux
+        else:
+            return flux.value
+
+    @property
+    def input_units(self):
+        # The units for the 'energy_edges' variable should be an energy (default keV)
+        return {self.inputs[0]: u.keV}
+
+    @property
+    def return_units(self):
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1 *u.cm**-2}
+
+
+    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
+    
+
+# class ContinuumEmission(FittableModel):
+#     r"""
+#     """
+#     n_inputs = 1
+#     n_outputs = 1
+#     temperature = Parameter(
+#         name="temperature",
+#         default=0,
+#         unit=u.K,
+#         description="Temperature of the plasma",
+#         fixed=False,
+#     )
+    
+#     emission_measure = Parameter(
+#         name="emission_measure",
+#         default=1, 
+#         unit=(u.cm ** (-3), u.cm ** (-5)),
+#         description="Emission measure of the observer", 
+#         fixed=False)
+    
+#     observer_distance = Parameter(
+#         name="observer_distance",
+#         default=1,
+#         unit=u.cm,
+#         description="Distance to the observer"
+#     ) 
+
+#     _input_units_allow_dimensionless = True
+
+#     def __init__(self, *args,
+#                  **kwargs):
+
+#         self.energy_edges = kwargs.pop("energy_edges")
+
+#         super().__init__(*args,
+#                          **kwargs)
+
+#     def evaluate(self, spectrum, theta, anisotropy):
+
+#         if hasattr(theta, "unit"):
+#             theta = Quantity(theta.value,theta.unit)
+#         else:
+#             theta = theta*u.deg
+ 
+#         albedo_matrix = get_albedo_matrix(self.energy_edges, theta, anisotropy)
+
+#         return spectrum + spectrum @ albedo_matrix
+
+#     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+#         return {"theta": u.deg}
+
+
+# class LineEmission(FittableModel):
+#     r"""
+#     """
+#     n_inputs = 1
+#     n_outputs = 1
+#     temperature = Parameter(
+#         name="temperature",
+#         default=0,
+#         unit=u.K,
+#         description="Temperature of the plasma",
+#         fixed=False,
+#     )
+    
+#     emission_measure = Parameter(
+#         name="emission_measure",
+#         default=1, 
+#         unit=(u.cm ** (-3), u.cm ** (-5)),
+#         description="Emission measure of the observer", 
+#         fixed=False)
+    
+#     observer_distance = Parameter(
+#         name="observer_distance",
+#         default=1,
+#         unit=u.cm,
+#         description="Distance to the observer"
+#     ) 
+
+#     _input_units_allow_dimensionless = True
+
+#     def __init__(self, *args,
+#                  **kwargs):
+
+#         self.energy_edges = kwargs.pop("energy_edges")
+
+#         super().__init__(*args,
+#                          **kwargs)
+
+#     def evaluate(self, spectrum, theta, anisotropy):
+
+#         if hasattr(theta, "unit"):
+#             theta = Quantity(theta.value,theta.unit)
+#         else:
+#             theta = theta*u.deg
+ 
+#         albedo_matrix = get_albedo_matrix(self.energy_edges, theta, anisotropy)
+
+#         return spectrum + spectrum @ albedo_matrix
+
+#     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+#         return {"theta": u.deg}
+
 
 
 def setup_continuum_parameters(filename=None):
@@ -197,16 +399,17 @@ DEFAULT_ABUNDANCES = setup_default_abundances()
 DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
 
-@u.quantity_input(
-    energy_edges=u.keV, temperature=u.K, emission_measure=(u.cm ** (-3), u.cm ** (-5)), observer_distance=u.cm
-)
+# @u.quantity_input(
+#     energy_edges=u.keV, temperature=u.K, emission_measure=(u.cm ** (-3), u.cm ** (-5)), observer_distance=u.cm
+# )
+@u.quantity_input
 def thermal_emission(
     energy_edges,
     temperature,
     emission_measure,
+    observer_distance,
     abundance_type=DEFAULT_ABUNDANCE_TYPE,
-    relative_abundances=None,
-    observer_distance=(1 * u.AU).to(u.cm),
+    relative_abundances=None
 ):
     f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
 
@@ -217,31 +420,53 @@ def thermal_emission(
 
     {doc_string_params}"""
     # Convert inputs to known units and confirm they are within range.
-    energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+
+    # energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+
+    if isinstance(energy_edges,Quantity):
+        energy_edges_keV = energy_edges.to(u.keV)
+    else:
+        energy_edges_keV = energy_edges
+    
+    if isinstance(temperature,Quantity):
+        temperature_K = temperature.to(u.K)
+    else:
+        temperature_K = temperature
+
+    if isinstance(emission_measure,Quantity):
+        emission_measure = emission_measure.to(u.cm**-3)
+
+    if isinstance(observer_distance,Quantity):
+        observer_distance = observer_distance.to(u.cm)
+
     energy_range = (
         min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
         max(CONTINUUM_GRID["energy range keV"][1], LINE_GRID["energy range keV"][1]),
     )
-    _error_if_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
+    # _error_if_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
     temp_range = (
         min(CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]),
         max(CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]),
     )
-    _error_if_input_outside_valid_range(temperature_K, temp_range, "temperature", "K")
+    # _error_if_input_outside_valid_range(temperature_K, temp_range, "temperature", "K")
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, relative_abundances)
     # Calculate fluxes.
     continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
     line_flux = _line_emission(energy_edges_keV, temperature_K, abundances)
+
     flux = (continuum_flux + line_flux) * emission_measure / (4 * np.pi * observer_distance**2)
-    if temperature.isscalar and emission_measure.isscalar:
-        flux = flux[0]
+
+    # if temperature.isscalar and emission_measure.isscalar:
+    #     flux = flux[0]
+    
     return flux
 
 
-@u.quantity_input(
-    energy_edges=u.keV, temperature=u.K, emission_measure=(u.cm ** (-3), u.cm ** (-5)), observer_distance=u.cm
-)
+# @u.quantity_input(
+#     energy_edges=u.keV, temperature=u.K, emission_measure=(u.cm ** (-3), u.cm ** (-5)), observer_distance=u.cm
+# )
+@u.quantity_input
 def continuum_emission(
     energy_edges,
     temperature,
@@ -259,22 +484,25 @@ def continuum_emission(
 
     {doc_string_params}"""
     # Convert inputs to known units and confirm they are within range.
-    energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
-    _error_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
-    _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
+    # energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+
+    energy_edges_keV, temperature_K = energy_edges, temperature
+    # _error_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
+    # _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, relative_abundances)
     # Calculate flux.
     flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
     flux *= emission_measure / (4 * np.pi * observer_distance**2)
-    if temperature.isscalar and emission_measure.isscalar:
-        flux = flux[0]
+    # if temperature.isscalar and emission_measure.isscalar:
+    #     flux = flux[0]
     return flux
 
 
-@u.quantity_input(
-    energy_edges=u.keV, temperature=u.K, emission_measure=(u.cm ** (-3), u.cm ** (-5)), observer_distance=u.cm
-)
+# @u.quantity_input(
+#     energy_edges=u.keV, temperature=u.K, emission_measure=(u.cm ** (-3), u.cm ** (-5)), observer_distance=u.cm
+# )
+@u.quantity_input
 def line_emission(
     energy_edges,
     temperature,
@@ -288,18 +516,18 @@ def line_emission(
 
     {docstring_params}"""
     # Convert inputs to known units and confirm they are within range.
-    energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
-    _warn_if_input_outside_valid_range(energy_edges_keV, LINE_GRID["energy range keV"], "energy", "keV")
-    _error_if_input_outside_valid_range(temperature_K, LINE_GRID["temperature range K"], "temperature", "K")
+    # energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
+    energy_edges_keV, temperature_K = energy_edges, temperature
+    # _warn_if_input_outside_valid_range(energy_edges_keV, LINE_GRID["energy range keV"], "energy", "keV")
+    # _error_if_input_outside_valid_range(temperature_K, LINE_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, relative_abundances)
 
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)
     flux *= emission_measure / (4 * np.pi * observer_distance**2)
-    if temperature.isscalar and emission_measure.isscalar:
-        flux = flux[0]
+    # if temperature.isscalar and emission_measure.isscalar:
+    #     flux = flux[0]
     return flux
-
 
 def _continuum_emission(energy_edges_keV, temperature_K, abundances):
     """
@@ -323,11 +551,19 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
         The abundances for the all the elements.
     """
     # Handle inputs and derive some useful parameters from them
-    log10T_in = np.log10(temperature_K)
-    T_in_keV = temperature_K / 11604518  # Convert temperature from K to keV.
+    if isinstance(temperature_K, Quantity):
+        temperature_K = temperature_K
+        log10T_in = np.log10(temperature_K.value)
+        T_in_keV = temperature_K.to("keV", equivalencies=u.temperature_energy())
+        energy_edges_keV = energy_edges_keV.to(u.keV)
+    else:
+        log10T_in = np.log10(temperature_K)
+        T_in_keV = temperature_K / 11604518  # Convert temperature from K to keV.
+        # energy_edges_keV = energy_edges_keV.value
+    
     # Get energy bins centers based on geometric mean.
     energy_gmean_keV = stats.gmean(np.vstack((energy_edges_keV[:-1], energy_edges_keV[1:])))
-
+     
     # Mask Unwanted Abundances
     abundance_mask = np.zeros(len(abundances))
     abundance_mask[CONTINUUM_GRID["abundance index"]] = 1.0
@@ -388,8 +624,12 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
             gaunt, CONTINUUM_GRID["log10T"][tband_idx[j]], CONTINUUM_GRID["E_keV"], energy_gmean_keV, logt
         )
     # Rescale the interpolated intensity.
-    flux = flux * np.exp(-(energy_gmean_keV[np.newaxis, :] / T_in_keV[:, np.newaxis]))
+    # energy_gmean_keV = energy_gmean_keV * u.keV
+    if isinstance(temperature_K, Quantity):
+        energy_gmean_keV = energy_gmean_keV * u.keV
 
+    flux = flux * np.exp(-(energy_gmean_keV[np.newaxis, :] / T_in_keV[:, np.newaxis]))
+    # flux = flux.value
     # Put intensity into correct units.
     return flux * CONTINUUM_GRID["intensity unit"]
 
@@ -414,6 +654,14 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     """
     n_energy_bins = len(energy_edges_keV) - 1
     n_temperatures = len(temperature_K)
+
+    energy_input = energy_edges_keV
+
+    if isinstance(energy_edges_keV,Quantity):
+        energy_edges_keV= energy_edges_keV.value
+    
+    if isinstance(temperature_K,Quantity):
+        temperature_K = temperature_K.value
 
     # Find indices of lines within user input energy range.
     energy_roi_indices = np.logical_and(
@@ -465,8 +713,13 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
 
     # Scale flux by observer distance, emission measure and spectral bin width
     # and put into correct units.
-    energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) * u.keV
-    return flux * LINE_GRID["intensity unit"] / energy_bin_widths
+    energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) 
+    # energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1])
+
+    if isinstance(energy_input,Quantity):
+         energy_bin_widths = energy_bin_widths * u.keV
+    
+    return flux * LINE_GRID["intensity unit"] / (energy_bin_widths)
 
 
 def _interpolate_continuum_intensities(data_grid, log10T_grid, energy_grid_keV, energy_keV, log10T):
@@ -555,11 +808,11 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
     for i in range(n_temperatures):
         # Identify the "temperature" bin to which the input "temperature"
         # corresponds and its two nearest neighbors.
-        index = temperature_bins[i] - 1 + np.arange(3)
+        indx = temperature_bins[i] - 1 + np.arange(3)
         # Interpolate the 2nd axis to produce a function that gives the data
         # as a function of 1st axis, say energy, at a given value along the 2nd axis,
         # say "temperature".
-        get_intensities_at_logT = interpolate.interp1d(line_logT_bins[index], data_grid[:, index], kind="quadratic")
+        get_intensities_at_logT = interpolate.interp1d(line_logT_bins[indx], data_grid[:, indx], kind="quadratic")
         # Use function to get interpolated_data as a function of the first axis at
         # the input value along the 2nd axis,
         # e.g. line intensities as a function of energy at a given temperature.
@@ -719,6 +972,7 @@ def _weight_emission_bins(
     return new_line_intensities, neighbor_intensities, neighbor_iline
 
 
+# @lru_cache
 def _sanitize_inputs(energy_edges, temperature):
     # Convert inputs to known units and confirm they are within range.
     if energy_edges.isscalar or len(energy_edges) < 2 or energy_edges.ndim > 1:
@@ -730,6 +984,7 @@ def _sanitize_inputs(energy_edges, temperature):
     return energy_edges_keV, temperature_K
 
 
+# @lru_cache
 def _error_if_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
     if input_values.min() < grid_range[0] or input_values.max() > grid_range[1]:
         if param_name == "temperature":
@@ -737,11 +992,13 @@ def _error_if_input_outside_valid_range(input_values, grid_range, param_name, pa
             grid_range = u.Quantity(grid_range, unit=param_unit).to_value(message_unit)
             param_unit = message_unit
         message = (
-            f"All input {param_name} values must be within the range {grid_range[0]}--{grid_range[1]} {param_unit}. "
+            f"All input {param_name} values must be within the range "
+            f"{grid_range[0]}--{grid_range[1]} {param_unit}. "
         )
         raise ValueError(message)
 
 
+# @lru_cache
 def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
     if input_values.min() < grid_range[0] or input_values.max() > grid_range[1]:
         message = (
@@ -752,6 +1009,7 @@ def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, par
         warnings.warn(message)
 
 
+# @lru_cache
 def _calculate_abundances(abundance_type, relative_abundances):
     abundances = DEFAULT_ABUNDANCES[abundance_type].data
     if relative_abundances:
@@ -928,8 +1186,8 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #     logt = LOGT # grid temperatures = log(temperature)
 #     ntemp = len(logt)
 #     selt = np.argwhere(logt<=u)[-1] # what gap does my temp land in the logt array (inclusive of the lower boundary)
-#     index = np.clip([selt-1, selt, selt+1], 0, ntemp-1) # find the indexes either side of that gap
-#     tband = logt[index]
+#     indx = np.clip([selt-1, selt, selt+1], 0, ntemp-1) # find the indexes either side of that gap
+#     tband = logt[indx]
 #     s=1
 #     x0, x1, x2 = tband[0][0], tband[1][0], tband[2][0] # temperatures either side of that gap
 
@@ -939,7 +1197,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 
 #     # all wavelengths divided by corresponding temp[0] (first row), then exvl/temp[1] second row, exvl/temp[2] third row
 #     # inverse boltzmann factor of hv/kT and 11.6e6 from keV-to-J conversion over k = 1.6e-16 / 1.381e-23 ~ 11.6e6
-#     exponential = (np.ones((3,1)) @ ewvl_exp) / ((10**logt[index]/11.6e6) @ np.ones((1,nwvl)))
+#     exponential = (np.ones((3,1)) @ ewvl_exp) / ((10**logt[indx]/11.6e6) @ np.ones((1,nwvl)))
 #     exponential = np.exp(np.clip(exponential, None, 80)) #  not sure why clipping at 80
 #     # this is just from dE/dA = E/A from E=hc/A (A=wavelength) for change of variables from Angstrom to keV: dE = dA * (E/A)
 #     # have this repeated for 3 rows since this is the form of the expontial's different temps
@@ -969,7 +1227,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #     # totcont_lo is the continuum <1 keV I think and totcont is >=1 keV, so adding the wavelength dimension of each of these you get the number of wavlengths provided by continuum_info[1]['edge_str']['WVL']
 #     # look here for more info on how the CHIANTI file is set-up **** https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/setup_chianti_cont.pro ****
 #     # this exact script won't create the folder Python is using the now since some of the wavelengths and deltas don't match-up
-#     totcontindx = np.concatenate((continuum_info[1]["totcont_lo"][:, index.T[0], :], continuum_info[1]["totcont"][:, index.T[0], :]), axis=2) # isolate temps and then combine along wavelength axis
+#     totcontindx = np.concatenate((continuum_info[1]["totcont_lo"][:, indx.T[0], :], continuum_info[1]["totcont"][:, indx.T[0], :]), axis=2) # isolate temps and then combine along wavelength axis
 #     # careful from here on out. IDL's indexes are backwards to Pythons
 #     # Python's a[:,:,0] == IDL's a[0,*,*], a[:,0,:] == a[*,0,*], and then a[0,:,:] == a[*,*,0]
 #     tcdbase = totcontindx # double(totcontindx[*, *, *])
