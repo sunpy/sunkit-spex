@@ -1,12 +1,8 @@
-from functools import lru_cache
-
 import copy
 import warnings
 
 import numpy as np
 from scipy import interpolate, stats
-
-import astropy.units as u
 
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
@@ -409,7 +405,7 @@ def thermal_emission(
     emission_measure,
     observer_distance,
     abundance_type=DEFAULT_ABUNDANCE_TYPE,
-    relative_abundances=None
+    relative_abundances=None,
 ):
     f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
 
@@ -423,32 +419,41 @@ def thermal_emission(
 
     # energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
 
-    if isinstance(energy_edges,Quantity):
+    if energy_edges.isscalar or len(energy_edges) < 2 or energy_edges.ndim > 1:
+        raise ValueError("energy_edges must be a 1-D astropy Quantity with length greater than 1.")
+
+    if isinstance(energy_edges, Quantity):
         energy_edges_keV = energy_edges.to(u.keV)
     else:
         energy_edges_keV = energy_edges
-    
-    if isinstance(temperature,Quantity):
+
+    if isinstance(temperature, Quantity):
         temperature_K = temperature.to(u.K)
     else:
         temperature_K = temperature
 
-    if isinstance(emission_measure,Quantity):
+    if temperature.isscalar:
+        temperature_K = np.array([temperature_K.value]) * u.K
+
+    if isinstance(emission_measure, Quantity):
         emission_measure = emission_measure.to(u.cm**-3)
 
-    if isinstance(observer_distance,Quantity):
+    if isinstance(observer_distance, Quantity):
         observer_distance = observer_distance.to(u.cm)
 
     energy_range = (
         min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
         max(CONTINUUM_GRID["energy range keV"][1], LINE_GRID["energy range keV"][1]),
     )
-    # _error_if_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
+    # raise an error if energy_range_min() < energy_endges_keV[1]
+    _error_if_low_energy_input_outside_valid_range(energy_edges_keV.value, energy_range, "energy", "keV")
+    # warning if energy_range.max() > energy_endges_keV[1], outside this range flux=0
+    _warn_if_input_outside_valid_range(energy_edges_keV.value, energy_range, "energy", "keV")
     temp_range = (
         min(CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]),
         max(CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]),
     )
-    # _error_if_input_outside_valid_range(temperature_K, temp_range, "temperature", "K")
+    _error_if_input_outside_valid_range(temperature_K.value, temp_range, "temperature", "K")
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, relative_abundances)
     # Calculate fluxes.
@@ -457,9 +462,9 @@ def thermal_emission(
 
     flux = (continuum_flux + line_flux) * emission_measure / (4 * np.pi * observer_distance**2)
 
-    # if temperature.isscalar and emission_measure.isscalar:
-    #     flux = flux[0]
-    
+    if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
+        flux = flux[0]
+
     return flux
 
 
@@ -487,8 +492,11 @@ def continuum_emission(
     # energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
 
     energy_edges_keV, temperature_K = energy_edges, temperature
-    # _error_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
-    # _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
+    _error_if_low_energy_input_outside_valid_range(
+        energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+    )
+    _warn_if_input_outside_valid_range(energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV")
+    _error_if_input_outside_valid_range(temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, relative_abundances)
     # Calculate flux.
@@ -518,16 +526,20 @@ def line_emission(
     # Convert inputs to known units and confirm they are within range.
     # energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
     energy_edges_keV, temperature_K = energy_edges, temperature
-    # _warn_if_input_outside_valid_range(energy_edges_keV, LINE_GRID["energy range keV"], "energy", "keV")
-    # _error_if_input_outside_valid_range(temperature_K, LINE_GRID["temperature range K"], "temperature", "K")
+    _error_if_low_energy_input_outside_valid_range(
+        energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+    )
+    _warn_if_input_outside_valid_range(energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV")
+    _error_if_input_outside_valid_range(temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, relative_abundances)
 
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)
     flux *= emission_measure / (4 * np.pi * observer_distance**2)
-    # if temperature.isscalar and emission_measure.isscalar:
-    #     flux = flux[0]
+    if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
+        flux = flux[0]
     return flux
+
 
 def _continuum_emission(energy_edges_keV, temperature_K, abundances):
     """
@@ -717,7 +729,7 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     # energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1])
 
     if isinstance(energy_input,Quantity):
-         energy_bin_widths = energy_bin_widths * u.keV
+        energy_bin_widths = energy_bin_widths * u.keV
     
     return flux * LINE_GRID["intensity unit"] / (energy_bin_widths)
 
@@ -992,8 +1004,7 @@ def _error_if_input_outside_valid_range(input_values, grid_range, param_name, pa
             grid_range = u.Quantity(grid_range, unit=param_unit).to_value(message_unit)
             param_unit = message_unit
         message = (
-            f"All input {param_name} values must be within the range "
-            f"{grid_range[0]}--{grid_range[1]} {param_unit}. "
+            f"All input {param_name} values must be within the range {grid_range[0]}--{grid_range[1]} {param_unit}. "
         )
         raise ValueError(message)
 
@@ -1007,6 +1018,15 @@ def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, par
             "Flux will be zero outside this range."
         )
         warnings.warn(message)
+
+
+def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
+    if input_values.min() < grid_range[0]:
+        message = (
+            f"Lower bound of the input {param_name} must be within the range "
+            f"{grid_range[0]}--{grid_range[1]} {param_unit}. "
+        )
+        raise ValueError(message)
 
 
 # @lru_cache
