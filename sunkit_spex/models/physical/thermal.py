@@ -95,10 +95,11 @@ class ThermalEmission(FittableModel):
     
     emission_measure = Parameter(
         name="emission_measure",
-        default=1e8, 
+        default=1e50, 
         unit=(u.cm ** (-3)),
         description="Emission measure of the observer", 
-        fixed=False)
+        fixed=False
+    )
     
     observer_distance = Parameter(
         name="observer_distance",
@@ -106,7 +107,52 @@ class ThermalEmission(FittableModel):
         min = 0.01,
         unit=u.AU,
         description="Distance to the observer",
-        fixed=True) 
+        fixed=True
+    )
+
+    mg = Parameter(
+        name="Mg",
+        default=8.15,
+        description="Mg relative abundance",
+        fixed=True
+    )
+    
+    si = Parameter(
+        name="Si",
+        default=8.1,
+        description="Si relative abundance",
+        fixed=True
+    )
+
+    s = Parameter(
+        name="S",
+        default=7.27,
+        description="S relative abundance",
+        fixed=True
+    )
+    
+    ar = Parameter(
+        name="Ar",
+        default=6.58,
+        description="Ar relative abundance",
+        fixed=True
+    )
+    
+    ca = Parameter(
+        name="Ca",
+        default=6.93,
+        description="Ca relative abundance",
+        fixed=True
+    )
+    
+    fe = Parameter(
+        name="Fe",
+        default=8.1,
+        description="Fe relative abundance",
+        fixed=True
+    )
+
+
 
     input_units_equivalencies = {'keV': u.spectral(),'K':u.temperature_energy()}
     _input_units_allow_dimensionless = True
@@ -115,37 +161,38 @@ class ThermalEmission(FittableModel):
                   temperature=u.Quantity(temperature.default,temperature.unit), 
                   emission_measure=u.Quantity(emission_measure.default,emission_measure.unit), 
                   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
+                  mg=mg.default,
+                  si=si.default,
+                  s=s.default,
+                  ar=ar.default,
+                  ca=ca.default,
+                  fe=fe.default,
                   abundance_type="sun_coronal_ext",
-                  relative_abundances=None,
                  **kwargs):
 
-        self.energy_edges = kwargs.pop("energy_edges")
         self.abundance_type = abundance_type
-        self.relative_abundances = relative_abundances
+
 
         super().__init__(temperature=temperature,emission_measure=emission_measure,observer_distance=observer_distance,
+                         mg=mg,si=si,s=s,
+                         ar=ar,ca=ca,fe=fe,
                          **kwargs)
 
-    def evaluate(self, spectrum, temperature, emission_measure, observer_distance):
+    # def evaluate(self, spectrum, temperature, emission_measure, observer_distance):
+    def evaluate(self, energy_edges, temperature, emission_measure, observer_distance,
+                 mg,si,s,ar,ca,fe):
 
-        # if not isinstance(temperature, Quantity):
-        #     temperature = temperature * u.K
-
-        # if not isinstance(emission_measure, Quantity):
-        #     emission_measure = emission_measure * (u.cm ** (-3))
-
-        # if not isinstance(observer_distance, Quantity):
-        #     observer_distance = (observer_distance * u.AU).to(u.cm)
-        # else:
-        #     observer_distance = observer_distance.to(u.cm)
-
-        flux = thermal_emission(self.energy_edges,
+        flux = thermal_emission(energy_edges,
             temperature,
             emission_measure,
             observer_distance,
-            self.abundance_type,
-            self.relative_abundances
-            )
+            mg,
+            si,
+            s,
+            ar,
+            ca,
+            fe,
+            self.abundance_type)
         
         if hasattr(temperature, "unit"):
             return flux
@@ -404,8 +451,13 @@ def thermal_emission(
     temperature,
     emission_measure,
     observer_distance,
-    abundance_type=DEFAULT_ABUNDANCE_TYPE,
-    relative_abundances=None,
+    mg,
+    si,
+    s,
+    ar,
+    ca,
+    fe,
+    abundance_type=DEFAULT_ABUNDANCE_TYPE
 ):
     f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
 
@@ -440,6 +492,9 @@ def thermal_emission(
 
     if isinstance(observer_distance, Quantity):
         observer_distance = observer_distance.to(u.cm)
+    else:
+        observer_distance = (observer_distance*u.AU).to(u.cm).value
+
 
     energy_range = (
         min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
@@ -455,7 +510,13 @@ def thermal_emission(
     )
     _error_if_input_outside_valid_range(temperature_K.value, temp_range, "temperature", "K")
     # Calculate abundances
-    abundances = _calculate_abundances(abundance_type, relative_abundances)
+    abundances = _calculate_abundances(abundance_type, 
+                                    mg,
+                                    si,
+                                    s,
+                                    ar,
+                                    ca,
+                                    fe)
     # Calculate fluxes.
     continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
     line_flux = _line_emission(energy_edges_keV, temperature_K, abundances)
@@ -984,7 +1045,6 @@ def _weight_emission_bins(
     return new_line_intensities, neighbor_intensities, neighbor_iline
 
 
-# @lru_cache
 def _sanitize_inputs(energy_edges, temperature):
     # Convert inputs to known units and confirm they are within range.
     if energy_edges.isscalar or len(energy_edges) < 2 or energy_edges.ndim > 1:
@@ -996,7 +1056,6 @@ def _sanitize_inputs(energy_edges, temperature):
     return energy_edges_keV, temperature_K
 
 
-# @lru_cache
 def _error_if_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
     if input_values.min() < grid_range[0] or input_values.max() > grid_range[1]:
         if param_name == "temperature":
@@ -1009,7 +1068,6 @@ def _error_if_input_outside_valid_range(input_values, grid_range, param_name, pa
         raise ValueError(message)
 
 
-# @lru_cache
 def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
     if input_values.min() < grid_range[0] or input_values.max() > grid_range[1]:
         message = (
@@ -1030,27 +1088,37 @@ def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, par
 
 
 # @lru_cache
-def _calculate_abundances(abundance_type, relative_abundances):
+def _calculate_abundances(abundance_type, mg, si, s, 
+                          ar,ca,fe):
+    
     abundances = DEFAULT_ABUNDANCES[abundance_type].data
-    if relative_abundances:
-        # Convert input relative abundances to array where
-        # first axis is atomic number, i.e == index + 1
-        # Second axis is relative abundance value.
-        rel_abund_array = np.array(relative_abundances).T
-        # Confirm relative abundances are for valid elements and positive.
-        min_abundance_z = DEFAULT_ABUNDANCES["atomic number"].min()
-        max_abundance_z = DEFAULT_ABUNDANCES["atomic number"].max()
-        if rel_abund_array[0].min() < min_abundance_z or rel_abund_array[0].max() > max_abundance_z:
-            raise ValueError(
-                "Relative abundances can only be set for elements with "
-                f"atomic numbers in range {min_abundance_z} -- {min_abundance_z}"
-            )
-        if rel_abund_array[1].min() < 0:
-            raise ValueError("Relative abundances cannot be negative.")
-        rel_idx = np.rint(rel_abund_array[0]).astype(int) - 1
-        rel_abund_values = np.ones(len(abundances))
-        rel_abund_values[rel_idx] = rel_abund_array[1]
-        abundances *= rel_abund_values
+
+    abundances[12] = mg
+    abundances[14] = si
+    abundances[16] = s
+    abundances[18] = ar
+    abundances[20] = ca
+    abundances[26] = fe
+
+    # if relative_abundances:
+    #     # Convert input relative abundances to array where
+    #     # first axis is atomic number, i.e == index + 1
+    #     # Second axis is relative abundance value.
+    #     rel_abund_array = np.array(relative_abundances).T
+    #     # Confirm relative abundances are for valid elements and positive.
+    #     min_abundance_z = DEFAULT_ABUNDANCES["atomic number"].min()
+    #     max_abundance_z = DEFAULT_ABUNDANCES["atomic number"].max()
+    #     if rel_abund_array[0].min() < min_abundance_z or rel_abund_array[0].max() > max_abundance_z:
+    #         raise ValueError(
+    #             "Relative abundances can only be set for elements with "
+    #             f"atomic numbers in range {min_abundance_z} -- {min_abundance_z}"
+    #         )
+    #     if rel_abund_array[1].min() < 0:
+    #         raise ValueError("Relative abundances cannot be negative.")
+    #     rel_idx = np.rint(rel_abund_array[0]).astype(int) - 1
+    #     rel_abund_values = np.ones(len(abundances))
+    #     rel_abund_values[rel_idx] = rel_abund_array[1]
+    #     abundances *= rel_abund_values
     return abundances
 
 
