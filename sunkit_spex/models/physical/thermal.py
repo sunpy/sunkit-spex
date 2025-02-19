@@ -116,6 +116,13 @@ class ThermalEmission(FittableModel):
         description="Mg relative abundance",
         fixed=True
     )
+
+    al = Parameter(
+        name="Al",
+        default=7.04,
+        description="Al relative abundance",
+        fixed=True
+    )
     
     si = Parameter(
         name="Si",
@@ -160,6 +167,7 @@ class ThermalEmission(FittableModel):
                   emission_measure=u.Quantity(emission_measure.default,emission_measure.unit), 
                   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
                   mg=mg.default,
+                  al=al.default,
                   si=si.default,
                   s=s.default,
                   ar=ar.default,
@@ -176,6 +184,7 @@ class ThermalEmission(FittableModel):
 
         if abundance_type != "sun_coronal_ext":
             mg = 12+np.log10(abundances[11])
+            al = 12+np.log10(abundances[12])
             si = 12+np.log10(abundances[13])
             s = 12+np.log10(abundances[15])
             ar = 12+np.log10(abundances[17])
@@ -183,18 +192,19 @@ class ThermalEmission(FittableModel):
             fe = 12+np.log10(abundances[25])
 
         super().__init__(temperature=temperature,emission_measure=emission_measure,observer_distance=observer_distance,
-                         mg=mg,si=si,s=s,
+                         mg=mg,al=al,si=si,s=s,
                          ar=ar,ca=ca,fe=fe,
                          **kwargs)
 
     def evaluate(self, energy_edges, temperature, emission_measure, observer_distance,
-                 mg,si,s,ar,ca,fe):
+                 mg,al,si,s,ar,ca,fe):
 
         flux = thermal_emission(energy_edges,
             temperature,
             emission_measure,
             observer_distance,
             mg,
+            al,
             si,
             s,
             ar,
@@ -457,6 +467,7 @@ def thermal_emission(
     emission_measure,
     observer_distance,
     mg,
+    al,
     si,
     s,
     ar,
@@ -493,6 +504,7 @@ def thermal_emission(
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, 
                                     mg,
+                                    al,
                                     si,
                                     s,
                                     ar,
@@ -1082,12 +1094,13 @@ def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, par
         raise ValueError(message)
 
 
-def _calculate_abundances(abundance_type, mg, si, s, 
+def _calculate_abundances(abundance_type, mg, al, si, s, 
                           ar,ca,fe):
     
     abundances = DEFAULT_ABUNDANCES[abundance_type].data
 
     abundances[11] = 10**(mg-12)
+    abundances[12] = 10**(al-12)
     abundances[13] = 10**(si-12)
     abundances[15] = 10**(s-12)
     abundances[17] = 10**(ar-12)
