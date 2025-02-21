@@ -592,34 +592,34 @@ def test_line_emission_against_ssw(ssw):
 
 def test_scalar_energy_input():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.thermal_emission(10 * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+        thermal.thermal_emission(10 * u.keV, 6 * u.MK, 1e44 / u.cm**3, 1*u.AU)
 
 
 def test_len1_energy_input():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.thermal_emission([10] * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+        thermal.thermal_emission([10] * u.keV, 6 * u.MK, 1e44 / u.cm**3, 1*u.AU)
 
 
 def test_energy_out_of_range_error():
     with pytest.raises(ValueError, match="All input energy values must be within the range"):
-        thermal.thermal_emission([0.01, 10] * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+        thermal.thermal_emission([0.01, 10] * u.keV, 6 * u.MK, 1e44 / u.cm**3, 1*u.AU)
 
 
 def test_temperature_out_of_range_error():
     with pytest.raises(ValueError, match="All input temperature values must be within the range"):
-        thermal.thermal_emission([5, 10] * u.keV, 0.1 * u.MK, 1e44 / u.cm**3)
+        thermal.thermal_emission([5, 10] * u.keV, 0.1 * u.MK, 1e44 / u.cm**3, 1*u.AU)
 
 
 def test_relative_abundance_negative_input():
     with pytest.raises(ValueError, match="Relative abundances cannot be negative."):
-        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, relative_abundances=((26, -1)))
+        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, 1*u.AU, relative_abundances=((26, -1)))
 
 
 def test_relative_abundance_invalid_atomic_number_input():
     with pytest.raises(
         ValueError, match="Relative abundances can only be set for elements with atomic numbers in range"
     ):
-        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, relative_abundances=((100, 1)))
+        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, 1*u.AU, relative_abundances=((100, 1)))
 
 
 def test_energy_out_of_range_warning():
@@ -629,3 +629,35 @@ def test_energy_out_of_range_warning():
         # Trigger a warning.
         output = thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3)  # noqa
         assert issubclass(w[0].category, UserWarning)
+
+
+def test_continuum_energy_out_of_range():
+    with pytest.raises(ValueError):
+        # Use an energy range that goes out of bounds
+        # on the lower end--should error
+        _ = thermal.continuum_emission(np.arange(0.1, 28, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        # The continuum emission should only warn if we go out of
+        # bounds on the upper end.
+        _ = thermal.continuum_emission(np.arange(10, 1000, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+        assert issubclass(w[0].category, UserWarning)
+
+
+def test_empty_flux_out_of_range():
+    """The CHIANTI grid covers ~1 to 300 keV, but the values greater than
+    of the grid max energy should all be zeros."""
+    energy_edges = np.geomspace(10, 800, num=1000) << u.keV
+    midpoints = energy_edges[:-1] + np.diff(energy_edges) / 2
+
+    temperature = 20 << u.MK
+    em = 1e49 << u.cm**-3
+    observer_distance = (1 * u.AU).to(u.cm)
+
+    flux = thermal.thermal_emission(energy_edges, temperature, em, observer_distance)
+    # the continuum is the one we need to check
+    max_e = thermal.CONTINUUM_GRID["energy range keV"][1] << u.keV
+    should_be_zeros = midpoints >= max_e
+
+    true_zero = 0 * (hopefully_zero := flux[should_be_zeros])
+    np.testing.assert_allclose(true_zero, hopefully_zero)
