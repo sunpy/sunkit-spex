@@ -24,12 +24,12 @@ logging = logging.getLogger(__name__)
 
 __all__ = [
     "BrokenPowerLawElectronDistribution",
-    "collisional_loss",
     "_get_integrand",
     "_integrate_part",
     "_split_and_integrate",
-    "bremsstrahlung_thin_target",
     "bremsstrahlung_thick_target",
+    "bremsstrahlung_thin_target",
+    "collisional_loss",
 ]
 
 
@@ -525,7 +525,7 @@ def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, eelow, eebrk, 
     clight = const.get_constant("clight")
 
     if not eelow <= eebrk <= eehigh:
-        raise ValueError(f"Condition eelow <= eebrek <= eehigh not satisfied " f"({eelow}<={eebrk}<={eehigh}).")
+        raise ValueError(f"Condition eelow <= eebrek <= eehigh not satisfied ({eelow}<={eebrk}<={eehigh}).")
 
     # Create arrays for integral sums and error flags.
     intsum1 = np.zeros_like(photon_energies, dtype=np.float64)
@@ -740,7 +740,7 @@ def bremsstrahlung_thin_target(photon_energies, p, eebrk, q, eelow, eehigh, efd=
         flux *= fcoeff
 
         return flux
-    raise Warning("The photon energies are higher than the highest electron energy or not " "greater than zero")
+    raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
 
 
 def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, integrator=None):
@@ -835,4 +835,4 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, int
 
         return (fcoeff / decoeff) * flux
 
-    raise Warning("The photon energies are higher than the highest electron energy or not " "greater than zero")
+    raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
