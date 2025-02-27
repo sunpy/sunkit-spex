@@ -40,7 +40,7 @@ def test_MatrixModel():
     """Test the matrix model contents and compound model behaviour."""
     size0 = 3
     srm0 = simulate_square_response_matrix(size0)
-    srm_model0 = MatrixModel(matrix=srm0)
+    srm_model0 = MatrixModel(matrix=srm0, c=1, input_axis=None, output_axis=None)
 
     assert_array_equal(srm_model0.matrix, srm0)
 
