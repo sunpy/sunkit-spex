@@ -44,6 +44,8 @@ References
 __all__ = [
     "ThickTarget",
     "ThinTarget",
+    "thick_fn",
+    "thin_fn",
     "BrokenPowerLawElectronDistribution",
     "_get_integrand",
     "_integrate_part",
@@ -99,7 +101,14 @@ class ThickTarget(FittableModel):
         fixed=True
     )
 
-    input_units_equivalencies = {'keV': u.spectral(),'K':u.temperature_energy()}
+    total_eflux = Parameter(
+        name="total_eflux",
+        default=1.5,
+        unit=u.electron*u.s**-1,
+        description="Total electron flux",
+        fixed=True
+    )
+
     _input_units_allow_dimensionless = True
 
     def __init__(self,
@@ -108,6 +117,7 @@ class ThickTarget(FittableModel):
                   q=q.default, 
                   eelow=u.Quantity(eelow.default,eelow.unit),
                   eehigh=u.Quantity(eehigh.default,eehigh.unit),
+                  total_eflux = u.Quantity(total_eflux.default,total_eflux.unit),
                   integrator=None,
                    **kwargs):
 
@@ -118,6 +128,7 @@ class ThickTarget(FittableModel):
                   q=q,
                   eelow=eelow,
                   eehigh=eehigh,
+                  total_eflux=total_eflux,
                   **kwargs)
 
     def evaluate(self, energy_edges,
@@ -125,29 +136,130 @@ class ThickTarget(FittableModel):
                   eebrk,
                   q,
                   eelow,
-                  eehigh):
+                  eehigh,
+                  total_eflux):
         
         energy_centers = energy_edges[:-1] + np.diff(energy_edges)
 
-        flux = bremsstrahlung_thick_target(energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, self.integrator)
-
+        flux = thick_fn(energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value, self.integrator)
 
         if hasattr(eebrk, "unit"):
             return flux
         else:
             return flux.value
 
-    # @property
-    # def input_units(self):
-    #     # The units for the 'energy_edges' variable should be an energy (default keV)
-    #     return {self.inputs[0]: u.keV}
+    @property
+    def input_units(self):
+        # The units for the 'energy_edges' variable should be an energy (default keV)
+        return {self.inputs[0]: u.keV}
 
-    # @property
-    # def return_units(self):
-    #     return {self.outputs[0]: u.ph / u.keV * u.s**-1 *u.cm**-2}
+    @property
+    def return_units(self):
+        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1 *u.cm**-2}
 
-    # def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-    #     return {"eebrk":u.keV,"eelow":u.keV,"eehigh":u.keV}
+    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        return {"eebrk":u.keV,"eelow":u.keV,"eehigh":u.keV,"total_eflux":u.electron*u.s**-1}
+
+
+
+def thick_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, integrator):
+    """Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
+
+    [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
+    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
+    [3] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro
+
+    Parameters
+    ----------
+    energies : 2d array
+            Array of energy bins for the model to be calculated over.
+            E.g., [[1,1.5],[1.5,2],[2,2.5],...].
+
+    total_eflux : int or float
+            Total integrated electron flux, in units of 10^35 e^- s^-1.
+
+    index : int or float
+            Power-law index of the electron distribution.
+
+    e_c : int or float
+            Low-energy cut-off of the electron distribution in units of keV.
+
+    Returns
+    -------
+    A 1d array of thick-target bremsstrahlung radiation in units
+    of ph s^-1 cm^-2 keV^-1.
+    """
+
+    # hack = np.round([p, eebrk, q, eelow, eehigh, total_eflux], 15)
+    # p, eebrk, q, eelow, eehigh, total_eflux = hack[0], hack[1], hack[2], hack[3], hack[4], hack[5]
+
+    # energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
+
+    # we want a single power law electron distribution,
+    # so set eebrk == eehigh at a high value.
+    # we don't care about q at E > eebrk.
+    # high_break = energies.max() * 10
+
+    output = bremsstrahlung_thick_target(energy_centers, p, eebrk, q, eelow, eehigh, integrator)
+
+    # output[np.isnan(output)] = 0
+    # output[~np.isfinite(output)] = 0
+
+    # print(output)
+
+    # convert to 1e35 e-/s
+    return output * total_eflux * 1e35
+
+
+
+
+
+def thin_fn(total_eflux, index, e_c, energies=None):
+    """Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
+
+    [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
+    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
+    [3] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro
+
+    Parameters
+    ----------
+    energies : 2d array
+            Array of energy bins for the model to be calculated over.
+            E.g., [[1,1.5],[1.5,2],[2,2.5],...].
+
+    total_eflux : int or float
+            Total integrated electron flux, in units of 10^35 e^- s^-1.
+
+    index : int or float
+            Power-law index of the electron distribution.
+
+    e_c : int or float
+            Low-energy cut-off of the electron distribution in units of keV.
+
+    Returns
+    -------
+    A 1d array of thick-target bremsstrahlung radiation in units
+    of ph s^-1 cm^-2 keV^-1.
+    """
+
+    hack = np.round([total_eflux, index, e_c], 15)
+    total_eflux, index, e_c = hack[0], hack[1], hack[2]
+
+    energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
+
+    # we want a single power law electron distribution,
+    # so set eebrk == eehigh at a high value.
+    # we don't care about q at E > eebrk.
+    high_break = energies.max() * 10
+    output = bremsstrahlung_thin_target(
+        photon_energies=energies, p=index, eebrk=high_break, q=20, eelow=e_c, eehigh=high_break
+    )
+
+    output[np.isnan(output)] = 0
+    output[~np.isfinite(output)] = 0
+
+    # convert to 1e35 e-/s
+    return output * total_eflux * 1e35
 
 
 
