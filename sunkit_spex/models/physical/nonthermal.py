@@ -71,7 +71,7 @@ class ThickTarget(FittableModel):
     
     eebrk = Parameter(
         name="eebrk",
-        default=15, 
+        default=100, 
         unit=u.keV,
         description="Break Energy", 
         fixed=False
@@ -90,12 +90,12 @@ class ThickTarget(FittableModel):
         default=7,
         unit=u.keV,
         description="Low energy electron cut off",
-        fixed=True
+        fixed=False
     )
 
     eehigh = Parameter(
         name="eehigh",
-        default=150,
+        default=1500,
         unit=u.keV,
         description="High energy electron cut off",
         fixed=True
@@ -139,14 +139,17 @@ class ThickTarget(FittableModel):
                   eehigh,
                   total_eflux):
         
-        energy_centers = energy_edges[:-1] + np.diff(energy_edges)
+        energy_centers = energy_edges[:-1]
 
-        flux = thick_fn(energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value, self.integrator)
-
-        if hasattr(eebrk, "unit"):
-            return flux
+        if hasattr(eebrk, "unit") or hasattr(energy_centers, "unit") or hasattr(eelow, "unit") or hasattr(eehigh, "unit") or hasattr(total_eflux, "unit"):
+            flux = thick_fn(energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value, self.integrator)
         else:
-            return flux.value
+            flux = thick_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, self.integrator)
+
+        # if hasattr(eebrk, "unit"):
+        #     return flux
+        # else:
+        return flux
 
     @property
     def input_units(self):
@@ -1067,5 +1070,4 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, int
         return (fcoeff / decoeff) * flux
 
     raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
-
 
