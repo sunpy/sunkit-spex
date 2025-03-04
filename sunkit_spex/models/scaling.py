@@ -29,12 +29,7 @@ class DistanceScale(FittableModel):
 
     _input_units_allow_dimensionless = True
 
-    # def __init__(self, *args, **kwargs):
-    #     self.energy_edges = kwargs.pop("energy_edges")
-
-    #     super().__init__(*args, **kwargs)
-
-    def evaluate(spectrum, observer_distance):
+    def evaluate(self, spectrum, observer_distance):
 
         spectrum_distance_corrected = distance_correction(spectrum, observer_distance) 
 
@@ -42,8 +37,6 @@ class DistanceScale(FittableModel):
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"observer_distance": u.AU}
-
-
 
 class Constant(FittableModel):
 
@@ -64,11 +57,14 @@ class Constant(FittableModel):
         return spectrum * constant
 
 
-
 def distance_correction(spectrum, observer_distance):
 
-    AU_distance_cm = 1*u.AU.to(u.cm)
-    observer_distance_cm = observer_distance.to(u.cm)
+    if isinstance(observer_distance, Quantity):
+        AU_distance_cm = 1*u.AU.to(u.cm)
+        observer_distance_cm = observer_distance.to(u.cm)
+    else:
+        AU_distance_cm = 1.496e+13
+        observer_distance_cm = observer_distance * AU_distance_cm
 
     scale = AU_distance_cm**2 / observer_distance_cm**2
 
