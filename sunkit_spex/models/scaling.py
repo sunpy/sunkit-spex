@@ -52,7 +52,7 @@ class Constant(FittableModel):
 
     _input_units_allow_dimensionless = True
 
-    def evaluate(spectrum, constant):
+    def evaluate(self, spectrum, constant):
 
         return spectrum * constant
 
