@@ -592,34 +592,34 @@ def test_line_emission_against_ssw(ssw):
 
 def test_scalar_energy_input():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.thermal_emission(10 * u.keV, 6 * u.MK, 1e44 / u.cm**3, 1*u.AU)
+        thermal.thermal_emission(10 * u.keV, 6 * u.MK, 1e44 / u.cm**3, 1 * u.AU)
 
 
 def test_len1_energy_input():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.thermal_emission([10] * u.keV, 6 * u.MK, 1e44 / u.cm**3, 1*u.AU)
+        thermal.thermal_emission([10] * u.keV, 6 * u.MK, 1e44 / u.cm**3, 1 * u.AU)
 
 
 def test_energy_out_of_range_error():
     with pytest.raises(ValueError, match="All input energy values must be within the range"):
-        thermal.thermal_emission([0.01, 10] * u.keV, 6 * u.MK, 1e44 / u.cm**3, 1*u.AU)
+        thermal.thermal_emission([0.01, 10] * u.keV, 6 * u.MK, 1e44 / u.cm**3, 1 * u.AU)
 
 
 def test_temperature_out_of_range_error():
     with pytest.raises(ValueError, match="All input temperature values must be within the range"):
-        thermal.thermal_emission([5, 10] * u.keV, 0.1 * u.MK, 1e44 / u.cm**3, 1*u.AU)
+        thermal.thermal_emission([5, 10] * u.keV, 0.1 * u.MK, 1e44 / u.cm**3, 1 * u.AU)
 
 
 def test_relative_abundance_negative_input():
     with pytest.raises(ValueError, match="Relative abundances cannot be negative."):
-        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, 1*u.AU, relative_abundances=((26, -1)))
+        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, 1 * u.AU, relative_abundances=((26, -1)))
 
 
 def test_relative_abundance_invalid_atomic_number_input():
     with pytest.raises(
         ValueError, match="Relative abundances can only be set for elements with atomic numbers in range"
     ):
-        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, 1*u.AU, relative_abundances=((100, 1)))
+        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, 1 * u.AU, relative_abundances=((100, 1)))
 
 
 def test_energy_out_of_range_warning():

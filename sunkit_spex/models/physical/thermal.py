@@ -5,14 +5,11 @@ import numpy as np
 from scipy import interpolate, stats
 
 import astropy.units as u
+from astropy.constants import au
 from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
-from sunpy.data import cache
-
 from sunpy.data import manager
-
-from astropy.constants import au
 
 from sunkit_spex.models.physical.io import (
     load_chianti_continuum,
@@ -21,15 +18,15 @@ from sunkit_spex.models.physical.io import (
 )
 
 __all__ = [
-    "ThermalEmission",
     "ContinuumEmission",
     "LineEmission",
-    "thermal_emission",
+    "ThermalEmission",
     "continuum_emission",
     "line_emission",
     "setup_continuum_parameters",
-    "setup_line_parameters",
     "setup_default_abundances",
+    "setup_line_parameters",
+    "thermal_emission",
 ]
 
 doc_string_params = """
@@ -81,12 +78,13 @@ flux: `astropy.units.Quantity`
     The photon flux as a function of temperature and energy.
 """
 
+
 class ThermalEmission(FittableModel):
-    r"""
-    """
+    r""" """
+
     n_inputs = 1
     n_outputs = 1
-    
+
     temperature = Parameter(
         name="temperature",
         default=1e7,
@@ -96,15 +94,15 @@ class ThermalEmission(FittableModel):
         description="Temperature of the plasma",
         fixed=False,
     )
-    
+
     emission_measure = Parameter(
         name="emission_measure",
-        default=1e50, 
+        default=1e50,
         unit=(u.cm ** (-3)),
-        description="Emission measure of the observer", 
-        fixed=False
+        description="Emission measure of the observer",
+        fixed=False,
     )
-    
+
     # observer_distance = Parameter(
     #     name="observer_distance",
     #     default=1,
@@ -114,97 +112,81 @@ class ThermalEmission(FittableModel):
     #     fixed=True
     # )
 
-    mg = Parameter(
-        name="Mg",
-        default=8.15,
-        description="Mg relative abundance",
-        fixed=True
-    )
+    mg = Parameter(name="Mg", default=8.15, description="Mg relative abundance", fixed=True)
 
-    al = Parameter(
-        name="Al",
-        default=7.04,
-        description="Al relative abundance",
-        fixed=True
-    )
-    
-    si = Parameter(
-        name="Si",
-        default=8.1,
-        description="Si relative abundance",
-        fixed=True
-    )
+    al = Parameter(name="Al", default=7.04, description="Al relative abundance", fixed=True)
 
-    s = Parameter(
-        name="S",
-        default=7.27,
-        description="S relative abundance",
-        fixed=True
-    )
-    
-    ar = Parameter(
-        name="Ar",
-        default=6.58,
-        description="Ar relative abundance",
-        fixed=True
-    )
-    
-    ca = Parameter(
-        name="Ca",
-        default=6.93,
-        description="Ca relative abundance",
-        fixed=True
-    )
-    
-    fe = Parameter(
-        name="Fe",
-        default=8.1,
-        description="Fe relative abundance",
-        fixed=True
-    )
+    si = Parameter(name="Si", default=8.1, description="Si relative abundance", fixed=True)
 
-    input_units_equivalencies = {'keV': u.spectral(),'K':u.temperature_energy()}
+    s = Parameter(name="S", default=7.27, description="S relative abundance", fixed=True)
+
+    ar = Parameter(name="Ar", default=6.58, description="Ar relative abundance", fixed=True)
+
+    ca = Parameter(name="Ca", default=6.93, description="Ca relative abundance", fixed=True)
+
+    fe = Parameter(name="Fe", default=8.1, description="Fe relative abundance", fixed=True)
+
+    input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
-    def __init__(self,
-                  temperature=u.Quantity(temperature.default,temperature.unit), 
-                  emission_measure=u.Quantity(emission_measure.default,emission_measure.unit), 
-                #   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
-                  mg=mg.default,
-                  al=al.default,
-                  si=si.default,
-                  s=s.default,
-                  ar=ar.default,
-                  ca=ca.default,
-                  fe=fe.default,
-                  abundance_type="sun_coronal_ext",
-                 **kwargs):
-
+    def __init__(
+        self,
+        temperature=u.Quantity(temperature.default, temperature.unit),
+        emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
+        #   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
+        mg=mg.default,
+        al=al.default,
+        si=si.default,
+        s=s.default,
+        ar=ar.default,
+        ca=ca.default,
+        fe=fe.default,
+        abundance_type="sun_coronal_ext",
+        **kwargs,
+    ):
         self.abundance_type = abundance_type
 
         if abundance_type != "sun_coronal_ext":
-
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
 
-            mg = 12+np.log10(abundances[11])
-            al = 12+np.log10(abundances[12])
-            si = 12+np.log10(abundances[13])
-            s = 12+np.log10(abundances[15])
-            ar = 12+np.log10(abundances[17])
-            ca = 12+np.log10(abundances[19])
-            fe = 12+np.log10(abundances[25])
+            mg = 12 + np.log10(abundances[11])
+            al = 12 + np.log10(abundances[12])
+            si = 12 + np.log10(abundances[13])
+            s = 12 + np.log10(abundances[15])
+            ar = 12 + np.log10(abundances[17])
+            ca = 12 + np.log10(abundances[19])
+            fe = 12 + np.log10(abundances[25])
 
-        super().__init__(temperature=temperature,emission_measure=emission_measure,
-                        #  observer_distance=observer_distance,
-                         mg=mg,al=al,si=si,s=s,
-                         ar=ar,ca=ca,fe=fe,
-                         **kwargs)
+        super().__init__(
+            temperature=temperature,
+            emission_measure=emission_measure,
+            #  observer_distance=observer_distance,
+            mg=mg,
+            al=al,
+            si=si,
+            s=s,
+            ar=ar,
+            ca=ca,
+            fe=fe,
+            **kwargs,
+        )
 
-    def evaluate(self, energy_edges, temperature, emission_measure, 
-                #  observer_distance,
-                 mg,al,si,s,ar,ca,fe):
-
-        flux = thermal_emission(energy_edges,
+    def evaluate(
+        self,
+        energy_edges,
+        temperature,
+        emission_measure,
+        #  observer_distance,
+        mg,
+        al,
+        si,
+        s,
+        ar,
+        ca,
+        fe,
+    ):
+        flux = thermal_emission(
+            energy_edges,
             temperature,
             emission_measure,
             # observer_distance,
@@ -215,12 +197,12 @@ class ThermalEmission(FittableModel):
             ar,
             ca,
             fe,
-            self.abundance_type)
-        
+            self.abundance_type,
+        )
+
         if hasattr(temperature, "unit"):
             return flux
-        else:
-            return flux.value
+        return flux.value
 
     @property
     def input_units(self):
@@ -229,20 +211,19 @@ class ThermalEmission(FittableModel):
 
     @property
     def return_units(self):
-        return {self.outputs[0]: u.ph / u.keV * u.s**-1 *u.cm**-2}
-
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         # return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
-        return {"temperature": u.K,"emission_measure":(u.cm ** (-3))}
-    
+        return {"temperature": u.K, "emission_measure": (u.cm ** (-3))}
+
 
 class ContinuumEmission(FittableModel):
-    r"""
-    """
+    r""" """
+
     n_inputs = 1
     n_outputs = 1
-    
+
     temperature = Parameter(
         name="temperature",
         default=1e7,
@@ -252,15 +233,15 @@ class ContinuumEmission(FittableModel):
         description="Temperature of the plasma",
         fixed=False,
     )
-    
+
     emission_measure = Parameter(
         name="emission_measure",
-        default=1e50, 
+        default=1e50,
         unit=(u.cm ** (-3)),
-        description="Emission measure of the observer", 
-        fixed=False
+        description="Emission measure of the observer",
+        fixed=False,
     )
-    
+
     # observer_distance = Parameter(
     #     name="observer_distance",
     #     default=1,
@@ -270,97 +251,81 @@ class ContinuumEmission(FittableModel):
     #     fixed=True
     # )
 
-    mg = Parameter(
-        name="Mg",
-        default=8.15,
-        description="Mg relative abundance",
-        fixed=True
-    )
+    mg = Parameter(name="Mg", default=8.15, description="Mg relative abundance", fixed=True)
 
-    al = Parameter(
-        name="Al",
-        default=7.04,
-        description="Al relative abundance",
-        fixed=True
-    )
-    
-    si = Parameter(
-        name="Si",
-        default=8.1,
-        description="Si relative abundance",
-        fixed=True
-    )
+    al = Parameter(name="Al", default=7.04, description="Al relative abundance", fixed=True)
 
-    s = Parameter(
-        name="S",
-        default=7.27,
-        description="S relative abundance",
-        fixed=True
-    )
-    
-    ar = Parameter(
-        name="Ar",
-        default=6.58,
-        description="Ar relative abundance",
-        fixed=True
-    )
-    
-    ca = Parameter(
-        name="Ca",
-        default=6.93,
-        description="Ca relative abundance",
-        fixed=True
-    )
-    
-    fe = Parameter(
-        name="Fe",
-        default=8.1,
-        description="Fe relative abundance",
-        fixed=True
-    )
+    si = Parameter(name="Si", default=8.1, description="Si relative abundance", fixed=True)
 
-    input_units_equivalencies = {'keV': u.spectral(),'K':u.temperature_energy()}
+    s = Parameter(name="S", default=7.27, description="S relative abundance", fixed=True)
+
+    ar = Parameter(name="Ar", default=6.58, description="Ar relative abundance", fixed=True)
+
+    ca = Parameter(name="Ca", default=6.93, description="Ca relative abundance", fixed=True)
+
+    fe = Parameter(name="Fe", default=8.1, description="Fe relative abundance", fixed=True)
+
+    input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
-    def __init__(self,
-                  temperature=u.Quantity(temperature.default,temperature.unit), 
-                  emission_measure=u.Quantity(emission_measure.default,emission_measure.unit), 
-                #   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
-                  mg=mg.default,
-                  al=al.default,
-                  si=si.default,
-                  s=s.default,
-                  ar=ar.default,
-                  ca=ca.default,
-                  fe=fe.default,
-                  abundance_type="sun_coronal_ext",
-                 **kwargs):
-
+    def __init__(
+        self,
+        temperature=u.Quantity(temperature.default, temperature.unit),
+        emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
+        #   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
+        mg=mg.default,
+        al=al.default,
+        si=si.default,
+        s=s.default,
+        ar=ar.default,
+        ca=ca.default,
+        fe=fe.default,
+        abundance_type="sun_coronal_ext",
+        **kwargs,
+    ):
         self.abundance_type = abundance_type
 
         if abundance_type != "sun_coronal_ext":
-
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
 
-            mg = 12+np.log10(abundances[11])
-            al = 12+np.log10(abundances[12])
-            si = 12+np.log10(abundances[13])
-            s = 12+np.log10(abundances[15])
-            ar = 12+np.log10(abundances[17])
-            ca = 12+np.log10(abundances[19])
-            fe = 12+np.log10(abundances[25])
+            mg = 12 + np.log10(abundances[11])
+            al = 12 + np.log10(abundances[12])
+            si = 12 + np.log10(abundances[13])
+            s = 12 + np.log10(abundances[15])
+            ar = 12 + np.log10(abundances[17])
+            ca = 12 + np.log10(abundances[19])
+            fe = 12 + np.log10(abundances[25])
 
-        super().__init__(temperature=temperature,emission_measure=emission_measure,
-                        #  observer_distance=observer_distance,
-                         mg=mg,al=al,si=si,s=s,
-                         ar=ar,ca=ca,fe=fe,
-                         **kwargs)
+        super().__init__(
+            temperature=temperature,
+            emission_measure=emission_measure,
+            #  observer_distance=observer_distance,
+            mg=mg,
+            al=al,
+            si=si,
+            s=s,
+            ar=ar,
+            ca=ca,
+            fe=fe,
+            **kwargs,
+        )
 
-    def evaluate(self, energy_edges, temperature, emission_measure, 
-                #  observer_distance,
-                 mg,al,si,s,ar,ca,fe):
-
-        flux = continuum_emission(energy_edges,
+    def evaluate(
+        self,
+        energy_edges,
+        temperature,
+        emission_measure,
+        #  observer_distance,
+        mg,
+        al,
+        si,
+        s,
+        ar,
+        ca,
+        fe,
+    ):
+        flux = continuum_emission(
+            energy_edges,
             temperature,
             emission_measure,
             # observer_distance,
@@ -371,12 +336,12 @@ class ContinuumEmission(FittableModel):
             ar,
             ca,
             fe,
-            self.abundance_type)
-        
+            self.abundance_type,
+        )
+
         if hasattr(temperature, "unit"):
             return flux
-        else:
-            return flux.value
+        return flux.value
 
     @property
     def input_units(self):
@@ -385,21 +350,19 @@ class ContinuumEmission(FittableModel):
 
     @property
     def return_units(self):
-        return {self.outputs[0]: u.ph / u.keV * u.s**-1 *u.cm**-2}
-
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         # return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
-        return {"temperature": u.K,"emission_measure":(u.cm ** (-3))}
- 
+        return {"temperature": u.K, "emission_measure": (u.cm ** (-3))}
 
 
 class LineEmission(FittableModel):
-    r"""
-    """
+    r""" """
+
     n_inputs = 1
     n_outputs = 1
-    
+
     temperature = Parameter(
         name="temperature",
         default=1e7,
@@ -409,15 +372,15 @@ class LineEmission(FittableModel):
         description="Temperature of the plasma",
         fixed=False,
     )
-    
+
     emission_measure = Parameter(
         name="emission_measure",
-        default=1e50, 
+        default=1e50,
         unit=(u.cm ** (-3)),
-        description="Emission measure of the observer", 
-        fixed=False
+        description="Emission measure of the observer",
+        fixed=False,
     )
-    
+
     # observer_distance = Parameter(
     #     name="observer_distance",
     #     default=1,
@@ -427,97 +390,81 @@ class LineEmission(FittableModel):
     #     fixed=True
     # )
 
-    mg = Parameter(
-        name="Mg",
-        default=8.15,
-        description="Mg relative abundance",
-        fixed=True
-    )
+    mg = Parameter(name="Mg", default=8.15, description="Mg relative abundance", fixed=True)
 
-    al = Parameter(
-        name="Al",
-        default=7.04,
-        description="Al relative abundance",
-        fixed=True
-    )
-    
-    si = Parameter(
-        name="Si",
-        default=8.1,
-        description="Si relative abundance",
-        fixed=True
-    )
+    al = Parameter(name="Al", default=7.04, description="Al relative abundance", fixed=True)
 
-    s = Parameter(
-        name="S",
-        default=7.27,
-        description="S relative abundance",
-        fixed=True
-    )
-    
-    ar = Parameter(
-        name="Ar",
-        default=6.58,
-        description="Ar relative abundance",
-        fixed=True
-    )
-    
-    ca = Parameter(
-        name="Ca",
-        default=6.93,
-        description="Ca relative abundance",
-        fixed=True
-    )
-    
-    fe = Parameter(
-        name="Fe",
-        default=8.1,
-        description="Fe relative abundance",
-        fixed=True
-    )
+    si = Parameter(name="Si", default=8.1, description="Si relative abundance", fixed=True)
 
-    input_units_equivalencies = {'keV': u.spectral(),'K':u.temperature_energy()}
+    s = Parameter(name="S", default=7.27, description="S relative abundance", fixed=True)
+
+    ar = Parameter(name="Ar", default=6.58, description="Ar relative abundance", fixed=True)
+
+    ca = Parameter(name="Ca", default=6.93, description="Ca relative abundance", fixed=True)
+
+    fe = Parameter(name="Fe", default=8.1, description="Fe relative abundance", fixed=True)
+
+    input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
-    def __init__(self,
-                  temperature=u.Quantity(temperature.default,temperature.unit), 
-                  emission_measure=u.Quantity(emission_measure.default,emission_measure.unit), 
-                #   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
-                  mg=mg.default,
-                  al=al.default,
-                  si=si.default,
-                  s=s.default,
-                  ar=ar.default,
-                  ca=ca.default,
-                  fe=fe.default,
-                  abundance_type="sun_coronal_ext",
-                 **kwargs):
-
+    def __init__(
+        self,
+        temperature=u.Quantity(temperature.default, temperature.unit),
+        emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
+        #   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
+        mg=mg.default,
+        al=al.default,
+        si=si.default,
+        s=s.default,
+        ar=ar.default,
+        ca=ca.default,
+        fe=fe.default,
+        abundance_type="sun_coronal_ext",
+        **kwargs,
+    ):
         self.abundance_type = abundance_type
 
         if abundance_type != "sun_coronal_ext":
-
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
 
-            mg = 12+np.log10(abundances[11])
-            al = 12+np.log10(abundances[12])
-            si = 12+np.log10(abundances[13])
-            s = 12+np.log10(abundances[15])
-            ar = 12+np.log10(abundances[17])
-            ca = 12+np.log10(abundances[19])
-            fe = 12+np.log10(abundances[25])
+            mg = 12 + np.log10(abundances[11])
+            al = 12 + np.log10(abundances[12])
+            si = 12 + np.log10(abundances[13])
+            s = 12 + np.log10(abundances[15])
+            ar = 12 + np.log10(abundances[17])
+            ca = 12 + np.log10(abundances[19])
+            fe = 12 + np.log10(abundances[25])
 
-        super().__init__(temperature=temperature,emission_measure=emission_measure,
-                        #  observer_distance=observer_distance,
-                         mg=mg,al=al,si=si,s=s,
-                         ar=ar,ca=ca,fe=fe,
-                         **kwargs)
+        super().__init__(
+            temperature=temperature,
+            emission_measure=emission_measure,
+            #  observer_distance=observer_distance,
+            mg=mg,
+            al=al,
+            si=si,
+            s=s,
+            ar=ar,
+            ca=ca,
+            fe=fe,
+            **kwargs,
+        )
 
-    def evaluate(self, energy_edges, temperature, emission_measure, 
-                #  observer_distance,
-                 mg,al,si,s,ar,ca,fe):
-
-        flux = line_emission(energy_edges,
+    def evaluate(
+        self,
+        energy_edges,
+        temperature,
+        emission_measure,
+        #  observer_distance,
+        mg,
+        al,
+        si,
+        s,
+        ar,
+        ca,
+        fe,
+    ):
+        flux = line_emission(
+            energy_edges,
             temperature,
             emission_measure,
             # observer_distance,
@@ -528,12 +475,12 @@ class LineEmission(FittableModel):
             ar,
             ca,
             fe,
-            self.abundance_type)
-        
+            self.abundance_type,
+        )
+
         if hasattr(temperature, "unit"):
             return flux
-        else:
-            return flux.value
+        return flux.value
 
     @property
     def input_units(self):
@@ -542,13 +489,11 @@ class LineEmission(FittableModel):
 
     @property
     def return_units(self):
-        return {self.outputs[0]: u.ph / u.keV * u.s**-1 *u.cm**-2}
-
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         # return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
-        return {"temperature": u.K,"emission_measure":(u.cm ** (-3))}
- 
+        return {"temperature": u.K, "emission_measure": (u.cm ** (-3))}
 
 
 def setup_continuum_parameters(filename=None):
@@ -688,7 +633,7 @@ def thermal_emission(
     ar,
     ca,
     fe,
-    abundance_type=DEFAULT_ABUNDANCE_TYPE
+    abundance_type=DEFAULT_ABUNDANCE_TYPE,
 ):
     f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
 
@@ -718,14 +663,7 @@ def thermal_emission(
     )
     _error_if_input_outside_valid_range(temperature_K.value, temp_range, "temperature", "K")
     # Calculate abundances
-    abundances = _calculate_abundances(abundance_type, 
-                                    mg,
-                                    al,
-                                    si,
-                                    s,
-                                    ar,
-                                    ca,
-                                    fe)
+    abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
     # Calculate fluxes.
 
     if hasattr(temperature, "unit"):
@@ -757,7 +695,7 @@ def continuum_emission(
     ar,
     ca,
     fe,
-    abundance_type=DEFAULT_ABUNDANCE_TYPE
+    abundance_type=DEFAULT_ABUNDANCE_TYPE,
 ):
     f"""Calculate the thermal X-ray continuum emission from the solar atmosphere.
 
@@ -781,7 +719,7 @@ def continuum_emission(
     _warn_if_input_outside_valid_range(energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV")
     _error_if_input_outside_valid_range(temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
-    abundances = _calculate_abundances(abundance_type,  mg, al, si, s, ar, ca, fe)
+    abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
     # Calculate flux.
     flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
 
@@ -811,7 +749,7 @@ def line_emission(
     ar,
     ca,
     fe,
-    abundance_type=DEFAULT_ABUNDANCE_TYPE
+    abundance_type=DEFAULT_ABUNDANCE_TYPE,
 ):
     """
     Calculate thermal line emission from the solar corona.
@@ -832,7 +770,7 @@ def line_emission(
     _warn_if_input_outside_valid_range(energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV")
     _error_if_input_outside_valid_range(temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
-    abundances = _calculate_abundances(abundance_type,  mg, al, si, s, ar, ca, fe)
+    abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
 
     if hasattr(temperature, "unit"):
         observer_distance = au.to(u.cm)
@@ -879,10 +817,10 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
         log10T_in = np.log10(temperature_K)
         T_in_keV = temperature_K / 11604518  # Convert temperature from K to keV.
         # energy_edges_keV = energy_edges_keV.value
-    
+
     # Get energy bins centers based on geometric mean.
     energy_gmean_keV = stats.gmean(np.vstack((energy_edges_keV[:-1], energy_edges_keV[1:])))
-     
+
     # Mask Unwanted Abundances
     abundance_mask = np.zeros(len(abundances))
     abundance_mask[CONTINUUM_GRID["abundance index"]] = 1.0
@@ -976,10 +914,10 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
 
     energy_input = energy_edges_keV
 
-    if isinstance(energy_edges_keV,Quantity):
-        energy_edges_keV= energy_edges_keV.value
-    
-    if isinstance(temperature_K,Quantity):
+    if isinstance(energy_edges_keV, Quantity):
+        energy_edges_keV = energy_edges_keV.value
+
+    if isinstance(temperature_K, Quantity):
         temperature_K = temperature_K.value
 
     # Find indices of lines within user input energy range.
@@ -988,8 +926,8 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     )
     n_energy_roi_indices = energy_roi_indices.sum()
     # If there are emission lines within the energy range of interest, compile spectrum.# @u.quantity_input(
-#     energy_edges=u.keV, temperature=u.K, emission_measure=(u.cm ** (-3), u.cm ** (-5)), observer_distance=u.cm
-# )
+    #     energy_edges=u.keV, temperature=u.K, emission_measure=(u.cm ** (-3), u.cm ** (-5)), observer_distance=u.cm
+    # )
     if n_energy_roi_indices > 0:
         # Mask Unwanted Abundances
         abundance_mask = np.zeros(len(abundances))
@@ -1034,12 +972,12 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
 
     # Scale flux by observer distance, emission measure and spectral bin width
     # and put into correct units.
-    energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1]) 
+    energy_bin_widths = energy_edges_keV[1:] - energy_edges_keV[:-1]
     # energy_bin_widths = (energy_edges_keV[1:] - energy_edges_keV[:-1])
 
-    if isinstance(energy_input,Quantity):
+    if isinstance(energy_input, Quantity):
         energy_bin_widths = energy_bin_widths * u.keV
-    
+
     return flux * LINE_GRID["intensity unit"] / (energy_bin_widths)
 
 
@@ -1129,11 +1067,11 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
     for i in range(n_temperatures):
         # Identify the "temperature" bin to which the input "temperature"
         # corresponds and its two nearest neighbors.
-        indx = temperature_bins[i] - 1 + np.arange(3)
+        index = temperature_bins[i] - 1 + np.arange(3)
         # Interpolate the 2nd axis to produce a function that gives the data
         # as a function of 1st axis, say energy, at a given value along the 2nd axis,
         # say "temperature".
-        get_intensities_at_logT = interpolate.interp1d(line_logT_bins[indx], data_grid[:, indx], kind="quadratic")
+        get_intensities_at_logT = interpolate.interp1d(line_logT_bins[index], data_grid[:, index], kind="quadratic")
         # Use function to get interpolated_data as a function of the first axis at
         # the input value along the 2nd axis,
         # e.g. line intensities as a function of energy at a given temperature.
@@ -1294,7 +1232,6 @@ def _weight_emission_bins(
 
 
 def _sanitize_inputs(energy_edges, temperature, emission_measure):
-
     if energy_edges.isscalar or len(energy_edges) < 2 or energy_edges.ndim > 1:
         raise ValueError("energy_edges must be a 1-D astropy Quantity with length greater than 1.")
 
@@ -1353,18 +1290,16 @@ def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, par
         raise ValueError(message)
 
 
-def _calculate_abundances(abundance_type, mg, al, si, s, 
-                          ar,ca,fe):
-    
+def _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe):
     abundances = DEFAULT_ABUNDANCES[abundance_type].data
 
-    abundances[11] = 10**(mg-12)
-    abundances[12] = 10**(al-12)
-    abundances[13] = 10**(si-12)
-    abundances[15] = 10**(s-12)
-    abundances[17] = 10**(ar-12)
-    abundances[19] = 10**(ca-12)
-    abundances[25] = 10**(fe-12)
+    abundances[11] = 10 ** (mg - 12)
+    abundances[12] = 10 ** (al - 12)
+    abundances[13] = 10 ** (si - 12)
+    abundances[15] = 10 ** (s - 12)
+    abundances[17] = 10 ** (ar - 12)
+    abundances[19] = 10 ** (ca - 12)
+    abundances[25] = 10 ** (fe - 12)
 
     return abundances
 
@@ -1521,8 +1456,8 @@ def _calculate_abundances(abundance_type, mg, al, si, s,
 #     logt = LOGT # grid temperatures = log(temperature)
 #     ntemp = len(logt)
 #     selt = np.argwhere(logt<=u)[-1] # what gap does my temp land in the logt array (inclusive of the lower boundary)
-#     indx = np.clip([selt-1, selt, selt+1], 0, ntemp-1) # find the indexes either side of that gap
-#     tband = logt[indx]
+#     index = np.clip([selt-1, selt, selt+1], 0, ntemp-1) # find the indexes either side of that gap
+#     tband = logt[index]
 #     s=1
 #     x0, x1, x2 = tband[0][0], tband[1][0], tband[2][0] # temperatures either side of that gap
 
@@ -1532,7 +1467,7 @@ def _calculate_abundances(abundance_type, mg, al, si, s,
 
 #     # all wavelengths divided by corresponding temp[0] (first row), then exvl/temp[1] second row, exvl/temp[2] third row
 #     # inverse boltzmann factor of hv/kT and 11.6e6 from keV-to-J conversion over k = 1.6e-16 / 1.381e-23 ~ 11.6e6
-#     exponential = (np.ones((3,1)) @ ewvl_exp) / ((10**logt[indx]/11.6e6) @ np.ones((1,nwvl)))
+#     exponential = (np.ones((3,1)) @ ewvl_exp) / ((10**logt[index]/11.6e6) @ np.ones((1,nwvl)))
 #     exponential = np.exp(np.clip(exponential, None, 80)) #  not sure why clipping at 80
 #     # this is just from dE/dA = E/A from E=hc/A (A=wavelength) for change of variables from Angstrom to keV: dE = dA * (E/A)
 #     # have this repeated for 3 rows since this is the form of the expontial's different temps
@@ -1562,7 +1497,7 @@ def _calculate_abundances(abundance_type, mg, al, si, s,
 #     # totcont_lo is the continuum <1 keV I think and totcont is >=1 keV, so adding the wavelength dimension of each of these you get the number of wavlengths provided by continuum_info[1]['edge_str']['WVL']
 #     # look here for more info on how the CHIANTI file is set-up **** https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/setup_chianti_cont.pro ****
 #     # this exact script won't create the folder Python is using the now since some of the wavelengths and deltas don't match-up
-#     totcontindx = np.concatenate((continuum_info[1]["totcont_lo"][:, indx.T[0], :], continuum_info[1]["totcont"][:, indx.T[0], :]), axis=2) # isolate temps and then combine along wavelength axis
+#     totcontindx = np.concatenate((continuum_info[1]["totcont_lo"][:, index.T[0], :], continuum_info[1]["totcont"][:, index.T[0], :]), axis=2) # isolate temps and then combine along wavelength axis
 #     # careful from here on out. IDL's indexes are backwards to Pythons
 #     # Python's a[:,:,0] == IDL's a[0,*,*], a[:,0,:] == a[*,0,*], and then a[0,:,:] == a[*,*,0]
 #     tcdbase = totcontindx # double(totcontindx[*, *, *])
