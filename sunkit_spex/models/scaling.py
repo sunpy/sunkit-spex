@@ -20,9 +20,9 @@ class DistanceScale(FittableModel):
     _input_units_allow_dimensionless = True
 
     def evaluate(self, spectrum, observer_distance):
-        spectrum_distance_corrected = distance_correction(spectrum, observer_distance)
 
-        return spectrum_distance_corrected
+        return distance_correction(spectrum, observer_distance)
+
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"observer_distance": u.AU}
@@ -55,6 +55,4 @@ def distance_correction(spectrum, observer_distance):
 
     scale = AU_distance_cm**2 / observer_distance_cm**2
 
-    flux = spectrum * scale
-
-    return flux
+    return spectrum * scale
