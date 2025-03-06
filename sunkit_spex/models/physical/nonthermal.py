@@ -1,29 +1,15 @@
-import copy
-import warnings
-
 import logging
 
 import numpy as np
-from scipy import interpolate, stats
 
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
-from astropy.units import Quantity
-
-from sunpy.data import cache
-
-from sunpy.data import manager
 
 from sunkit_spex.legacy import constants as const
 from sunkit_spex.legacy.integrate import gauss_legendre
 
 const = const.Constants()
 
-from sunkit_spex.models.physical.io import (
-    load_chianti_continuum,
-    load_chianti_lines_lite,
-    load_xray_abundances,
-)
 
 logging = logging.getLogger(__name__)
 
@@ -42,107 +28,75 @@ References
 
 
 __all__ = [
+    "BrokenPowerLawElectronDistribution",
     "ThickTarget",
     "ThinTarget",
-    "thick_fn",
-    "thin_fn",
-    "BrokenPowerLawElectronDistribution",
     "_get_integrand",
     "_integrate_part",
     "_split_and_integrate",
     "bremsstrahlung_thick_target",
     "bremsstrahlung_thin_target",
     "collisional_loss",
+    "thick_fn",
+    "thin_fn",
 ]
 
 
 class ThickTarget(FittableModel):
-    r"""
-    """
+    r""" """
+
     n_inputs = 1
     n_outputs = 1
-    
+
     p = Parameter(
         name="p",
         default=2,
         description="Slope below break",
         fixed=False,
     )
-    
-    eebrk = Parameter(
-        name="eebrk",
-        default=100, 
-        unit=u.keV,
-        description="Break Energy", 
-        fixed=False
-    )
-    
-    q = Parameter(
-        name="q",
-        default=5,
-        min = 0.01,
-        description="Slope above break",
-        fixed=True
-    )
 
-    eelow = Parameter(
-        name="eelow",
-        default=7,
-        unit=u.keV,
-        description="Low energy electron cut off",
-        fixed=False
-    )
+    eebrk = Parameter(name="eebrk", default=100, unit=u.keV, description="Break Energy", fixed=False)
 
-    eehigh = Parameter(
-        name="eehigh",
-        default=1500,
-        unit=u.keV,
-        description="High energy electron cut off",
-        fixed=True
-    )
+    q = Parameter(name="q", default=5, min=0.01, description="Slope above break", fixed=True)
+
+    eelow = Parameter(name="eelow", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False)
+
+    eehigh = Parameter(name="eehigh", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True)
 
     total_eflux = Parameter(
-        name="total_eflux",
-        default=1.5,
-        unit=u.electron*u.s**-1,
-        description="Total electron flux",
-        fixed=True
+        name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True
     )
 
     _input_units_allow_dimensionless = True
 
-    def __init__(self,
-                  p=p.default, 
-                  eebrk=u.Quantity(eebrk.default,eebrk.unit),
-                  q=q.default, 
-                  eelow=u.Quantity(eelow.default,eelow.unit),
-                  eehigh=u.Quantity(eehigh.default,eehigh.unit),
-                  total_eflux = u.Quantity(total_eflux.default,total_eflux.unit),
-                  integrator=None,
-                   **kwargs):
-
+    def __init__(
+        self,
+        p=p.default,
+        eebrk=u.Quantity(eebrk.default, eebrk.unit),
+        q=q.default,
+        eelow=u.Quantity(eelow.default, eelow.unit),
+        eehigh=u.Quantity(eehigh.default, eehigh.unit),
+        total_eflux=u.Quantity(total_eflux.default, total_eflux.unit),
+        integrator=None,
+        **kwargs,
+    ):
         self.integrator = integrator
 
-        super().__init__(p=p, 
-                  eebrk=eebrk,
-                  q=q,
-                  eelow=eelow,
-                  eehigh=eehigh,
-                  total_eflux=total_eflux,
-                  **kwargs)
+        super().__init__(p=p, eebrk=eebrk, q=q, eelow=eelow, eehigh=eehigh, total_eflux=total_eflux, **kwargs)
 
-    def evaluate(self, energy_edges,
-                  p, 
-                  eebrk,
-                  q,
-                  eelow,
-                  eehigh,
-                  total_eflux):
-        
+    def evaluate(self, energy_edges, p, eebrk, q, eelow, eehigh, total_eflux):
         energy_centers = energy_edges[:-1]
 
-        if hasattr(eebrk, "unit") or hasattr(energy_centers, "unit") or hasattr(eelow, "unit") or hasattr(eehigh, "unit") or hasattr(total_eflux, "unit"):
-            flux = thick_fn(energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value, self.integrator)
+        if (
+            hasattr(eebrk, "unit")
+            or hasattr(energy_centers, "unit")
+            or hasattr(eelow, "unit")
+            or hasattr(eehigh, "unit")
+            or hasattr(total_eflux, "unit")
+        ):
+            flux = thick_fn(
+                energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value, self.integrator
+            )
         else:
             flux = thick_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, self.integrator)
 
@@ -158,10 +112,86 @@ class ThickTarget(FittableModel):
 
     @property
     def return_units(self):
-        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1 *u.cm**-2}
+        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"eebrk":u.keV,"eelow":u.keV,"eehigh":u.keV,"total_eflux":u.electron*u.s**-1}
+        return {"eebrk": u.keV, "eelow": u.keV, "eehigh": u.keV, "total_eflux": u.electron * u.s**-1}
+    
+
+class ThinTarget(FittableModel):
+    r""" """
+
+    n_inputs = 1
+    n_outputs = 1
+
+    p = Parameter(
+        name="p",
+        default=2,
+        description="Slope below break",
+        fixed=False,
+    )
+
+    eebrk = Parameter(name="eebrk", default=100, unit=u.keV, description="Break Energy", fixed=False)
+
+    q = Parameter(name="q", default=5, min=0.01, description="Slope above break", fixed=True)
+
+    eelow = Parameter(name="eelow", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False)
+
+    eehigh = Parameter(name="eehigh", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True)
+
+    total_eflux = Parameter(
+        name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True
+    )
+
+    _input_units_allow_dimensionless = True
+
+    def __init__(
+        self,
+        p=p.default,
+        eebrk=u.Quantity(eebrk.default, eebrk.unit),
+        q=q.default,
+        eelow=u.Quantity(eelow.default, eelow.unit),
+        eehigh=u.Quantity(eehigh.default, eehigh.unit),
+        total_eflux=u.Quantity(total_eflux.default, total_eflux.unit),
+        integrator=None,
+        **kwargs,
+    ):
+        self.integrator = integrator
+
+        super().__init__(p=p, eebrk=eebrk, q=q, eelow=eelow, eehigh=eehigh, total_eflux=total_eflux, **kwargs)
+
+    def evaluate(self, energy_edges, p, eebrk, q, eelow, eehigh, total_eflux):
+        energy_centers = energy_edges[:-1]
+
+        if (
+            hasattr(eebrk, "unit")
+            or hasattr(energy_centers, "unit")
+            or hasattr(eelow, "unit")
+            or hasattr(eehigh, "unit")
+            or hasattr(total_eflux, "unit")
+        ):
+            flux = thin_fn(
+                energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value
+            )
+        else:
+            flux = thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux)
+
+        # if hasattr(eebrk, "unit"):
+        #     return flux
+        # else:
+        return flux
+
+    @property
+    def input_units(self):
+        # The units for the 'energy_edges' variable should be an energy (default keV)
+        return {self.inputs[0]: u.keV}
+
+    @property
+    def return_units(self):
+        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1 * u.cm**-2}
+
+    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        return {"eebrk": u.keV, "eelow": u.keV, "eehigh": u.keV, "total_eflux": u.electron * u.s**-1}
 
 
 
@@ -215,9 +245,8 @@ def thick_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, integrator
 
 
 
-
-
-def thin_fn(total_eflux, index, e_c, energies=None):
+# def thin_fn(total_eflux, index, e_c, energies=None):
+def thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux):
     """Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
@@ -245,17 +274,17 @@ def thin_fn(total_eflux, index, e_c, energies=None):
     of ph s^-1 cm^-2 keV^-1.
     """
 
-    hack = np.round([total_eflux, index, e_c], 15)
-    total_eflux, index, e_c = hack[0], hack[1], hack[2]
+    # hack = np.round([total_eflux, index, e_c], 15)
+    # total_eflux, index, e_c = hack[0], hack[1], hack[2]
 
-    energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
-
+    # energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
+    energies = energy_centers
     # we want a single power law electron distribution,
     # so set eebrk == eehigh at a high value.
     # we don't care about q at E > eebrk.
-    high_break = energies.max() * 10
+    # high_break = energies.max() * 10
     output = bremsstrahlung_thin_target(
-        photon_energies=energies, p=index, eebrk=high_break, q=20, eelow=e_c, eehigh=high_break
+        photon_energies=energies, p=p, eebrk=eebrk, q=q, eelow=eelow, eehigh=eehigh
     )
 
     output[np.isnan(output)] = 0
@@ -263,8 +292,6 @@ def thin_fn(total_eflux, index, e_c, energies=None):
 
     # convert to 1e35 e-/s
     return output * total_eflux * 1e35
-
-
 
 
 class BrokenPowerLawElectronDistribution:
@@ -1070,4 +1097,3 @@ def bremsstrahlung_thick_target(photon_energies, p, eebrk, q, eelow, eehigh, int
         return (fcoeff / decoeff) * flux
 
     raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
-
