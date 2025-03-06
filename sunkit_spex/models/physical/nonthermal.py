@@ -116,7 +116,7 @@ class ThickTarget(FittableModel):
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"eebrk": u.keV, "eelow": u.keV, "eehigh": u.keV, "total_eflux": u.electron * u.s**-1}
-    
+
 
 class ThinTarget(FittableModel):
     r""" """
@@ -170,9 +170,7 @@ class ThinTarget(FittableModel):
             or hasattr(eehigh, "unit")
             or hasattr(total_eflux, "unit")
         ):
-            flux = thin_fn(
-                energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value
-            )
+            flux = thin_fn(energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value)
         else:
             flux = thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux)
 
@@ -192,7 +190,6 @@ class ThinTarget(FittableModel):
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"eebrk": u.keV, "eelow": u.keV, "eehigh": u.keV, "total_eflux": u.electron * u.s**-1}
-
 
 
 def thick_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, integrator):
@@ -244,7 +241,6 @@ def thick_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, integrator
     return output * total_eflux * 1e35
 
 
-
 # def thin_fn(total_eflux, index, e_c, energies=None):
 def thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux):
     """Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
@@ -283,9 +279,7 @@ def thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux):
     # so set eebrk == eehigh at a high value.
     # we don't care about q at E > eebrk.
     # high_break = energies.max() * 10
-    output = bremsstrahlung_thin_target(
-        photon_energies=energies, p=p, eebrk=eebrk, q=q, eelow=eelow, eehigh=eehigh
-    )
+    output = bremsstrahlung_thin_target(photon_energies=energies, p=p, eebrk=eebrk, q=q, eelow=eelow, eehigh=eehigh)
 
     output[np.isnan(output)] = 0
     output[~np.isfinite(output)] = 0
