@@ -161,6 +161,7 @@ class ThinTarget(FittableModel):
         super().__init__(p=p, eebrk=eebrk, q=q, eelow=eelow, eehigh=eehigh, total_eflux=total_eflux, **kwargs)
 
     def evaluate(self, energy_edges, p, eebrk, q, eelow, eehigh, total_eflux):
+        
         energy_centers = energy_edges[:-1]
 
         if (
@@ -170,9 +171,9 @@ class ThinTarget(FittableModel):
             or hasattr(eehigh, "unit")
             or hasattr(total_eflux, "unit")
         ):
-            flux = thin_fn(energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value)
+            flux = thin_fn(energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value, self.integrator)
         else:
-            flux = thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux)
+            flux = thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, self.integrator)
 
         # if hasattr(eebrk, "unit"):
         #     return flux
@@ -242,7 +243,7 @@ def thick_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, integrator
 
 
 # def thin_fn(total_eflux, index, e_c, energies=None):
-def thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux):
+def thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux,integrator):
     """Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
@@ -274,12 +275,12 @@ def thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux):
     # total_eflux, index, e_c = hack[0], hack[1], hack[2]
 
     # energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
-    energies = energy_centers
+    # energies = energy_centers
     # we want a single power law electron distribution,
     # so set eebrk == eehigh at a high value.
     # we don't care about q at E > eebrk.
     # high_break = energies.max() * 10
-    output = bremsstrahlung_thin_target(photon_energies=energies, p=p, eebrk=eebrk, q=q, eelow=eelow, eehigh=eehigh)
+    output = bremsstrahlung_thin_target(energy_centers, p, eebrk, q, eelow, eehigh, integrator)
 
     output[np.isnan(output)] = 0
     output[~np.isfinite(output)] = 0
