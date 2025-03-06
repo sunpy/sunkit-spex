@@ -161,7 +161,6 @@ class ThinTarget(FittableModel):
         super().__init__(p=p, eebrk=eebrk, q=q, eelow=eelow, eehigh=eehigh, total_eflux=total_eflux, **kwargs)
 
     def evaluate(self, energy_edges, p, eebrk, q, eelow, eehigh, total_eflux):
-        
         energy_centers = energy_edges[:-1]
 
         if (
@@ -171,7 +170,9 @@ class ThinTarget(FittableModel):
             or hasattr(eehigh, "unit")
             or hasattr(total_eflux, "unit")
         ):
-            flux = thin_fn(energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value, self.integrator)
+            flux = thin_fn(
+                energy_centers.value, p, eebrk.value, q, eelow.value, eehigh.value, total_eflux.value, self.integrator
+            )
         else:
             flux = thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, self.integrator)
 
@@ -243,7 +244,7 @@ def thick_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, integrator
 
 
 # def thin_fn(total_eflux, index, e_c, energies=None):
-def thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux,integrator):
+def thin_fn(energy_centers, p, eebrk, q, eelow, eehigh, total_eflux, integrator):
     """Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
