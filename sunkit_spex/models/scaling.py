@@ -11,22 +11,20 @@ class DistanceScale(FittableModel):
 
     observer_distance = Parameter(
         name="observer_distance",
-        default=1*u.AU,
+        default=1 * u.AU,
         description="Distance to the observer in AU",
         fixed=True,
     )
 
     _input_units_allow_dimensionless = True
 
-    def __init__(self,observer_distance, *args, **kwargs):
-        
+    def __init__(self, observer_distance, *args, **kwargs):
         if observer_distance.unit.is_equivalent(u.AU):
             observer_distance = observer_distance.to(u.AU)
         else:
-            raise ValueError('Observer distance input must be an Astropy length convertible to AU.')
-            
-        super().__init__(observer_distance, *args, **kwargs)
+            raise ValueError("Observer distance input must be an Astropy length convertible to AU.")
 
+        super().__init__(observer_distance, *args, **kwargs)
 
     def evaluate(self, spectrum, observer_distance):
         return distance_correction(spectrum, observer_distance)
