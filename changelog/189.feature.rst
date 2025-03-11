@@ -1,13 +1,1 @@
-Add three Astropy model classes
-
-:py:class:`sunkit_spex.models.physical.thermal.ThermalEmission`
-:py:class:`sunkit_spex.models.physical.thermal.ContinuumEmission`
-:py:class:`sunkit_spex.models.physical.thermal.LineEmission`
-
-These Astropy model classes act as wrappers to the existing physical model functions
-
-:py:function:`sunkit_spex.models.physical.thermal.thermal_emission`
-:py:function:`sunkit_spex.models.physical.thermal.continuum_emission`
-:py:function:`sunkit_spex.models.physical.thermal.line_emission`
-
-This provides the capability to fit using the Astropy fitting framework.
+Add three Astropy model classes, :class:`sunkit_spex.models.physical.thermal.ThermalEmission`, :class:`sunkit_spex.models.physical.thermal.ContinuumEmission` and :class:`sunkit_spex.models.physical.thermal.LineEmission`. These Astropy model classes act as wrappers to the existing physical model functions, :function:`sunkit_spex.models.physical.thermal.thermal_emission`, :function:`sunkit_spex.models.physical.thermal.continuum_emission` and :function:`sunkit_spex.models.physical.thermal.line_emission`. This provides the capability to fit using the Astropy fitting framework.

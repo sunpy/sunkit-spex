@@ -23,9 +23,6 @@ __all__ = [
     "ThermalEmission",
     "continuum_emission",
     "line_emission",
-    "setup_continuum_parameters",
-    "setup_default_abundances",
-    "setup_line_parameters",
     "thermal_emission",
 ]
 
