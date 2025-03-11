@@ -72,11 +72,17 @@ class ThickTarget(FittableModel):
 
     q = Parameter(name="q", default=5, min=0.01, description="Slope above break", fixed=True)
 
-    low_e_cutoff = Parameter(name="low_e_cutoff", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False)
+    low_e_cutoff = Parameter(
+        name="low_e_cutoff", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False
+    )
 
-    high_e_cutoff = Parameter(name="high_e_cutoff", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True)
+    high_e_cutoff = Parameter(
+        name="high_e_cutoff", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True
+    )
 
-    total_eflux = Parameter(name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True)
+    total_eflux = Parameter(
+        name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True
+    )
 
     _input_units_allow_dimensionless = True
 
@@ -93,7 +99,15 @@ class ThickTarget(FittableModel):
     ):
         self.integrator = integrator
 
-        super().__init__(p=p, break_energy=break_energy, q=q, low_e_cutoff=low_e_cutoff, high_e_cutoff=high_e_cutoff, total_eflux=total_eflux, **kwargs)
+        super().__init__(
+            p=p,
+            break_energy=break_energy,
+            q=q,
+            low_e_cutoff=low_e_cutoff,
+            high_e_cutoff=high_e_cutoff,
+            total_eflux=total_eflux,
+            **kwargs,
+        )
 
     def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
         energy_centers = energy_edges[:-1]
@@ -106,10 +120,19 @@ class ThickTarget(FittableModel):
             or hasattr(total_eflux, "unit")
         ):
             flux = thick_fn(
-                energy_centers.value, p, break_energy.value, q, low_e_cutoff.value, high_e_cutoff.value, total_eflux.value, self.integrator
+                energy_centers.value,
+                p,
+                break_energy.value,
+                q,
+                low_e_cutoff.value,
+                high_e_cutoff.value,
+                total_eflux.value,
+                self.integrator,
             )
         else:
-            flux = thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, self.integrator)
+            flux = thick_fn(
+                energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, self.integrator
+            )
 
         return flux
 
@@ -123,7 +146,12 @@ class ThickTarget(FittableModel):
         return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"break_energy": u.keV, "low_e_cutoff": u.keV, "high_e_cutoff": u.keV, "total_eflux": u.electron * u.s**-1}
+        return {
+            "break_energy": u.keV,
+            "low_e_cutoff": u.keV,
+            "high_e_cutoff": u.keV,
+            "total_eflux": u.electron * u.s**-1,
+        }
 
 
 class ThinTarget(FittableModel):
@@ -168,9 +196,13 @@ class ThinTarget(FittableModel):
 
     q = Parameter(name="q", default=5, min=0.01, description="Slope above break", fixed=True)
 
-    low_e_cutoff = Parameter(name="low_e_cutoff", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False)
+    low_e_cutoff = Parameter(
+        name="low_e_cutoff", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False
+    )
 
-    high_e_cutoff = Parameter(name="high_e_cutoff", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True)
+    high_e_cutoff = Parameter(
+        name="high_e_cutoff", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True
+    )
 
     total_eflux = Parameter(
         name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True
@@ -191,7 +223,15 @@ class ThinTarget(FittableModel):
     ):
         self.integrator = integrator
 
-        super().__init__(p=p, break_energy=break_energy, q=q, low_e_cutoff=low_e_cutoff, high_e_cutoff=high_e_cutoff, total_eflux=total_eflux, **kwargs)
+        super().__init__(
+            p=p,
+            break_energy=break_energy,
+            q=q,
+            low_e_cutoff=low_e_cutoff,
+            high_e_cutoff=high_e_cutoff,
+            total_eflux=total_eflux,
+            **kwargs,
+        )
 
     def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
         energy_centers = energy_edges[:-1]
@@ -204,10 +244,19 @@ class ThinTarget(FittableModel):
             or hasattr(total_eflux, "unit")
         ):
             flux = thin_fn(
-                energy_centers.value, p, break_energy.value, q, low_e_cutoff.value, high_e_cutoff.value, total_eflux.value, self.integrator
+                energy_centers.value,
+                p,
+                break_energy.value,
+                q,
+                low_e_cutoff.value,
+                high_e_cutoff.value,
+                total_eflux.value,
+                self.integrator,
             )
         else:
-            flux = thin_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, self.integrator)
+            flux = thin_fn(
+                energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, self.integrator
+            )
 
         return flux
 
@@ -221,7 +270,12 @@ class ThinTarget(FittableModel):
         return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"break_energy": u.keV, "low_e_cutoff": u.keV, "high_e_cutoff": u.keV, "total_eflux": u.electron * u.s**-1}
+        return {
+            "break_energy": u.keV,
+            "low_e_cutoff": u.keV,
+            "high_e_cutoff": u.keV,
+            "total_eflux": u.electron * u.s**-1,
+        }
 
 
 def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator):
@@ -389,7 +443,8 @@ class BrokenPowerLawElectronDistribution:
 
     def __eq__(self, other):
         return all(
-            getattr(self, name) == getattr(other, name) for name in ["p", "q", "low_e_cutoff", "break_energy", "high_e_cutoff"]
+            getattr(self, name) == getattr(other, name)
+            for name in ["p", "q", "low_e_cutoff", "break_energy", "high_e_cutoff"]
         ) and isinstance(other, self.__class__)
 
     def flux(self, electron_energy):
@@ -425,7 +480,10 @@ class BrokenPowerLawElectronDistribution:
         index = np.where((electron_energy <= self.high_e_cutoff) & (electron_energy >= self.break_energy))
         if index[0].size > 0:
             res[index] = (
-                self._norm_factor * (self.q - 1.0) * electron_energy[index] ** (-self.q) * self.break_energy ** (self.q - 1.0)
+                self._norm_factor
+                * (self.q - 1.0)
+                * electron_energy[index] ** (-self.q)
+                * self.break_energy ** (self.q - 1.0)
             )
 
         return res
@@ -652,7 +710,22 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
 
 
 def _integrate_part(
-    *, model, photon_energies, maxfcn, rerr, low_e_cutoff, break_energy, high_e_cutoff, p, q, z, a_lg, b_lg, ll, efd, integrator=None
+    *,
+    model,
+    photon_energies,
+    maxfcn,
+    rerr,
+    low_e_cutoff,
+    break_energy,
+    high_e_cutoff,
+    p,
+    q,
+    z,
+    a_lg,
+    b_lg,
+    ll,
+    efd,
+    integrator=None,
 ):
     """
     Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
@@ -720,7 +793,9 @@ def _integrate_part(
     # Copy indices over which to carry out the integration
     i = ll[:]
 
-    electron_dist = BrokenPowerLawElectronDistribution(p=p, q=q, low_e_cutoff=low_e_cutoff, break_energy=break_energy, high_e_cutoff=high_e_cutoff)
+    electron_dist = BrokenPowerLawElectronDistribution(
+        p=p, q=q, low_e_cutoff=low_e_cutoff, break_energy=break_energy, high_e_cutoff=high_e_cutoff
+    )
 
     for ires in range(2, nlim + 1):
         npoint = 2**ires
@@ -755,7 +830,9 @@ def _integrate_part(
     return None
 
 
-def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, low_e_cutoff, break_energy, high_e_cutoff, p, q, z, efd, integrator=None):
+def _split_and_integrate(
+    *, model, photon_energies, maxfcn, rerr, low_e_cutoff, break_energy, high_e_cutoff, p, q, z, efd, integrator=None
+):
     """
     Split and integrate the continuous parts of the electron spectrum.
 
@@ -812,7 +889,9 @@ def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, low_e_cutoff, 
     clight = const.get_constant("clight")
 
     if not low_e_cutoff <= break_energy <= high_e_cutoff:
-        raise ValueError(f"Condition low_e_cutoff <= eebrek <= high_e_cutoff not satisfied ({low_e_cutoff}<={break_energy}<={high_e_cutoff}).")
+        raise ValueError(
+            f"Condition low_e_cutoff <= eebrek <= high_e_cutoff not satisfied ({low_e_cutoff}<={break_energy}<={high_e_cutoff})."
+        )
 
     # Create arrays for integral sums and error flags.
     intsum1 = np.zeros_like(photon_energies, dtype=np.float64)
@@ -932,7 +1011,9 @@ def _split_and_integrate(*, model, photon_energies, maxfcn, rerr, low_e_cutoff, 
     return None
 
 
-def bremsstrahlung_thin_target(photon_energies, p, break_energy, q, low_e_cutoff, high_e_cutoff, efd=True, integrator=None):
+def bremsstrahlung_thin_target(
+    photon_energies, p, break_energy, q, low_e_cutoff, high_e_cutoff, efd=True, integrator=None
+):
     """
     Computes the thin-target bremsstrahlung x-ray/gamma-ray spectrum from an isotropic electron
     distribution function provided in `broken_powerlaw`. The units of the computed flux is photons
