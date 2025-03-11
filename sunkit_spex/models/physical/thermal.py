@@ -77,7 +77,14 @@ flux: `astropy.units.Quantity`
 
 
 class ThermalEmission(FittableModel):
-    r""" """
+    f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
+
+    The flux is calculated as a function of temperature and emission measure.
+    Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
+    determined by the file from which the continuum parameters are loaded.
+    To change the file used, see the setup_continuum_parameters() function.
+
+    {doc_string_params}"""
 
     n_inputs = 1
     n_outputs = 1
@@ -109,19 +116,19 @@ class ThermalEmission(FittableModel):
     #     fixed=True
     # )
 
-    mg = Parameter(name="Mg", default=8.15, description="Mg relative abundance", fixed=True)
+    mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
 
-    al = Parameter(name="Al", default=7.04, description="Al relative abundance", fixed=True)
+    al = Parameter(name="Al", default=7.04, min=5.04, max=9.04, description="Al relative abundance", fixed=True)
 
-    si = Parameter(name="Si", default=8.1, description="Si relative abundance", fixed=True)
+    si = Parameter(name="Si", default=8.1, min=6.1, max=10.1, description="Si relative abundance", fixed=True)
 
-    s = Parameter(name="S", default=7.27, description="S relative abundance", fixed=True)
+    s = Parameter(name="S", default=7.27, min=5.27, max=9.27, description="S relative abundance", fixed=True)
 
-    ar = Parameter(name="Ar", default=6.58, description="Ar relative abundance", fixed=True)
+    ar = Parameter(name="Ar", default=6.58, min=4.58, max=8.58, description="Ar relative abundance", fixed=True)
 
-    ca = Parameter(name="Ca", default=6.93, description="Ca relative abundance", fixed=True)
+    ca = Parameter(name="Ca", default=6.93, min=4.93, max=8.93, description="Ca relative abundance", fixed=True)
 
-    fe = Parameter(name="Fe", default=8.1, description="Fe relative abundance", fixed=True)
+    fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
     input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
@@ -216,7 +223,14 @@ class ThermalEmission(FittableModel):
 
 
 class ContinuumEmission(FittableModel):
-    r""" """
+    f"""Calculate the thermal X-ray continuum emission from the solar atmosphere.
+
+    The emission is calculated as a function of temperature and emission measure.
+    Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
+    determined by the file from which the comtinuum parameters are loaded.
+    To change the file used, see the setup_continuum_parameters() function.
+
+    {doc_string_params}"""
 
     n_inputs = 1
     n_outputs = 1
@@ -248,19 +262,19 @@ class ContinuumEmission(FittableModel):
     #     fixed=True
     # )
 
-    mg = Parameter(name="Mg", default=8.15, description="Mg relative abundance", fixed=True)
+    mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
 
-    al = Parameter(name="Al", default=7.04, description="Al relative abundance", fixed=True)
+    al = Parameter(name="Al", default=7.04, min=5.04, max=9.04, description="Al relative abundance", fixed=True)
 
-    si = Parameter(name="Si", default=8.1, description="Si relative abundance", fixed=True)
+    si = Parameter(name="Si", default=8.1, min=6.1, max=10.1, description="Si relative abundance", fixed=True)
 
-    s = Parameter(name="S", default=7.27, description="S relative abundance", fixed=True)
+    s = Parameter(name="S", default=7.27, min=5.27, max=9.27, description="S relative abundance", fixed=True)
 
-    ar = Parameter(name="Ar", default=6.58, description="Ar relative abundance", fixed=True)
+    ar = Parameter(name="Ar", default=6.58, min=4.58, max=8.58, description="Ar relative abundance", fixed=True)
 
-    ca = Parameter(name="Ca", default=6.93, description="Ca relative abundance", fixed=True)
+    ca = Parameter(name="Ca", default=6.93, min=4.93, max=8.93, description="Ca relative abundance", fixed=True)
 
-    fe = Parameter(name="Fe", default=8.1, description="Fe relative abundance", fixed=True)
+    fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
     input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
@@ -355,7 +369,10 @@ class ContinuumEmission(FittableModel):
 
 
 class LineEmission(FittableModel):
-    r""" """
+    f"""
+    Calculate thermal line emission from the solar corona.
+
+    {doc_string_params}"""
 
     n_inputs = 1
     n_outputs = 1
@@ -387,19 +404,19 @@ class LineEmission(FittableModel):
     #     fixed=True
     # )
 
-    mg = Parameter(name="Mg", default=8.15, description="Mg relative abundance", fixed=True)
+    mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
 
-    al = Parameter(name="Al", default=7.04, description="Al relative abundance", fixed=True)
+    al = Parameter(name="Al", default=7.04, min=5.04, max=9.04, description="Al relative abundance", fixed=True)
 
-    si = Parameter(name="Si", default=8.1, description="Si relative abundance", fixed=True)
+    si = Parameter(name="Si", default=8.1, min=6.1, max=10.1, description="Si relative abundance", fixed=True)
 
-    s = Parameter(name="S", default=7.27, description="S relative abundance", fixed=True)
+    s = Parameter(name="S", default=7.27, min=5.27, max=9.27, description="S relative abundance", fixed=True)
 
-    ar = Parameter(name="Ar", default=6.58, description="Ar relative abundance", fixed=True)
+    ar = Parameter(name="Ar", default=6.58, min=4.58, max=8.58, description="Ar relative abundance", fixed=True)
 
-    ca = Parameter(name="Ca", default=6.93, description="Ca relative abundance", fixed=True)
+    ca = Parameter(name="Ca", default=6.93, min=4.93, max=8.93, description="Ca relative abundance", fixed=True)
 
-    fe = Parameter(name="Fe", default=8.1, description="Fe relative abundance", fixed=True)
+    fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
     input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
@@ -748,10 +765,10 @@ def line_emission(
     fe,
     abundance_type=DEFAULT_ABUNDANCE_TYPE,
 ):
-    """
+    f"""
     Calculate thermal line emission from the solar corona.
 
-    {docstring_params}"""
+    {doc_string_params}"""
 
     # Sanitize inputs
     # energy_edges_keV, temperature_K, emission_measure, observer_distance = _sanitize_inputs(energy_edges, temperature,
