@@ -5,7 +5,6 @@ import numpy as np
 from scipy import interpolate, stats
 
 import astropy.units as u
-from astropy.constants import au
 from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
@@ -137,7 +136,6 @@ class ThermalEmission(FittableModel):
         self,
         temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
-        #   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
         mg=mg.default,
         al=al.default,
         si=si.default,
@@ -164,7 +162,6 @@ class ThermalEmission(FittableModel):
         super().__init__(
             temperature=temperature,
             emission_measure=emission_measure,
-            #  observer_distance=observer_distance,
             mg=mg,
             al=al,
             si=si,
@@ -180,7 +177,6 @@ class ThermalEmission(FittableModel):
         energy_edges,
         temperature,
         emission_measure,
-        #  observer_distance,
         mg,
         al,
         si,
@@ -193,7 +189,6 @@ class ThermalEmission(FittableModel):
             energy_edges,
             temperature,
             emission_measure,
-            # observer_distance,
             mg,
             al,
             si,
@@ -215,7 +210,8 @@ class ThermalEmission(FittableModel):
 
     @property
     def return_units(self):
-        return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1}
+        # return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         # return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
@@ -361,7 +357,8 @@ class ContinuumEmission(FittableModel):
 
     @property
     def return_units(self):
-        return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1}
+        # return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         # return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
@@ -503,7 +500,8 @@ class LineEmission(FittableModel):
 
     @property
     def return_units(self):
-        return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1}
+        # return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         # return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
@@ -680,15 +678,16 @@ def thermal_emission(
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
     # Calculate fluxes.
 
-    if hasattr(temperature, "unit"):
-        observer_distance = au.to(u.cm)
-    else:
-        observer_distance = au.to(u.cm).value
+    # if hasattr(temperature, "unit"):
+    #     observer_distance = au.to(u.cm)
+    # else:
+    #     observer_distance = au.to(u.cm).value
 
     continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
     line_flux = _line_emission(energy_edges_keV, temperature_K, abundances)
 
-    flux = (continuum_flux + line_flux) * emission_measure / (4 * np.pi * observer_distance**2)
+    flux = (continuum_flux + line_flux) * emission_measure
+    # flux = (continuum_flux + line_flux) * emission_measure / (4 * np.pi * observer_distance**2)
 
     if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
         flux = flux[0]
@@ -737,12 +736,13 @@ def continuum_emission(
     # Calculate flux.
     flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
 
-    if hasattr(temperature, "unit"):
-        observer_distance = au.to(u.cm)
-    else:
-        observer_distance = au.to(u.cm).value
+    # if hasattr(temperature, "unit"):
+    #     observer_distance = au.to(u.cm)
+    # else:
+    #     observer_distance = au.to(u.cm).value
 
-    flux *= emission_measure / (4 * np.pi * observer_distance**2)
+    # flux *= emission_measure / (4 * np.pi * observer_distance**2)
+    flux *= emission_measure
 
     if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
         flux = flux[0]
@@ -777,7 +777,7 @@ def line_emission(
 
     # Convert inputs to known units and confirm they are within range.
     # energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
-    energy_edges_keV, temperature_K = energy_edges, temperature
+    # energy_edges_keV, temperature_K = energy_edges, temperature
     _error_if_low_energy_input_outside_valid_range(
         energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV"
     )
@@ -786,13 +786,14 @@ def line_emission(
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
 
-    if hasattr(temperature, "unit"):
-        observer_distance = au.to(u.cm)
-    else:
-        observer_distance = au.to(u.cm).value
+    # if hasattr(temperature, "unit"):
+    #     observer_distance = au.to(u.cm)
+    # else:
+    #     observer_distance = au.to(u.cm).value
 
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)
-    flux *= emission_measure / (4 * np.pi * observer_distance**2)
+    # flux *= emission_measure / (4 * np.pi * observer_distance**2)
+    flux *= emission_measure
 
     if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
         flux = flux[0]
@@ -1307,13 +1308,23 @@ def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, par
 def _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe):
     abundances = DEFAULT_ABUNDANCES[abundance_type].data
 
-    abundances[11] = 10 ** (mg - 12)
-    abundances[12] = 10 ** (al - 12)
-    abundances[13] = 10 ** (si - 12)
-    abundances[15] = 10 ** (s - 12)
-    abundances[17] = 10 ** (ar - 12)
-    abundances[19] = 10 ** (ca - 12)
-    abundances[25] = 10 ** (fe - 12)
+    if np.shape(mg) == (1,):
+        abundances[11] = 10 ** (mg[0] - 12)
+        abundances[12] = 10 ** (al[0] - 12)
+        abundances[13] = 10 ** (si[0] - 12)
+        abundances[15] = 10 ** (s[0] - 12)
+        abundances[17] = 10 ** (ar[0] - 12)
+        abundances[19] = 10 ** (ca[0] - 12)
+        abundances[25] = 10 ** (fe[0] - 12)
+
+    else:
+        abundances[11] = 10 ** (mg - 12)
+        abundances[12] = 10 ** (al - 12)
+        abundances[13] = 10 ** (si - 12)
+        abundances[15] = 10 ** (s - 12)
+        abundances[17] = 10 ** (ar - 12)
+        abundances[19] = 10 ** (ca - 12)
+        abundances[25] = 10 ** (fe - 12)
 
     return abundances
 
