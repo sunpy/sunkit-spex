@@ -1,11 +1,13 @@
+import numpy as np
+
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
-__all__ = ["Constant", "DistanceScale"]
+__all__ = ["Constant", "InverseSquareFluxScaling"]
 
 
-class DistanceScale(FittableModel):
+class InverseSquareFluxScaling(FittableModel):
     n_inputs = 1
     n_outputs = 1
 
@@ -52,12 +54,11 @@ class Constant(FittableModel):
 
 def distance_correction(spectrum, observer_distance):
     if isinstance(observer_distance, Quantity):
-        AU_distance_cm = 1 * u.AU.to(u.cm)
         observer_distance_cm = observer_distance.to(u.cm)
     else:
         AU_distance_cm = 1 * u.AU.to(u.cm).value
         observer_distance_cm = observer_distance * AU_distance_cm
 
-    scale = AU_distance_cm**2 / observer_distance_cm**2
+    scale = 4 * np.pi * (observer_distance_cm**2)
 
-    return spectrum * scale
+    return spectrum / scale
