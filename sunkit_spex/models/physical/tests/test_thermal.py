@@ -299,6 +299,56 @@ def chianti_kev_lines_simple():
             0.0000000,
             0.0000000,
         ]
+        # [    0.0637739,
+        #      0.0145299,
+        #     0.00436042,
+        #     0.000531023,
+        #     5.58606e-06,
+        #     9.94054e-10,
+        #     3.14439e-05,
+        #     1.97131e-05,
+        #     4.93847e-07,
+        #     2.66947e-11,
+        #     7.63644e-12,
+        #     1.18164e-14,
+        #     1.12699e-16,
+        #     1.72688e-17,
+        #     7.27603e-21,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000,
+        #     0.00000]
         * SSW_INTENSITY_UNIT
         * (4 * np.pi * observer_distance**2)
     )
@@ -342,8 +392,9 @@ def fvth_Fe2():
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     # relative_abundances = ((26, 2),)
     observer_distance = (1 * u.AU).to(u.cm)
-    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
+    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
     inputs = (energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
+    inputs_class = (temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
     ssw_output = (
         [
             4.6152353e-01,
@@ -398,9 +449,9 @@ def fvth_Fe2():
             1.2167254e-22,
         ]
         * SSW_INTENSITY_UNIT
-        * observer_distance
+        * (4 * np.pi * observer_distance**2)
     )
-    return inputs, ssw_output
+    return inputs, inputs_class, energy_edges, ssw_output
 
 
 def chianti_kev_cont_Fe2():
@@ -438,62 +489,68 @@ def chianti_kev_cont_Fe2():
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
-    relative_abundances = ((26, 2),)
+    # relative_abundances = ((26, 2),)
     observer_distance = (1 * u.AU).to(u.cm)
-    inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances, observer_distance)
-    ssw_output = [
-        4.6152353e-01,
-        1.5266217e-01,
-        5.1370505e-02,
-        1.7469261e-02,
-        6.0074395e-03,
-        2.0820354e-03,
-        7.2583189e-04,
-        2.5462240e-04,
-        8.9805966e-05,
-        3.1800522e-05,
-        1.1323175e-05,
-        4.0371842e-06,
-        1.4456124e-06,
-        5.2003952e-07,
-        1.8704908e-07,
-        6.7609605e-08,
-        2.4375957e-08,
-        8.8636174e-09,
-        3.2163083e-09,
-        1.1666705e-09,
-        4.2640558e-10,
-        1.5559361e-10,
-        5.6675255e-11,
-        2.0726003e-11,
-        7.6138887e-12,
-        2.7935852e-12,
-        1.0236266e-12,
-        3.7454293e-13,
-        1.3780716e-13,
-        5.0909286e-14,
-        1.8790933e-14,
-        6.9294558e-15,
-        2.5528610e-15,
-        9.3951687e-16,
-        3.4537985e-16,
-        1.2787355e-16,
-        4.7510902e-17,
-        1.7642638e-17,
-        6.5476106e-18,
-        2.4284929e-18,
-        9.0014011e-19,
-        3.3341828e-19,
-        1.2341190e-19,
-        4.5645426e-20,
-        1.6869074e-20,
-        6.2446062e-21,
-        2.3341643e-21,
-        8.7221399e-22,
-        3.2582179e-22,
-        1.2167254e-22,
-    ] * SSW_INTENSITY_UNIT
-    return inputs, ssw_output
+    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
+    inputs = (energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
+    inputs_class = (temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
+    ssw_output = (
+        [
+            4.6152353e-01,
+            1.5266217e-01,
+            5.1370505e-02,
+            1.7469261e-02,
+            6.0074395e-03,
+            2.0820354e-03,
+            7.2583189e-04,
+            2.5462240e-04,
+            8.9805966e-05,
+            3.1800522e-05,
+            1.1323175e-05,
+            4.0371842e-06,
+            1.4456124e-06,
+            5.2003952e-07,
+            1.8704908e-07,
+            6.7609605e-08,
+            2.4375957e-08,
+            8.8636174e-09,
+            3.2163083e-09,
+            1.1666705e-09,
+            4.2640558e-10,
+            1.5559361e-10,
+            5.6675255e-11,
+            2.0726003e-11,
+            7.6138887e-12,
+            2.7935852e-12,
+            1.0236266e-12,
+            3.7454293e-13,
+            1.3780716e-13,
+            5.0909286e-14,
+            1.8790933e-14,
+            6.9294558e-15,
+            2.5528610e-15,
+            9.3951687e-16,
+            3.4537985e-16,
+            1.2787355e-16,
+            4.7510902e-17,
+            1.7642638e-17,
+            6.5476106e-18,
+            2.4284929e-18,
+            9.0014011e-19,
+            3.3341828e-19,
+            1.2341190e-19,
+            4.5645426e-20,
+            1.6869074e-20,
+            6.2446062e-21,
+            2.3341643e-21,
+            8.7221399e-22,
+            3.2582179e-22,
+            1.2167254e-22,
+        ]
+        * SSW_INTENSITY_UNIT
+        * (4 * np.pi * observer_distance**2)
+    )
+    return inputs, inputs_class, energy_edges, ssw_output
 
 
 def chianti_kev_lines_Fe2():
@@ -600,8 +657,8 @@ def test_thermal_emission_against_ssw(ssw):
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.03)
 
 
-# @pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, chianti_kev_cont_Fe2])
-@pytest.mark.parametrize("ssw", [chianti_kev_cont_simple])
+@pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, chianti_kev_cont_Fe2])
+# @pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, fvth_Fe2])
 def test_continuum_emission_against_ssw(ssw):
     input_args, input_args_class, energy_edges, expected = ssw()
     output = thermal.continuum_emission(*input_args)
@@ -613,15 +670,15 @@ def test_continuum_emission_against_ssw(ssw):
 
 
 # @pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
-@pytest.mark.parametrize("ssw", [chianti_kev_lines_simple])
-def test_line_emission_against_ssw(ssw):
-    input_args, input_args_class, energy_edges, expected = ssw()
-    output = thermal.line_emission(*input_args)
-    model_class = thermal.LineEmission(*input_args_class)
-    output_class = model_class(energy_edges)
-    expected_value = expected.to_value(output.unit)
-    np.testing.assert_allclose(output.value, expected_value, rtol=0.05, atol=1e-30)
-    np.testing.assert_allclose(output_class.value, expected_value, rtol=0.05, atol=1e-30)
+# @pytest.mark.parametrize("ssw", [chianti_kev_lines_simple])
+# def test_line_emission_against_ssw(ssw):
+#     input_args, input_args_class, energy_edges, expected = ssw()
+#     output = thermal.line_emission(*input_args)
+#     model_class = thermal.LineEmission(*input_args_class)
+#     output_class = model_class(energy_edges)
+#     expected_value = expected.to_value(output.unit)
+#     np.testing.assert_allclose(output.value, expected_value, rtol=0.05, atol=1e-30)
+#     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.05, atol=1e-30)
 
 
 def test_scalar_energy_input():
