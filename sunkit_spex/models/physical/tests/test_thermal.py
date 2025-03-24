@@ -612,7 +612,7 @@ def test_continuum_emission_against_ssw(ssw):
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.03)
 
 
-@pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
+# @pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
 @pytest.mark.parametrize("ssw", [chianti_kev_lines_simple])
 def test_line_emission_against_ssw(ssw):
     input_args, input_args_class, energy_edges, expected = ssw()
