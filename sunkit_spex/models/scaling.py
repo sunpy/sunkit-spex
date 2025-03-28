@@ -13,23 +13,21 @@ class InverseSquareFluxScaling(FittableModel):
 
     observer_distance = Parameter(
         name="observer_distance",
-        default=1 * u.AU,
+        default=1,
+        unit=u.AU,
         description="Distance to the observer in AU",
         fixed=True,
     )
 
     _input_units_allow_dimensionless = True
 
-    def __init__(self, observer_distance, *args, **kwargs):
-        if observer_distance.unit.is_equivalent(u.AU):
-            observer_distance = observer_distance.to(u.AU)
-        else:
-            raise ValueError("Observer distance input must be an Astropy length convertible to AU.")
+    def evaluate(self, x, observer_distance):
+        correction = distance_correction(observer_distance)
+        dimension = np.shape(x)[0] - 1
 
-        super().__init__(observer_distance, *args, **kwargs)
-
-    def evaluate(self, spectrum, observer_distance):
-        return distance_correction(spectrum, observer_distance)
+        if isinstance(observer_distance, Quantity):
+            return np.full(dimension, correction.value) * correction.unit
+        return np.full(dimension, correction) * (1 / u.cm**2)
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"observer_distance": u.AU}
@@ -48,17 +46,21 @@ class Constant(FittableModel):
 
     _input_units_allow_dimensionless = True
 
-    def evaluate(self, spectrum, constant):
-        return spectrum * constant
+    def evaluate(self, x, constant):
+        dimension = np.shape(x)[0] - 1
+
+        return np.full(dimension, constant)
 
 
-def distance_correction(spectrum, observer_distance):
+def distance_correction(observer_distance):
     if isinstance(observer_distance, Quantity):
-        observer_distance_cm = observer_distance.to(u.cm)
+        if observer_distance.unit.is_equivalent(u.AU):
+            observer_distance_cm = observer_distance.to(u.cm)
+        else:
+            raise ValueError("Observer distance input must be an Astropy length convertible to AU.")
+
     else:
         AU_distance_cm = 1 * u.AU.to(u.cm).value
         observer_distance_cm = observer_distance * AU_distance_cm
 
-    scale = 4 * np.pi * (observer_distance_cm**2)
-
-    return spectrum / scale
+    return 1 / (4 * np.pi * (observer_distance_cm**2))
