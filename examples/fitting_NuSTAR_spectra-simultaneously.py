@@ -3,7 +3,7 @@
 Fitting NuSTAR Spectra: Simultaneous Fitting
 ============================================
 
-A real example from [Cooper2021]_ of fitting two NuSTAR spectra simultaneously.
+A real example from [Cooper2021](https://academic.oup.com/mnras/article/507/3/3936/6354806) of fitting two NuSTAR spectra simultaneously.
 """
 
 import warnings
