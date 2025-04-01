@@ -18,7 +18,7 @@ __all__ = ["defined_photon_models", "f_vth", "thick_fn", "thick_warm"]
 defined_photon_models = {
     "f_vth": ["T", "EM"],
     "thick_fn": ["total_eflux", "index", "e_c"],
-    "thick_warm": ["tot_eflux", "index", "ec", "plasma_d", "loop_temp", "length"],
+    "thick_warm": ["tot_eflux", "ind", "ec", "plasma_d", "loop_temp", "length"],
 }
 
 
@@ -80,8 +80,8 @@ def thick_fn(total_eflux, index, e_c, energies=None):
     of ph s^-1 cm^-2 keV^-1.
     """
 
-    hack = np.round([total_eflux, index, e_c], 15)
-    total_eflux, index, e_c = hack[0], hack[1], hack[2]
+    # hack = np.round([total_eflux, index, e_c], 15) # must be removed for numpy v2.2.4
+    # total_eflux, index, e_c = hack[0], hack[1], hack[2] # must be removed for numpy v2.2.4
 
     energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
 
@@ -100,7 +100,7 @@ def thick_fn(total_eflux, index, e_c, energies=None):
     return output * total_eflux * 1e35
 
 
-def thick_warm(total_eflux, index, e_c, plasma_d, loop_temp, length, energies=None):
+def thick_warm(total_eflux, ind, e_c, plasma_d, loop_temp, length, energies=None):
     """Calculates the warm thick-target bremsstrahlung radiation as seen from Earth.
 
     [1] Kontar et al, ApJ 2015 (http://adsabs.harvard.edu/abs/2015arXiv150503733K)
@@ -161,4 +161,4 @@ def thick_warm(total_eflux, index, e_c, plasma_d, loop_temp, length, energies=No
 
     em46 = em_add * 1e-46  # get EM in units of 10^46 cm^(-3)
 
-    return thick_fn(total_eflux, index, e_c, energies=energies) + f_vth(loop_temp, em46, energies=energies)
+    return thick_fn(total_eflux, ind, e_c, energies=energies) + f_vth(loop_temp, em46, energies=energies)
