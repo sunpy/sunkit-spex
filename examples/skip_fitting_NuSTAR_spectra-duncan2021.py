@@ -17,7 +17,7 @@ import numpy as np
 from numpy.exceptions import VisibleDeprecationWarning
 from parfive import Downloader
 
-from sunkit_spex.legacy.fitting.fitter import Fitter, load
+from sunkit_spex.legacy.fitting.fitter import Fitter
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 try:
@@ -46,9 +46,7 @@ dunc_xlims, dunc_ylims = [2.5, 11], [1e0, 4e4]
 
 dl = Downloader()
 
-base_url = (
-    "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2FDuncan2021&files="
-    )
+base_url = "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2FDuncan2021&files="
 file_names = [
     "nu80410201001A06_1618_p_chu2_N_sr.pha",
     "nu80410201001A06_1618_p_chu2_N_sr.arf",

@@ -13,7 +13,7 @@ import numpy as np
 from numpy.exceptions import VisibleDeprecationWarning
 from parfive import Downloader
 
-from sunkit_spex.legacy.fitting.fitter import Fitter, load
+from sunkit_spex.legacy.fitting.fitter import Fitter
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 try:
@@ -136,8 +136,8 @@ plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
-# **Let's recreate Figure 3(c)** 
-# 
+# **Let's recreate Figure 3(c)**
+#
 # Both NuSTAR FPMs are fitted with a thermal+cold thick target model simultaneously.
 #
 # First, load in your data files, here we load in 2 spectra
@@ -206,8 +206,8 @@ plt.rcParams["font.size"] = default_font_size
 #    | Index                            | 6.2$^{+0.6}_{-0.6}$                           | 5.83$\pm$0.09                  | 6.09$\pm$0.05                     |
 #    | Low Energy Cut-off [keV]         | 6.2$^{+0.9}_{-0.9}$                           | 6.66$\pm$0.05                  | 6.52$\pm$0.05                     |
 #
-# **Now let's recreate Figure 4 (right)** 
-# 
+# **Now let's recreate Figure 4 (right)**
+#
 # NuSTAR FPMB is fitted with a warm thick target model.
 #
 # The warm thick target model helps to constrain the non-thermal emission with observed values (e.g., loop length, etc) and ties it to the thermal emission parameters.
@@ -240,7 +240,7 @@ spec.energy_fitting_range = [2.8, 10.5]
 # electron flux param
 spec.params["tot_eflux1_spectrum1"] = {"Value": 2, "Bounds": (1e-2, 10)}
 # electron index param
-spec.params["indx1_spectrum1"] = {"Value": 6, "Bounds": (3, 10)}
+spec.params["ind1_spectrum1"] = {"Value": 6, "Bounds": (3, 10)}
 # electron low energy cut-off param
 spec.params["ec1_spectrum1"] = {"Value": 7, "Bounds": (3, 12)}
 # loop plasma temperature param
@@ -295,7 +295,7 @@ spec.energy_fitting_range = [2.8, 10.5]
 # electron flux param
 spec.params["tot_eflux1_spectrum1"] = {"Value": 2, "Bounds": (1e-3, 10)}
 # electron index param
-spec.params["indx1_spectrum1"] = {"Value": 6, "Bounds": (3, 10)}
+spec.params["ind1_spectrum1"] = {"Value": 6, "Bounds": (3, 10)}
 # electron low energy cut-off param
 spec.params["ec1_spectrum1"] = {"Value": 7, "Bounds": (1, 12)}
 # loop plasma temperature param

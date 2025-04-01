@@ -13,7 +13,7 @@ import numpy as np
 from numpy.exceptions import VisibleDeprecationWarning
 from parfive import Downloader
 
-from sunkit_spex.legacy.fitting.fitter import Fitter, load
+from sunkit_spex.legacy.fitting.fitter import Fitter
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 try:
@@ -222,10 +222,10 @@ plt.rcParams["font.size"] = default_font_size
 # The model can then be set with:
 #
 # .. code:: python
-# 
+#
 #     spec.model = model_2therm
-# 
-# 
+#
+#
 
 #####################################################
 #
@@ -327,7 +327,7 @@ print("Parameters\n", spec.params)
 #####################################################
 #
 # **Can now use gauss photon model in the fitting**
-# 
+#
 # Either by itself or in a greater, overall model defined as a named function, lambda function, or string
 #
 # sort parameters
