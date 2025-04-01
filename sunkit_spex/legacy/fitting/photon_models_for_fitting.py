@@ -88,7 +88,7 @@ def thick_fn(total_eflux, index, e_c, energies=None):
     # we want a single power law electron distribution,
     # so set eebrk == eehigh at a high value.
     # we don't care about q at E > eebrk.
-    high_break = energies.max() * 10
+    high_break = np.float64(energies.max() * 10)
     output = bremsstrahlung_thick_target(
         photon_energies=energies, p=index, eebrk=high_break, q=20, eelow=e_c, eehigh=high_break
     )
