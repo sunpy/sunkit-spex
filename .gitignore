@@ -82,6 +82,8 @@ docs/sg_execution_times.rst
 docs/generated/
 examples/rhessi/
 examples/sunxspexRhessiSpectralFitting.pickle
+examples/nustar/
+test.pickle
 
 # PyBuilder
 .pybuilder/
