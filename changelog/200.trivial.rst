@@ -1,0 +1,1 @@
+Remove unused dependencies which started to cause issues. Update URLs in examples for server change. Downgrade python in RTD environment to 3.10.
