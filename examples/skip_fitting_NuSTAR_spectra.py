@@ -39,7 +39,7 @@ x_limits, y_limits = [1.6, 8.5], [1e-1, 1e3]
 
 dl = Downloader()
 
-base_url = "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2Fm3_time2628&files="
+base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/nustar/m3_time2628/"
 file_names = [
     "nu80414202001A06_chu23_S_cl_grade0_sr.pha",
     "nu80414202001A06_chu23_S_cl_grade0_sr.arf",
@@ -310,9 +310,7 @@ plt.rcParams["font.size"] = default_font_size
 #
 # Download data files
 
-base_url = (
-    "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2Fm10_1616_1620&files="
-)
+base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/nustar/m10_1616_1620/"
 file_names = [
     "nu80415202001A06_chu13_N_cl_grade0_sr.pha",
     "nu80415202001A06_chu13_N_cl_grade0_sr.arf",
@@ -624,9 +622,7 @@ gles_xlims, gles_ylims = [2, 12], [1e1, 1e4]
 #
 # Download data files
 
-base_url = (
-    "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2FGlesener2020&files="
-)
+base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/nustar/Glesener2020/"
 file_names = [
     "nu20312001001B06_cl_grade0_sr_grp.pha",
     "nu20312001001B06_cl_grade0_sr.arf",
@@ -918,7 +914,7 @@ dunc_xlims, dunc_ylims = [2.5, 11], [1e0, 4e4]
 
 dl = Downloader()
 
-base_url = "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2FDuncan2021&files="
+base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/nustar/Duncan2021/"
 file_names = [
     "nu80410201001A06_1618_p_chu2_N_sr.pha",
     "nu80410201001A06_1618_p_chu2_N_sr.arf",
