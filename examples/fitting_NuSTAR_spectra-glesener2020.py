@@ -51,9 +51,7 @@ gles_xlims, gles_ylims = [2, 12], [1e1, 1e4]
 
 dl = Downloader()
 
-base_url = (
-    "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2FGlesener2020&files="
-)
+base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/nustar/Glesener2020/"
 file_names = [
     "nu20312001001B06_cl_grade0_sr_grp.pha",
     "nu20312001001B06_cl_grade0_sr.arf",

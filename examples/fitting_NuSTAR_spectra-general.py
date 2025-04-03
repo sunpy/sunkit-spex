@@ -39,7 +39,7 @@ x_limits, y_limits = [1.6, 8.5], [1e-1, 1e3]
 
 dl = Downloader()
 
-base_url = "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Fnustar%2Fm3_time2628&files="
+base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/nustar/m3_time2628/"
 file_names = [
     "nu80414202001A06_chu23_S_cl_grade0_sr.pha",
     "nu80414202001A06_chu23_S_cl_grade0_sr.arf",
