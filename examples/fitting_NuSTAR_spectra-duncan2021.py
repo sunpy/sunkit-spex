@@ -75,16 +75,21 @@ spec.model = "C*(f_vth + f_vth)"
 
 #####################################################
 #
+# Check the parameter table
+print(spec.params)
+
+#####################################################
+#
 # freeze the ones we don't want to vary
 spec.params["C_spectrum1"] = {"Status": "frozen"}
 
 #####################################################
 #
 # Set initial values
-spec.params["T1_spectrum1"] = {"Value": 4, "Bounds": (2.5, 6)}
-spec.params["EM1_spectrum1"] = {"Value": 10, "Bounds": (1e-1, 1e2)}
-spec.params["T2_spectrum1"] = {"Value": 8, "Bounds": (5, 15)}
-spec.params["EM2_spectrum1"] = {"Value": 0.5, "Bounds": (1e-4, 10)}
+spec.params["T1_spectrum1"] = {"Value": 4.1, "Bounds": (2.5, 6)}
+spec.params["EM1_spectrum1"] = {"Value": 14, "Bounds": (1e0, 1e2)}
+spec.params["T2_spectrum1"] = {"Value": 10, "Bounds": (5, 15)}
+spec.params["EM2_spectrum1"] = {"Value": 0.46, "Bounds": (1e-4, 10)}
 spec.params["C_spectrum2"] = {"Status": "free", "Bounds": (0.5, 2)}
 
 #####################################################
@@ -92,9 +97,11 @@ spec.params["C_spectrum2"] = {"Status": "free", "Bounds": (0.5, 2)}
 # Fit lower energy range with the first thermal model first
 spec.params["T2_spectrum1"] = "frozen"
 spec.params["EM2_spectrum1"] = "frozen"
-spec.energy_fitting_range = [2.5, 5]
+spec.energy_fitting_range = [2.5, 4]
 
 spec.fit(tol=1e-6)
+print(spec.params)
+print(spec.rParams)
 
 #####################################################
 #
@@ -109,12 +116,17 @@ spec.params["EM2_spectrum1"] = "free"
 #####################################################
 #
 # Need the gain slope to vary too for this microflare but only needed for the 6.7 keV line
+print(spec.rParams)
 spec.rParams["gain_slope_spectrum1"] = "free"
 spec.rParams["gain_slope_spectrum2"] = spec.rParams["gain_slope_spectrum1"]
 
-spec.energy_fitting_range = [5, 10.8]
+spec.energy_fitting_range = [4, 10.8]
+
+# print(spec.rParams)
 
 spec.fit(tol=1e-6)
+print(spec.params)
+print(spec.rParams)
 
 #####################################################
 #
@@ -123,9 +135,11 @@ spec.params["T1_spectrum1"] = "free"
 spec.params["EM1_spectrum1"] = "free"
 spec.params["C_spectrum2"] = "free"
 
-spec.energy_fitting_range = [2.5, 10.8]
+spec.energy_fitting_range = [3, 10.8]
 
 spec.fit(tol=1e-10)
+print(spec.params)
+print(spec.rParams)
 
 #####################################################
 #
@@ -145,15 +159,15 @@ plt.rcParams["font.size"] = default_font_size
 #
 # | Model Parameter                | XSPEC (Duncan et al. 2021)         | This Work                       |
 # | :---                           |    :----:                          |                            ---: |
-# | Temperature 1 [MK]             | 4.1$^{+0.2}_{-0.1}$                | 6.00$\pm$0.02                   |
-# | Emission Measure 1 [cm$^{-3}$] | 1.4$^{+0.6}_{-0.4}\times$10$^{47}$ | 2.41$\pm$0.02$\times$10$^{46}$  |
-# | Temperature 2 [MK]             | 10.00$^{+0.03}_{-0.03}$            | 10.63$\pm$0.02                  |
-# | Emission Measure 2 [cm$^{-3}$] | 4.6$^{+0.1}_{-0.2}\times$10$^{45}$ | 3.63$\pm$0.02$\times$10$^{45}$  |
+# | Temperature 1 [MK]             | 4.1$^{+0.2}_{-0.1}$                | 4.8$\pm$0.3                   |
+# | Emission Measure 1 [cm$^{-3}$] | 1.4$^{+0.6}_{-0.4}\times$10$^{47}$ | 7.6$\pm$2.4$\times$10$^{46}$  |
+# | Temperature 2 [MK]             | 10.00$^{+0.03}_{-0.03}$            | 10.39$\pm$0.09                 |
+# | Emission Measure 2 [cm$^{-3}$] | 4.6$^{+0.1}_{-0.2}\times$10$^{45}$ | 4.3$\pm$0.3$\times$10$^{45}$  |
 #
 #
 # | Response Parameter             | XSPEC (Duncan et al. 2021)         | This Work         |
 # | :---                           |    :----:                          |              ---: |
-# | Gain Slope                     | 0.977$\pm$0.002                    | 0.973$\pm$0.001   |
+# | Gain Slope                     | 0.977$\pm$0.002                    | 0.978$\pm$0.001   |
 #
 # Although these values are slightly different, it is important to note that XSPEC and sunkit-spex work from different atomic databases. We also note that for a similar isothermal fit the temperature can drop/rise if the emission measure rises/drops and so fitting not just one but two of these models allows for these to vary more. We do see that this work (for this microflare) produces higher temperatures but correspondingly lower emission measures.
 #
