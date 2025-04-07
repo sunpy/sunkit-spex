@@ -55,7 +55,7 @@ files = dl.download()
 
 #####################################################
 #
-# load in your data files, here we load in 2 spectra
+# Load in your data files, here we load in 2 spectra
 
 _dir = "./nustar/m10_1616_1620/"
 spec = Fitter(
@@ -90,14 +90,14 @@ spec.params["EM2_spectrum1"] = {"Value": 0.004, "Bounds": (1e-4, 2e-1)}
 
 #####################################################
 #
-# free the constant (was tied to `"C_spectrum1"`) to account for systematic offset between NuSTAR FPMs
+# Free the constant (was tied to `"C_spectrum1"`) to account for systematic offset between NuSTAR FPMs
 spec.params["C_spectrum2"] = {"Status": "free", "Bounds": (0.5, 2)}
 
 print(spec.params)
 
 #####################################################
 #
-# can also display parameter table as an astropy table
+# We can also display the parameter table as an astropy table
 print(spec.show_params)
 
 #####################################################
@@ -275,7 +275,7 @@ except ValueError as e:
 #
 # Need to add function to the correct namespace for the fitter to see it and include the function name and parameters in `defined_photon_models` dictionary. This is done using the `add_photon_model()` function.
 #
-# `defined_photon_models` dict is what the sunkit-spex fitting uses to know what functions it can use to build with
+# The `defined_photon_models` dictionary is what the sunkit-spex fitting uses to know what functions it can use to build with.
 #
 # See what models are defined.
 #
@@ -326,16 +326,16 @@ print("Parameters\n", spec.params)
 #
 # **Can now use gauss photon model in the fitting**
 #
-# Either by itself or in a greater, overall model defined as a named function, lambda function, or string
+# Either by itself or in a greater, overall model defined as a named function, lambda function, or string.
 #
-# sort parameters
+# Sort parameters:
 
 spec.params["T1_spectrum1"] = {"Value": 3.05, "Bounds": (2.5, 6)}
 spec.params["EM1_spectrum1"] = {"Value": 1.7, "Bounds": (0.5, 3.5)}
 
 #####################################################
 #
-# then fit and plot again...
+# Then fit and plot again...
 
 minimised_params = spec.fit()
 
