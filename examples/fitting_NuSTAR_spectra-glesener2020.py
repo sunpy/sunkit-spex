@@ -70,7 +70,7 @@ files = dl.download()
 #
 # First, load in your data files, here we load in 2 spectra
 _dir = "./nustar/Glesener2020/"
-# in the files I have, the ARF and RMF file have different names to the PHA files so cannot use the PHA file name to help find the others so...
+# In the files here, the ARF and RMF file have different names to the PHA files so cannot use the PHA file name to help find the others so...
 spec = Fitter(
     pha_file=_dir + "nu20312001001B06_cl_grade0_sr_grp.pha",
     arf_file=_dir + "nu20312001001B06_cl_grade0_sr.arf",
@@ -79,18 +79,18 @@ spec = Fitter(
 
 #####################################################
 #
-# define model, here we go for a single isothermal model + cold thick model
+# Define model, here we go for a single isothermal model + cold thick model
 
 spec.model = "f_vth + thick_fn"
 
 #####################################################
 #
-# define fitting range
+# Define fitting range
 spec.energy_fitting_range = [2.8, 10.5]
 
 #####################################################
 #
-# sort temperature param from f_vth
+# Sort temperature param from f_vth
 spec.params["T1_spectrum1"] = {"Value": 10.3, "Bounds": (1.1, 15)}
 # emission measure param from f_vth
 spec.params["EM1_spectrum1"] = {"Value": 0.5, "Bounds": (1e-2, 1e1)}
@@ -109,7 +109,7 @@ spec.params["e_c1_spectrum1"] = {"Value": 6.2, "Bounds": (1, 12)}  # units keV
 #
 # The difference is that gain parameters all have specific starting values (slope=1, offset=0) and are frozen by default.
 
-# from Gles. 2020 which had a gain correction fixed at 0.95
+# from Glesener et al. 2020 which had a gain correction fixed at 0.95
 spec.rParams["gain_slope_spectrum1"] = {"Status": "fixed", "Value": 0.95}
 
 print(spec.rParams)
@@ -118,10 +118,10 @@ print(spec.show_rParams)
 
 #####################################################
 #
-# fit the model to the spectrum
+# Fit the model to the spectrum
 spec.fit(tol=1e-8)
 
-# plot the result
+# Plot the result
 plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_single_plot_size)
 axes, res_axes = spec.plot()
@@ -134,13 +134,14 @@ plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
-# **Let's recreate Figure 3(c)**
+# **Let's recreate something similar to Figure 3(c)**
 #
 # Both NuSTAR FPMs are fitted with a thermal+cold thick target model simultaneously.
 #
+# In the original Figure 3(c), a broken power law is used as the cold thick target does not exist ins XPSEC.
+#
 # First, load in your data files, here we load in 2 spectra
 _dir = "./nustar/Glesener2020/"
-# in the files I have, the ARF and RMF file have different names to the PHA files so cannot use the PHA file name to help find the others so...
 spec = Fitter(
     pha_file=[_dir + "nu20312001001A06_cl_grade0_sr_grp.pha", _dir + "nu20312001001B06_cl_grade0_sr_grp.pha"],
     arf_file=[_dir + "nu20312001001A06_cl_grade0_sr.arf", _dir + "nu20312001001B06_cl_grade0_sr.arf"],
@@ -149,17 +150,17 @@ spec = Fitter(
 
 #####################################################
 #
-# define model, here we go for a single isothermal model + cold thick model
+# Define model, here we go for a single isothermal model + cold thick model
 spec.model = "C*(f_vth + thick_fn)"
 
 #####################################################
 #
-# define fitting range
+# Define fitting range
 spec.energy_fitting_range = [2.8, 10.5]
 
 #####################################################
 #
-# sort temperature param from f_vth
+# Sort temperature param from f_vth
 spec.params["T1_spectrum1"] = {"Value": 10.3, "Bounds": (1.1, 15)}
 # emission measure param from f_vth
 spec.params["EM1_spectrum1"] = {"Value": 0.5, "Bounds": (1e-2, 1e1)}
@@ -179,10 +180,10 @@ spec.rParams["gain_slope_spectrum2"] = spec.rParams["gain_slope_spectrum1"]
 
 #####################################################
 #
-# fit the model to the spectrum
+# Fit the model to the spectrum
 spec.fit(tol=1e-8)
 
-# plot the result
+# Plot the result
 plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = spec.plot()
@@ -192,17 +193,31 @@ for a in axes:
 plt.show()
 plt.rcParams["font.size"] = default_font_size
 
+#####################################################       
+#
+# For the thermal and cold thick target total model we compare
+#
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Model Parameter                        | OSPEX (Glesener et al. 2020) [*]_             | This Work (just FPMB)                    | This Work (FPMA&B)                       |
+# +========================================+===============================================+==========================================+==========================================+
+# | Temperature [MK]                       | 10.3\ |pm|\ 0.7                               | 11.3\ |pm|\ 0.7                          | 11.2\ |pm|\ 0.4                          |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Emission Measure [cm\ :sup:`-3`]       | 5.0 |pm| 1.3\ |x|\ 10 :sup:`45`               | 3.7 |pm| 0.9\ |x|\ 10 :sup:`45`          | 3.7 |pm| 0.5\ |x|\ 10 :sup:`45`          |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Electron Flux [e$^{-}$ s$^{-1}$]       | 2.1\ |pm|\ 1.1\ |x|\ 10 :sup:`35`             | 2.2\ |pm|\ 1.1\ |x|\ 10 :sup:`35`        | 1.6\ |pm|\ 0.5\ |x|\ 10 :sup:`35`        |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Index                                  | 6.2\ |pm|\ 0.6                                | 6.5\ |pm|\ 0.8                           | 6.5\ |pm|\ 0.6                           |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Low Energy Cut-off [keV]               | 6.2\ |pm|\ 0.9                                | 6.5\ |pm|\ 1.0                           | 6.7\ |pm|\ 0.7                           |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+#
+# .. |pm| replace:: :math:`\pm`
+# .. |x| replace:: :math:`\times`
+# .. [*] Glesener *et al.* 2020
+# .. [Glesener2020] https://iopscience.iop.org/article/10.3847/2041-8213/ab7341
+
+
 #####################################################
-#
-# For the thermal and cold thick target total model we compare::
-#
-#    | Model Parameter                  | OSPEX (Glesener et al. 2020, just FPMB)       |This Work (just FPMB)           | This Work (FPMA&B)                |
-#    | :---                             |    :----:                                     |     :----:                     |                              ---: |
-#    | Temperature [MK]                 | 10.3$^{+0.7}_{-0.7}$                          | 10.12$\pm$0.10                 | 9.77$\pm$0.06                     |
-#    | Emission Measure [cm$^{-3}$]     | 5.0$^{+1.3}_{-1.3}\times$10$^{45}$            | 4.86$\pm$0.01$\times$10$^{45}$ | 4.66$\pm$0.05$\times$10$^{45}$    |
-#    | Electron Flux [e$^{-}$ s$^{-1}$] | 2.1$^{+1.2}_{-1.2}\times$10$^{35}$            | 2.17$\pm$0.06$\times$10$^{35}$ | 2.25$\pm$0.02$\times$10$^{35}$    |
-#    | Index                            | 6.2$^{+0.6}_{-0.6}$                           | 5.83$\pm$0.09                  | 6.09$\pm$0.05                     |
-#    | Low Energy Cut-off [keV]         | 6.2$^{+0.9}_{-0.9}$                           | 6.66$\pm$0.05                  | 6.52$\pm$0.05                     |
 #
 # **Now let's recreate Figure 4 (right)**
 #
@@ -211,7 +226,6 @@ plt.rcParams["font.size"] = default_font_size
 # The warm thick target model helps to constrain the non-thermal emission with observed values (e.g., loop length, etc) and ties it to the thermal emission parameters.
 #
 # First, load in your data files, here we load in 1 spectrum
-
 
 _dir = "./nustar/Glesener2020/"
 spec = Fitter(
@@ -267,7 +281,7 @@ plt.rcParams["font.size"] = default_font_size
 
 #####################################################
 #
-# **Fit the warm thick target model to both FPMs simultaneously**
+# **Fitting the warm thick target model to both FPMs simultaneously**
 #
 #
 # First, load in your data files, here we load in 2 spectra
@@ -281,15 +295,14 @@ spec = Fitter(
 
 #####################################################
 #
-# define model, here we go for a single isothermal model + cold thick model
+# Define model, here we go for a single isothermal model + cold thick model
 spec.model = "C*thick_warm"
 
 #####################################################
 #
-# define fitting range
+# Define fitting range
 spec.energy_fitting_range = [2.8, 10.5]
 
-# Note that similar parameters in the warm thick target and cold thick target models have slightly different names
 # electron flux param
 spec.params["tot_eflux1_spectrum1"] = {"Value": 2, "Bounds": (1e-3, 10)}
 # electron index param
@@ -311,10 +324,10 @@ spec.rParams["gain_slope_spectrum2"] = spec.rParams["gain_slope_spectrum1"]
 
 #####################################################
 #
-# fit the model to the spectrum
+# Fit the model to the spectrum
 spec.fit(tol=1e-5)
 
-# plot the result
+# Plot the result
 plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = spec.plot()
@@ -324,19 +337,30 @@ for a in axes:
 plt.show()
 plt.rcParams["font.size"] = default_font_size
 
+#####################################################       
+#
+# For warm thick target total model we compare
+#
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Model Parameter                        | OSPEX (Glesener et al. 2020) [*]_             | This Work (just FPMB)                    | This Work (FPMA&B)                       |
+# +========================================+===============================================+==========================================+==========================================+
+# | Temperature [MK]                       | 10.2\ |pm|\ 0.7                               | 11.2\ |pm|\ 0.6                          | 11.2\ |pm|\ 0.4                          |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Plasma Density [cm\ :sup:`-3`]         | 6.0 |pm| 2.0\ |x|\ 10 :sup:`9`                | 5.0 |pm| 1.3\ |x|\ 10 :sup:`9`           | 5.7 |pm| 1.1\ |x|\ 10 :sup:`9`           |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Electron Flux [e$^{-}$ s$^{-1}$]       | 1.8\ |pm|\ 0.8\ |x|\ 10 :sup:`35`             | 2.0\ |pm|\ 0.8\ |x|\ 10 :sup:`35`        | 1.6\ |pm|\ 0.5\ |x|\ 10 :sup:`35`        |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Index                                  | 6.3\ |pm|\ 0.7                                | 6.6\ |pm|\ 0.8                           | 6.5\ |pm|\ 0.6                           |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+# | Low Energy Cut-off [keV]               | 6.5\ |pm|\ 0.9                                | 6.7\ |pm|\ 0.9                           | 6.7\ |pm|\ 0.7                           |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
+#
+# .. |pm| replace:: :math:`\pm`
+# .. |x| replace:: :math:`\times`
+# .. [*] Glesener *et al.* 2020
+# .. [Glesener2020] https://iopscience.iop.org/article/10.3847/2041-8213/ab7341
+
 #####################################################
-#
-# For the warm thick target total model::
-#
-#    | Model Parameter                  | OSPEX (Glesener et al. 2020, just FPMB) |This Work (just FPMB)            | This Work (FPMA&B)              |
-#    | :---                             |    :----:                               |     :----:                      |                            ---: |
-#    | Temperature [MK]                 | 10.2$^{+0.7}_{-0.7}$                    | 11.34$\pm$0.24                  | 11.27$\pm$0.39                  |
-#    | Plasma Density [cm$^{-3}$]       | 6.0$^{+2.0}_{-2.0}\times$10$^{9}$       | 4.86$\pm$0.03$\times$10$^{9}$   | 4.71$\pm$0.14$\times$10$^{9}$   |
-#    | Electron Flux [e$^{-}$ s$^{-1}$] | 1.8$^{+0.8}_{-0.8}\times$10$^{35}$      | 2.06$\pm$0.02$\times$10$^{35}$  | 2.04$\pm$0.05$\times$10$^{35}$  |
-#    | Index                            | 6.3$^{+0.7}_{-0.7}$                     | 7.09$\pm$0.04                   | 7.02$\pm$0.26                   |
-#    | Low Energy Cut-off [keV]         | 6.5$^{+0.9}_{-0.9}$                     | 7.00$\pm$0.04                   | 6.66$\pm$0.25                   |
-#
 # All parameter values appear to be within error margins (or extremely close). This is more impressive when the errors calculated in this work for the minimised values assumes the parameter's have a Gaussian and independent posterior distribution (which is clearly not the case) and so these errors are likely to be larger; to be investigated with an MCMC.
 #
 # The simultaneous fit of FPMA&B with the cold thick target model and the warm thick model is not able to be performed in OSPEX.
-#
