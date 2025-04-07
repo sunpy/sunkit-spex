@@ -70,7 +70,7 @@ spec = Fitter(pha_file=[_dir + "nu80410201001A06_1618_p_chu2_N_sr.pha", _dir + "
 
 #####################################################
 #
-# define model, here we go for 2 isothermal models
+# Define model, here we go for 2 isothermal models
 spec.model = "C*(f_vth + f_vth)"
 
 #####################################################
@@ -122,8 +122,6 @@ spec.rParams["gain_slope_spectrum2"] = spec.rParams["gain_slope_spectrum1"]
 
 spec.energy_fitting_range = [4, 10.8]
 
-# print(spec.rParams)
-
 spec.fit(tol=1e-6)
 print(spec.params)
 print(spec.rParams)
@@ -143,7 +141,7 @@ print(spec.rParams)
 
 #####################################################
 #
-# plot the result
+# Plot the result
 plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 axes, res_axes = spec.plot()
@@ -153,21 +151,40 @@ for a in axes:
 plt.show()
 plt.rcParams["font.size"] = default_font_size
 
+#####################################################       
+#
+# For the 2 thermal model fitting
+#
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+
+# | Model Parameter                        | XSPEC (Duncan et al. 2021) [*]_               | This Work                                |
+# +========================================+===============================================+==========================================+
+# | Temperature 1 [MK]                     | :math:`4.1^{+0.1}_{-0.1}`                     | 4.8\ |pm|\ 0.3                           |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+
+# | Emission Measure 1 [cm\ :sup:`-3`]     | :math:`1.4^{+0.6}_{-0.4}\times10^{47}`        | 7.6 |pm| 2.4\ |x|\ 10 :sup:`46`          |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+
+# | Temperature 2 [MK]                     | :math:`10.00^{+0.03}_{-0.03}`                 | 10.4\ |pm|\ 0.1                          |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+
+# | Emission Measure 2 [cm\ :sup:`-3`]     | :math:`4.6^{+0.1}_{-0.2}\times10^{45}`        | 4.3 |pm| 0.3\ |x|\ 10 :sup:`45`          |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+
+#
+# .. |pm| replace:: :math:`\pm`
+# .. |x| replace:: :math:`\times`
+# .. [*] Duncan *et al.* 2021's may1618 microflare
+# .. [Duncan2021] https://iopscience.iop.org/article/10.3847/1538-4357/abca3d
+
+#####################################################       
+#
+# For the gain parameters
+#
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+
+# | Model Parameter                        | XSPEC (Duncan et al. 2021) [*]_               | This Work                                |
+# +========================================+===============================================+==========================================+
+# | Gain Slope                             | 0.977\ |pm|\ 0.002                            | 0.978\ |pm|\ 0.001                       |
+# +----------------------------------------+-----------------------------------------------+------------------------------------------+
+#
+# .. |pm| replace:: :math:`\pm`#
+# .. [*] Duncan *et al.* 2021's may1618 microflare
+# .. [Duncan2021] https://iopscience.iop.org/article/10.3847/1538-4357/abca3d
+
 #####################################################
-#
-# For the 2 thermal model fitting:
-#
-# | Model Parameter                | XSPEC (Duncan et al. 2021)         | This Work                       |
-# | :---                           |    :----:                          |                            ---: |
-# | Temperature 1 [MK]             | 4.1$^{+0.2}_{-0.1}$                | 4.8$\pm$0.3                   |
-# | Emission Measure 1 [cm$^{-3}$] | 1.4$^{+0.6}_{-0.4}\times$10$^{47}$ | 7.6$\pm$2.4$\times$10$^{46}$  |
-# | Temperature 2 [MK]             | 10.00$^{+0.03}_{-0.03}$            | 10.39$\pm$0.09                 |
-# | Emission Measure 2 [cm$^{-3}$] | 4.6$^{+0.1}_{-0.2}\times$10$^{45}$ | 4.3$\pm$0.3$\times$10$^{45}$  |
-#
-#
-# | Response Parameter             | XSPEC (Duncan et al. 2021)         | This Work         |
-# | :---                           |    :----:                          |              ---: |
-# | Gain Slope                     | 0.977$\pm$0.002                    | 0.978$\pm$0.001   |
-#
 # Although these values are slightly different, it is important to note that XSPEC and sunkit-spex work from different atomic databases. We also note that for a similar isothermal fit the temperature can drop/rise if the emission measure rises/drops and so fitting not just one but two of these models allows for these to vary more. We do see that this work (for this microflare) produces higher temperatures but correspondingly lower emission measures.
-#
