@@ -114,7 +114,7 @@ def thick_warm(total_eflux, ind, e_c, plasma_d, loop_temp, length, energies=None
     total_eflux : int or float
             Total integrated electron flux in units of 10^35 e^- s^-1.
 
-    index : int or float
+    ind : int or float
             Power-law index of the electron distribution.
 
     e_c : int or float
