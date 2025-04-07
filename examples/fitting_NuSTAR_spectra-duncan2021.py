@@ -151,7 +151,7 @@ for a in axes:
 plt.show()
 plt.rcParams["font.size"] = default_font_size
 
-#####################################################       
+#####################################################
 #
 # For the 2 thermal model fitting
 #
@@ -172,7 +172,7 @@ plt.rcParams["font.size"] = default_font_size
 # .. [*] Duncan *et al.* 2021's may1618 microflare
 # .. [Duncan2021] https://iopscience.iop.org/article/10.3847/1538-4357/abca3d
 
-#####################################################       
+#####################################################
 #
 # For the gain parameters
 #

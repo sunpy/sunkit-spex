@@ -243,7 +243,7 @@ mcmc_result = spec.run_mcmc(steps_per_walker=100)
 
 #####################################################
 #
-# To add more MCMC runs, avoid overwriting by settin  `append_runs=True`.
+# To add more MCMC runs, avoid overwriting by setting  `append_runs=True`.
 
 mcmc_result = spec.run_mcmc(steps_per_walker=50, append_runs=True)
 

@@ -193,7 +193,7 @@ for a in axes:
 plt.show()
 plt.rcParams["font.size"] = default_font_size
 
-#####################################################       
+#####################################################
 #
 # For the thermal and cold thick target total model we compare
 #
@@ -337,7 +337,7 @@ for a in axes:
 plt.show()
 plt.rcParams["font.size"] = default_font_size
 
-#####################################################       
+#####################################################
 #
 # For warm thick target total model we compare
 #
