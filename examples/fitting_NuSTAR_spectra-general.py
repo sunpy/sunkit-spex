@@ -3,7 +3,7 @@
 Fitting NuSTAR Spectra: General Tutorial
 ========================================
 
-A real example of fitting NuSTAR spectra.
+A real example of fitting a NuSTAR spectrum.
 """
 
 import warnings
@@ -95,16 +95,16 @@ print(spec.params)
 
 #####################################################
 #
-# Once data has been loaded and a model set then the data can be fit with:
+# Once data has been loaded and a model set then the data can be fitted.
 #
-# Any kwargs passed to fit will be sent to Scipy's minimize, e.g., tol=1e-6 for setting a tolerance for the fit.
+# Any kwargs passed to fit will be sent to Scipy's minimize. E.g., tol=1e-6 for setting a tolerance for the fit.
 
 
 minimised_params = spec.fit()
 
 #####################################################
 #
-# The spec.params will be updated with the best fit values and errors (if obtained) updated too.
+# The `spec.params` will be updated with the best fit values and errors (if obtained) too.
 
 print(spec.params)
 
@@ -129,7 +129,7 @@ plt.rcParams["font.size"] = default_font_size
 #
 # **The data loader class**
 #
-# The data loader class (LoadSpec in data_loader.py) makes use of instrument specific loaders. Each instrument loader's job is to essentially create the following dictionary for each loaded spectrum, found with the attribute `_loaded_spec_data` in the instrument class which makes up the loader class's `loaded_spec_data` attribute. E.g., with NuSTAR:
+# The data loader class (`LoadSpec` in data_loader.py) makes use of instrument specific loaders. Each instrument loader's job is to essentially create the following dictionary for each loaded spectrum, found with the attribute `_loaded_spec_data` in the instrument class which makes up the loader class's `data.loaded_spec_data` dictionary. E.g., with NuSTAR:
 #
 # .. code ::
 #
@@ -160,7 +160,7 @@ plt.rcParams["font.size"] = default_font_size
 #                                            "rmf.redistribution_matrix":redist_m}
 #                                 }
 #
-# such that, ``self.loaded_spec_data = {"spectrum1":inst_loader, ...}``
+# such that, ``spec.data.loaded_spec_data == {"spectrum1":nust_loader._loaded_spec_data, ...}``
 #
 # **Multiple ways to set the fitting range**
 #
@@ -188,8 +188,8 @@ spec.rebin = {"spectrum1": 4}
 #
 # To revert back to native binning for all spectra:
 
-# spec.undo_rebin
-# or equivalently for one spectrum
+
+# For one spectrum
 spec.undo_rebin = "spectrum1"
 # or (indicate the spectrum with just its number)
 spec.undo_rebin = 1
@@ -243,7 +243,7 @@ mcmc_result = spec.run_mcmc(steps_per_walker=100)
 
 #####################################################
 #
-# To add more MCMC runs when running the it again instead of overwriting, set  `append_runs=True`.
+# To add more MCMC runs, avoid overwriting by settin  `append_runs=True`.
 
 mcmc_result = spec.run_mcmc(steps_per_walker=50, append_runs=True)
 
@@ -251,7 +251,7 @@ mcmc_result = spec.run_mcmc(steps_per_walker=50, append_runs=True)
 #
 # MCMC runs are easily burned and are always burned from the original sampling. E.g., burning 50 samples twice still only discards 50 samples, to discard 100 the user needs to just discard 100.
 
-spec.burn_mcmc = 100
+spec.burn_mcmc = 30
 
 #####################################################
 #
@@ -286,7 +286,7 @@ spec.mcmc_table
 
 #####################################################
 #
-# An alternative to plotting a number of random MCMC samples as faded lines being the MAP the user can plot a colour map showing where all run models (that are not burned) accumulate counts. This will obviously take longer.
+# An alternative to plotting a number of random MCMC samples as faded lines, the user can plot a colour map showing where all run models (that are not burned) accumulate counts. This will obviously take longer.
 
 plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_single_plot_size)
