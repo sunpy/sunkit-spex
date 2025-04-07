@@ -80,8 +80,7 @@ def thick_fn(total_eflux, index, e_c, energies=None):
     of ph s^-1 cm^-2 keV^-1.
     """
 
-    # hack = np.round([total_eflux, index, e_c], 15) # must be removed for numpy v2.2.4
-    # total_eflux, index, e_c = hack[0], hack[1], hack[2] # must be removed for numpy v2.2.4
+    # total_eflux, index, e_c = np.round([total_eflux, index, e_c], 15) # must be removed for numpy v2.2.4
 
     energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
 
