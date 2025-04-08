@@ -3,7 +3,7 @@
 Fitting NuSTAR Spectra: Duncan *et al.* 2021 comparison
 =========================================================
 
-This spectrum corresponds to the may1618 microflare in [Duncan *et al.* 2021](https://iopscience.iop.org/article/10.3847/1538-4357/abca3d).
+This spectrum corresponds to the may1618 microflare in [Duncan2021]_.
 
 An example of fitting multiple spectra simultaneously with 2 models where each model is allowed to vary at different times
 
@@ -177,14 +177,10 @@ plt.rcParams["font.size"] = default_font_size
 # For the gain parameters
 #
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Model Parameter                        | XSPEC (Duncan et al. 2021) [*]_               | This Work                                |
+# | Model Parameter                        | XSPEC (Duncan et al. 2021)                    | This Work                                |
 # +========================================+===============================================+==========================================+
 # | Gain Slope                             | 0.977\ |pm|\ 0.002                            | 0.978\ |pm|\ 0.001                       |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
-#
-# .. |pm| replace:: :math:`\pm`#
-# .. [*] Duncan *et al.* 2021's may1618 microflare
-# .. [Duncan2021] https://iopscience.iop.org/article/10.3847/1538-4357/abca3d
 
 #####################################################
 # Although these values are slightly different, it is important to note that XSPEC and sunkit-spex work from different atomic databases. We also note that for a similar isothermal fit the temperature can drop/rise if the emission measure rises/drops and so fitting not just one but two of these models allows for these to vary more. We do see that this work (for this microflare) produces higher temperatures but correspondingly lower emission measures.

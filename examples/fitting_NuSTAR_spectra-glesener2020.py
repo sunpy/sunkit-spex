@@ -3,7 +3,7 @@
 Fitting NuSTAR Spectra: Glesener *et al.* 2020 comparison
 =========================================================
 
-A real example from [Glesener2020](https://iopscience.iop.org/article/10.3847/2041-8213/ab7341) of fitting two NuSTAR spectra simultaneously with gain correction.
+A real example from [Glesener2020]_ of fitting two NuSTAR spectra simultaneously with gain correction.
 """
 
 import warnings
@@ -342,7 +342,7 @@ plt.rcParams["font.size"] = default_font_size
 # For warm thick target total model we compare
 #
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
-# | Model Parameter                        | OSPEX (Glesener et al. 2020) [*]_             | This Work (just FPMB)                    | This Work (FPMA&B)                       |
+# | Model Parameter                        | OSPEX (Glesener et al. 2020)                  | This Work (just FPMB)                    | This Work (FPMA&B)                       |
 # +========================================+===============================================+==========================================+==========================================+
 # | Temperature [MK]                       | 10.2\ |pm|\ 0.7                               | 11.2\ |pm|\ 0.6                          | 11.2\ |pm|\ 0.4                          |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
@@ -354,11 +354,6 @@ plt.rcParams["font.size"] = default_font_size
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
 # | Low Energy Cut-off [keV]               | 6.5\ |pm|\ 0.9                                | 6.7\ |pm|\ 0.9                           | 6.7\ |pm|\ 0.7                           |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+------------------------------------------+
-#
-# .. |pm| replace:: :math:`\pm`
-# .. |x| replace:: :math:`\times`
-# .. [*] Glesener *et al.* 2020
-# .. [Glesener2020] https://iopscience.iop.org/article/10.3847/2041-8213/ab7341
 
 #####################################################
 # All parameter values appear to be within error margins (or extremely close). This is more impressive when the errors calculated in this work for the minimised values assumes the parameter's have a Gaussian and independent posterior distribution (which is clearly not the case) and so these errors are likely to be larger; to be investigated with an MCMC.
