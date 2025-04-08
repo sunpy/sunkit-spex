@@ -81,7 +81,6 @@ class InverseSquareFluxScaling(FittableModel):
     _input_units_allow_dimensionless = True
 
     def evaluate(self, x, observer_distance):
-        
         if isinstance(observer_distance, Quantity):
             if observer_distance.unit.is_equivalent(u.AU):
                 observer_distance_cm = observer_distance.to(u.cm)
@@ -89,7 +88,7 @@ class InverseSquareFluxScaling(FittableModel):
                 raise ValueError("Observer distance input must be an Astropy length convertible to AU.")
 
         else:
-            AU_distance_cm = 1 * u.AU.to(u.cm).value
+            AU_distance_cm = 1 * u.AU.to_value(u.cm)
             observer_distance_cm = observer_distance * AU_distance_cm
 
         correction = 1 / (4 * np.pi * (observer_distance_cm**2))
@@ -105,8 +104,7 @@ class InverseSquareFluxScaling(FittableModel):
 
 class ScalarConstant(FittableModel):
     """
-    ScalarConstant
-    model converts luminosity output of physical models to a distance scaled flux.
+    ScalarConstant model converts luminosity output of physical models to a distance scaled flux.
 
     Parameters
     ==========
@@ -167,7 +165,7 @@ class ScalarConstant(FittableModel):
     constant = Parameter(
         name="constant",
         default=1,
-        description="Multiplicative Constant",
+        description="Scalar Constant",
         fixed=True,
     )
 
