@@ -11,8 +11,17 @@ class StraightLineModel(Fittable1DModel):
     slope = Parameter(default=1, description="Gradient of a straight line model.")
     intercept = Parameter(default=0, description="Y-intercept of a straight line model.")
 
-    @staticmethod
-    def evaluate(x, slope, intercept):
+    def __init__(self, *args, **kwargs):
+        
+        self.edges = kwargs.pop("edges")
+
+        super().__init__(*args, **kwargs)
+
+    def evaluate(self, x, slope, intercept):
+
+        if self.edges == True:
+            x = x[:-1] + 0.5*np.diff(x)
+
         """Evaluate the straight line model at `x` with parameters `slope` and `intercept`."""
         return slope * x + intercept
 
@@ -22,7 +31,16 @@ class GaussianModel(Fittable1DModel):
     mean = Parameter(default=0, min=0, description="X-offset for Gaussian.")
     stddev = Parameter(default=1, description="Sigma for Gaussian.")
 
-    @staticmethod
-    def evaluate(x, amplitude, mean, stddev):
+    def __init__(self, *args, **kwargs):
+        
+        self.edges = kwargs.pop("edges")
+
+        super().__init__(*args, **kwargs)
+
+    def evaluate(self, x, amplitude, mean, stddev):
         """Evaluate the Gaussian model at `x` with parameters `amplitude`, `mean`, and `stddev`."""
+
+        if self.edges == True:
+            x = x[:-1] + 0.5*np.diff(x)
+
         return amplitude * np.e ** (-((x - mean) ** 2) / (2 * stddev**2))
