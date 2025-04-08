@@ -81,7 +81,18 @@ class InverseSquareFluxScaling(FittableModel):
     _input_units_allow_dimensionless = True
 
     def evaluate(self, x, observer_distance):
-        correction = distance_correction(observer_distance)
+        
+        if isinstance(observer_distance, Quantity):
+            if observer_distance.unit.is_equivalent(u.AU):
+                observer_distance_cm = observer_distance.to(u.cm)
+            else:
+                raise ValueError("Observer distance input must be an Astropy length convertible to AU.")
+
+        else:
+            AU_distance_cm = 1 * u.AU.to(u.cm).value
+            observer_distance_cm = observer_distance * AU_distance_cm
+
+        correction = 1 / (4 * np.pi * (observer_distance_cm**2))
         dimension = np.shape(x)[0] - 1
 
         if isinstance(observer_distance, Quantity):
@@ -166,17 +177,3 @@ class ScalarConstant(FittableModel):
         dimension = np.shape(x)[0] - 1
 
         return np.full(dimension, constant)
-
-
-def distance_correction(observer_distance):
-    if isinstance(observer_distance, Quantity):
-        if observer_distance.unit.is_equivalent(u.AU):
-            observer_distance_cm = observer_distance.to(u.cm)
-        else:
-            raise ValueError("Observer distance input must be an Astropy length convertible to AU.")
-
-    else:
-        AU_distance_cm = 1 * u.AU.to(u.cm).value
-        observer_distance_cm = observer_distance * AU_distance_cm
-
-    return 1 / (4 * np.pi * (observer_distance_cm**2))
