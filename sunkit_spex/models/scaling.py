@@ -4,7 +4,7 @@ import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
-__all__ = ["ScalarConstant", "InverseSquareFluxScaling"]
+__all__ = ["InverseSquareFluxScaling", "ScalarConstant"]
 
 
 class InverseSquareFluxScaling(FittableModel):
@@ -16,7 +16,7 @@ class InverseSquareFluxScaling(FittableModel):
     energy_edges :
         Energy edges associated with input spectrum
     observer_distance:
-        Distance of the observer from the source. 
+        Distance of the observer from the source.
 
     Examples
     ========
@@ -34,7 +34,7 @@ class InverseSquareFluxScaling(FittableModel):
         from sunkit_spex.models.scaling import InverseSquareFluxScaling
         from astropy.modeling import Parameter, FittableModel
 
-        ph_energies = np.arange(4, 100, 0.5) 
+        ph_energies = np.arange(4, 100, 0.5)
         ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
 
         class StraightLineModel(FittableModel):
@@ -50,7 +50,7 @@ class InverseSquareFluxScaling(FittableModel):
             @staticmethod
             def evaluate(x, slope, intercept):
                 return  intercept*x[:-1]**slope * u.ph*u.s**-1*u.keV**-1
-            
+
         sim_cont = {"slope": -2, "intercept": 100}
 
         source = StraightLineModel(**sim_cont)
@@ -59,13 +59,14 @@ class InverseSquareFluxScaling(FittableModel):
             plt.figure()
             for i, d in enumerate([0.25,0.5,1]):
                 distance =  InverseSquareFluxScaling(observer_distance=d*u.AU)
-                observed = source * distance    
+                observed = source * distance
                 plt.plot(ph_energies_centers ,  observed(ph_energies), label='D = '+str(d)+' AU')
             plt.loglog()
             plt.legend()
             plt.show()
 
     """
+
     n_inputs = 1
     n_outputs = 1
 
@@ -93,7 +94,7 @@ class InverseSquareFluxScaling(FittableModel):
 
 class ScalarConstant(FittableModel):
     """
-    ScalarConstant 
+    ScalarConstant
     model converts luminosity output of physical models to a distance scaled flux.
 
     Parameters
@@ -116,7 +117,7 @@ class ScalarConstant(FittableModel):
         from sunkit_spex.models.scaling import ScalarConstant
         from astropy.modeling import Parameter, FittableModel
 
-        ph_energies = np.arange(4, 100, 0.5) 
+        ph_energies = np.arange(4, 100, 0.5)
         ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
 
         class StraightLineModel(FittableModel):
@@ -132,7 +133,7 @@ class ScalarConstant(FittableModel):
             @staticmethod
             def evaluate(x, slope, intercept):
                 return  intercept*x[:-1]**slope * u.ph*u.s**-1*u.keV**-1
-            
+
         sim_cont = {"slope": -2, "intercept": 100}
 
         source = StraightLineModel(**sim_cont)
@@ -141,13 +142,14 @@ class ScalarConstant(FittableModel):
             plt.figure()
             for i, c in enumerate([0.25,0.5,1,2,4]):
                 constant =  ScalarConstant(constant=c*u.AU)
-                observed = source * constant    
+                observed = source * constant
                 plt.plot(ph_energies_centers ,  observed(ph_energies), label='Const = '+str(c))
             plt.loglog()
             plt.legend()
             plt.show()
 
     """
+
     n_inputs = 1
     n_outputs = 1
 
