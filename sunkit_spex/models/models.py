@@ -40,7 +40,7 @@ class GaussianModel(Fittable1DModel):
 
         if self.edges:
             x = x[:-1] + 0.5 * np.diff(x)
-        
+
         if isinstance(x, Quantity):
             y = amplitude * np.e ** (-((x.value - mean) ** 2) / (2 * stddev**2))
         else:
