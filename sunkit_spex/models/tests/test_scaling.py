@@ -54,7 +54,7 @@ def test_inverse_square_flux_scaling_class_against_expected_output(distance):
 @pytest.mark.parametrize("constant", [constant_scaling])
 def test_constant_scaling_class_against_expected_output(constant):
     input_args, expected = constant()
-    output = scaling.ScalarConstant(constant=[input_args[0]])(input_args[1])
+    output = scaling.Constant(constant=[input_args[0]])(input_args[1])
     np.testing.assert_allclose(output, expected, rtol=0.03)
 
 
