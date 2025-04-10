@@ -133,7 +133,7 @@ class Constant(FittableModel):
     constant = Parameter(
         name="constant",
         default=1,
-        description="Scalar Constant",
+        description="Constant",
         fixed=True,
     )
 
