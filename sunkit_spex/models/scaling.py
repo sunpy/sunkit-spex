@@ -118,7 +118,7 @@ class Constant(FittableModel):
         with quantity_support():
             plt.figure()
             for i, c in enumerate([0.25,0.5,1,2,4]):
-                constant =  Constant(constant=c*u.AU)
+                constant =  Constant(constant=c)
                 observed = source * constant
                 plt.plot(ph_energies_centers ,  observed(ph_energies), label='Const = '+str(c))
             plt.loglog()
