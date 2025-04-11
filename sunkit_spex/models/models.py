@@ -29,7 +29,7 @@ class StraightLineModel(FittableModel):
         if self.edges:
             x = x[:-1] + 0.5 * np.diff(x)
 
-        if hasattr(x, "unit"):
+        if isinstance(x, Quantity):
             x = x.value
 
         """Evaluate the straight line model at `x` with parameters `slope` and `intercept`."""
