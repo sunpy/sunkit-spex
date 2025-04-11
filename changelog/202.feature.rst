@@ -1,0 +1,1 @@
+Adds functionality to enable class:`StraightLineModel` and class:`GaussianModel` to be evaluated at energy edges and return an output at energy centers.
