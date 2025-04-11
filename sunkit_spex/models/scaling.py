@@ -35,7 +35,7 @@ class InverseSquareFluxScaling(FittableModel):
         ph_energies = np.arange(4, 100, 0.5)
         ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
 
-        sim_cont = {"edges":True,"slope": -2, "intercept": 100}
+        sim_cont = {"photon_model":True,"slope": -2, "intercept": 100}
         source = StraightLineModel(**sim_cont)
 
         with quantity_support():
@@ -94,6 +94,8 @@ class Constant(FittableModel):
     ==========
     energy_edges :
         Energy edges associated with input spectrum
+    constant :
+        A constant value which populates the output array
 
     Examples
     ========
@@ -112,7 +114,7 @@ class Constant(FittableModel):
         ph_energies = np.arange(4, 100, 0.5)
         ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
 
-        sim_cont = {"edges":True,"slope": -2, "intercept": 100}
+        sim_cont = {"photon_model":True,"slope": -2, "intercept": 100}
         source = StraightLineModel(**sim_cont)
 
         with quantity_support():
