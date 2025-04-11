@@ -2,13 +2,21 @@
 
 import numpy as np
 
-from astropy.modeling import Fittable1DModel, Parameter
+import astropy.units as u
+from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
 __all__ = ["GaussianModel", "StraightLineModel"]
 
 
-class StraightLineModel(Fittable1DModel):
+class StraightLineModel(FittableModel):
+    n_inputs = 1
+    n_outputs = 1
+
+    _input_units_allow_dimensionless = True
+
+    input_units_equivalencies = {"keV": u.spectral()}
+
     slope = Parameter(default=1, description="Gradient of a straight line model.")
     intercept = Parameter(default=0, description="Y-intercept of a straight line model.")
 
@@ -21,11 +29,34 @@ class StraightLineModel(Fittable1DModel):
         if self.edges:
             x = x[:-1] + 0.5 * np.diff(x)
 
+        if hasattr(x, "unit"):
+            x = x.value
+
         """Evaluate the straight line model at `x` with parameters `slope` and `intercept`."""
         return slope * x + intercept
 
+    @property
+    def input_units(self):
+        if not self.edges:
+            return None
+        return {"x": u.keV}
 
-class GaussianModel(Fittable1DModel):
+    @property
+    def return_units(self):
+        if not self.edges:
+            return None
+        return {"y": u.ph * u.keV**-1 * u.s**-1}
+
+    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        return {"slope": outputs_unit["y"] / inputs_unit["x"], "intercept": outputs_unit["y"]}
+
+
+class GaussianModel(FittableModel):
+    n_inputs = 1
+    n_outputs = 1
+
+    _input_units_allow_dimensionless = True
+
     amplitude = Parameter(default=1, min=0, description="Scalar for Gaussian.")
     mean = Parameter(default=0, min=0, description="X-offset for Gaussian.")
     stddev = Parameter(default=1, description="Sigma for Gaussian.")
@@ -47,3 +78,18 @@ class GaussianModel(Fittable1DModel):
             y = amplitude * np.e ** (-((x - mean) ** 2) / (2 * stddev**2))
 
         return y
+
+    @property
+    def input_units(self):
+        if not self.edges:
+            return None
+        return {"x": u.keV}
+
+    @property
+    def return_units(self):
+        if not self.edges:
+            return None
+        return {"y": u.ph * u.keV**-1 * u.s**-1}
+
+    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        return {"mean": inputs_unit["x"], "stddev": inputs_unit["x"], "amplitude": outputs_unit["y"]}
