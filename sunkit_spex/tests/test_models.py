@@ -13,7 +13,7 @@ from sunkit_spex.models.models import GaussianModel, StraightLineModel
 def test_StraightLineModel():
     """Test the straight line model evaluation methods to a known output."""
     sim_x0 = np.arange(3)
-    model_params0_init = {"photon_model":False,"slope": 1, "intercept": 0}
+    model_params0_init = {"photon_model": False, "slope": 1, "intercept": 0}
     model_params0_eval = {"slope": 1, "intercept": 0}
     sim_model0 = StraightLineModel(**model_params0_init)
     exp_res0 = [0, 1, 2]
@@ -27,7 +27,7 @@ def test_StraightLineModel():
 def test_GaussianModel():
     """Test the Gaussian model evaluation methods to a known output."""
     sim_x0 = np.arange(-1, 2) * np.sqrt(2 * np.log(2))
-    model_params0_init = {"photon_model":False,"amplitude": 10, "mean": 0, "stddev": 1}
+    model_params0_init = {"photon_model": False, "amplitude": 10, "mean": 0, "stddev": 1}
     model_params0_eval = {"amplitude": 10, "mean": 0, "stddev": 1}
     sim_model0 = GaussianModel(**model_params0_init)
     exp_res0 = [5, 10, 5]
@@ -47,7 +47,7 @@ def test_MatrixModel():
     assert_array_equal(srm_model0.matrix, srm0)
 
     sim_x0 = np.arange(size0)
-    model_params0_init = {"photon_model":False,"slope": 1, "intercept": 0}
+    model_params0_init = {"photon_model": False, "slope": 1, "intercept": 0}
     sim_model0 = StraightLineModel(**model_params0_init)
     comp_model0 = sim_model0 | srm_model0
     comp_res0 = comp_model0(sim_x0)
