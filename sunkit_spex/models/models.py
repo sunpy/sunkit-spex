@@ -20,13 +20,14 @@ class StraightLineModel(FittableModel):
     slope = Parameter(default=1, description="Gradient of a straight line model.")
     intercept = Parameter(default=0, description="Y-intercept of a straight line model.")
 
-    def __init__(self, *args, **kwargs):
-        self.photon_model = kwargs.pop("photon_model")
+    def __init__(self, slope=slope.default, intercept=intercept.default, photon_model=True, **kwargs):
+        self.photon_model = photon_model
 
-        super().__init__(*args, **kwargs)
+        super().__init__(slope=slope, intercept=intercept, **kwargs)
 
     def evaluate(self, x, slope, intercept):
         if self.photon_model:
+            x.to(u.keV)
             x = x[:-1] + 0.5 * np.diff(x)
 
         if isinstance(x, Quantity):
@@ -48,6 +49,8 @@ class StraightLineModel(FittableModel):
         return {"y": u.ph * u.keV**-1 * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        if not self.photon_model:
+            return None
         return {"slope": outputs_unit["y"] / inputs_unit["x"], "intercept": outputs_unit["y"]}
 
 
@@ -61,10 +64,12 @@ class GaussianModel(FittableModel):
     mean = Parameter(default=0, min=0, description="X-offset for Gaussian.")
     stddev = Parameter(default=1, description="Sigma for Gaussian.")
 
-    def __init__(self, *args, **kwargs):
-        self.photon_model = kwargs.pop("photon_model")
+    def __init__(
+        self, amplitude=amplitude.default, mean=mean.default, stddev=stddev.default, photon_model=True, **kwargs
+    ):
+        self.photon_model = photon_model
 
-        super().__init__(*args, **kwargs)
+        super().__init__(amplitude=amplitude, mean=mean, stddev=stddev, **kwargs)
 
     def evaluate(self, x, amplitude, mean, stddev):
         """Evaluate the Gaussian model at `x` with parameters `amplitude`, `mean`, and `stddev`."""
