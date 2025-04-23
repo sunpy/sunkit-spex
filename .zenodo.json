@@ -1,0 +1,58 @@
+{
+  "description": "Python package for solar spectroscopy",
+  "license": "BSD-2-Clause",
+  "title": "sunkit-spex",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Laura Hayes",
+      "orcid": "0000-0002-6835-2390",
+      "affiliation": "Dublin Institute for Advanced Studies"
+    },
+    {
+      "name": "Daniel F. Ryan",
+      "orcid": "0000-0001-8661-3825",
+      "affiliation": "University College London, Mullard Space Science Laboratory (UCL/MSSL)"
+    },
+    {
+      "name": "Shane Maloney",
+      "orcid": "0000-0002-4715-1805",
+      "affiliation": "Dublin Institute for Advanced Studies"
+    },
+    {
+      "name": "Stuart J. Mumford",
+      "orcid": "0000-0003-4217-4642",
+      "affiliation": "Aperio Software Ltd."
+    },
+    {
+      "name": "Albert Y. Shih",
+      "orcid": "0000-0001-6874-2594",
+      "affiliation": "NASA Goddard Space Flight Center"
+    },
+    {
+      "name": "Kristopher Cooper",
+      "orcid": "",
+      "affiliation": ""
+    },
+    {
+      "name": "Natalia Bajnokova",
+      "orcid": "",
+      "affiliation": ""
+    },
+    {
+      "name": "William Setterberg",
+      "orcid": "",
+      "affiliation": ""
+    },
+    {
+      "name": "Bin Chen",
+      "orcid": "",
+      "affiliation": ""
+    },
+    {
+      "name": "Samuel Bennett",
+      "orcid": "0000-0001-6420-4422",
+      "affiliation": "Aperio Software Ltd."
+    }
+  ]
+}
