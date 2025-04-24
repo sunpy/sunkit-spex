@@ -136,7 +136,7 @@ class LoadSpec:
             f"srm_file={srm_file},srm_custom={srm_custom},custom_channel_bins={custom_channel_bins}, **{kwargs})"
         )
 
-        self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "RHESSI": rhessi.RhessiLoader, "Solar Orbiter": stix.STIXLoader}
+        self.instrument_loaders = {"NuSTAR": inst.NustarLoader, "RHESSI": rhessi.LegacyRhessiLoader, "Solar Orbiter": stix.STIXLoader}
 
         pha_file, arf_file, rmf_file, srm_file, srm_custom, custom_channel_bins, instruments = self._sort_files(
             pha_file=pha_file,

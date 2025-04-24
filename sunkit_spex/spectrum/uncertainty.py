@@ -72,8 +72,7 @@ class PoissonUncertainty(_VariancePropagationMixin, NDUncertainty):
     def _convert_uncertainty(self, other_uncert):
         if isinstance(other_uncert, PoissonUncertainty):
             return other_uncert
-        else:
-            raise IncompatibleUncertaintiesException
+        raise IncompatibleUncertaintiesException
 
     def _propagate_add(self, other_uncert, result_data, correlation):
         return super()._propagate_add_sub(

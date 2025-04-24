@@ -1,0 +1,1 @@
+Gallery examples of fitting NuSTAR data now work and Numpy version dependent bug in `~sunkit_spex.legacy.fitting.photon_models_for_fitting.thick_fn` is fixed.

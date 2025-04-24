@@ -566,7 +566,7 @@ def chianti_kev_lines_Fe2():
     return inputs, ssw_output
 
 
-@pytest.mark.parametrize("ssw", (fvth_simple,))
+@pytest.mark.parametrize("ssw", [fvth_simple])
 def test_thermal_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.thermal_emission(*input_args)
@@ -574,7 +574,7 @@ def test_thermal_emission_against_ssw(ssw):
     np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
 
 
-@pytest.mark.parametrize("ssw", (chianti_kev_cont_simple, chianti_kev_cont_Fe2))
+@pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, chianti_kev_cont_Fe2])
 def test_continuum_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.continuum_emission(*input_args)
@@ -582,7 +582,7 @@ def test_continuum_emission_against_ssw(ssw):
     np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
 
 
-@pytest.mark.parametrize("ssw", (chianti_kev_lines_simple, chianti_kev_lines_Fe2))
+@pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
 def test_line_emission_against_ssw(ssw):
     input_args, expected = ssw()
     output = thermal.line_emission(*input_args)
@@ -626,5 +626,35 @@ def test_energy_out_of_range_warning():
         warnings.simplefilter("always")
         # Trigger a warning.
         output = thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3)  # noqa
-        print(w[0].category)
         assert issubclass(w[0].category, UserWarning)
+
+
+def test_continuum_energy_out_of_range():
+    with pytest.raises(ValueError):
+        # Use an energy range that goes out of bounds
+        # on the lower end--should error
+        _ = thermal.continuum_emission(np.arange(0.1, 28, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        # The continuum emission should only warn if we go out of
+        # bounds on the upper end.
+        _ = thermal.continuum_emission(np.arange(10, 1000, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+        assert issubclass(w[0].category, UserWarning)
+
+
+def test_empty_flux_out_of_range():
+    """The CHIANTI grid covers ~1 to 300 keV, but the values greater than
+    of the grid max energy should all be zeros."""
+    energy_edges = np.geomspace(10, 800, num=1000) << u.keV
+    midpoints = energy_edges[:-1] + np.diff(energy_edges) / 2
+
+    temperature = 20 << u.MK
+    em = 1e49 << u.cm**-3
+
+    flux = thermal.thermal_emission(energy_edges, temperature, em)
+    # the continuum is the one we need to check
+    max_e = thermal.CONTINUUM_GRID["energy range keV"][1] << u.keV
+    should_be_zeros = midpoints >= max_e
+
+    true_zero = 0 * (hopefully_zero := flux[should_be_zeros])
+    np.testing.assert_allclose(true_zero, hopefully_zero)

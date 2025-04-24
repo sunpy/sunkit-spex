@@ -1,0 +1,1 @@
+Add back legacy parameters/functionality relating to `~sunkit_spex.extern.stix.RhessiLoader`.

@@ -11,13 +11,13 @@ def test_different_bins():
     energy_bins1 = np.linspace(10, 100, num=30) << u.keV
     energy_bins2 = np.linspace(10, 100, num=10) << u.keV
 
-    shared_kw = dict(
-        norm_energy=3 << u.keV,
-        norm_flux=1 << ppl.PHOTON_RATE_UNIT,
-        break_energy=20 << u.keV,
-        lower_index=1,
-        upper_index=3,
-    )
+    shared_kw = {
+        "norm_energy": 3 << u.keV,
+        "norm_flux": 1 << ppl.PHOTON_RATE_UNIT,
+        "break_energy": 20 << u.keV,
+        "lower_index": 1,
+        "upper_index": 3,
+    }
 
     dist1 = ppl.compute_broken_power_law(energy_edges=energy_bins1, **shared_kw)
     dist2 = ppl.compute_broken_power_law(energy_edges=energy_bins2, **shared_kw)
@@ -119,11 +119,11 @@ def test_single_power_law():
     energy_bins1 = np.linspace(10, 100, num=30) << u.keV
     energy_bins2 = np.linspace(10, 100, num=10) << u.keV
 
-    shared_kw = dict(
-        norm_energy=3 << u.keV,
-        norm_flux=1 << ppl.PHOTON_RATE_UNIT,
-        index=2,
-    )
+    shared_kw = {
+        "norm_energy": 3 << u.keV,
+        "norm_flux": 1 << ppl.PHOTON_RATE_UNIT,
+        "index": 2,
+    }
 
     dist1 = ppl.compute_power_law(energy_edges=energy_bins1, **shared_kw)
     dist2 = ppl.compute_power_law(energy_edges=energy_bins2, **shared_kw)

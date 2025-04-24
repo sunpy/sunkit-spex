@@ -10,7 +10,7 @@ from astropy.table import Table
 from sunpy.data import manager
 from sunpy.io.special.genx import read_genx
 
-__all__ = ["load_chianti_lines_lite", "load_chianti_continuum", "read_abundance_genx", "load_xray_abundances"]
+__all__ = ["load_chianti_continuum", "load_chianti_lines_lite", "load_xray_abundances", "read_abundance_genx"]
 
 
 @manager.require(
@@ -111,7 +111,7 @@ def load_chianti_lines_lite():
     line_intensities *= 4 * np.pi * u.sr
 
     # Put data into intuitive structure and return it.
-    line_intensities_per_EM_at_source = xarray.DataArray(
+    return xarray.DataArray(
         line_intensities.value,
         dims=["lines", "temperature"],
         coords={
@@ -126,8 +126,6 @@ def load_chianti_lines_lite():
             "chianti_doc": _clean_chianti_doc(contents["chianti_doc"]),
         },
     )
-
-    return line_intensities_per_EM_at_source
 
 
 @manager.require(
@@ -174,7 +172,7 @@ def load_chianti_continuum():
     intensities *= 4 * np.pi
     intensity_unit *= u.sr
     # Put file data into intuitive structure and return data.
-    continuum_intensities = xarray.DataArray(
+    return xarray.DataArray(
         intensities,
         dims=["element_index", "temperature", "wavelength"],
         coords={
@@ -189,7 +187,6 @@ def load_chianti_continuum():
             "chianti_doc": _clean_chianti_doc(contents["chianti_doc"]),
         },
     )
-    return continuum_intensities
 
 
 @manager.require(
@@ -242,11 +239,9 @@ def load_xray_abundances(abundance_type=None):
     except KeyError:
         pass
     n_elements = len(contents[list(contents.keys())[0]])
-    columns = [np.arange(1, n_elements + 1)] + list(contents.values())
-    names = ["atomic number"] + list(contents.keys())
-    abundances = Table(columns, names=names)
-
-    return abundances
+    columns = [np.arange(1, n_elements + 1), *list(contents.values())]
+    names = ["atomic number", *list(contents.keys())]
+    return Table(columns, names=names)
 
 
 def read_abundance_genx(filename):

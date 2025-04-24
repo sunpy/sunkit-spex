@@ -1,0 +1,1 @@
+Fixes bug which caused energy units to get squared; update the way units are assigned in `~sunkit_spex.legacy.thermal.thermal_emission`.

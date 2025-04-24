@@ -4,7 +4,7 @@ import numpy as np
 
 from astropy.modeling import Fittable1DModel, Parameter
 
-__all__ = ["StraightLineModel", "GaussianModel"]
+__all__ = ["GaussianModel", "StraightLineModel"]
 
 
 class StraightLineModel(Fittable1DModel):

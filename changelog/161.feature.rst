@@ -1,0 +1,1 @@
+Add function `~sunkit_spex.models.physical.albedo.get_albedo_matrix` to calculate Albedo correction for given input spectrum and add model `~sunkit_spex.models.physical.albedo.Albedo` to correct modeled photon spectrum for albedo.
