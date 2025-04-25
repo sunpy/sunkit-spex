@@ -84,6 +84,15 @@ flux: `astropy.units.Quantity`
     The photon flux as a function of temperature and energy.
 """
 
+doc_string_notes = """
+Notes
+----------
+
+The atomic abundances are set by the abundance_type, however they can also be fit as free parameters or specified
+by the user to custom values.
+
+"""
+
 
 class ThermalEmission(FittableModel):
     f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
@@ -92,8 +101,6 @@ class ThermalEmission(FittableModel):
     Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
     determined by the file from which the continuum parameters are loaded.
     To change the file used, see the setup_continuum_parameters() function.
-
-    The abundance values are set initially by the abundance type, but can also be fit or specified by the user.
 
     Example
     ========
@@ -121,7 +128,7 @@ class ThermalEmission(FittableModel):
             plt.show()
 
 
-    {doc_string_params}"""
+    {doc_string_params}{doc_string_notes}"""
 
     n_inputs = 1
     n_outputs = 1
@@ -278,7 +285,7 @@ class ContinuumEmission(FittableModel):
             plt.legend()
             plt.show()
 
-    {doc_string_params}"""
+    {doc_string_params}{doc_string_notes}"""
 
     n_inputs = 1
     n_outputs = 1
@@ -431,7 +438,7 @@ class LineEmission(FittableModel):
             plt.legend()
             plt.show()
 
-    {doc_string_params}"""
+    {doc_string_params}{doc_string_notes}"""
 
     n_inputs = 1
     n_outputs = 1
