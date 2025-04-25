@@ -56,17 +56,27 @@ abundance_type: `str` (optional)
     function. To load different default values for each abundance type,
     see the docstring of that function.
 
-relative_abundances: `tuple` of `tuples` of (`int`, `float`) (optional)
-    The relative abundances of different elements as a fraction of their
-    default abundances defined by abundance_type.
-    Each tuple represents the values for a given element.
-    The first entry represents the atomic number of the element.
-    The second entry represents the axis represents the fraction by which the
-    element's default abundance should be scaled.
 
-observer_distance: `astropy.units.Quantity` (Optional)
-    The distance between the source and the observer.
-    Default=1 AU.
+    mg: `float`
+    Abundance of MG.
+
+    al = `float`
+    Abundance of Al.
+
+    si =  `float`
+    Abundance of Si.
+
+    s =  `float`
+    Abundance of S.
+
+    ar =  `float`
+    Abundance of Ar.
+
+    ca =  `float`
+    Abundance of Ca.
+
+    fe =  `float`
+    Abundance of Fe.
 
 Returns
 -------
@@ -82,6 +92,34 @@ class ThermalEmission(FittableModel):
     Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
     determined by the file from which the continuum parameters are loaded.
     To change the file used, see the setup_continuum_parameters() function.
+
+    The abundance values are set initially by the abundance type, but can also be fit or specified by the user.
+
+    Example
+    ========
+    .. plot::
+        :include-source:
+
+        import astropy.units as u
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        from astropy.visualization import quantity_support
+
+        from sunkit_spex.models.scaling import ThermalEmission
+
+        ph_energies = np.arange(4, 100, 0.5)*u.keV
+        ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
+
+        source = ThermalEmission()(ph_energies)
+
+        with quantity_support():
+            plt.figure()
+            plt.plot(ph_energies_centers ,  source)
+            plt.loglog()
+            plt.legend()
+            plt.show()
+
 
     {doc_string_params}"""
 
@@ -202,10 +240,8 @@ class ThermalEmission(FittableModel):
     @property
     def return_units(self):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
-        # return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        # return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
         return {"temperature": u.K, "emission_measure": (u.cm ** (-3))}
 
 
@@ -216,6 +252,31 @@ class ContinuumEmission(FittableModel):
     Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
     determined by the file from which the comtinuum parameters are loaded.
     To change the file used, see the setup_continuum_parameters() function.
+
+    Example
+    ========
+    .. plot::
+        :include-source:
+
+        import astropy.units as u
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        from astropy.visualization import quantity_support
+
+        from sunkit_spex.models.scaling import ThermalEmission
+
+        ph_energies = np.arange(4, 100, 0.5)*u.keV
+        ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
+
+        source = ContinuumEmission()(ph_energies)
+
+        with quantity_support():
+            plt.figure()
+            plt.plot(ph_energies_centers ,  source)
+            plt.loglog()
+            plt.legend()
+            plt.show()
 
     {doc_string_params}"""
 
@@ -336,16 +397,39 @@ class ContinuumEmission(FittableModel):
     @property
     def return_units(self):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
-        # return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        # return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
         return {"temperature": u.K, "emission_measure": (u.cm ** (-3))}
 
 
 class LineEmission(FittableModel):
     f"""
     Calculate thermal line emission from the solar corona.
+
+    Example
+    ========
+    .. plot::
+        :include-source:
+
+        import astropy.units as u
+        import numpy as np
+        import matplotlib.pyplot as plt
+
+        from astropy.visualization import quantity_support
+
+        from sunkit_spex.models.scaling import ThermalEmission
+
+        ph_energies = np.arange(4, 100, 0.5)*u.keV
+        ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
+
+        source = LineEmission()(ph_energies)
+
+        with quantity_support():
+            plt.figure()
+            plt.plot(ph_energies_centers ,  source)
+            plt.loglog()
+            plt.legend()
+            plt.show()
 
     {doc_string_params}"""
 
@@ -466,10 +550,8 @@ class LineEmission(FittableModel):
     @property
     def return_units(self):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
-        # return {self.outputs[0]: u.ph / u.keV * u.s**-1 * u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        # return {"temperature": u.K,"emission_measure":(u.cm ** (-3)),"observer_distance":u.AU}
         return {"temperature": u.K, "emission_measure": (u.cm ** (-3))}
 
 
