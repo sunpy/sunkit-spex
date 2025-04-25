@@ -106,15 +106,6 @@ class ThermalEmission(FittableModel):
         fixed=False,
     )
 
-    # observer_distance = Parameter(
-    #     name="observer_distance",
-    #     default=1,
-    #     min = 0.01,
-    #     unit=u.AU,
-    #     description="Distance to the observer",
-    #     fixed=True
-    # )
-
     mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
 
     al = Parameter(name="Al", default=7.04, min=5.04, max=9.04, description="Al relative abundance", fixed=True)
@@ -249,15 +240,6 @@ class ContinuumEmission(FittableModel):
         fixed=False,
     )
 
-    # observer_distance = Parameter(
-    #     name="observer_distance",
-    #     default=1,
-    #     min = 0.01,
-    #     unit=u.AU,
-    #     description="Distance to the observer",
-    #     fixed=True
-    # )
-
     mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
 
     al = Parameter(name="Al", default=7.04, min=5.04, max=9.04, description="Al relative abundance", fixed=True)
@@ -279,7 +261,6 @@ class ContinuumEmission(FittableModel):
         self,
         temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
-        #   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
         mg=mg.default,
         al=al.default,
         si=si.default,
@@ -306,7 +287,6 @@ class ContinuumEmission(FittableModel):
         super().__init__(
             temperature=temperature,
             emission_measure=emission_measure,
-            #  observer_distance=observer_distance,
             mg=mg,
             al=al,
             si=si,
@@ -322,7 +302,6 @@ class ContinuumEmission(FittableModel):
         energy_edges,
         temperature,
         emission_measure,
-        #  observer_distance,
         mg,
         al,
         si,
@@ -335,7 +314,6 @@ class ContinuumEmission(FittableModel):
             energy_edges,
             temperature,
             emission_measure,
-            # observer_distance,
             mg,
             al,
             si,
@@ -392,15 +370,6 @@ class LineEmission(FittableModel):
         fixed=False,
     )
 
-    # observer_distance = Parameter(
-    #     name="observer_distance",
-    #     default=1,
-    #     min = 0.01,
-    #     unit=u.AU,
-    #     description="Distance to the observer",
-    #     fixed=True
-    # )
-
     mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
 
     al = Parameter(name="Al", default=7.04, min=5.04, max=9.04, description="Al relative abundance", fixed=True)
@@ -422,7 +391,6 @@ class LineEmission(FittableModel):
         self,
         temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
-        #   observer_distance=u.Quantity(observer_distance.default,observer_distance.unit),
         mg=mg.default,
         al=al.default,
         si=si.default,
@@ -449,7 +417,6 @@ class LineEmission(FittableModel):
         super().__init__(
             temperature=temperature,
             emission_measure=emission_measure,
-            #  observer_distance=observer_distance,
             mg=mg,
             al=al,
             si=si,
@@ -465,7 +432,6 @@ class LineEmission(FittableModel):
         energy_edges,
         temperature,
         emission_measure,
-        #  observer_distance,
         mg,
         al,
         si,
@@ -478,7 +444,6 @@ class LineEmission(FittableModel):
             energy_edges,
             temperature,
             emission_measure,
-            # observer_distance,
             mg,
             al,
             si,
@@ -637,7 +602,6 @@ def thermal_emission(
     energy_edges,
     temperature,
     emission_measure,
-    # observer_distance,
     mg,
     al,
     si,
@@ -657,8 +621,6 @@ def thermal_emission(
     {doc_string_params}"""
 
     # Sanitize inputs
-    # energy_edges_keV, temperature_K, emission_measure, observer_distance = _sanitize_inputs(energy_edges, temperature,
-    #                                                                                         emission_measure,observer_distance)
     energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
 
     energy_range = (
@@ -678,16 +640,10 @@ def thermal_emission(
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
     # Calculate fluxes.
 
-    # if hasattr(temperature, "unit"):
-    #     observer_distance = au.to(u.cm)
-    # else:
-    #     observer_distance = au.to(u.cm).value
-
     continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
     line_flux = _line_emission(energy_edges_keV, temperature_K, abundances)
 
     flux = (continuum_flux + line_flux) * emission_measure
-    # flux = (continuum_flux + line_flux) * emission_measure / (4 * np.pi * observer_distance**2)
 
     if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
         flux = flux[0]
@@ -700,7 +656,6 @@ def continuum_emission(
     energy_edges,
     temperature,
     emission_measure,
-    # observer_distance,
     mg,
     al,
     si,
@@ -718,12 +673,8 @@ def continuum_emission(
     To change the file used, see the setup_continuum_parameters() function.
 
     {doc_string_params}"""
-    # Convert inputs to known units and confirm they are within range.
-    # energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
 
     # Sanitize inputs
-    # energy_edges_keV, temperature_K, emission_measure, observer_distance = _sanitize_inputs(energy_edges, temperature,
-    #                                                                                         emission_measure,observer_distance)
     energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
 
     _error_if_low_energy_input_outside_valid_range(
@@ -736,12 +687,6 @@ def continuum_emission(
     # Calculate flux.
     flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
 
-    # if hasattr(temperature, "unit"):
-    #     observer_distance = au.to(u.cm)
-    # else:
-    #     observer_distance = au.to(u.cm).value
-
-    # flux *= emission_measure / (4 * np.pi * observer_distance**2)
     flux *= emission_measure
 
     if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
@@ -755,7 +700,6 @@ def line_emission(
     energy_edges,
     temperature,
     emission_measure,
-    # observer_distance,
     mg,
     al,
     si,
@@ -771,13 +715,9 @@ def line_emission(
     {doc_string_params}"""
 
     # Sanitize inputs
-    # energy_edges_keV, temperature_K, emission_measure, observer_distance = _sanitize_inputs(energy_edges, temperature,
-    #                                                                                         emission_measure,observer_distance)
     energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
 
     # Convert inputs to known units and confirm they are within range.
-    # energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
-    # energy_edges_keV, temperature_K = energy_edges, temperature
     _error_if_low_energy_input_outside_valid_range(
         energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV"
     )
@@ -786,13 +726,7 @@ def line_emission(
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
 
-    # if hasattr(temperature, "unit"):
-    #     observer_distance = au.to(u.cm)
-    # else:
-    #     observer_distance = au.to(u.cm).value
-
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)
-    # flux *= emission_measure / (4 * np.pi * observer_distance**2)
     flux *= emission_measure
 
     if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
@@ -1265,11 +1199,6 @@ def _sanitize_inputs(energy_edges, temperature, emission_measure):
 
     if isinstance(emission_measure, Quantity):
         emission_measure = emission_measure.to(u.cm**-3)
-
-    # if isinstance(observer_distance, Quantity):
-    #     observer_distance = observer_distance.to(u.cm)
-    # else:
-    #     observer_distance = (observer_distance*u.AU).to(u.cm).value
 
     return energy_edges_keV, temperature_K, emission_measure
 
