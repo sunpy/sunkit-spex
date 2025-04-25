@@ -53,66 +53,29 @@ def fvth_simple():
     emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
+    # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
-    inputs = (energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
-    inputs_class = (temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
-
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
     ssw_output = (
         [
-            0.508525,
-            0.158277,
-            0.0529235,
-            0.0171709,
-            0.00569773,
-            0.00196599,
-            0.000719867,
-            0.000262074,
-            8.53937e-05,
-            3.00764e-05,
-            1.06980e-05,
-            3.81875e-06,
-            1.36751e-06,
-            4.91036e-07,
-            1.76798e-07,
-            6.38010e-08,
-            2.30734e-08,
-            8.36119e-09,
-            3.03534e-09,
-            1.10357e-09,
-            4.01951e-10,
-            1.46575e-10,
-            5.35405e-11,
-            1.95792e-11,
-            7.16793e-12,
-            2.62703e-12,
-            9.63826e-13,
-            3.53981e-13,
-            1.30125e-13,
-            4.78720e-14,
-            1.76232e-14,
-            6.49645e-15,
-            2.39605e-15,
-            8.84008e-16,
-            3.26543e-16,
-            1.20678e-16,
-            4.46146e-17,
-            1.65130e-17,
-            6.11063e-18,
-            2.26457e-18,
-            8.38897e-19,
-            3.11188e-19,
-            1.15416e-19,
-            4.28376e-20,
-            1.59088e-20,
-            5.90513e-21,
-            2.19619e-21,
-            8.16363e-22,
-            3.03490e-22,
+            0.508525, 0.158277, 0.0529235, 0.0171709, 0.00569773, 0.00196599, 0.000719867,
+            0.000262074, 8.53937e-05, 3.00764e-05, 1.06980e-05, 3.81875e-06, 1.36751e-06,
+            4.91036e-07, 1.76798e-07, 6.38010e-08, 2.30734e-08, 8.36119e-09, 3.03534e-09,
+            1.10357e-09, 4.01951e-10, 1.46575e-10, 5.35405e-11, 1.95792e-11, 7.16793e-12,
+            2.62703e-12, 9.63826e-13, 3.53981e-13, 1.30125e-13, 4.78720e-14, 1.76232e-14,
+            6.49645e-15, 2.39605e-15, 8.84008e-16, 3.26543e-16, 1.20678e-16, 4.46146e-17,
+            1.65130e-17, 6.11063e-18, 2.26457e-18, 8.38897e-19, 3.11188e-19, 1.15416e-19,
+            4.28376e-20, 1.59088e-20, 5.90513e-21, 2.19619e-21, 8.16363e-22, 3.03490e-22,
             1.12987e-22,
         ]
-        * SSW_INTENSITY_UNIT
-        * (4 * np.pi * observer_distance**2)
+        * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
+    # fmt: on
     return inputs, inputs_class, energy_edges, ssw_output
 
 
@@ -151,66 +114,29 @@ def chianti_kev_cont_simple():
     emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
+    # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
-    inputs = (energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
-    inputs_class = (temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
-
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
     ssw_output = (
         [
-            0.435182,
-            0.143992,
-            0.0484651,
-            0.0164877,
-            0.00567250,
-            0.00196526,
-            0.000685526,
-            0.000240551,
-            8.48489e-05,
-            3.00608e-05,
-            1.06920e-05,
-            3.81647e-06,
-            1.36665e-06,
-            4.90708e-07,
-            1.76672e-07,
-            6.37536e-08,
-            2.30554e-08,
-            8.35434e-09,
-            3.03274e-09,
-            1.10259e-09,
-            4.01577e-10,
-            1.46433e-10,
-            5.34866e-11,
-            1.95588e-11,
-            7.16019e-12,
-            2.62410e-12,
-            9.62714e-13,
-            3.53559e-13,
-            1.29965e-13,
-            4.78114e-14,
-            1.76002e-14,
-            6.48773e-15,
-            2.39274e-15,
-            8.82754e-16,
-            3.26069e-16,
-            1.20498e-16,
-            4.45465e-17,
-            1.64872e-17,
-            6.10082e-18,
-            2.26085e-18,
-            8.37490e-19,
-            3.10654e-19,
-            1.15214e-19,
-            4.27608e-20,
-            1.58797e-20,
-            5.89412e-21,
-            2.19201e-21,
-            8.14780e-22,
-            3.02891e-22,
+            0.435182, 0.143992, 0.0484651, 0.0164877, 0.00567250, 0.00196526, 0.000685526,
+            0.000240551, 8.48489e-05, 3.00608e-05, 1.06920e-05, 3.81647e-06, 1.36665e-06,
+            4.90708e-07, 1.76672e-07, 6.37536e-08, 2.30554e-08, 8.35434e-09, 3.03274e-09,
+            1.10259e-09, 4.01577e-10, 1.46433e-10, 5.34866e-11, 1.95588e-11, 7.16019e-12,
+            2.62410e-12, 9.62714e-13, 3.53559e-13, 1.29965e-13, 4.78114e-14, 1.76002e-14,
+            6.48773e-15, 2.39274e-15, 8.82754e-16, 3.26069e-16, 1.20498e-16, 4.45465e-17,
+            1.64872e-17, 6.10082e-18, 2.26085e-18, 8.37490e-19, 3.10654e-19, 1.15214e-19,
+            4.27608e-20, 1.58797e-20, 5.89412e-21, 2.19201e-21, 8.14780e-22, 3.02891e-22,
             1.12759e-22,
         ]
-        * SSW_INTENSITY_UNIT
-        * (4 * np.pi * observer_distance**2)
+        * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
+    # fmt: on
     return inputs, inputs_class, energy_edges, ssw_output
 
 
@@ -247,68 +173,29 @@ def chianti_kev_lines_simple():
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
-    abundance_type = "sun_coronal"
+    abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
+    # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
-    inputs = (energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
-    inputs_class = (temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
-
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
     ssw_output = (
         [
-            0.0732490,
-            0.0142479,
-            0.00444405,
-            0.000677937,
-            2.33332e-05,
-            2.57513e-10,
-            3.40424e-05,
-            2.14035e-05,
-            5.03707e-07,
-            8.37158e-12,
-            2.77371e-12,
-            1.54967e-13,
-            1.95223e-17,
-            1.32817e-20,
-            1.04939e-21,
-            5.60979545e-32,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
+            0.0732490, 0.0142479, 0.00444405, 0.000677937, 2.33332e-05, 2.57513e-10, 3.40424e-05,
+            2.14035e-05, 5.03707e-07, 8.37158e-12, 2.77371e-12, 1.54967e-13, 1.95223e-17, 1.32817e-20,
+            1.04939e-21, 5.60979545e-32, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000
         ]
-        * SSW_INTENSITY_UNIT
-        * (4 * np.pi * observer_distance**2)
+        * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
+    # fmt: on
     return inputs, inputs_class, energy_edges, ssw_output
 
 
@@ -350,67 +237,29 @@ def fvth_Fe2():
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
-    # relative_abundances = ((26, 2),)
     observer_distance = (1 * u.AU).to(u.cm)
+    # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
-    inputs = (energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
-    inputs_class = (temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
     ssw_output = (
         [
-            0.534751,
-            0.166895,
-            0.0558015,
-            0.0181445,
-            0.00603063,
-            0.00208080,
-            0.000793823,
-            0.000297441,
-            9.08041e-05,
-            3.18103e-05,
-            1.13134e-05,
-            4.03799e-06,
-            1.44590e-06,
-            5.19144e-07,
-            1.86907e-07,
-            6.74457e-08,
-            2.43905e-08,
-            8.83818e-09,
-            3.20843e-09,
-            1.16649e-09,
-            4.24865e-10,
-            1.54930e-10,
-            5.65926e-11,
-            2.06955e-11,
-            7.57671e-12,
-            2.77691e-12,
-            1.01884e-12,
-            3.74194e-13,
-            1.37559e-13,
-            5.06084e-14,
-            1.86312e-14,
-            6.86828e-15,
-            2.53330e-15,
-            9.34684e-16,
-            3.45278e-16,
-            1.27608e-16,
-            4.71785e-17,
-            1.74628e-17,
-            6.46241e-18,
-            2.39505e-18,
-            8.87281e-19,
-            3.29154e-19,
-            1.22086e-19,
-            4.53157e-20,
-            1.68300e-20,
-            6.24746e-21,
-            2.32363e-21,
-            8.63785e-22,
-            3.21138e-22,
-            1.19564e-22,
+            0.534751, 0.166895, 0.0558015, 0.0181445, 0.00603063, 0.00208080, 0.000793823, 0.000297441,
+            9.08041e-05, 3.18103e-05, 1.13134e-05, 4.03799e-06, 1.44590e-06, 5.19144e-07, 1.86907e-07,
+            6.74457e-08, 2.43905e-08, 8.83818e-09, 3.20843e-09, 1.16649e-09, 4.24865e-10, 1.54930e-10,
+            5.65926e-11, 2.06955e-11, 7.57671e-12, 2.77691e-12, 1.01884e-12, 3.74194e-13, 1.37559e-13,
+            5.06084e-14, 1.86312e-14, 6.86828e-15, 2.53330e-15, 9.34684e-16, 3.45278e-16, 1.27608e-16,
+            4.71785e-17, 1.74628e-17, 6.46241e-18, 2.39505e-18, 8.87281e-19, 3.29154e-19, 1.22086e-19,
+            4.53157e-20, 1.68300e-20, 6.24746e-21, 2.32363e-21, 8.63785e-22, 3.21138e-22, 1.19564e-22
         ]
         * SSW_INTENSITY_UNIT
         * (4 * np.pi * observer_distance**2)
     )
+    # fmt: on
     return inputs, inputs_class, energy_edges, ssw_output
 
 
@@ -451,67 +300,29 @@ def chianti_kev_cont_Fe2():
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
-    # relative_abundances = ((26, 2),)
     observer_distance = (1 * u.AU).to(u.cm)
+    # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
-    inputs = (energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
-    inputs_class = (temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
     ssw_output = (
         [
-            0.461402,
-            0.152608,
-            0.0513423,
-            0.0174610,
-            0.00600528,
-            0.00208003,
-            0.000725404,
-            0.000254496,
-            8.97528e-05,
-            3.17937e-05,
-            1.13071e-05,
-            4.03558e-06,
-            1.44498e-06,
-            5.18797e-07,
-            1.86775e-07,
-            6.73955e-08,
-            2.43714e-08,
-            8.83094e-09,
-            3.20568e-09,
-            1.16545e-09,
-            4.24469e-10,
-            1.54780e-10,
-            5.65355e-11,
-            2.06739e-11,
-            7.56853e-12,
-            2.77380e-12,
-            1.01766e-12,
-            3.73748e-13,
-            1.37390e-13,
-            5.05443e-14,
-            1.86069e-14,
-            6.85906e-15,
-            2.52980e-15,
-            9.33357e-16,
-            3.44776e-16,
-            1.27417e-16,
-            4.71065e-17,
-            1.74354e-17,
-            6.45203e-18,
-            2.39112e-18,
-            8.85792e-19,
-            3.28589e-19,
-            1.21872e-19,
-            4.52345e-20,
-            1.67993e-20,
-            6.23582e-21,
-            2.31921e-21,
-            8.62109e-22,
-            3.20504e-22,
-            1.19323e-22,
+            0.461402, 0.152608, 0.0513423, 0.0174610, 0.00600528, 0.00208003, 0.000725404, 0.000254496,
+            8.97528e-05, 3.17937e-05, 1.13071e-05, 4.03558e-06, 1.44498e-06, 5.18797e-07, 1.86775e-07,
+            6.73955e-08, 2.43714e-08, 8.83094e-09, 3.20568e-09, 1.16545e-09, 4.24469e-10, 1.54780e-10,
+            5.65355e-11, 2.06739e-11, 7.56853e-12, 2.77380e-12, 1.01766e-12, 3.73748e-13, 1.37390e-13,
+            5.05443e-14, 1.86069e-14, 6.85906e-15, 2.52980e-15, 9.33357e-16, 3.44776e-16, 1.27417e-16,
+            4.71065e-17, 1.74354e-17, 6.45203e-18, 2.39112e-18, 8.85792e-19, 3.28589e-19, 1.21872e-19,
+            4.52345e-20, 1.67993e-20, 6.23582e-21, 2.31921e-21, 8.62109e-22, 3.20504e-22, 1.19323e-22
         ]
         * SSW_INTENSITY_UNIT
         * (4 * np.pi * observer_distance**2)
     )
+    # fmt: on
     return inputs, inputs_class, energy_edges, ssw_output
 
 
@@ -551,68 +362,29 @@ def chianti_kev_lines_Fe2():
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
-    abundance_type = "sun_coronal"
-    # relative_abundances = ((26, 2),)
+    abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
+    # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
-    inputs = (energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
-    inputs_class = (temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type)
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
     ssw_output = (
         [
-            0.0732490,
-            0.0142479,
-            0.00444405,
-            0.000677937,
-            2.33332e-05,
-            5.14626e-10,
-            6.80847e-05,
-            4.28070e-05,
-            1.00741e-06,
-            1.67403e-11,
-            5.54738e-12,
-            3.09924e-13,
-            1.95223e-17,
-            1.32817e-20,
-            1.04939e-21,
-            5.60979545e-32,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
-            0.00000,
+            0.0732490, 0.0142479, 0.00444405, 0.000677937, 2.33332e-05, 5.14626e-10, 6.80847e-05,
+            4.28070e-05, 1.00741e-06, 1.67403e-11, 5.54738e-12, 3.09924e-13, 1.95223e-17, 1.32817e-20,
+            1.04939e-21, 5.60979545e-32, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000
         ]
-        * SSW_INTENSITY_UNIT
-        * (4 * np.pi * observer_distance**2)
+        * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
+    # fmt: on
     return inputs, inputs_class, energy_edges, ssw_output
 
 
