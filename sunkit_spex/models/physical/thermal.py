@@ -16,14 +16,7 @@ from sunkit_spex.models.physical.io import (
     load_xray_abundances,
 )
 
-__all__ = [
-    "ContinuumEmission",
-    "LineEmission",
-    "ThermalEmission",
-    "continuum_emission",
-    "line_emission",
-    "thermal_emission",
-]
+__all__ = ["ContinuumEmission", "LineEmission", "ThermalEmission"]
 
 doc_string_params = """
 Parameters
@@ -195,6 +188,10 @@ class ThermalEmission(FittableModel):
             ca = 12 + np.log10(abundances[19])
             fe = 12 + np.log10(abundances[25])
 
+        self.line = LineEmission(temperature, emission_measure, mg, al, si, s, ar, ca, fe)
+
+        self.cont = ContinuumEmission(temperature, emission_measure, mg, al, si, s, ar, ca, fe)
+
         super().__init__(
             temperature=temperature,
             emission_measure=emission_measure,
@@ -221,19 +218,11 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
-        flux = thermal_emission(
-            energy_edges,
-            temperature,
-            emission_measure,
-            mg,
-            al,
-            si,
-            s,
-            ar,
-            ca,
-            fe,
-            self.abundance_type,
-        )
+        line_flux = self.line.evaluate(energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe)
+
+        cont_flux = self.cont.evaluate(energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe)
+
+        flux = line_flux + cont_flux
 
         if hasattr(temperature, "unit"):
             return flux
@@ -686,58 +675,62 @@ DEFAULT_ABUNDANCES = setup_default_abundances()
 DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
 
-@u.quantity_input
-def thermal_emission(
-    energy_edges,
-    temperature,
-    emission_measure,
-    mg,
-    al,
-    si,
-    s,
-    ar,
-    ca,
-    fe,
-    abundance_type=DEFAULT_ABUNDANCE_TYPE,
-):
-    f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
+# @u.quantity_input
+# def thermal_emission(
+#     energy_edges,
+#     temperature,
+#     emission_measure,
+#     mg,
+#     al,
+#     si,
+#     s,
+#     ar,
+#     ca,
+#     fe,
+#     abundance_type=DEFAULT_ABUNDANCE_TYPE,
+# ):
+#     f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
 
-    The flux is calculated as a function of temperature and emission measure.
-    Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
-    determined by the file from which the continuum parameters are loaded.
-    To change the file used, see the setup_continuum_parameters() function.
+#     The flux is calculated as a function of temperature and emission measure.
+#     Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
+#     determined by the file from which the continuum parameters are loaded.
+#     To change the file used, see the setup_continuum_parameters() function.
 
-    {doc_string_params}"""
+#     {doc_string_params}"""
 
-    # Sanitize inputs
-    energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
+#     # Sanitize inputs
+#     # energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
 
-    energy_range = (
-        min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
-        max(CONTINUUM_GRID["energy range keV"][1], LINE_GRID["energy range keV"][1]),
-    )
-    # raise an error if energy_range_min() < energy_endges_keV[1]
-    _error_if_low_energy_input_outside_valid_range(energy_edges_keV.value, energy_range, "energy", "keV")
-    # warning if energy_range.max() > energy_endges_keV[1], outside this range flux=0
-    _warn_if_input_outside_valid_range(energy_edges_keV.value, energy_range, "energy", "keV")
-    temp_range = (
-        min(CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]),
-        max(CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]),
-    )
-    _error_if_input_outside_valid_range(temperature_K.value, temp_range, "temperature", "K")
-    # Calculate abundances
-    abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
-    # Calculate fluxes.
+#     # energy_range = (
+#     #     min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
+#     #     max(CONTINUUM_GRID["energy range keV"][1], LINE_GRID["energy range keV"][1]),
+#     # )
+#     # # raise an error if energy_range_min() < energy_endges_keV[1]
+#     # _error_if_low_energy_input_outside_valid_range(energy_edges_keV.value, energy_range, "energy", "keV")
+#     # # warning if energy_range.max() > energy_endges_keV[1], outside this range flux=0
+#     # _warn_if_input_outside_valid_range(energy_edges_keV.value, energy_range, "energy", "keV")
+#     # temp_range = (
+#     # #     min(CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]),
+#     # #     max(CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]),
+#     # # )
+#     # # _error_if_input_outside_valid_range(temperature_K.value, temp_range, "temperature", "K")
+#     # # Calculate abundances
+#     # energy_edges_keV, temperature_K, emission_measure = _check_value_ranges_and_sanitize(energy_edges, temperature, emission_measure)
+#     # abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
+#     # # Calculate fluxes.
 
-    continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
-    line_flux = _line_emission(energy_edges_keV, temperature_K, abundances)
+#     # continuum_flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
+#     # line_flux = _line_emission(energy_edges_keV, temperature_K, abundances)
 
-    flux = (continuum_flux + line_flux) * emission_measure
+#     # print(continuum_flux.unit)
+#     # print(line_flux.unit)
 
-    if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
-        flux = flux[0]
+#     # flux = (continuum_flux + line_flux) * emission_measure
 
-    return flux
+#     # if (temperature.isscalar and emission_measure.isscalar) or (len(temperature) == 1 and len(emission_measure) == 1):
+#     #     flux = flux[0]
+
+#     # return flux
 
 
 @u.quantity_input
@@ -771,7 +764,8 @@ def continuum_emission(
     )
     _warn_if_input_outside_valid_range(energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV")
     _error_if_input_outside_valid_range(temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K")
-    # Calculate abundances
+
+    # # Calculate abundances
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
     # Calculate flux.
     flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
@@ -812,7 +806,8 @@ def line_emission(
     )
     _warn_if_input_outside_valid_range(energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV")
     _error_if_input_outside_valid_range(temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K")
-    # Calculate abundances
+
+    # # Calculate abundances
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
 
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)

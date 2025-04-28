@@ -389,52 +389,36 @@ def chianti_kev_lines_Fe2():
 @pytest.mark.parametrize("ssw", [fvth_simple, fvth_Fe2])
 def test_thermal_emission_against_ssw(ssw):
     input_args, input_args_class, energy_edges, expected = ssw()
-    output = thermal.thermal_emission(*input_args)
     model_class = thermal.ThermalEmission(*input_args_class)
     output_class = model_class(energy_edges)
-    expected_value = expected.to_value(output.unit)
-    np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
+    expected_value = expected.to_value(output_class.unit)
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.03)
 
 
 @pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, chianti_kev_cont_Fe2])
 def test_continuum_emission_against_ssw(ssw):
     input_args, input_args_class, energy_edges, expected = ssw()
-    output = thermal.continuum_emission(*input_args)
     model_class = thermal.ContinuumEmission(*input_args_class)
     output_class = model_class(energy_edges)
-    expected_value = expected.to_value(output.unit)
-    np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
+    expected_value = expected.to_value(output_class.unit)
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.03)
 
 
 @pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
 def test_line_emission_against_ssw(ssw):
     input_args, input_args_class, energy_edges, expected = ssw()
-    output = thermal.line_emission(*input_args)
     model_class = thermal.LineEmission(*input_args_class)
     output_class = model_class(energy_edges)
-    expected_value = expected.to_value(output.unit)
-    np.testing.assert_allclose(output.value, expected_value, rtol=0.05, atol=1e-30)
+    expected_value = expected.to_value(output_class.unit)
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.05, atol=1e-30)
 
 
 def test_scalar_energy_input():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.thermal_emission(10 * u.keV, 6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)
-
-
-def test_scalar_energy_input_class():
-    with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
         thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(10 * u.keV)
 
 
 def test_len1_energy_input():
-    with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.thermal_emission([10] * u.keV, 6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)
-
-
-def test_len1_energy_input_class():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
         thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([10] * u.keV)
 
@@ -442,25 +426,12 @@ def test_len1_energy_input_class():
 def test_energy_out_of_range_error():
     with pytest.raises(
         ValueError,
-        match="Lower bound of the input energy must be within the range 1.0002920302956426--200.15819869050395 keV.",
-    ):
-        thermal.thermal_emission([0.001, 10] * u.keV, 6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)
-
-
-def test_energy_out_of_range_error_class():
-    with pytest.raises(
-        ValueError,
-        match="Lower bound of the input energy must be within the range 1.0002920302956426--200.15819869050395 keV.",
+        match="Lower bound of the input energy must be within the range 1.0009873438468269--200.15819869050395 keV. ",
     ):
         thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([0.01, 10] * u.keV)
 
 
 def test_temperature_out_of_range_error():
-    with pytest.raises(ValueError, match="All input temperature values must be within the range"):
-        thermal.thermal_emission([5, 10] * u.keV, 0.1 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)
-
-
-def test_temperature_out_of_range_error_class():
     with pytest.raises(ValueError, match="All input temperature values must be within the range"):
         thermal.ThermalEmission(0.1 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([5, 10] * u.keV)
 
@@ -470,44 +441,14 @@ def test_line_energy_out_of_range_warning():
         # Cause all warnings to always be triggered.
         warnings.simplefilter("always")
         # Trigger a warning.
-        _ = thermal.line_emission(
-            np.arange(3, 1000, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
-        )
-        assert issubclass(w[0].category, UserWarning)
-
-
-def test_line_energy_out_of_range_warning_class():
-    with warnings.catch_warnings(record=True) as w:
-        # Cause all warnings to always be triggered.
-        warnings.simplefilter("always")
-        # Trigger a warning.
         _ = thermal.LineEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             np.arange(3, 1000, 0.5) * u.keV
         )
+        # assert issubclass(w[0].category, UserWarning)
         assert issubclass(w[0].category, UserWarning)
 
 
 def test_continuum_energy_out_of_range():
-    with pytest.raises(
-        ValueError,
-        match="Lower bound of the input energy must be within the range 1.0009873438468269--200.15819869050395 keV. ",
-    ):
-        # Use an energy range that goes out of bounds
-        # on the lower end--should error
-        _ = thermal.continuum_emission(
-            np.arange(0.1, 28, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
-        )
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        # The continuum emission should only warn if we go out of
-        # bounds on the upper end.
-        _ = thermal.continuum_emission(
-            np.arange(10, 1000, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
-        )
-        assert issubclass(w[0].category, UserWarning)
-
-
-def test_continuum_energy_out_of_range_class():
     with pytest.raises(
         ValueError,
         match="Lower bound of the input energy must be within the range 1.0009873438468269--200.15819869050395 keV. ",
@@ -528,24 +469,6 @@ def test_continuum_energy_out_of_range_class():
 
 
 def test_empty_flux_out_of_range():
-    """The CHIANTI grid covers ~1 to 300 keV, but the values greater than
-    of the grid max energy should all be zeros."""
-    energy_edges = np.geomspace(10, 800, num=1000) << u.keV
-    midpoints = energy_edges[:-1] + np.diff(energy_edges) / 2
-
-    temperature = 20 << u.MK
-    em = 1e49 << u.cm**-3
-
-    flux = thermal.thermal_emission(energy_edges, temperature, em, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)
-    # the continuum is the one we need to check
-    max_e = thermal.CONTINUUM_GRID["energy range keV"][1] << u.keV
-    should_be_zeros = midpoints >= max_e
-
-    true_zero = 0 * (hopefully_zero := flux[should_be_zeros])
-    np.testing.assert_allclose(true_zero, hopefully_zero)
-
-
-def test_empty_flux_out_of_range_class():
     """The CHIANTI grid covers ~1 to 300 keV, but the values greater than
     of the grid max energy should all be zeros."""
     energy_edges = np.geomspace(10, 800, num=1000) << u.keV
