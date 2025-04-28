@@ -121,7 +121,7 @@ class ThermalEmission(FittableModel):
             plt.show()
 
 
-    {doc_string_params}{doc_string_notes}"""
+    {doc_string_params}"""
 
     n_inputs = 1
     n_outputs = 1
@@ -188,9 +188,31 @@ class ThermalEmission(FittableModel):
             ca = 12 + np.log10(abundances[19])
             fe = 12 + np.log10(abundances[25])
 
-        self.line = LineEmission(temperature, emission_measure, mg, al, si, s, ar, ca, fe)
+        self.line = LineEmission(
+            temperature=temperature,
+            emission_measure=emission_measure,
+            mg=mg,
+            al=al,
+            si=si,
+            s=s,
+            ar=ar,
+            ca=ca,
+            fe=fe,
+            abundance_type=abundance_type,
+        )
 
-        self.cont = ContinuumEmission(temperature, emission_measure, mg, al, si, s, ar, ca, fe)
+        self.cont = ContinuumEmission(
+            temperature=temperature,
+            emission_measure=emission_measure,
+            mg=mg,
+            al=al,
+            si=si,
+            s=s,
+            ar=ar,
+            ca=ca,
+            fe=fe,
+            abundance_type=abundance_type,
+        )
 
         super().__init__(
             temperature=temperature,
@@ -244,11 +266,7 @@ class ThermalEmission(FittableModel):
             fe,
         )
 
-        flux = line_flux + cont_flux
-
-        # if hasattr(temperature, "unit"):
-        #     return flux.value
-        return flux
+        return line_flux + cont_flux
 
     @property
     def input_units(self):
@@ -296,7 +314,7 @@ class ContinuumEmission(FittableModel):
             plt.legend()
             plt.show()
 
-    {doc_string_params}{doc_string_notes}"""
+    {doc_string_params}"""
 
     n_inputs = 1
     n_outputs = 1
@@ -389,7 +407,7 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
-        flux = continuum_emission(
+        return continuum_emission(
             energy_edges,
             temperature,
             emission_measure,
@@ -402,10 +420,6 @@ class ContinuumEmission(FittableModel):
             fe,
             self.abundance_type,
         )
-
-        # if hasattr(temperature, "unit"):
-        #     return flux
-        return flux
 
     @property
     def input_units(self):
@@ -449,7 +463,7 @@ class LineEmission(FittableModel):
             plt.legend()
             plt.show()
 
-    {doc_string_params}{doc_string_notes}"""
+    {doc_string_params}"""
 
     n_inputs = 1
     n_outputs = 1
@@ -542,7 +556,7 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
-        flux = line_emission(
+        return line_emission(
             energy_edges,
             temperature,
             emission_measure,
@@ -555,10 +569,6 @@ class LineEmission(FittableModel):
             fe,
             self.abundance_type,
         )
-
-        # if hasattr(temperature, "unit"):
-        #     return flux
-        return flux
 
     @property
     def input_units(self):
@@ -781,20 +791,21 @@ def continuum_emission(
     # Sanitize inputs
     energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
 
-
-    if isinstance(energy_edges_keV,Quantity):
+    if isinstance(energy_edges_keV, Quantity):
         _error_if_low_energy_input_outside_valid_range(
-        energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV"
-    )
+            energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+        )
         _warn_if_input_outside_valid_range(energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV")
-        _error_if_input_outside_valid_range(temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K")
+        _error_if_input_outside_valid_range(
+            temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K"
+        )
 
     else:
-         _error_if_low_energy_input_outside_valid_range(
-        energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV"
-    )
-         _warn_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
-         _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")       
+        _error_if_low_energy_input_outside_valid_range(
+            energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+        )
+        _warn_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
+        _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
 
     # # Calculate abundances
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
@@ -803,7 +814,15 @@ def continuum_emission(
 
     flux *= emission_measure
 
-    if (np.isscalar(temperature) and np.isscalar(emission_measure)) or (len(temperature) == 1 and len(emission_measure) == 1):
+    if np.isscalar(temperature_K) and np.isscalar(emission_measure):
+        flux = flux[0]
+    elif (
+        isinstance(temperature_K, Quantity)
+        and isinstance(emission_measure, Quantity)
+        and (temperature_K.isscalar and emission_measure.isscalar)
+    ):
+        flux = flux[0]
+    elif len(temperature_K) == 1 and len(emission_measure) == 1:
         flux = flux[0]
 
     return flux
@@ -833,26 +852,37 @@ def line_emission(
 
     # Convert inputs to known units and confirm they are within range.
 
-    if isinstance(energy_edges_keV,Quantity):
+    if isinstance(energy_edges_keV, Quantity):
         _error_if_low_energy_input_outside_valid_range(
-        energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+            energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV"
         )
         _warn_if_input_outside_valid_range(energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV")
-        _error_if_input_outside_valid_range(temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K")
+        _error_if_input_outside_valid_range(
+            temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K"
+        )
     else:
         _error_if_low_energy_input_outside_valid_range(
-        energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+            energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV"
         )
         _warn_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
-        _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")   
+        _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
 
     # # Calculate abundances
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
 
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)
+
     flux *= emission_measure
 
-    if (np.isscalar(temperature) and np.isscalar(emission_measure)) or (len(temperature) == 1 and len(emission_measure) == 1):
+    if np.isscalar(temperature_K) and np.isscalar(emission_measure):
+        flux = flux[0]
+    elif (
+        isinstance(temperature_K, Quantity)
+        and isinstance(emission_measure, Quantity)
+        and (temperature_K.isscalar and emission_measure.isscalar)
+    ):
+        flux = flux[0]
+    elif len(temperature_K) == 1 and len(emission_measure) == 1:
         flux = flux[0]
 
     return flux
@@ -960,6 +990,10 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
     flux = flux * np.exp(-(energy_gmean_keV[np.newaxis, :] / T_in_keV[:, np.newaxis]))
     # flux = flux.value
     # Put intensity into correct units.
+    if isinstance(temperature_K, Quantity):
+        return flux * CONTINUUM_GRID["intensity unit"]
+    return flux
+
     return flux * CONTINUUM_GRID["intensity unit"]
 
 
@@ -982,7 +1016,6 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
         The abundances for the all the elements.
     """
     n_energy_bins = len(energy_edges_keV) - 1
-    n_temperatures = len(temperature_K)
 
     energy_input = energy_edges_keV
 
@@ -991,6 +1024,11 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
 
     if isinstance(temperature_K, Quantity):
         temperature_K = temperature_K.value
+
+    # if np.isscalar(temperature_K):
+    #     n_temperatures = 1
+    # else:
+    n_temperatures = len(temperature_K)
 
     # Find indices of lines within user input energy range.
     energy_roi_indices = np.logical_and(
@@ -1049,8 +1087,8 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
 
     if isinstance(energy_input, Quantity):
         energy_bin_widths = energy_bin_widths * u.keV
-
-    return flux * LINE_GRID["intensity unit"] / (energy_bin_widths)
+        return flux * LINE_GRID["intensity unit"] / (energy_bin_widths)
+    return flux / (energy_bin_widths)
 
 
 def _interpolate_continuum_intensities(data_grid, log10T_grid, energy_grid_keV, energy_keV, log10T):
@@ -1126,6 +1164,10 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
 
     """
     # Ensure input temperatures are in an array to consistent manipulation.
+
+    # if np.isscalar(logT):
+    #     n_temperatures = 1
+    # else:
     n_temperatures = len(logT)
 
     # Get bins in which input temperatures belong.
@@ -1305,7 +1347,7 @@ def _weight_emission_bins(
 
 def _sanitize_inputs(energy_edges, temperature, emission_measure):
     if np.isscalar(energy_edges) or len(energy_edges) < 2 or energy_edges.ndim > 1:
-    # if len(energy_edges) < 2 or energy_edges.ndim > 1:
+        # if len(energy_edges) < 2 or energy_edges.ndim > 1:
         raise ValueError("energy_edges must be a 1-D astropy Quantity with length greater than 1.")
 
     if isinstance(energy_edges, Quantity):
@@ -1315,14 +1357,22 @@ def _sanitize_inputs(energy_edges, temperature, emission_measure):
 
     if isinstance(temperature, Quantity):
         temperature_K = temperature.to(u.K)
+        if temperature.isscalar:
+            temperature_K = np.array([temperature_K.value]) * temperature_K.unit
     else:
         temperature_K = temperature
+        if np.isscalar(temperature):
+            temperature_K = np.array([temperature_K])
 
-    if np.isscalar(temperature):
-        temperature_K = np.array([temperature_K.value]) * u.K
+    # if np.isscalar(temperature):
+    #     temperature_K = np.array([temperature_K.value]) * u.K
 
     if isinstance(emission_measure, Quantity):
         emission_measure = emission_measure.to(u.cm**-3)
+        if emission_measure.isscalar:
+            emission_measure = np.array([emission_measure.value]) * emission_measure.unit
+    elif np.isscalar(emission_measure):
+        emission_measure = np.array([emission_measure])
 
     return energy_edges_keV, temperature_K, emission_measure
 
