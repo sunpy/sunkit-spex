@@ -854,18 +854,14 @@ def line_emission(
 
     if isinstance(energy_edges_keV, Quantity):
         _error_if_low_energy_input_outside_valid_range(
-            energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+            energy_edges_keV.value, LINE_GRID["energy range keV"], "energy", "keV"
         )
-        _warn_if_input_outside_valid_range(energy_edges_keV.value, CONTINUUM_GRID["energy range keV"], "energy", "keV")
-        _error_if_input_outside_valid_range(
-            temperature_K.value, CONTINUUM_GRID["temperature range K"], "temperature", "K"
-        )
+        _warn_if_input_outside_valid_range(energy_edges_keV.value, LINE_GRID["energy range keV"], "energy", "keV")
+        _error_if_input_outside_valid_range(temperature_K.value, LINE_GRID["temperature range K"], "temperature", "K")
     else:
-        _error_if_low_energy_input_outside_valid_range(
-            energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV"
-        )
-        _warn_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
-        _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
+        _error_if_low_energy_input_outside_valid_range(energy_edges_keV, LINE_GRID["energy range keV"], "energy", "keV")
+        _warn_if_input_outside_valid_range(energy_edges_keV, LINE_GRID["energy range keV"], "energy", "keV")
+        _error_if_input_outside_valid_range(temperature_K, LINE_GRID["temperature range K"], "temperature", "K")
 
     # # Calculate abundances
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
@@ -993,8 +989,6 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
     if isinstance(temperature_K, Quantity):
         return flux * CONTINUUM_GRID["intensity unit"]
     return flux
-
-    return flux * CONTINUUM_GRID["intensity unit"]
 
 
 def _line_emission(energy_edges_keV, temperature_K, abundances):
