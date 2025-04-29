@@ -444,23 +444,19 @@ def test_line_energy_out_of_range_warning():
         )
         # assert issubclass(w[0].category, UserWarning)
         assert (
-            isinstance(w[0].category, ResourceWarning)
+            issubclass(w[0].category, ResourceWarning)
             if sys.version_info == (3, 10)
             else issubclass(w[0].category, UserWarning)
         )
 
 
 def test_continuum_energy_out_of_range():
-    # Use an energy range that goes out of bounds
-    # on the lower end--should error
-    def call_cont():
+    with pytest.raises(ValueError):
+        # Use an energy range that goes out of bounds
+        # on the lower end--should error
         _ = thermal.ContinuumEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             np.arange(0.1, 28, 0.5) * u.keV
         )
-
-    with pytest.raises(ValueError):
-        call_cont()
-
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         # The continuum emission should only warn if we go out of
@@ -469,7 +465,7 @@ def test_continuum_energy_out_of_range():
             np.arange(10, 1000, 0.5) * u.keV
         )
         assert (
-            isinstance(w[0].category, ResourceWarning)
+            issubclass(w[0].category, ResourceWarning)
             if sys.version_info == (3, 10)
             else issubclass(w[0].category, UserWarning)
         )
