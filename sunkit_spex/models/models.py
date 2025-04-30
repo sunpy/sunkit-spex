@@ -20,38 +20,38 @@ class StraightLineModel(FittableModel):
     slope = Parameter(default=1, description="Gradient of a straight line model.")
     intercept = Parameter(default=0, description="Y-intercept of a straight line model.")
 
-    def __init__(self, slope=slope.default, intercept=intercept.default, photon_model=True, **kwargs):
-        self.photon_model = photon_model
+    def __init__(self, slope=slope, intercept=intercept, edges=True, **kwargs):
+        self.edges = edges
 
-        super().__init__(slope=slope, intercept=intercept, **kwargs)
+        super().__init__(slope,intercept,**kwargs)
 
     def evaluate(self, x, slope, intercept):
-        if self.photon_model:
-            x.to(u.keV)
+        
+        if self.edges:
             x = x[:-1] + 0.5 * np.diff(x)
 
-        if isinstance(x, Quantity):
-            x = x.value
+        print(slope * x + intercept)
+        print('x = ', x)
+        print('slope = ', slope)
+        print('intercepty = ', intercept)
 
         """Evaluate the straight line model at `x` with parameters `slope` and `intercept`."""
         return slope * x + intercept
 
     @property
     def input_units(self):
-        if not self.photon_model:
-            return None
-        return {"x": u.keV}
+        if isinstance(self.slope,Quantity):
+            return {"x": self.intercept.unit / self.slope.unit}
 
     @property
     def return_units(self):
-        if not self.photon_model:
-            return None
-        return {"y": u.ph * u.keV**-1 * u.s**-1}
+        if isinstance(self.slope,Quantity):
+            return {"y": self.intercept.unit}
+        
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        if not self.photon_model:
-            return None
-        return {"slope": outputs_unit["y"] / inputs_unit["x"], "intercept": outputs_unit["y"]}
+        if isinstance(self.slope,Quantity):
+            return {"slope": self.slope.unit, "intercept": self.intercept.unit}
 
 
 class GaussianModel(FittableModel):
@@ -65,16 +65,16 @@ class GaussianModel(FittableModel):
     stddev = Parameter(default=1, description="Sigma for Gaussian.")
 
     def __init__(
-        self, amplitude=amplitude.default, mean=mean.default, stddev=stddev.default, photon_model=True, **kwargs
+        self, amplitude=amplitude.default, mean=mean.default, stddev=stddev.default, edges=True, **kwargs
     ):
-        self.photon_model = photon_model
+        self.edges = edges
 
         super().__init__(amplitude=amplitude, mean=mean, stddev=stddev, **kwargs)
 
     def evaluate(self, x, amplitude, mean, stddev):
         """Evaluate the Gaussian model at `x` with parameters `amplitude`, `mean`, and `stddev`."""
 
-        if self.photon_model:
+        if self.edges:
             x = x[:-1] + 0.5 * np.diff(x)
 
         if isinstance(x, Quantity):
@@ -86,13 +86,13 @@ class GaussianModel(FittableModel):
 
     @property
     def input_units(self):
-        if not self.photon_model:
+        if not self.edges:
             return None
         return {"x": u.keV}
 
     @property
     def return_units(self):
-        if not self.photon_model:
+        if not self.edges:
             return None
         return {"y": u.ph * u.keV**-1 * u.s**-1}
 
