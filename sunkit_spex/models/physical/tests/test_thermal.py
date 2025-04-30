@@ -1,4 +1,3 @@
-import sys
 import warnings
 
 import numpy as np
@@ -425,7 +424,10 @@ def test_len1_energy_input():
 
 
 def test_energy_out_of_range_error():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="Lower bound of the input energy must be within the range 1.0002920302956426--10.34753795157738 keV. ",
+    ):
         thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([0.01, 10] * u.keV)
 
 
@@ -451,7 +453,10 @@ def test_line_energy_out_of_range_warning():
 
 
 def test_continuum_energy_out_of_range():
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="Lower bound of the input energy must be within the range 1.0009873438468269--200.15819869050395 keV.",
+    ):
         # Use an energy range that goes out of bounds
         # on the lower end--should error
         _ = thermal.ContinuumEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
