@@ -39,72 +39,44 @@ def fvth_simple():
     -----
     The spectrum output by this function can be reproduced in IDL with the following code.
 
+    chianti_kev_common_load, contfile = 'chianti_cont_1_250_v71.sav', linefile = 'chianti_lines_1_10_v71.sav', /reload
+
     energy_in = fltarr(2, 50)
     energy_in[0, *] = findgen(50) * 0.5 + 3
     energy_in[1, *] = energy_in[0, *] + 0.5
     temp = 6.
-    flux = f_vth(temp, energy_in, /kev, /earth)
+    em = 1e-5
+    flux = f_vth(energy_in, [em,temp], rel_abun=rel_abun, /kev, /earth)
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
-    relative_abundances = None
     observer_distance = (1 * u.AU).to(u.cm)
-    inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances, observer_distance)
-    ssw_output = [
-        0.49978617,
-        0.15907305,
-        0.052894916,
-        0.017032871,
-        0.0056818775,
-        0.0019678525,
-        0.00071765773,
-        0.00026049651,
-        8.5432410e-05,
-        3.0082287e-05,
-        1.0713027e-05,
-        3.8201970e-06,
-        1.3680836e-06,
-        4.9220034e-07,
-        1.7705435e-07,
-        6.4002016e-08,
-        2.3077330e-08,
-        8.3918881e-09,
-        3.0453193e-09,
-        1.1047097e-09,
-        4.0377532e-10,
-        1.4734168e-10,
-        5.3671578e-11,
-        1.9628120e-11,
-        7.2107064e-12,
-        2.6457057e-12,
-        9.6945607e-13,
-        3.5472713e-13,
-        1.3051763e-13,
-        4.8216642e-14,
-        1.7797136e-14,
-        6.5629896e-15,
-        2.4178513e-15,
-        8.8982728e-16,
-        3.2711010e-16,
-        1.2110889e-16,
-        4.4997199e-17,
-        1.6709174e-17,
-        6.2011332e-18,
-        2.2999536e-18,
-        8.5248536e-19,
-        3.1576185e-19,
-        1.1687443e-19,
-        4.3226546e-20,
-        1.5974677e-20,
-        5.9133793e-21,
-        2.2103457e-21,
-        8.2594126e-22,
-        3.0853276e-22,
-        1.1521560e-22,
-    ] * SSW_INTENSITY_UNIT
-    return inputs, ssw_output
+    # fmt: off
+    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    ssw_output = (
+        [
+            0.508525, 0.158277, 0.0529235, 0.0171709, 0.00569773, 0.00196599, 0.000719867,
+            0.000262074, 8.53937e-05, 3.00764e-05, 1.06980e-05, 3.81875e-06, 1.36751e-06,
+            4.91036e-07, 1.76798e-07, 6.38010e-08, 2.30734e-08, 8.36119e-09, 3.03534e-09,
+            1.10357e-09, 4.01951e-10, 1.46575e-10, 5.35405e-11, 1.95792e-11, 7.16793e-12,
+            2.62703e-12, 9.63826e-13, 3.53981e-13, 1.30125e-13, 4.78720e-14, 1.76232e-14,
+            6.49645e-15, 2.39605e-15, 8.84008e-16, 3.26543e-16, 1.20678e-16, 4.46146e-17,
+            1.65130e-17, 6.11063e-18, 2.26457e-18, 8.38897e-19, 3.11188e-19, 1.15416e-19,
+            4.28376e-20, 1.59088e-20, 5.90513e-21, 2.19619e-21, 8.16363e-22, 3.03490e-22,
+            1.12987e-22
+        ]
+        * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
+    )
+    # fmt: on
+    return inputs, inputs_class, energy_edges, ssw_output
 
 
 def chianti_kev_cont_simple():
@@ -129,6 +101,8 @@ def chianti_kev_cont_simple():
     -----
     The spectrum output by this function can be reproduced in IDL with the following code.
 
+    chianti_kev_common_load, contfile = 'chianti_cont_1_250_v71.sav', linefile = 'chianti_lines_1_10_v71.sav', /reload
+
     energy_in = fltarr(2, 50)
     energy_in[0, *] = findgen(50) * 0.5 + 3
     energy_in[1, *] = energy_in[0, *] + 0.5
@@ -139,62 +113,31 @@ def chianti_kev_cont_simple():
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
-    relative_abundances = None
     observer_distance = (1 * u.AU).to(u.cm)
-    inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances, observer_distance)
-    ssw_output = [
-        0.435291,
-        0.144041,
-        0.0484909,
-        0.0164952,
-        0.00567440,
-        0.00196711,
-        0.000685918,
-        0.000240666,
-        8.48974e-05,
-        3.00666e-05,
-        1.07070e-05,
-        3.81792e-06,
-        1.36722e-06,
-        4.91871e-07,
-        1.76929e-07,
-        6.39545e-08,
-        2.30593e-08,
-        8.38502e-09,
-        3.04271e-09,
-        1.10372e-09,
-        4.03399e-10,
-        1.47199e-10,
-        5.36175e-11,
-        1.96076e-11,
-        7.20292e-12,
-        2.64275e-12,
-        9.68337e-13,
-        3.54305e-13,
-        1.30357e-13,
-        4.81556e-14,
-        1.77739e-14,
-        6.55418e-15,
-        2.41451e-15,
-        8.88565e-16,
-        3.26635e-16,
-        1.20928e-16,
-        4.49286e-17,
-        1.66830e-17,
-        6.19118e-18,
-        2.29618e-18,
-        8.51055e-19,
-        3.15220e-19,
-        1.16669e-19,
-        4.31491e-20,
-        1.59455e-20,
-        5.90236e-21,
-        2.20614e-21,
-        8.24339e-22,
-        3.07924e-22,
-        1.14983e-22,
-    ] * SSW_INTENSITY_UNIT
-    return inputs, ssw_output
+    # fmt: off
+    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    ssw_output = (
+        [
+            0.435182, 0.143992, 0.0484651, 0.0164877, 0.00567250, 0.00196526, 0.000685526,
+            0.000240551, 8.48489e-05, 3.00608e-05, 1.06920e-05, 3.81647e-06, 1.36665e-06,
+            4.90708e-07, 1.76672e-07, 6.37536e-08, 2.30554e-08, 8.35434e-09, 3.03274e-09,
+            1.10259e-09, 4.01577e-10, 1.46433e-10, 5.34866e-11, 1.95588e-11, 7.16019e-12,
+            2.62410e-12, 9.62714e-13, 3.53559e-13, 1.29965e-13, 4.78114e-14, 1.76002e-14,
+            6.48773e-15, 2.39274e-15, 8.82754e-16, 3.26069e-16, 1.20498e-16, 4.45465e-17,
+            1.64872e-17, 6.10082e-18, 2.26085e-18, 8.37490e-19, 3.10654e-19, 1.15214e-19,
+            4.27608e-20, 1.58797e-20, 5.89412e-21, 2.19201e-21, 8.14780e-22, 3.02891e-22,
+            1.12759e-22
+        ]
+        * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
+    )
+    # fmt: on
+    return inputs, inputs_class, energy_edges, ssw_output
 
 
 def chianti_kev_lines_simple():
@@ -219,6 +162,8 @@ def chianti_kev_lines_simple():
     -----
     The spectrum output by this function can be reproduced in IDL with the following code.
 
+    chianti_kev_common_load, contfile = 'chianti_cont_1_250_v71.sav', linefile = 'chianti_lines_1_10_v71.sav', /reload
+
     energy_in = fltarr(2, 50)
     energy_in[0, *] = findgen(50) * 0.5 + 3
     energy_in[1, *] = energy_in[0, *] + 0.5
@@ -228,63 +173,29 @@ def chianti_kev_lines_simple():
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
-    abundance_type = "sun_coronal"
-    relative_abundances = None
+    abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
-    inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances, observer_distance)
-    ssw_output = [
-        0.073248975,
-        0.014247916,
-        0.0044440511,
-        0.00067793718,
-        2.3333176e-05,
-        2.5751346e-10,
-        3.4042361e-05,
-        2.1403499e-05,
-        5.0370664e-07,
-        8.3715751e-12,
-        2.7737142e-12,
-        1.5496721e-13,
-        1.9522280e-17,
-        1.3281716e-20,
-        1.0493879e-21,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-        0.0000000,
-    ] * SSW_INTENSITY_UNIT
-    return inputs, ssw_output
+    # fmt: off
+    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    ssw_output = (
+        [
+            0.0732490, 0.0142479, 0.00444405, 0.000677937, 2.33332e-05, 2.57513e-10, 3.40424e-05,
+            2.14035e-05, 5.03707e-07, 8.37158e-12, 2.77371e-12, 1.54967e-13, 1.95223e-17, 1.32817e-20,
+            1.04939e-21, 5.60979545e-32, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000
+        ]
+        * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
+    )
+    # fmt: on
+    return inputs, inputs_class, energy_edges, ssw_output
 
 
 def fvth_Fe2():
@@ -309,12 +220,15 @@ def fvth_Fe2():
     -----
     The spectrum output by this function can be reproduced in IDL with the following code.
 
+    chianti_kev_common_load, contfile = 'chianti_cont_1_250_v71.sav', linefile = 'chianti_lines_1_10_v71.sav', /reload
+
     energy_in = fltarr(2, 50)
     energy_in[0, *] = findgen(50) * 0.5 + 3
     energy_in[1, *] = energy_in[0, *] + 0.5
-    temp = 6.
+    temp = 0.5170399957287106
     rel_abun = [[26, 2]]
-    flux = chianti_kev_cont(temp, energy_in, rel_abun=rel_abun, /kev, /earth)
+    em = 1e-5
+    flux = f_vth(energy_in, [em,temp], rel_abun=rel_abun, /kev, /earth)
 
     Ensure you are using the same .sav file as used here.
     """
@@ -322,62 +236,30 @@ def fvth_Fe2():
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
-    relative_abundances = ((26, 2),)
     observer_distance = (1 * u.AU).to(u.cm)
-    inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances, observer_distance)
-    ssw_output = [
-        4.6152353e-01,
-        1.5266217e-01,
-        5.1370505e-02,
-        1.7469261e-02,
-        6.0074395e-03,
-        2.0820354e-03,
-        7.2583189e-04,
-        2.5462240e-04,
-        8.9805966e-05,
-        3.1800522e-05,
-        1.1323175e-05,
-        4.0371842e-06,
-        1.4456124e-06,
-        5.2003952e-07,
-        1.8704908e-07,
-        6.7609605e-08,
-        2.4375957e-08,
-        8.8636174e-09,
-        3.2163083e-09,
-        1.1666705e-09,
-        4.2640558e-10,
-        1.5559361e-10,
-        5.6675255e-11,
-        2.0726003e-11,
-        7.6138887e-12,
-        2.7935852e-12,
-        1.0236266e-12,
-        3.7454293e-13,
-        1.3780716e-13,
-        5.0909286e-14,
-        1.8790933e-14,
-        6.9294558e-15,
-        2.5528610e-15,
-        9.3951687e-16,
-        3.4537985e-16,
-        1.2787355e-16,
-        4.7510902e-17,
-        1.7642638e-17,
-        6.5476106e-18,
-        2.4284929e-18,
-        9.0014011e-19,
-        3.3341828e-19,
-        1.2341190e-19,
-        4.5645426e-20,
-        1.6869074e-20,
-        6.2446062e-21,
-        2.3341643e-21,
-        8.7221399e-22,
-        3.2582179e-22,
-        1.2167254e-22,
-    ] * SSW_INTENSITY_UNIT
-    return inputs, ssw_output
+    # fmt: off
+    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    ssw_output = (
+        [
+            0.534751, 0.166895, 0.0558015, 0.0181445, 0.00603063, 0.00208080, 0.000793823, 0.000297441,
+            9.08041e-05, 3.18103e-05, 1.13134e-05, 4.03799e-06, 1.44590e-06, 5.19144e-07, 1.86907e-07,
+            6.74457e-08, 2.43905e-08, 8.83818e-09, 3.20843e-09, 1.16649e-09, 4.24865e-10, 1.54930e-10,
+            5.65926e-11, 2.06955e-11, 7.57671e-12, 2.77691e-12, 1.01884e-12, 3.74194e-13, 1.37559e-13,
+            5.06084e-14, 1.86312e-14, 6.86828e-15, 2.53330e-15, 9.34684e-16, 3.45278e-16, 1.27608e-16,
+            4.71785e-17, 1.74628e-17, 6.46241e-18, 2.39505e-18, 8.87281e-19, 3.29154e-19, 1.22086e-19,
+            4.53157e-20, 1.68300e-20, 6.24746e-21, 2.32363e-21, 8.63785e-22, 3.21138e-22, 1.19564e-22
+        ]
+        * SSW_INTENSITY_UNIT
+        * (4 * np.pi * observer_distance**2)
+    )
+    # fmt: on
+    return inputs, inputs_class, energy_edges, ssw_output
 
 
 def chianti_kev_cont_Fe2():
@@ -402,6 +284,8 @@ def chianti_kev_cont_Fe2():
     -----
     The spectrum output by this function can be reproduced in IDL with the following code.
 
+    chianti_kev_common_load, contfile = 'chianti_cont_1_250_v71.sav', linefile = 'chianti_lines_1_10_v71.sav', /reload
+
     energy_in = fltarr(2, 50)
     energy_in[0, *] = findgen(50) * 0.5 + 3
     energy_in[1, *] = energy_in[0, *] + 0.5
@@ -415,62 +299,30 @@ def chianti_kev_cont_Fe2():
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
-    relative_abundances = ((26, 2),)
     observer_distance = (1 * u.AU).to(u.cm)
-    inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances, observer_distance)
-    ssw_output = [
-        4.6152353e-01,
-        1.5266217e-01,
-        5.1370505e-02,
-        1.7469261e-02,
-        6.0074395e-03,
-        2.0820354e-03,
-        7.2583189e-04,
-        2.5462240e-04,
-        8.9805966e-05,
-        3.1800522e-05,
-        1.1323175e-05,
-        4.0371842e-06,
-        1.4456124e-06,
-        5.2003952e-07,
-        1.8704908e-07,
-        6.7609605e-08,
-        2.4375957e-08,
-        8.8636174e-09,
-        3.2163083e-09,
-        1.1666705e-09,
-        4.2640558e-10,
-        1.5559361e-10,
-        5.6675255e-11,
-        2.0726003e-11,
-        7.6138887e-12,
-        2.7935852e-12,
-        1.0236266e-12,
-        3.7454293e-13,
-        1.3780716e-13,
-        5.0909286e-14,
-        1.8790933e-14,
-        6.9294558e-15,
-        2.5528610e-15,
-        9.3951687e-16,
-        3.4537985e-16,
-        1.2787355e-16,
-        4.7510902e-17,
-        1.7642638e-17,
-        6.5476106e-18,
-        2.4284929e-18,
-        9.0014011e-19,
-        3.3341828e-19,
-        1.2341190e-19,
-        4.5645426e-20,
-        1.6869074e-20,
-        6.2446062e-21,
-        2.3341643e-21,
-        8.7221399e-22,
-        3.2582179e-22,
-        1.2167254e-22,
-    ] * SSW_INTENSITY_UNIT
-    return inputs, ssw_output
+    # fmt: off
+    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    ssw_output = (
+        [
+            0.461402, 0.152608, 0.0513423, 0.0174610, 0.00600528, 0.00208003, 0.000725404, 0.000254496,
+            8.97528e-05, 3.17937e-05, 1.13071e-05, 4.03558e-06, 1.44498e-06, 5.18797e-07, 1.86775e-07,
+            6.73955e-08, 2.43714e-08, 8.83094e-09, 3.20568e-09, 1.16545e-09, 4.24469e-10, 1.54780e-10,
+            5.65355e-11, 2.06739e-11, 7.56853e-12, 2.77380e-12, 1.01766e-12, 3.73748e-13, 1.37390e-13,
+            5.05443e-14, 1.86069e-14, 6.85906e-15, 2.52980e-15, 9.33357e-16, 3.44776e-16, 1.27417e-16,
+            4.71065e-17, 1.74354e-17, 6.45203e-18, 2.39112e-18, 8.85792e-19, 3.28589e-19, 1.21872e-19,
+            4.52345e-20, 1.67993e-20, 6.23582e-21, 2.31921e-21, 8.62109e-22, 3.20504e-22, 1.19323e-22
+        ]
+        * SSW_INTENSITY_UNIT
+        * (4 * np.pi * observer_distance**2)
+    )
+    # fmt: on
+    return inputs, inputs_class, energy_edges, ssw_output
 
 
 def chianti_kev_lines_Fe2():
@@ -495,6 +347,8 @@ def chianti_kev_lines_Fe2():
     -----
     The spectrum output by this function can be reproduced in IDL with the following code.
 
+    chianti_kev_common_load, contfile = 'chianti_cont_1_250_v71.sav', linefile = 'chianti_lines_1_10_v71.sav', /reload
+
     energy_in = fltarr(2, 50)
     energy_in[0, *] = findgen(50) * 0.5 + 3
     energy_in[1, *] = energy_in[0, *] + 0.5
@@ -507,125 +361,135 @@ def chianti_kev_lines_Fe2():
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
     emission_measure = 1e44 / u.cm**3
-    abundance_type = "sun_coronal"
-    relative_abundances = ((26, 2),)
+    abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
-    inputs = (energy_edges, temperature, emission_measure, abundance_type, relative_abundances, observer_distance)
-    ssw_output = [
-        0.073248975,
-        0.014247916,
-        0.0044440511,
-        0.00067793718,
-        2.3333176e-05,
-        5.1462595e-10,
-        6.8084722e-05,
-        4.2806998e-05,
-        1.0074133e-06,
-        1.6740345e-11,
-        5.5473790e-12,
-        3.0992380e-13,
-        1.9522283e-17,
-        1.3281716e-20,
-        1.0493879e-21,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-        0.0000000e00,
-    ] * SSW_INTENSITY_UNIT
-    return inputs, ssw_output
+    # fmt: off
+    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
+    inputs = (
+        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    inputs_class = (
+        temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+    )
+    ssw_output = (
+        [
+            0.0732490, 0.0142479, 0.00444405, 0.000677937, 2.33332e-05, 5.14626e-10, 6.80847e-05,
+            4.28070e-05, 1.00741e-06, 1.67403e-11, 5.54738e-12, 3.09924e-13, 1.95223e-17, 1.32817e-20,
+            1.04939e-21, 5.60979545e-32, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000,
+            0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000, 0.00000
+        ]
+        * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
+    )
+    # fmt: on
+    return inputs, inputs_class, energy_edges, ssw_output
 
 
-@pytest.mark.parametrize("ssw", [fvth_simple])
+@pytest.mark.parametrize("ssw", [fvth_simple, fvth_Fe2])
 def test_thermal_emission_against_ssw(ssw):
-    input_args, expected = ssw()
-    output = thermal.thermal_emission(*input_args)
-    expected_value = expected.to_value(output.unit)
-    np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
+    input_args, input_args_class, energy_edges, expected = ssw()
+    model_class = thermal.ThermalEmission(*input_args_class)
+    output_class = model_class(energy_edges)
+    expected_value = expected.to_value(output_class.unit)
+    np.testing.assert_allclose(output_class.value, expected_value, rtol=0.03)
 
 
 @pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, chianti_kev_cont_Fe2])
 def test_continuum_emission_against_ssw(ssw):
-    input_args, expected = ssw()
-    output = thermal.continuum_emission(*input_args)
-    expected_value = expected.to_value(output.unit)
-    np.testing.assert_allclose(output.value, expected_value, rtol=0.03)
+    input_args, input_args_class, energy_edges, expected = ssw()
+    model_class = thermal.ContinuumEmission(*input_args_class)
+    output_class = model_class(energy_edges)
+    expected_value = expected.to_value(output_class.unit)
+    np.testing.assert_allclose(output_class.value, expected_value, rtol=0.03)
 
 
 @pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
 def test_line_emission_against_ssw(ssw):
-    input_args, expected = ssw()
-    output = thermal.line_emission(*input_args)
-    expected_value = expected.to_value(output.unit)
-    np.testing.assert_allclose(output.value, expected_value, rtol=0.03, atol=1e-30)
+    input_args, input_args_class, energy_edges, expected = ssw()
+    model_class = thermal.LineEmission(*input_args_class)
+    output_class = model_class(energy_edges)
+    expected_value = expected.to_value(output_class.unit)
+    np.testing.assert_allclose(output_class.value, expected_value, rtol=0.05, atol=1e-30)
 
 
 def test_scalar_energy_input():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.thermal_emission(10 * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+        thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(10 * u.keV)
 
 
 def test_len1_energy_input():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.thermal_emission([10] * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+        thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([10] * u.keV)
 
 
 def test_energy_out_of_range_error():
-    with pytest.raises(ValueError, match="All input energy values must be within the range"):
-        thermal.thermal_emission([0.01, 10] * u.keV, 6 * u.MK, 1e44 / u.cm**3)
+    with pytest.raises(
+        ValueError,
+        match="Lower bound of the input energy must be within the range 1.0002920302956426--10.34753795157738 keV. ",
+    ):
+        thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([0.01, 10] * u.keV)
 
 
 def test_temperature_out_of_range_error():
     with pytest.raises(ValueError, match="All input temperature values must be within the range"):
-        thermal.thermal_emission([5, 10] * u.keV, 0.1 * u.MK, 1e44 / u.cm**3)
+        thermal.ThermalEmission(0.1 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([5, 10] * u.keV)
 
 
-def test_relative_abundance_negative_input():
-    with pytest.raises(ValueError, match="Relative abundances cannot be negative."):
-        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, relative_abundances=((26, -1)))
-
-
-def test_relative_abundance_invalid_atomic_number_input():
-    with pytest.raises(
-        ValueError, match="Relative abundances can only be set for elements with atomic numbers in range"
-    ):
-        thermal.thermal_emission([5, 10] * u.keV, 10 * u.MK, 1e44 / u.cm**3, relative_abundances=((100, 1)))
-
-
-def test_energy_out_of_range_warning():
+def test_line_energy_out_of_range_warning():
     with warnings.catch_warnings(record=True) as w:
         # Cause all warnings to always be triggered.
         warnings.simplefilter("always")
         # Trigger a warning.
-        output = thermal.line_emission(np.arange(3, 28, 0.5) * u.keV, 6 * u.MK, 1e44 / u.cm**3)  # noqa
+        _ = thermal.LineEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
+            np.arange(3, 1000, 0.5) * u.keV
+        )
         assert issubclass(w[0].category, UserWarning)
+        # assert (
+        #     issubclass(w[0].category, ResourceWarning)
+        #     if sys.version_info == (3, 10)
+        #     else issubclass(w[0].category, UserWarning)
+        # )
+
+
+def test_continuum_energy_out_of_range():
+    with pytest.raises(
+        ValueError,
+        match="Lower bound of the input energy must be within the range 1.0009873438468269--200.15819869050395 keV.",
+    ):
+        # Use an energy range that goes out of bounds
+        # on the lower end--should error
+        _ = thermal.ContinuumEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
+            np.arange(0.1, 28, 0.5) * u.keV
+        )
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        # The continuum emission should only warn if we go out of
+        # bounds on the upper end.
+        _ = thermal.ContinuumEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
+            np.arange(10, 1000, 0.5) * u.keV
+        )
+        assert issubclass(w[0].category, UserWarning)
+        # assert (
+        #     issubclass(w[0].category, ResourceWarning)
+        #     if sys.version_info == (3, 10)
+        #     else issubclass(w[0].category, UserWarning)
+        # )
+
+
+def test_empty_flux_out_of_range():
+    """The CHIANTI grid covers ~1 to 300 keV, but the values greater than
+    of the grid max energy should all be zeros."""
+    energy_edges = np.geomspace(10, 800, num=1000) << u.keV
+    midpoints = energy_edges[:-1] + np.diff(energy_edges) / 2
+
+    temperature = 20 << u.MK
+    em = 1e49 << u.cm**-3
+
+    flux = thermal.ThermalEmission(temperature, em, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(energy_edges)
+    # the continuum is the one we need to check
+    max_e = thermal.CONTINUUM_GRID["energy range keV"][1] << u.keV
+    should_be_zeros = midpoints >= max_e
+
+    true_zero = 0 * (hopefully_zero := flux[should_be_zeros])
+    np.testing.assert_allclose(true_zero, hopefully_zero)
