@@ -23,35 +23,29 @@ class StraightLineModel(FittableModel):
     def __init__(self, slope=slope, intercept=intercept, edges=True, **kwargs):
         self.edges = edges
 
-        super().__init__(slope,intercept,**kwargs)
+        super().__init__(slope, intercept, **kwargs)
 
     def evaluate(self, x, slope, intercept):
-        
         if self.edges:
             x = x[:-1] + 0.5 * np.diff(x)
-
-        print(slope * x + intercept)
-        print('x = ', x)
-        print('slope = ', slope)
-        print('intercepty = ', intercept)
 
         """Evaluate the straight line model at `x` with parameters `slope` and `intercept`."""
         return slope * x + intercept
 
     @property
     def input_units(self):
-        if isinstance(self.slope,Quantity):
+        if isinstance(self.slope, Quantity):
             return {"x": self.intercept.unit / self.slope.unit}
+        return None
 
     @property
     def return_units(self):
-        if isinstance(self.slope,Quantity):
+        if isinstance(self.slope, Quantity):
             return {"y": self.intercept.unit}
-        
+        return None
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        if isinstance(self.slope,Quantity):
-            return {"slope": self.slope.unit, "intercept": self.intercept.unit}
+    def _parameter_units_for_data_units(self, input_units, output_units):
+        return {"slope": output_units["y"] / input_units["x"], "intercept": output_units["y"]}
 
 
 class GaussianModel(FittableModel):
@@ -64,12 +58,14 @@ class GaussianModel(FittableModel):
     mean = Parameter(default=0, min=0, description="X-offset for Gaussian.")
     stddev = Parameter(default=1, description="Sigma for Gaussian.")
 
-    def __init__(
-        self, amplitude=amplitude.default, mean=mean.default, stddev=stddev.default, edges=True, **kwargs
-    ):
+    def __init__(self, amplitude=amplitude, mean=mean, stddev=stddev, edges=True, **kwargs):
         self.edges = edges
 
-        super().__init__(amplitude=amplitude, mean=mean, stddev=stddev, **kwargs)
+        # if isinstance(mean, Quantity):
+        #     self.units = {'x':self.mean.unit,'y'}
+        # self.units = None
+
+        super().__init__(amplitude, mean, stddev, **kwargs)
 
     def evaluate(self, x, amplitude, mean, stddev):
         """Evaluate the Gaussian model at `x` with parameters `amplitude`, `mean`, and `stddev`."""
@@ -77,24 +73,19 @@ class GaussianModel(FittableModel):
         if self.edges:
             x = x[:-1] + 0.5 * np.diff(x)
 
-        if isinstance(x, Quantity):
-            y = amplitude * np.e ** (-((x.value - mean) ** 2) / (2 * stddev**2))
-        else:
-            y = amplitude * np.e ** (-((x - mean) ** 2) / (2 * stddev**2))
-
-        return y
+        return amplitude * np.e ** (-((x - mean) ** 2) / (2 * stddev**2))
 
     @property
     def input_units(self):
-        if not self.edges:
-            return None
-        return {"x": u.keV}
+        if isinstance(self.mean, Quantity):
+            return {"x": self.mean.unit}
+        return None
 
     @property
     def return_units(self):
-        if not self.edges:
-            return None
-        return {"y": u.ph * u.keV**-1 * u.s**-1}
+        if isinstance(self.amplitude, Quantity):
+            return {"y": self.amplitude.unit}
+        return None
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"mean": inputs_unit["x"], "stddev": inputs_unit["x"], "amplitude": outputs_unit["y"]}
+    def _parameter_units_for_data_units(self, input_units, output_units):
+        return {"mean": input_units["x"], "stddev": input_units["x"], "amplitude": output_units["y"]}
