@@ -1,16 +1,18 @@
 """
 The following code is used to generate matrices for albedo correction
 """
+from functools import lru_cache
+
 import numpy as np
+from numpy.typing import NDArray
 from scipy.interpolate import RegularGridInterpolator
 from scipy.io import readsav
 
-from sunpy.data import cache
-from astropy.units import Quantity
-from functools import lru_cache
-
-from numpy.typing import NDArray
 import astropy.units as u
+from astropy.units import Quantity
+
+from sunpy.data import cache
+
 
 @lru_cache
 def _get_green_matrix(theta: float) -> RegularGridInterpolator:
