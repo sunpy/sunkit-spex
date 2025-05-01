@@ -5701,34 +5701,19 @@ def make_model(energies=None, photon_model=None, parameters=None, srm=None, albe
 
 def albedo(spec, energy, theta, anisotropy=1):
     r"""
-    Add albedo correction to input spectrum
+        Gets the albedo matrix for given angle and anisotropy and returns the albedo corrected spectrum as well as the albedo component by itself.
 
-    Correct input model spectrum for the component reflected by the solar atmosphere following [Kontar20006]_ using
-    precomputed green matrices from SSW.
-
-    .. [Kontar20006] https://doi.org/10.1051/0004-6361:20053672
-
-    Parameters
-    ----------
-    spec :
-     Input spectrum
-    energy :
-     Energy edges associated with the spectrum
-    theta :
-     Angle between Sun-observer line and X-ray source
-    anisotropy :
-     Ratio of the flux in observer direction to the flux downwards, anisotropy=1 (default) the source is isotropic
-
-    Example
-    -------
-    >>> import astropy.units as u
-    >>> import numpy as np
-    >>> from sunkit_spex.models.physical import albedo
-    >>> e = np.linspace(5,  500, 1000)
-    >>> e_c = e[:-1] + np.diff(e)
-    >>> s = 125*e_c**-3
-    >>> corrected = albedo(s, e, theta=45*u.deg)
-    """
+        Parameters
+        ----------
+        spec :
+            Spectrum object
+        energy :
+            Energy edges associated with the spectrum
+        theta :
+            Angle between Sun-observer line and X-ray source
+        anisotropy :
+            Ratio of the flux in observer direction to the flux downwards, 1 for an isotropic source
+        """
 
     albedo_matrix = get_albedo_matrix(energy*u.keV, theta, anisotropy)
 
