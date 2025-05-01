@@ -4,11 +4,7 @@ import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
-<<<<<<< HEAD
 __all__ = ["Constant", "InverseSquareFluxScaling"]
-=======
-__all__ = ["InverseSquareFluxScaling", "ScalarConstant"]
->>>>>>> 5fce1e0 (Edited docstrings)
 
 
 class InverseSquareFluxScaling(FittableModel):
@@ -22,7 +18,6 @@ class InverseSquareFluxScaling(FittableModel):
     observer_distance:
         Distance of the observer from the source.
 
-<<<<<<< HEAD
     """
 
     # Examples
@@ -55,40 +50,6 @@ class InverseSquareFluxScaling(FittableModel):
     #         plt.legend()
     #         plt.show()
 
-=======
-    Examples
-    ========
-    .. plot::
-        :include-source:
-
-        import astropy.units as u
-        import numpy as np
-        import matplotlib.pyplot as plt
-
-        from astropy.visualization import quantity_support
-
-        from sunkit_spex.models.scaling import InverseSquareFluxScaling
-        from sunkit_spex.models.models import StraightLineModel
-
-        ph_energies = np.arange(4, 100, 0.5)
-        ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
-
-        sim_cont = {"edges":True,"slope": -2, "intercept": 100}
-        source = StraightLineModel(**sim_cont)
-
-        with quantity_support():
-            plt.figure()
-            for i, d in enumerate([0.25,0.5,1]):
-                distance =  InverseSquareFluxScaling(observer_distance=d*u.AU)
-                observed = source * distance
-                plt.plot(ph_energies_centers ,  observed(ph_energies), label='D = '+str(d)+' AU')
-            plt.loglog()
-            plt.legend()
-            plt.show()
-
-    """
-
->>>>>>> 5fce1e0 (Edited docstrings)
     n_inputs = 1
     n_outputs = 1
 
@@ -124,22 +85,15 @@ class InverseSquareFluxScaling(FittableModel):
         return {"observer_distance": u.AU}
 
 
-<<<<<<< HEAD
 class Constant(FittableModel):
     """
     A model which returns an array with dimensions n-1 of the input dimension populated with a constant value,
     of whichever units specified by the user.
-=======
-class ScalarConstant(FittableModel):
-    """
-    A scalar constant model which returns an array with dimensions n-1 of the input dimension.
->>>>>>> 5fce1e0 (Edited docstrings)
 
     Parameters
     ==========
     energy_edges :
         Energy edges associated with input spectrum
-<<<<<<< HEAD
     constant :
         A constant value which populates the output array
     """
@@ -174,52 +128,13 @@ class ScalarConstant(FittableModel):
     #         plt.legend()
     #         plt.show()
 
-=======
-
-    Examples
-    ========
-    .. plot::
-        :include-source:
-
-        import astropy.units as u
-        import numpy as np
-        import matplotlib.pyplot as plt
-
-        from astropy.visualization import quantity_support
-
-        from sunkit_spex.models.scaling import InverseSquareFluxScaling
-        from sunkit_spex.models.models import StraightLineModel
-
-        ph_energies = np.arange(4, 100, 0.5)
-        ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
-
-        sim_cont = {"edges":True,"slope": -2, "intercept": 100}
-        source = StraightLineModel(**sim_cont)
-
-        with quantity_support():
-            plt.figure()
-            for i, c in enumerate([0.25,0.5,1,2,4]):
-                constant =  ScalarConstant(constant=c*u.AU)
-                observed = source * constant
-                plt.plot(ph_energies_centers ,  observed(ph_energies), label='Const = '+str(c))
-            plt.loglog()
-            plt.legend()
-            plt.show()
-
-    """
-
->>>>>>> 5fce1e0 (Edited docstrings)
     n_inputs = 1
     n_outputs = 1
 
     constant = Parameter(
         name="constant",
         default=1,
-<<<<<<< HEAD
         description="Constant",
-=======
-        description="Scalar Constant",
->>>>>>> 5fce1e0 (Edited docstrings)
         fixed=True,
     )
 
@@ -228,13 +143,9 @@ class ScalarConstant(FittableModel):
     def evaluate(self, x, constant):
         dimension = np.shape(x)[0] - 1
 
-<<<<<<< HEAD
         if isinstance(constant, Quantity):
             return np.full(dimension, constant.value) * constant.unit
         return np.full(dimension, constant)
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"constant": inputs_unit["x"]}
-=======
-        return np.full(dimension, constant)
->>>>>>> 5fce1e0 (Edited docstrings)
