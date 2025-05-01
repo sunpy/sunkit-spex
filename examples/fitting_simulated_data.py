@@ -43,8 +43,8 @@ ph_energies = np.arange(start, stop, inc)
 #
 # Let's start making a simulated photon spectrum
 
-sim_cont = {"photon_model": False, "slope": -1, "intercept": 100}
-sim_line = {"photon_model": False, "amplitude": 100, "mean": 30, "stddev": 2}
+sim_cont = {"edges": False, "slope": -1, "intercept": 100}
+sim_line = {"edges": False, "amplitude": 100, "mean": 30, "stddev": 2}
 # use a straight line model for a continuum, Gaussian for a line
 ph_model = StraightLineModel(**sim_cont) + GaussianModel(**sim_line)
 
@@ -75,7 +75,7 @@ plt.show()
 #
 # Start work on a count model
 
-sim_gauss = {"photon_model": False, "amplitude": 70, "mean": 40, "stddev": 2}
+sim_gauss = {"edges": False, "amplitude": 70, "mean": 40, "stddev": 2}
 # the brackets are very necessary
 ct_model = (ph_model | srm_model) + GaussianModel(**sim_gauss)
 
@@ -115,9 +115,9 @@ plt.show()
 #
 # Get some initial guesses that are off from the simulated data above
 
-guess_cont = {"photon_model": False, "slope": -0.5, "intercept": 80}
-guess_line = {"photon_model": False, "amplitude": 150, "mean": 32, "stddev": 5}
-guess_gauss = {"photon_model": False, "amplitude": 350, "mean": 39, "stddev": 0.5}
+guess_cont = {"edges": False, "slope": -0.5, "intercept": 80}
+guess_line = {"edges": False, "amplitude": 150, "mean": 32, "stddev": 5}
+guess_gauss = {"edges": False, "amplitude": 350, "mean": 39, "stddev": 0.5}
 
 #####################################################
 #
