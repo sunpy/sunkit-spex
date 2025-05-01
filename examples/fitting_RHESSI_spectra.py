@@ -39,7 +39,7 @@ except AttributeError:
 # Download the example data
 
 dl = Downloader()
-base_url = "https://sky.dias.ie/index.php/s/ekBWE57kC7rjeBF/download?path=%2Fexample_data%2Frhessi&files="
+base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/rhessi/"
 file_names = ["20021005_103800_spec.fits", "20021005_103800_srm.fits"]
 
 for fname in file_names:
@@ -115,20 +115,6 @@ plt.figure(figsize=(15, 10))
 rhess_spec.spectrogram()
 plt.show()
 plt.rcParams["font.size"] = default_text
-
-#####################################################
-#
-# An alternative to set the event and background times like above is by using the `select_time` method. E.g.,
-#
-# .. code-block::python
-#
-#    ress_spec.loaded_spec_data["spectrum1"].select_time(start="2002-10-05T10:38:32", end="2002-10-05T10:40:32", background=True)
-#
-#    ress_spec.loaded_spec_data["spectrum1"].select_time(start="2002-10-05T10:41:20", end="2002-10-05T10:42:24")
-#
-# Both and end and a start time needs to be defined for the background, whereas the event time is assumed to
-# commence/finish at the first/final data time if the start/end time is not given.
-#
 
 #####################################################
 #

@@ -2468,7 +2468,7 @@ class Fitter:
                 replacement_steps = np.mean(self._minimize_solution.final_simplex[0][:, zero_steps], axis=0) * step
             except AttributeError:
                 replacement_steps = 0
-            steps[zero_steps] = replacement_steps if replacement_steps > 0 else step
+            steps[zero_steps] = replacement_steps if replacement_steps.size > 0 else step
         else:
             steps = _abs_step
 

@@ -1,0 +1,1 @@
+Add new two new Astropy model classes, :class:`sunkit_spex.models.scaling.DistanceScale` and :class:`sunkit_spex.models.scaling.Constant`. These classes can be used with physical models to scale the flux either by observer distance or by a constant multiplicative factor respectively.

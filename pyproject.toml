@@ -1,7 +1,7 @@
 [build-system]
 requires = [
-  "setuptools>=56,!=61.0.0",
-  "setuptools_scm[toml]>=6.2",
+  "setuptools>=62.1",
+  "setuptools_scm[toml]>=8.0.0",
   "wheel",
 ]
 build-backend = "setuptools.build_meta"
@@ -19,13 +19,10 @@ dependencies = [
     "corner>=2.2",
     "emcee>=3.1",
     "matplotlib>=3.7",
-    "ndim>=0.1",
     "nestle>=0.2",
     "numdifftools>=0.9.40",
     "numpy>=1.24",
-    "orthopy>=0.9",
     "parfive>=2.0",
-    "quadpy>=0.17",
     "scipy>=1.11",
     "sunpy>=6.0",
     "xarray>=2022.10",
@@ -45,6 +42,7 @@ tests = [
 docs = [
   "sphinx",
   "sphinx-automodapi",
+  "sphinx-changelog",
   "sunpy-sphinx-theme",
   "packaging",
   "sphinx-changelog",
@@ -52,7 +50,8 @@ docs = [
 ]
 
 [project.urls]
-repository = "https://sunkit-spex.readthedocs.io"
+Homepage = "https://sunkit-spex.readthedocs.io"
+Download = "https://pypi.org/project/sunkit-spex"
 
 [tool.setuptools]
 zip-safe = false
@@ -63,63 +62,64 @@ include = ["sunkit_spex*"]
 exclude = ["sunkit_spex._dev*"]
 
 [tool.setuptools_scm]
-write_to = "sunkit_spex/_version.py"
+version_file = "sunkit_spex/_version.py"
 
-[ tool.gilesbot ]
+[tool.gilesbot]
+  [tool.gilesbot.pull_requests]
+  enabled = true
 
-  [ tool.gilesbot.pull_requests ]
-    enabled = true
+  [tool.gilesbot.towncrier_changelog]
+  enabled = true
+  verify_pr_number = true
+  changelog_skip_label = "No Changelog Entry Needed"
+  help_url = "https://github.com/sunpy/sunkit-spex/blob/main/changelog/README.rst"
 
-  [ tool.gilesbot.towncrier_changelog ]
-    enabled = true
-    verify_pr_number = true
-    changelog_skip_label = "No Changelog Entry Needed"
-    help_url = "https://github.com/sunpy/sunkit-spex/blob/master/changelog/README.rst"
+  changelog_missing_long = "There isn't a changelog file in this pull request. Please add a changelog file to the `changelog/` directory following the instructions in the changelog [README](https://github.com/sunpy/sunkit-spex/blob/main/changelog/README.rst)."
 
-    changelog_missing_long = "There isn't a changelog file in this pull request. Please add a changelog file to the `changelog/` directory following the instructions in the changelog [README](https://github.com/sunpy/sunkit-spex/blob/master/changelog/README.rst."
+  type_incorrect_long = "The changelog file you added is not one of the allowed types. Please use one of the types described in the changelog [README](https://github.com/sunpy/sunkit-spex/blob/main/changelog/README.rst)"
 
-    type_incorrect_long = "The changelog file you added is not one of the allowed types. Please use one of the types described in the changelog [README](https://github.com/sunpy/sunkit-spex/blob/master/changelog/README.rst)"
+  number_incorrect_long = "The number in the changelog file you added does not match the number of this pull request. Please rename the file."
 
-    number_incorrect_long = "The number in the changelog file you added does not match the number of this pull request. Please rename the file."
-
+# TODO: This should be in towncrier.toml but Giles currently only works looks in
+# pyproject.toml we should move this back when it's fixed.
 [tool.towncrier]
-    package = "sunkit_spex"
-    filename = "CHANGELOG.rst"
-    directory = "changelog/"
-    issue_format = "`#{issue} <https://github.com/sunpy/sunkit-spex/pull/{issue}>`__"
-    title_format = "{version} ({project_date})"
+  package = "sunkit_spex"
+  filename = "CHANGELOG.rst"
+  directory = "changelog/"
+  issue_format = "`#{issue} <https://github.com/sunpy/sunkit-spex/pull/{issue}>`__"
+  title_format = "{version} ({project_date})"
 
-    [[tool.towncrier.type]]
-        directory = "breaking"
-        name = "Breaking Changes"
-        showcontent = true
+  [[tool.towncrier.type]]
+  directory = "breaking"
+  name = "Breaking Changes"
+  showcontent = true
 
-    [[tool.towncrier.type]]
-      directory = "deprecation"
-      name = "Deprecations"
-      showcontent = true
+  [[tool.towncrier.type]]
+  directory = "deprecation"
+  name = "Deprecations"
+  showcontent = true
 
-    [[tool.towncrier.type]]
-      directory = "removal"
-      name = "Removals"
-      showcontent = true
+  [[tool.towncrier.type]]
+  directory = "removal"
+  name = "Removals"
+  showcontent = true
 
-    [[tool.towncrier.type]]
-      directory = "feature"
-      name = "New Features"
-      showcontent = true
+  [[tool.towncrier.type]]
+  directory = "feature"
+  name = "New Features"
+  showcontent = true
 
-    [[tool.towncrier.type]]
-      directory = "bugfix"
-      name = "Bug Fixes"
-      showcontent = true
+  [[tool.towncrier.type]]
+  directory = "bugfix"
+  name = "Bug Fixes"
+  showcontent = true
 
-    [[tool.towncrier.type]]
-      directory = "doc"
-      name = "Documentation"
-      showcontent = true
+  [[tool.towncrier.type]]
+  directory = "doc"
+  name = "Documentation"
+  showcontent = true
 
-    [[tool.towncrier.type]]
-      directory = "trivial"
-      name = "Internal Changes"
-      showcontent = true
+  [[tool.towncrier.type]]
+  directory = "trivial"
+  name = "Internal Changes"
+  showcontent = true

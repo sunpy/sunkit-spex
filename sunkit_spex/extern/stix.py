@@ -1447,7 +1447,7 @@ def _extract_attenunator_info(att_dat, spectrum_end_time) -> dict[str, list]:
     atten_change_times = atten_change_times.reshape(n_attenuator_changes)  # reshape so always 1d array
 
     atten_change_times = np.append(atten_change_times, spectrum_end_time)
-    
+
     return {
         "change_times": atten_change_times,
         "states": att_dat["data"]["SP_ATTEN_STATE$$STATE"].reshape(n_attenuator_changes).tolist(),

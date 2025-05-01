@@ -11,12 +11,12 @@ from sunpy.data import manager
 from .io import load_chianti_continuum, load_chianti_lines_lite, load_xray_abundances
 
 __all__ = [
-    "thermal_emission",
     "continuum_emission",
     "line_emission",
     "setup_continuum_parameters",
-    "setup_line_parameters",
     "setup_default_abundances",
+    "setup_line_parameters",
+    "thermal_emission",
 ]
 
 doc_string_params = """
@@ -218,7 +218,10 @@ def thermal_emission(
         min(CONTINUUM_GRID["energy range keV"][0], LINE_GRID["energy range keV"][0]),
         max(CONTINUUM_GRID["energy range keV"][1], LINE_GRID["energy range keV"][1]),
     )
-    _error_if_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
+    # raise an error if energy_range_min() < energy_endges_keV[1]
+    _error_if_low_energy_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
+    # warning if energy_range.max() > energy_endges_keV[1], outside this range flux=0
+    _warn_if_input_outside_valid_range(energy_edges_keV, energy_range, "energy", "keV")
     temp_range = (
         min(CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]),
         max(CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]),
@@ -256,7 +259,10 @@ def continuum_emission(
     {doc_string_params}"""
     # Convert inputs to known units and confirm they are within range.
     energy_edges_keV, temperature_K = _sanitize_inputs(energy_edges, temperature)
-    _error_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
+    _error_if_low_energy_input_outside_valid_range(
+        energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV"
+    )
+    _warn_if_input_outside_valid_range(energy_edges_keV, CONTINUUM_GRID["energy range keV"], "energy", "keV")
     _error_if_input_outside_valid_range(temperature_K, CONTINUUM_GRID["temperature range K"], "temperature", "K")
     # Calculate abundances
     abundances = _calculate_abundances(abundance_type, relative_abundances)
@@ -551,11 +557,11 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
     for i in range(n_temperatures):
         # Identify the "temperature" bin to which the input "temperature"
         # corresponds and its two nearest neighbors.
-        indx = temperature_bins[i] - 1 + np.arange(3)
+        index = temperature_bins[i] - 1 + np.arange(3)
         # Interpolate the 2nd axis to produce a function that gives the data
         # as a function of 1st axis, say energy, at a given value along the 2nd axis,
         # say "temperature".
-        get_intensities_at_logT = interpolate.interp1d(line_logT_bins[indx], data_grid[:, indx], kind="quadratic")
+        get_intensities_at_logT = interpolate.interp1d(line_logT_bins[index], data_grid[:, index], kind="quadratic")
         # Use function to get interpolated_data as a function of the first axis at
         # the input value along the 2nd axis,
         # e.g. line intensities as a function of energy at a given temperature.
@@ -733,7 +739,15 @@ def _error_if_input_outside_valid_range(input_values, grid_range, param_name, pa
             grid_range = u.Quantity(grid_range, unit=param_unit).to_value(message_unit)
             param_unit = message_unit
         message = (
-            f"All input {param_name} values must be within the range "
+            f"All input {param_name} values must be within the range {grid_range[0]}--{grid_range[1]} {param_unit}. "
+        )
+        raise ValueError(message)
+
+
+def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
+    if input_values.min() < grid_range[0]:
+        message = (
+            f"Lower bound of the input {param_name} must be within the range "
             f"{grid_range[0]}--{grid_range[1]} {param_unit}. "
         )
         raise ValueError(message)
@@ -925,8 +939,8 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #     logt = LOGT # grid temperatures = log(temperature)
 #     ntemp = len(logt)
 #     selt = np.argwhere(logt<=u)[-1] # what gap does my temp land in the logt array (inclusive of the lower boundary)
-#     indx = np.clip([selt-1, selt, selt+1], 0, ntemp-1) # find the indexes either side of that gap
-#     tband = logt[indx]
+#     index = np.clip([selt-1, selt, selt+1], 0, ntemp-1) # find the indexes either side of that gap
+#     tband = logt[index]
 #     s=1
 #     x0, x1, x2 = tband[0][0], tband[1][0], tband[2][0] # temperatures either side of that gap
 
@@ -936,7 +950,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 
 #     # all wavelengths divided by corresponding temp[0] (first row), then exvl/temp[1] second row, exvl/temp[2] third row
 #     # inverse boltzmann factor of hv/kT and 11.6e6 from keV-to-J conversion over k = 1.6e-16 / 1.381e-23 ~ 11.6e6
-#     exponential = (np.ones((3,1)) @ ewvl_exp) / ((10**logt[indx]/11.6e6) @ np.ones((1,nwvl)))
+#     exponential = (np.ones((3,1)) @ ewvl_exp) / ((10**logt[index]/11.6e6) @ np.ones((1,nwvl)))
 #     exponential = np.exp(np.clip(exponential, None, 80)) #  not sure why clipping at 80
 #     # this is just from dE/dA = E/A from E=hc/A (A=wavelength) for change of variables from Angstrom to keV: dE = dA * (E/A)
 #     # have this repeated for 3 rows since this is the form of the expontial's different temps
@@ -966,7 +980,7 @@ def _calculate_abundances(abundance_type, relative_abundances):
 #     # totcont_lo is the continuum <1 keV I think and totcont is >=1 keV, so adding the wavelength dimension of each of these you get the number of wavlengths provided by continuum_info[1]['edge_str']['WVL']
 #     # look here for more info on how the CHIANTI file is set-up **** https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/setup_chianti_cont.pro ****
 #     # this exact script won't create the folder Python is using the now since some of the wavelengths and deltas don't match-up
-#     totcontindx = np.concatenate((continuum_info[1]["totcont_lo"][:, indx.T[0], :], continuum_info[1]["totcont"][:, indx.T[0], :]), axis=2) # isolate temps and then combine along wavelength axis
+#     totcontindx = np.concatenate((continuum_info[1]["totcont_lo"][:, index.T[0], :], continuum_info[1]["totcont"][:, index.T[0], :]), axis=2) # isolate temps and then combine along wavelength axis
 #     # careful from here on out. IDL's indexes are backwards to Pythons
 #     # Python's a[:,:,0] == IDL's a[0,*,*], a[:,0,:] == a[*,0,*], and then a[0,:,:] == a[*,*,0]
 #     tcdbase = totcontindx # double(totcontindx[*, *, *])

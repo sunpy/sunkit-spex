@@ -1,0 +1,1 @@
+Allow automatic loading of the correct STIX SRM in `~sunkit_spex.extern.stix.STIXLoader` based on attenuation state within the selected time for spectral fitting.
