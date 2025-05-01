@@ -29,17 +29,17 @@ import numdifftools as nd
 import numpy as np
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.interpolate import interp1d
+from scipy.io import readsav
 from scipy.linalg import LinAlgError
 # to fit the model
 from scipy.optimize import minimize
 
-from astropy.table import Table
 import astropy.units as u
+from astropy.table import Table
 
 from sunpy.data import cache
 
-from scipy.io import readsav
-
+from sunkit_spex.legacy.fitting.albedo import get_albedo_matrix
 from sunkit_spex.legacy.fitting.data_loader import LoadSpec
 from sunkit_spex.legacy.fitting.instruments import rebin_any_array
 from sunkit_spex.legacy.fitting.likelihoods import LogLikelihoods
@@ -48,7 +48,6 @@ from sunkit_spex.legacy.fitting.parameter_handler import Parameters, isnumber
 from sunkit_spex.legacy.fitting.photon_models_for_fitting import defined_photon_models  # noqa
 from sunkit_spex.legacy.fitting.photon_models_for_fitting import f_vth, thick_fn, thick_warm  # noqa
 from sunkit_spex.legacy.fitting.rainbow_text import rainbow_text_lines
-from sunkit_spex.legacy.fitting.albedo import get_albedo_matrix
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 try:
@@ -4246,7 +4245,7 @@ class Fitter:
             return self._calculate_model()
         else:
             self._param_groups = [None] * int(number_of_models)
-            return [np.array([1])] * int(number_of_models)
+            return [np.array([1])] * int(number_of_models), [np.array([1])] #empty models, empty array for albedo
 
     def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, hex_grid=False, plot_final_result=True):
         """Plots the latest fit or sampling result.
@@ -5730,7 +5729,7 @@ def albedo(spec, energy, theta, anisotropy=1):
     >>> s = 125*e_c**-3
     >>> corrected = albedo(s, e, theta=45*u.deg)
     """
-    
+
     albedo_matrix = get_albedo_matrix(energy*u.keV, theta, anisotropy)
 
     return spec + spec @ albedo_matrix, spec @ albedo_matrix
