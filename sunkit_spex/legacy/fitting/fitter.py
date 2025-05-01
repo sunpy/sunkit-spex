@@ -3283,10 +3283,14 @@ class Fitter:
             if _rebin_info is not None:
                 ctr = self._bin_model(ctr, *_rebin_info)
                 e_mids = np.mean(_rebin_info[2], axis=1)
-
-            residuals = [
-                (res_info[0][i] - ctr[i]) / res_info[1][i] if res_info[1][i] > 0 else 0 for i in range(len(res_info[1]))
+            if self.albedo_corr:
+                residuals = [
+                (res_info[0][i] - (ctr[i] + res_info[-1][i])) / res_info[1][i] if res_info[1][i] > 0 else 0 for i in range(len(res_info[1]))
             ]
+            else:
+                residuals = [
+                    (res_info[0][i] - ctr[i]) / res_info[1][i] if res_info[1][i] > 0 else 0 for i in range(len(res_info[1]))
+                ]
             _randctsres.append(residuals)
             residuals = np.column_stack(
                 (residuals, residuals)
@@ -3850,7 +3854,7 @@ class Fitter:
             self._plot_mcmc_mods(
                 axs,
                 res,
-                [count_rates, count_rate_errors, energy_channels_res],
+                [count_rates, count_rate_errors, energy_channels_res, albedo_excess_count],
                 spectrum=submod_spec,
                 num_of_samples=num_of_samples,
                 hex_grid=hex_grid,
