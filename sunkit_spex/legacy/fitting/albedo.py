@@ -131,11 +131,11 @@ def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], ani
     [3.61059918e-01, 2.48711099e-01, 2.50744411e-09, 0.00000000e+00],
     [3.09323903e-01, 2.66485260e-01, 1.23563372e-01, 1.81846722e-10]])
     """
-    # if energy_edges[0].to_value(u.keV) < 3 or energy_edges[-1].to_value(u.keV) > 600:
-    #     raise ValueError("Supported energy range 3 <= E <= 600 keV")
-    # theta = np.array(theta).squeeze() << theta.unit
-    # if np.abs(theta) > 90 * u.deg:
-    #     raise ValueError(f"Theta must be between -90 and 90 degrees: {theta}.")
+    if energy_edges[0][0].to_value(u.keV) < 3 or energy_edges[-1][1].to_value(u.keV) > 600:
+        raise ValueError("Supported energy range 3 <= E <= 600 keV")
+    theta = np.array(theta).squeeze() << theta.unit
+    if np.abs(theta) > 90 * u.deg:
+        raise ValueError(f"Theta must be between -90 and 90 degrees: {theta}.")
     anisotropy = np.array(anisotropy).squeeze()
 
     energy_edges = energy_edges.to_value(u.keV)

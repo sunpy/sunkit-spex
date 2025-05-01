@@ -37,8 +37,6 @@ from scipy.optimize import minimize
 import astropy.units as u
 from astropy.table import Table
 
-from sunpy.data import cache
-
 from sunkit_spex.legacy.fitting.albedo import get_albedo_matrix
 from sunkit_spex.legacy.fitting.data_loader import LoadSpec
 from sunkit_spex.legacy.fitting.instruments import rebin_any_array
