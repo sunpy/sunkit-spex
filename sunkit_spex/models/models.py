@@ -29,9 +29,6 @@ class StraightLineModel(FittableModel):
         if self.edges:
             x = x[:-1] + 0.5 * np.diff(x)
 
-        if hasattr(x, "unit"):
-            x = x.value
-
         """Evaluate the straight line model at `x` with parameters `slope` and `intercept`."""
         return slope * x + intercept
 
@@ -63,10 +60,6 @@ class GaussianModel(FittableModel):
 
     def __init__(self, amplitude=amplitude, mean=mean, stddev=stddev, edges=True, **kwargs):
         self.edges = edges
-
-        # if isinstance(mean, Quantity):
-        #     self.units = {'x':self.mean.unit,'y'}
-        # self.units = None
 
         super().__init__(amplitude, mean, stddev, **kwargs)
 

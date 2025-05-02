@@ -30,7 +30,6 @@ class InverseSquareFluxScaling(FittableModel):
         import numpy as np
         import matplotlib.pyplot as plt
 
-        from astropy.visualization import quantity_support
 
         from sunkit_spex.models.scaling import InverseSquareFluxScaling
         from sunkit_spex.models.models import StraightLineModel
@@ -44,15 +43,14 @@ class InverseSquareFluxScaling(FittableModel):
         sim_cont = {"slope": -2*y_units/x_units, "intercept": 100*y_units}
         source = StraightLineModel(**sim_cont)
 
-        with quantity_support():
-            plt.figure()
-            for i, d in enumerate([0.25,0.5,1]):
-                distance =  InverseSquareFluxScaling(observer_distance=d*u.AU)
-                observed = source * distance
-                plt.plot(ph_energies_centers ,  observed(ph_energies), label='D = '+str(d)+' AU')
-            plt.loglog()
-            plt.legend()
-            plt.show()
+        plt.figure()
+        for i, d in enumerate([0.25,0.5,1]):
+            distance =  InverseSquareFluxScaling(observer_distance=d*u.AU)
+            observed = source * distance
+            plt.plot(ph_energies_centers ,  observed(ph_energies), label='D = '+str(d)+' AU')
+        plt.loglog()
+        plt.legend()
+        plt.show()
     """
 
     n_inputs = 1
@@ -112,7 +110,6 @@ class Constant(FittableModel):
         import numpy as np
         import matplotlib.pyplot as plt
 
-        from astropy.visualization import quantity_support
 
         from sunkit_spex.models.scaling import Constant
         from sunkit_spex.models.models import StraightLineModel
@@ -126,15 +123,15 @@ class Constant(FittableModel):
         sim_cont = {"slope": -2*y_units/x_units, "intercept": 100*y_units}
         source = StraightLineModel(**sim_cont)
 
-        with quantity_support():
-            plt.figure()
-            for i, c in enumerate([0.25,0.5,1,2,4]):
-                constant =  Constant(constant=c)
-                observed = source * constant
-                plt.plot(ph_energies_centers ,  observed(ph_energies), label='Const = '+str(c))
-            plt.loglog()
-            plt.legend()
-            plt.show()
+
+        plt.figure()
+        for i, c in enumerate([0.25,0.5,1,2,4]):
+            constant =  Constant(constant=c)
+            observed = source * constant
+            plt.plot(ph_energies_centers ,  observed(ph_energies), label='Const = '+str(c))
+        plt.loglog()
+        plt.legend()
+        plt.show()
     """
 
     n_inputs = 1

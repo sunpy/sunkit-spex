@@ -445,11 +445,6 @@ def test_line_energy_out_of_range_warning():
             np.arange(3, 1000, 0.5) * u.keV
         )
         assert issubclass(w[0].category, UserWarning)
-        # assert (
-        #     issubclass(w[0].category, ResourceWarning)
-        #     if sys.version_info == (3, 10)
-        #     else issubclass(w[0].category, UserWarning)
-        # )
 
 
 def test_continuum_energy_out_of_range():
@@ -470,11 +465,6 @@ def test_continuum_energy_out_of_range():
             np.arange(10, 1000, 0.5) * u.keV
         )
         assert issubclass(w[0].category, UserWarning)
-        # assert (
-        #     issubclass(w[0].category, ResourceWarning)
-        #     if sys.version_info == (3, 10)
-        #     else issubclass(w[0].category, UserWarning)
-        # )
 
 
 def test_empty_flux_out_of_range():
