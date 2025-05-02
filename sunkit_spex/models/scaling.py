@@ -20,6 +20,7 @@ class InverseSquareFluxScaling(FittableModel):
 
 
 
+
     Examples
     ========
     .. plot::
@@ -100,6 +101,7 @@ class Constant(FittableModel):
         Energy edges associated with input spectrum
     constant :
         A constant value which populates the output array
+
 
     Examples
     ========
