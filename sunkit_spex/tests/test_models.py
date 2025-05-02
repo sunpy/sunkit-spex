@@ -13,7 +13,7 @@ from sunkit_spex.models.models import GaussianModel, StraightLineModel
 def test_StraightLineModel():
     """Test the straight line model evaluation methods to a known output."""
     sim_x0 = np.arange(3)
-    model_params0_init = {"edges":False,"slope": 1, "intercept": 0}
+    model_params0_init = {"edges": False, "slope": 1, "intercept": 0}
     model_params0_eval = {"slope": 1, "intercept": 0}
     sim_model0 = StraightLineModel(**model_params0_init)
     exp_res0 = [0, 1, 2]
