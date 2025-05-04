@@ -143,7 +143,7 @@ class ThickTarget(FittableModel):
 
     @property
     def return_units(self):
-        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1 * u.cm**-2}
+        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {
@@ -1067,7 +1067,7 @@ def bremsstrahlung_thin_target(
     """
     mc2 = const.get_constant("mc2")
     clight = const.get_constant("clight")
-    au = const.get_constant("au")
+    # au = const.get_constant("au")
 
     # Max number of points
     maxfcn = 2048
@@ -1079,7 +1079,8 @@ def bremsstrahlung_thin_target(
     rerr = 1e-4
 
     # Numerical coefficient for photo flux
-    fcoeff = (clight / (4 * np.pi * au**2)) / mc2**2.0
+    # fcoeff = (clight / (4 * np.pi * au**2)) / mc2**2.0
+    fcoeff = clight / mc2**2.0
 
     # Create arrays for the photon flux and error flags.
     flux = np.zeros_like(photon_energies, dtype=np.float64)
@@ -1159,7 +1160,7 @@ def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutof
     # Constants
     mc2 = const.get_constant("mc2")
     clight = const.get_constant("clight")
-    au = const.get_constant("au")
+    # au = const.get_constant("au")
     r0 = const.get_constant("r0")
 
     # Max number of points
@@ -1172,7 +1173,11 @@ def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutof
     rerr = 1e-4
 
     # Numerical coefficient for photo flux
-    fcoeff = (clight**2 / mc2**4) / (4 * np.pi * au**2)
+    # fcoeff = (clight**2 / mc2**4) / (4 * np.pi * au**2)
+
+    # decoeff = 4.0 * np.pi * (r0**2) * clight
+
+    fcoeff = clight**2 / mc2**4
 
     decoeff = 4.0 * np.pi * (r0**2) * clight
 
