@@ -16,14 +16,14 @@ def test_scipy_minimize():
     sim_x0 = np.arange(3)
     model_params0 = {"slope": 1, "intercept": 0}
     model_param_values0 = tuple(model_params0.values())
-    sim_model0 = StraightLineModel(**model_params0)
+    sim_model0 = StraightLineModel(edges=False, **model_params0)
     sim_data0 = sim_model0.evaluate(sim_x0, **model_params0)
     opt_res0 = scipy_minimize(minimize_func, model_param_values0, (sim_data0, sim_x0, sim_model0, chi_squared))
 
     sim_x1 = np.arange(3)
     model_params1 = {"slope": 8, "intercept": 5}
     model_param_values1 = tuple(model_params1.values())
-    sim_model1 = StraightLineModel(**model_params1)
+    sim_model1 = StraightLineModel(edges=False, **model_params1)
     sim_data1 = sim_model1.evaluate(sim_x1, **model_params1)
     opt_res1 = scipy_minimize(minimize_func, model_param_values1, (sim_data1, sim_x1, sim_model1, chi_squared))
 

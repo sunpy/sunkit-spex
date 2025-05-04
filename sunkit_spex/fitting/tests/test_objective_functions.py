@@ -13,7 +13,7 @@ def test_minimize_func():
     """Test the `minimize_func` function against known outputs."""
     sim_x0 = np.arange(3)
     model_params0 = {"slope": 1, "intercept": 0}
-    sim_model0 = StraightLineModel(**model_params0)
+    sim_model0 = StraightLineModel(edges=False, **model_params0)
     sim_data0 = sim_model0.evaluate(sim_x0, **model_params0)
     res0 = minimize_func(
         params=tuple(model_params0.values()),
@@ -25,7 +25,7 @@ def test_minimize_func():
 
     sim_x1 = np.arange(3)
     model_params1 = {"slope": 1, "intercept": 0}
-    sim_model1 = StraightLineModel(**model_params1)
+    sim_model1 = StraightLineModel(edges=False, **model_params1)
     sim_data1 = sim_model1.evaluate(sim_x1, **model_params1)[::-1]
     res1 = minimize_func(
         params=tuple(model_params1.values()),
