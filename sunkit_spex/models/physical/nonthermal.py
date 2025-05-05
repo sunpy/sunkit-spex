@@ -29,9 +29,7 @@ References
 
 __all__ = [
     "ThickTarget",
-    "ThinTarget",
-    "thick_fn",
-    "thin_fn",
+    "ThinTarget"
 ]
 
 
@@ -60,7 +58,7 @@ class ThickTarget(FittableModel):
     Returns
     -------
     A 1d array of thick-target bremsstrahlung radiation in units
-    of ph s^-1 cm^-2 keV^-1.
+    of ph s^-1 keV^-1.
     """
 
     n_inputs = 1
@@ -179,7 +177,7 @@ class ThinTarget(FittableModel):
     Returns
     -------
     A 1d array of thick-target bremsstrahlung radiation in units
-    of ph s^-1 cm^-2 keV^-1.
+    of ph s^-1 keV^-1.
     """
 
     n_inputs = 1
@@ -303,7 +301,7 @@ def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, to
     Returns
     -------
     A 1d array of thick-target bremsstrahlung radiation in units
-    of ph s^-1 cm^-2 keV^-1.
+    of ph s^-1 keV^-1.
     """
 
     # hack = np.round([p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux], 15)
@@ -353,7 +351,7 @@ def thin_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, tot
     Returns
     -------
     A 1d array of thick-target bremsstrahlung radiation in units
-    of ph s^-1 cm^-2 keV^-1.
+    of ph s^-1 keV^-1.
     """
 
     # hack = np.round([total_eflux, index, e_c], 15)
