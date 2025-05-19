@@ -5,69 +5,11 @@ from functools import lru_cache
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.interpolate import RegularGridInterpolator
-from scipy.io import readsav
 
 import astropy.units as u
 from astropy.units import Quantity
 
-from sunpy.data import cache
-
-
-@lru_cache
-def _get_green_matrix(theta: float) -> RegularGridInterpolator:
-    r"""
-    Get greens matrix for given angle.
-
-    Interpolates pre-computed green matrices for fixed angles. The resulting greens matrix is then loaded into an
-    interpolator for later energy interpolation.
-
-    Parameters
-    ==========
-    theta : float
-        Angle between the observer and the source
-
-    Returns
-    =======
-        Greens matrix interpolator
-    """
-    mu = np.cos(theta)
-
-    base_url = "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/albedo/"
-    # what about 0 and 1 assume so close to 05 and 95 that it doesn't matter
-    # load precomputed green matrices
-    if 0.5 <= mu <= 0.95:
-        low = 5 * np.floor(mu * 20)
-        high = 5 * np.ceil(mu * 20)
-        low_name = f"green_compton_mu{low:03.0f}.dat"
-        high_name = f"green_compton_mu{high:03.0f}.dat"
-        low_file = cache.download(base_url + low_name)
-        high_file = cache.download(base_url + high_name)
-        green = readsav(low_file)
-        albedo_low = green["p"].albedo[0]
-        green_high = readsav(high_file)
-        albedo_high = green_high["p"].albedo[0]
-        # why 20?
-        albedo = albedo_low + (albedo_high - albedo_low) * (mu - (np.floor(mu * 20)) / 20)
-
-    elif mu < 0.5:
-        file = "green_compton_mu005.dat"
-        file = cache.download(base_url + file)
-        green = readsav(file)
-        albedo = green["p"].albedo[0]
-    elif mu > 0.95:
-        file = "green_compton_mu095.dat"
-        file = cache.download(base_url + file)
-        green = readsav(file)
-        albedo = green["p"].albedo[0]
-
-    albedo = albedo.T
-
-    # By construction in keV
-    energy_grid_edges = green["p"].edges[0]
-    energy_grid_centers = energy_grid_edges[:, 0] + (np.diff(energy_grid_edges, axis=1) / 2).reshape(-1)
-
-    return RegularGridInterpolator((energy_grid_centers, energy_grid_centers), albedo)
+from sunkit_spex.models.physical.albedo import _get_green_matrix
 
 
 @lru_cache
