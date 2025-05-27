@@ -1,12 +1,9 @@
-import warnings
-
 import numpy as np
 import pytest
 
 import astropy.units as u
 
 from sunkit_spex.models.physical import nonthermal
-
 
 SSW_INTENSITY_UNIT = u.ph / u.cm**2 / u.s / u.keV
 
@@ -45,8 +42,7 @@ def thick_target():
     Ensure you are using the same .sav file as used here.
     """
     energy_edges = np.arange(25, 100.5, 0.5) * u.keV
-    observer_distance = (1*u.AU).to(u.cm)
-    print(observer_distance.unit)
+    observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
     ssw_output = (
 [
@@ -106,8 +102,7 @@ def thin_target():
     Ensure you are using the same .sav file as used here.
     """
     energy_edges = np.arange(25, 100.5, 0.5) * u.keV
-    observer_distance = (1*u.AU).to(u.cm)
-    print(observer_distance.unit)
+    observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
     ssw_output = (
 [
@@ -136,15 +131,16 @@ def thin_target():
 @pytest.mark.parametrize("ssw", [thick_target])
 def test_thick_target_against_ssw(ssw):
     energy_edges, expected = ssw()
-    model= nonthermal.ThickTarget()
-    output=model(energy_edges)
+    model = nonthermal.ThickTarget()
+    output = model(energy_edges)
     expected_value = expected.to_value(output.unit)
     np.testing.assert_allclose(output.value, expected_value, rtol=0.035)
+
 
 @pytest.mark.parametrize("ssw", [thin_target])
 def test_thin_target_against_ssw(ssw):
     energy_edges, expected = ssw()
-    model= nonthermal.ThinTarget()
-    output=model(energy_edges)
+    model = nonthermal.ThinTarget()
+    output = model(energy_edges)
     expected_value = expected.to_value(output.unit)
     np.testing.assert_allclose(output.value, expected_value, rtol=0.035)
