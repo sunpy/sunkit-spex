@@ -27,10 +27,7 @@ References
 """
 
 
-__all__ = [
-    "ThickTarget",
-    "ThinTarget"
-]
+__all__ = ["ThickTarget", "ThinTarget", "bremsstrahlung_thin_target"]
 
 
 class ThickTarget(FittableModel):
@@ -108,7 +105,7 @@ class ThickTarget(FittableModel):
         )
 
     def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
-        energy_centers = energy_edges[:-1]
+        energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
 
         if (
             hasattr(break_energy, "unit")
@@ -203,7 +200,7 @@ class ThinTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True
+        name="total_eflux", default=1.5, unit=u.s**-1 * u.cm**-2, description="Total electron flux", fixed=True
     )
 
     _input_units_allow_dimensionless = True
@@ -232,7 +229,7 @@ class ThinTarget(FittableModel):
         )
 
     def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
-        energy_centers = energy_edges[:-1]
+        energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
 
         if (
             hasattr(break_energy, "unit")
@@ -265,14 +262,15 @@ class ThinTarget(FittableModel):
 
     @property
     def return_units(self):
-        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1 * u.cm**-2}
+        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {
             "break_energy": u.keV,
             "low_e_cutoff": u.keV,
             "high_e_cutoff": u.keV,
-            "total_eflux": u.electron * u.s**-1,
+            "total_eflux": u.s**-1 * u.cm**-2,
+            # "total_eflux": u.electron * u.s**-1,
         }
 
 
@@ -316,10 +314,8 @@ def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, to
 
     output = bremsstrahlung_thick_target(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, integrator)
 
-    # output[np.isnan(output)] = 0
-    # output[~np.isfinite(output)] = 0
-
-    # print(output)
+    output[np.isnan(output)] = 0
+    output[~np.isfinite(output)] = 0
 
     # convert to 1e35 e-/s
     return output * total_eflux * 1e35
@@ -363,13 +359,15 @@ def thin_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, tot
     # so set break_energy == high_e_cutoff at a high value.
     # we don't care about q at E > break_energy.
     # high_break = energies.max() * 10
-    output = bremsstrahlung_thin_target(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, integrator)
+    output = bremsstrahlung_thin_target(
+        energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator
+    )
 
     output[np.isnan(output)] = 0
     output[~np.isfinite(output)] = 0
 
     # convert to 1e35 e-/s
-    return output * total_eflux * 1e35
+    return output * total_eflux * 1e55
 
 
 class BrokenPowerLawElectronDistribution:
