@@ -27,7 +27,7 @@ References
 """
 
 
-__all__ = ["ThickTarget", "ThinTarget", "bremsstrahlung_thin_target"]
+__all__ = ["ThickTarget", "ThinTarget"]
 
 
 class ThickTarget(FittableModel):
