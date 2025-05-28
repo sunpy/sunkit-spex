@@ -157,7 +157,6 @@ class ThermalEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
-    input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
@@ -350,7 +349,6 @@ class ContinuumEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
-    input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
@@ -503,7 +501,6 @@ class LineEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
-    input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
