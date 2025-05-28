@@ -31,7 +31,7 @@ __all__ = ["ThickTarget", "ThinTarget"]
 
 
 class ThickTarget(FittableModel):
-    r"""Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
+    r"""Calculates the thick-target bremsstrahlung radiation of a dual power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
     [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
@@ -39,18 +39,28 @@ class ThickTarget(FittableModel):
 
     Parameters
     ----------
-    energies : 2d array
-            Array of energy bins for the model to be calculated over.
-            E.g., [[1,1.5],[1.5,2],[2,2.5],...].
+    energy_edges : 1d array
+            Edges of energy bins in units of keV.
 
     total_eflux : int or float
             Total integrated electron flux, in units of 10^35 e^- s^-1.
 
-    index : int or float
-            Power-law index of the electron distribution.
+    q : int or float
+            Power-law index of the electron distribution below the break.
 
-    e_c : int or float
+    break_energy : int or float
+                        Break energy of power law.
+
+    p : int or float
+            Power-law index of the electron distribution above the break.
+
+    low_e_cutoff : int or float
             Low-energy cut-off of the electron distribution in units of keV.
+
+    high_e_cutoff : int or float
+            High-energy cut-off of the electron distribution in units of keV.
+
+
 
     Returns
     -------
@@ -150,7 +160,7 @@ class ThickTarget(FittableModel):
 
 
 class ThinTarget(FittableModel):
-    r"""Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
+    r"""Calculates the thin-target bremsstrahlung radiation of a single power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
     [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
@@ -158,22 +168,33 @@ class ThinTarget(FittableModel):
 
     Parameters
     ----------
-    energies : 2d array
-            Array of energy bins for the model to be calculated over.
-            E.g., [[1,1.5],[1.5,2],[2,2.5],...].
+    energy_edges : 1d array
+            Edges of energy bins in units of keV.
 
     total_eflux : int or float
-            Total integrated electron flux, in units of 10^35 e^- s^-1.
+        normalization factor in units of 1.0d55 cm-2 sec-1,
+        i.e. plasma density * volume of source * integrated nonthermal electron flux density
 
-    index : int or float
-            Power-law index of the electron distribution.
+    q : int or float
+            Power-law index of the electron distribution below the break.
 
-    e_c : int or float
+    break_energy : int or float
+                        Break energy of power law.
+
+    p : int or float
+            Power-law index of the electron distribution above the break.
+
+    low_e_cutoff : int or float
             Low-energy cut-off of the electron distribution in units of keV.
+
+    high_e_cutoff : int or float
+            High-energy cut-off of the electron distribution in units of keV.
+
+
 
     Returns
     -------
-    A 1d array of thick-target bremsstrahlung radiation in units
+    A 1d array of thin-target bremsstrahlung radiation in units
     of ph s^-1 keV^-1.
     """
 
@@ -398,23 +419,6 @@ class BrokenPowerLawElectronDistribution:
     See SSW IDl functions
     `brm2_distrn <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_distrn.pro>`_ and
     `brm2_f_distrn <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_f_distrn.pro>`_.
-
-    Examples
-    --------
-
-        >>> import numpy as np
-        >>> from sunkit_spex.legacy.emission import BrokenPowerLawElectronDistribution
-        >>> electron_dist = BrokenPowerLawElectronDistribution(p=5,q=7, low_e_cutoff=10, break_energy=150,
-        ...                                                    high_e_cutoff=500)
-        >>> electron_dist
-        BrokenPowerLawElectronDistribution(p=5, q=7, low_e_cutoff=10, break_energy=150, high_e_cutoff=500, norm=True)
-        >>> electron_dist.flux(np.array([15.0, 50.0, 100.0, 200.0, 500.0, 1000.0]))
-        array([5.26752445e-02, 1.28000844e-04, 4.00002638e-06, 7.03129636e-08,
-               1.15200760e-10, 0.00000000e+00])
-        >>> electron_dist.density(np.array([15.0, 50.0, 100.0, 200.0, 500.0, 1000.0]))
-        array([1.97525573e-01, 1.59341654e-03, 9.34066538e-05, 2.33416539e-06,
-               2.68419888e-22, 0.00000000e+00])
-
     """
 
     def __init__(self, *, p, q, low_e_cutoff, break_energy, high_e_cutoff, norm=True):
