@@ -47,8 +47,8 @@ ph_energies = np.arange(start, stop, inc) * u.keV
 #
 # Let's start making a simulated photon spectrum
 
-sim_cont = {"edges":False,"slope": -1 * u.ph / u.keV, "intercept": 100 * u.ph}
-sim_line = {"edges":False,"amplitude": 100 * u.ph, "mean": 30 * u.keV, "stddev": 2 * u.keV}
+sim_cont = {"slope": -1 * u.ph / u.keV, "intercept": 100 * u.ph}
+sim_line = {"amplitude": 100 * u.ph, "mean": 30 * u.keV, "stddev": 2 * u.keV}
 # use a straight line model for a continuum, Gaussian for a line
 ph_model = Linear1D(**sim_cont) + Gaussian1D(**sim_line)
 
@@ -91,7 +91,7 @@ with quantity_support():
 #
 # Start work on a count model
 
-sim_gauss = {"edges":False,"amplitude": 70 * u.ct, "mean": 40 * u.keV, "stddev": 2 * u.keV}
+sim_gauss = {"amplitude": 70 * u.ct, "mean": 40 * u.keV, "stddev": 2 * u.keV}
 # the brackets are very necessary
 ct_model = (ph_model | srm_model) + Gaussian1D(**sim_gauss)
 
@@ -135,9 +135,9 @@ with quantity_support():
 #
 # Get some initial guesses that are off from the simulated data above
 
-guess_cont = {"edges":False,"slope": -0.5 * u.ph / u.keV, "intercept": 80 * u.ph}
-guess_line = {"edges":False,"amplitude": 150 * u.ph, "mean": 32 * u.keV, "stddev": 5 * u.keV}
-guess_gauss = {"edges":False,"amplitude": 350 * u.ct, "mean": 39 * u.keV, "stddev": 0.5 * u.keV}
+guess_cont = {"slope": -0.5 * u.ph / u.keV, "intercept": 80 * u.ph}
+guess_line = {"amplitude": 150 * u.ph, "mean": 32 * u.keV, "stddev": 5 * u.keV}
+guess_gauss = {"amplitude": 350 * u.ct, "mean": 39 * u.keV, "stddev": 0.5 * u.keV}
 
 #####################################################
 #
@@ -201,26 +201,25 @@ plt.show()
 #
 # Display a table of the fitted results
 
-plt.figure(layout="constrained")
+# plt.figure(layout="constrained")
 
 
-row_labels = (
-    tuple(sim_cont)[-2:] + tuple(f"{p}1" for p in tuple(sim_line)[-3:]) + tuple(f"{p}2" for p in tuple(sim_gauss)[-3:])
-)
-column_labels = ("True Values", "Guess Values", "Scipy Fit", "Astropy Fit")
-true_vals = np.array(tuple(sim_cont.values())[-2:] + tuple(sim_line.values())[-3:] + tuple(sim_gauss.values())[-3:])
-guess_vals = np.array(
-    tuple(guess_cont.values())[-2:] + tuple(guess_line.values())[-3:] + tuple(guess_gauss.values())[-3:]
-)
-scipy_vals = opt_res.x
-astropy_vals = astropy_fitted_result.parameters
+# row_labels = (
+#     tuple(sim_cont)[-2:] + tuple(f"{p}1" for p in tuple(sim_line)[-3:]) + tuple(f"{p}2" for p in tuple(sim_gauss)[-3:])
+# )
+# column_labels = ("True Values", "Guess Values", "Scipy Fit", "Astropy Fit")
+# true_vals = np.array(tuple(sim_cont.values())[-2:] + tuple(sim_line.values())[-3:] + tuple(sim_gauss.values())[-3:])
+# guess_vals = np.array(
+#     tuple(guess_cont.values())[-2:] + tuple(guess_line.values())[-3:] + tuple(guess_gauss.values())[-3:]
+# )
+# scipy_vals = opt_res.x
+# astropy_vals = astropy_fitted_result.parameters
 
-print(np.shape(scipy_vals))
-print(np.shape(astropy_vals))
-print(np.shape(true_vals))
-print(np.shape(guess_vals))
+# print(np.shape(scipy_vals))
+# print(np.shape(astropy_vals))
+# print(np.shape(true_vals))
+# print(np.shape(guess_vals))
 
-=======
 plt.figure(layout="constrained")
 
 row_labels = (
