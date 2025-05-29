@@ -168,6 +168,9 @@ with quantity_support():
 #
 # Try and ensure we start fresh with new model definitions
 
+guess_cont = {"slope": -0.5 * u.ph / u.keV, "intercept": 80 * u.ph}
+guess_line = {"amplitude": 150 * u.ph, "mean": 32 * u.keV, "stddev": 5 * u.keV}
+
 ph_mod_4astropyfit = Linear1D(**guess_cont) + Gaussian1D(**guess_line)
 for m in ph_mod_4astropyfit:
     m.output_units = {"y": u.ph}
@@ -198,8 +201,6 @@ plt.show()
 #
 # Display a table of the fitted results
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 plt.figure(layout="constrained")
 
 
@@ -232,7 +233,7 @@ guess_vals = tuple(guess_cont.values()) + tuple(guess_line.values()) + (1 * u.m,
 guess_vals = [g.value for g in guess_vals]
 scipy_vals = opt_res.x
 astropy_vals = astropy_fitted_result.parameters
->>>>>>> 9be4e97 (WIP)
+
 cell_vals = np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T
 cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T, 2).astype(str)
 
@@ -250,33 +251,3 @@ plt.table(
 )
 
 plt.show()
-<<<<<<< HEAD
-=======
-# plt.figure(layout="constrained")
-#
-# row_labels = tuple(sim_cont) + tuple(f"{p}1" for p in tuple(sim_line)) + tuple(f"{p}2" for p in tuple(sim_gauss))
-# column_labels = ("True Values", "Guess Values", "Scipy Fit", "Astropy Fit")
-# true_vals = np.array(tuple(sim_cont.values()) + tuple(sim_line.values()) + tuple(sim_gauss.values()))
-# guess_vals = np.array(tuple(guess_cont.values()) + tuple(guess_line.values()) + tuple(guess_gauss.values()))
-# scipy_vals = opt_res.x
-# astropy_vals = astropy_fitted_result.parameters
-# cell_vals = np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T
-# cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T, 2).astype(str)
-#
-# plt.axis("off")
-# plt.table(
-#     cellText=cell_text,
-#     cellColours=None,
-#     cellLoc="center",
-#     rowLabels=row_labels,
-#     rowColours=None,
-#     colLabels=column_labels,
-#     colColours=None,
-#     colLoc="center",
-#     bbox=[0, 0, 1, 1],
-# )
-#
-# plt.show()
->>>>>>> b5668da (Scipy fitting works can't get astropy fitting to work)
-=======
->>>>>>> 9be4e97 (WIP)
