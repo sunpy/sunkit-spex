@@ -6,11 +6,12 @@ __all__ = ["MatrixModel"]
 
 
 class MatrixModel(Fittable1DModel):
-    # input_units = {"x": u.ph}
+
     c = Parameter(fixed=True)
 
-    def __init__(self, matrix, input_axis, output_axis, c):
-        self._input_units = None
+    def __init__(self, matrix, input_axis, output_axis, _input_units, _output_units, c):
+        self._input_units = _input_units
+        self._output_units = _output_units
         self.inputs_axis = input_axis
         self.output_axis = output_axis
         self.matrix = matrix
@@ -19,16 +20,27 @@ class MatrixModel(Fittable1DModel):
 
     def evaluate(self, x, c):
         # Requires input must have a specific dimensionality
-        return x @ self.matrix * c
+
+        output = x @ self.matrix * c
+
+        return output
 
     @property
     def input_units(self):
         return self._input_units
 
-    @input_units.setter
-    def input_units(self, units):
-        self._input_units = units
+    # @input_units.setter
+    # def input_units(self, units):
+    #     self._input_units = units
 
-    @staticmethod
-    def _parameter_units_for_data_units(inputs_unit, outputs_unit):
-        return {"c": outputs_unit["y"] / inputs_unit["x"]}
+    @property
+    def return_units(self):
+        return self._output_units
+
+    # @return_units.setter
+    # def return_units(self, units):
+    #     self._output_units = units
+
+    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        return {"c": self._output_units["y"] / self._input_units["x"]}
+
