@@ -6,7 +6,6 @@ __all__ = ["MatrixModel"]
 
 
 class MatrixModel(Fittable1DModel):
-
     c = Parameter(fixed=True)
 
     def __init__(self, matrix, input_axis, output_axis, _input_units, _output_units, c):
@@ -21,9 +20,7 @@ class MatrixModel(Fittable1DModel):
     def evaluate(self, x, c):
         # Requires input must have a specific dimensionality
 
-        output = x @ self.matrix * c
-
-        return output
+        return x @ self.matrix * c
 
     @property
     def input_units(self):
@@ -43,4 +40,3 @@ class MatrixModel(Fittable1DModel):
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"c": self._output_units["y"] / self._input_units["x"]}
-
