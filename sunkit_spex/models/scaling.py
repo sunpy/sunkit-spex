@@ -74,15 +74,20 @@ class InverseSquareFluxScaling(FittableModel):
                 raise ValueError("Observer distance input must be an Astropy length convertible to AU.")
 
         else:
-            AU_distance_cm = 1 * u.AU.to_value(u.cm)
+            AU_distance_cm = (1 * u.AU).to_value(u.cm)
             observer_distance_cm = observer_distance * AU_distance_cm
+            print(observer_distance_cm)
 
         correction = 1 / (4 * np.pi * (observer_distance_cm**2))
         dimension = np.shape(x)[0] - 1
 
         if isinstance(observer_distance, Quantity):
             return np.full(dimension, correction.value) * correction.unit
-        return np.full(dimension, correction) * (1 / u.cm**2)
+        return np.full(dimension, correction)
+
+    @property
+    def return_units(self):
+        return {"y": u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"observer_distance": u.AU}
