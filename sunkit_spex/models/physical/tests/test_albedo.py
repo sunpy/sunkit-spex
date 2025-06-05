@@ -10,7 +10,7 @@ from sunkit_spex.models.physical.albedo import Albedo, get_albedo_matrix
 
 
 def test_get_albedo_matrix():
-    e = np.linspace(4, 600, 597) * u.keV
+    e = (np.arange(597) + 4) * u.keV
     theta = 0 * u.deg
     albedo_matrix = get_albedo_matrix(e, theta=theta)
     assert albedo_matrix[0, 0] == 0.006154127884656191
@@ -40,7 +40,7 @@ def test_albedo_model():
     observed(e_centers)
 
 
-def test_abledo_idl():
+def test_albedo_idl():
     """
     IDL Code to generate values used below
 
