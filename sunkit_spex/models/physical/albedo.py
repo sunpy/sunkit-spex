@@ -120,7 +120,7 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
     =======
         Greens matrix interpolator
     """
-    mu = np.cos(theta)
+    mu = np.cos(np.deg2rad(theta))
 
     base_url = "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/albedo/"
     # what about 0 and 1 assume so close to 05 and 95 that it doesn't matter
