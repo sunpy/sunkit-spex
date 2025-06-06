@@ -114,7 +114,7 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
     Parameters
     ==========
     theta : float
-        Angle between the observer and the source
+        Angle in degrees between the observer and the source
 
     Returns
     =======
@@ -136,7 +136,7 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
         albedo_low = green["p"].albedo[0]
         green_high = readsav(high_file)
         albedo_high = green_high["p"].albedo[0]
-        # why 20?
+        # There are 20 files from 005 to 095 in steps of 005
         albedo = albedo_low + (albedo_high - albedo_low) * (mu - (np.floor(mu * 20)) / 20)
 
     elif mu < 0.5:
