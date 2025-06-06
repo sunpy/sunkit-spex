@@ -45,13 +45,13 @@ class ThickTarget(FittableModel):
     total_eflux : int or float
             Total integrated electron flux, in units of 10^35 e^- s^-1.
 
-    q : int or float
+    p : int or float
             Power-law index of the electron distribution below the break.
 
     break_energy : int or float
                         Break energy of power law.
 
-    p : int or float
+    q : int or float
             Power-law index of the electron distribution above the break.
 
     low_e_cutoff : int or float
@@ -175,13 +175,13 @@ class ThinTarget(FittableModel):
         normalization factor in units of 1.0d55 cm-2 sec-1,
         i.e. plasma density * volume of source * integrated nonthermal electron flux density
 
-    q : int or float
+    p : int or float
             Power-law index of the electron distribution below the break.
 
     break_energy : int or float
                         Break energy of power law.
 
-    p : int or float
+    q : int or float
             Power-law index of the electron distribution above the break.
 
     low_e_cutoff : int or float
@@ -221,7 +221,7 @@ class ThinTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=u.s**-1 * u.cm**-2, description="Total electron flux", fixed=True
+        name="total_eflux", default=1.5, unit=1e35 * u.s**-1 * u.cm**-2, description="Total electron flux", fixed=True
     )
 
     _input_units_allow_dimensionless = True
@@ -261,9 +261,9 @@ class ThinTarget(FittableModel):
         ):
             flux = thin_fn(
                 energy_centers.value,
-                p,
-                break_energy.value,
                 q,
+                break_energy.value,
+                p,
                 low_e_cutoff.value,
                 high_e_cutoff.value,
                 total_eflux.value,
