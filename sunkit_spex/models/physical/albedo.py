@@ -84,6 +84,8 @@ class Albedo(FittableModel):
         name="anisotropy", default=1, description="The anisotropy used for albedo correction", fixed=True
     )
 
+    name = "Albedo"
+
     _input_units_allow_dimensionless = True
 
     def __init__(self, *args, **kwargs):

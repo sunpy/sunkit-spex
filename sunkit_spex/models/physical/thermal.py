@@ -125,20 +125,22 @@ class ThermalEmission(FittableModel):
     n_inputs = 1
     n_outputs = 1
 
+    name = "ThermalEmission"
+
     temperature = Parameter(
         name="temperature",
-        default=1e7,
-        min=1e6,
-        max=1e8,
-        unit=u.K,
+        default=10,
+        min=1,
+        max=100,
+        unit=u.MK,
         description="Temperature of the plasma",
         fixed=False,
     )
 
     emission_measure = Parameter(
         name="emission_measure",
-        default=1e50,
-        unit=(u.cm ** (-3)),
+        default=1,
+        unit=1e49 * (u.cm ** (-3)),
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -161,7 +163,7 @@ class ThermalEmission(FittableModel):
 
     def __init__(
         self,
-        temperature=u.Quantity(temperature.default, temperature.unit),
+        temperature=u.Quantity(temperature.default, temperature.unit).to(u.K),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
         al=al.default,
@@ -317,20 +319,22 @@ class ContinuumEmission(FittableModel):
     n_inputs = 1
     n_outputs = 1
 
+    name = "ContinuumEmission"
+
     temperature = Parameter(
         name="temperature",
-        default=1e7,
-        min=1e6,
-        max=1e8,
-        unit=u.K,
+        default=10,
+        min=1,
+        max=100,
+        unit=u.MK,
         description="Temperature of the plasma",
         fixed=False,
     )
 
     emission_measure = Parameter(
         name="emission_measure",
-        default=1e50,
-        unit=(u.cm ** (-3)),
+        default=1,
+        unit=1e49 * (u.cm ** (-3)),
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -353,7 +357,7 @@ class ContinuumEmission(FittableModel):
 
     def __init__(
         self,
-        temperature=u.Quantity(temperature.default, temperature.unit),
+        temperature=u.Quantity(temperature.default, temperature.unit).to(u.K),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
         al=al.default,
@@ -469,20 +473,22 @@ class LineEmission(FittableModel):
     n_inputs = 1
     n_outputs = 1
 
+    name = "LineEmission"
+
     temperature = Parameter(
         name="temperature",
-        default=1e7,
-        min=1e6,
-        max=1e8,
-        unit=u.K,
+        default=10,
+        min=1,
+        max=100,
+        unit=u.MK,
         description="Temperature of the plasma",
         fixed=False,
     )
 
     emission_measure = Parameter(
         name="emission_measure",
-        default=1e50,
-        unit=(u.cm ** (-3)),
+        default=1,
+        unit=1e49 * (u.cm ** (-3)),
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -505,7 +511,7 @@ class LineEmission(FittableModel):
 
     def __init__(
         self,
-        temperature=u.Quantity(temperature.default, temperature.unit),
+        temperature=u.Quantity(temperature.default, temperature.unit).to(u.K),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
         al=al.default,
