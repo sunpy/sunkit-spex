@@ -125,7 +125,7 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
     base_url = "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/albedo/"
     # what about 0 and 1 assume so close to 05 and 95 that it doesn't matter
     # load precomputed green matrices
-    if 0.5 <= mu <= 0.95:
+    if 0.05 <= mu <= 0.95:
         low = 5 * np.floor(mu * 20)
         high = 5 * np.ceil(mu * 20)
         low_name = f"green_compton_mu{low:03.0f}.dat"
@@ -139,7 +139,7 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
         # There are 20 files from 005 to 095 in steps of 005
         albedo = albedo_low + (albedo_high - albedo_low) * (mu - (np.floor(mu * 20)) / 20)
 
-    elif mu < 0.5:
+    elif mu < 0.05:
         file = "green_compton_mu005.dat"
         file = cache.download(base_url + file)
         green = readsav(file)
