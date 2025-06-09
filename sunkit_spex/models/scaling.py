@@ -149,19 +149,15 @@ class Constant(FittableModel):
 
     name = "Constant"
 
-    def __init__(self, constant=u.Quantity(constant.default, constant.unit)):
+    def __init__(self, constant=u.Quantity(constant.default)):
         super().__init__(constant=constant)
 
     def evaluate(self, x, constant):
         return constant
 
-    # @property
-    # def input_units(self):
-    #     return {self.inputs[0]: u.keV}
-
-    # @property
-    # def return_units(self, inputs_unit):
-    #     return {"y": inputs_unit["x"]}
+    @property
+    def return_units(self):
+        return {"y": self.constant.unit}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"constant": self.constant.unit}
+        return {"constant": outputs_unit["y"]}
