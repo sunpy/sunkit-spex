@@ -182,7 +182,6 @@ def _calculate_albedo_matrix(energy_edges: tuple[float], theta: float, anisotrop
     X, Y = np.meshgrid(energy_centers, energy_centers)
 
     albedo_interp = albedo_interpolator((X, Y))
-    albedo_interp[albedo_interp < 1e-10] = 0
 
     # Scale by anisotropy
     albedo_interp = (albedo_interp * de) / anisotropy
