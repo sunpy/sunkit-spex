@@ -86,7 +86,7 @@ class ThickTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True
+        name="total_eflux", default=1.5, unit=1e35 * u.electron * u.s**-1, description="Total electron flux", fixed=True
     )
 
     _input_units_allow_dimensionless = True
@@ -221,7 +221,7 @@ class ThinTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=1e35 * u.s**-1 * u.cm**-2, description="Total electron flux", fixed=True
+        name="total_eflux", default=1.5, unit=1e55 * u.s**-1 * u.cm**-2, description="Total electron flux", fixed=True
     )
 
     _input_units_allow_dimensionless = True
@@ -261,9 +261,9 @@ class ThinTarget(FittableModel):
         ):
             flux = thin_fn(
                 energy_centers.value,
-                q,
-                break_energy.value,
                 p,
+                break_energy.value,
+                q,
                 low_e_cutoff.value,
                 high_e_cutoff.value,
                 total_eflux.value,
