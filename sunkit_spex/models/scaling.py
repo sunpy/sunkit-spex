@@ -157,7 +157,9 @@ class Constant(FittableModel):
 
     @property
     def return_units(self):
-        return {"y": self.constant.unit}
+        if isinstance(self.constant, Quantity):
+            return {"y": self.constant.unit}
+        return None
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"constant": outputs_unit["y"]}
