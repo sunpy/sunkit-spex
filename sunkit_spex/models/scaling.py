@@ -79,12 +79,7 @@ class InverseSquareFluxScaling(FittableModel):
             AU_distance_cm = (1 * u.AU).to_value(u.cm)
             observer_distance_cm = observer_distance * AU_distance_cm
 
-        correction = 1 / (4 * np.pi * (observer_distance_cm**2))
-        dimension = np.shape(x)[0] - 1
-
-        if isinstance(observer_distance, Quantity):
-            return np.full(dimension, correction.value) * correction.unit
-        return np.full(dimension, correction)
+        return 1 / (4 * np.pi * (observer_distance_cm**2))
 
     @property
     def return_units(self):
@@ -155,11 +150,11 @@ class Constant(FittableModel):
     name = "Constant"
 
     def evaluate(self, x, constant):
-        dimension = np.shape(x)[0] - 1
+        return constant
 
-        if isinstance(constant, Quantity):
-            return np.full(dimension, constant.value) * constant.unit
-        return np.full(dimension, constant)
+    @property
+    def return_units(self, inputs_unit):
+        return {"y": inputs_unit["x"]}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"constant": inputs_unit["x"]}

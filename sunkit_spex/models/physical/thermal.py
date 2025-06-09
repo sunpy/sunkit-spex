@@ -31,7 +31,8 @@ temperature: `astropy.units.Quantity`
 
 emission_measure: `astropy.units.Quantity`
     The emission measure of the plasma at each temperature.
-    Must be same length as temperature or scalar.
+    Must be same length as temperature or scalar. This is passed in units of cm**-3, however is scaled and therefore is
+    in units of 1e49cm**-3.
 
 abundance_type: `str` (optional)
     Abundance type to use.  Options are:
@@ -122,10 +123,9 @@ class ThermalEmission(FittableModel):
 
     {doc_string_params}"""
 
+    name = "ThermalEmission"
     n_inputs = 1
     n_outputs = 1
-
-    name = "ThermalEmission"
 
     temperature = Parameter(
         name="temperature",
@@ -140,7 +140,7 @@ class ThermalEmission(FittableModel):
     emission_measure = Parameter(
         name="emission_measure",
         default=1,
-        unit=1e49 * (u.cm ** (-3)),
+        unit=(u.cm ** (-3)),
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -159,11 +159,12 @@ class ThermalEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
+    # input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
         self,
-        temperature=u.Quantity(temperature.default, temperature.unit).to(u.K),
+        temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
         al=al.default,
@@ -278,7 +279,7 @@ class ThermalEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.K, "emission_measure": (u.cm ** (-3))}
+        return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
 
 
 class ContinuumEmission(FittableModel):
@@ -319,8 +320,6 @@ class ContinuumEmission(FittableModel):
     n_inputs = 1
     n_outputs = 1
 
-    name = "ContinuumEmission"
-
     temperature = Parameter(
         name="temperature",
         default=10,
@@ -334,7 +333,7 @@ class ContinuumEmission(FittableModel):
     emission_measure = Parameter(
         name="emission_measure",
         default=1,
-        unit=1e49 * (u.cm ** (-3)),
+        unit=(u.cm ** (-3)),
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -353,11 +352,12 @@ class ContinuumEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
+    # input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
         self,
-        temperature=u.Quantity(temperature.default, temperature.unit).to(u.K),
+        temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
         al=al.default,
@@ -408,6 +408,11 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
+        if hasattr(temperature, "unit"):
+            temperature = temperature.to(u.K)
+        else:
+            temperature = (temperature * u.MK).to_value(u.K)
+
         flux = continuum_emission(
             energy_edges,
             temperature,
@@ -436,7 +441,7 @@ class ContinuumEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.K, "emission_measure": (u.cm ** (-3))}
+        return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
 
 
 class LineEmission(FittableModel):
@@ -473,8 +478,6 @@ class LineEmission(FittableModel):
     n_inputs = 1
     n_outputs = 1
 
-    name = "LineEmission"
-
     temperature = Parameter(
         name="temperature",
         default=10,
@@ -487,8 +490,8 @@ class LineEmission(FittableModel):
 
     emission_measure = Parameter(
         name="emission_measure",
-        default=1,
-        unit=1e49 * (u.cm ** (-3)),
+        default=1e50,
+        unit=(u.cm ** (-3)),
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -507,11 +510,12 @@ class LineEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
+    # input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
         self,
-        temperature=u.Quantity(temperature.default, temperature.unit).to(u.K),
+        temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
         al=al.default,
@@ -562,6 +566,11 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
+        if hasattr(temperature, "unit"):
+            temperature = temperature.to(u.K)
+        else:
+            temperature = (temperature * u.MK).to_value(u.K)
+
         flux = line_emission(
             energy_edges,
             temperature,
@@ -590,7 +599,7 @@ class LineEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.K, "emission_measure": (u.cm ** (-3))}
+        return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
 
 
 def setup_continuum_parameters(filename=None):
@@ -754,7 +763,7 @@ def continuum_emission(
     # Calculate flux.
     flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
 
-    flux *= emission_measure
+    flux *= emission_measure * 1e49
 
     if temperature_K.isscalar and emission_measure.isscalar:
         flux = flux[0]
@@ -799,7 +808,7 @@ def line_emission(
 
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)
 
-    flux *= emission_measure
+    flux *= emission_measure * 1e49
 
     if temperature_K.isscalar and emission_measure.isscalar:
         flux = flux[0]
