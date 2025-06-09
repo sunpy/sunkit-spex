@@ -44,6 +44,8 @@ class ThickTarget(FittableModel):
 
     total_eflux : int or float
             Total integrated electron flux, in units of 10^35 e^- s^-1.
+            Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e35 is hidden.
+            So actual units are 1.0d35 e^- s^-1.
 
     p : int or float
             Power-law index of the electron distribution below the break.
@@ -86,7 +88,7 @@ class ThickTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=1e35 * u.electron * u.s**-1, description="Total electron flux", fixed=True
+        name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True
     )
 
     _input_units_allow_dimensionless = True
@@ -174,6 +176,8 @@ class ThinTarget(FittableModel):
     total_eflux : int or float
         normalization factor in units of 1.0d55 cm-2 sec-1,
         i.e. plasma density * volume of source * integrated nonthermal electron flux density
+        Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e55 is hidden.
+        So actual units are 1.0d55 cm-2 sec-1.
 
     p : int or float
             Power-law index of the electron distribution below the break.
@@ -221,7 +225,7 @@ class ThinTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=1e55 * u.s**-1 * u.cm**-2, description="Total electron flux", fixed=True
+        name="total_eflux", default=1.5, unit=u.s**-1 * u.cm**-2, description="Total electron flux", fixed=True
     )
 
     _input_units_allow_dimensionless = True
@@ -304,9 +308,8 @@ def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, to
 
     Parameters
     ----------
-    energies : 2d array
-            Array of energy bins for the model to be calculated over.
-            E.g., [[1,1.5],[1.5,2],[2,2.5],...].
+    energy_edges : 1d array
+            Edges of energy bins in units of keV.
 
     total_eflux : int or float
             Total integrated electron flux, in units of 10^35 e^- s^-1.
@@ -367,7 +370,7 @@ def thin_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, tot
 
     Returns
     -------
-    A 1d array of thick-target bremsstrahlung radiation in units
+    A 1d array of thin-target bremsstrahlung radiation in units
     of ph s^-1 keV^-1.
     """
 
