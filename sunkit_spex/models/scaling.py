@@ -53,6 +53,8 @@ class InverseSquareFluxScaling(FittableModel):
         plt.show()
     """
 
+    name = "InverseSquareFluxScaling"
+
     n_inputs = 1
     n_outputs = 1
 
@@ -74,15 +76,14 @@ class InverseSquareFluxScaling(FittableModel):
                 raise ValueError("Observer distance input must be an Astropy length convertible to AU.")
 
         else:
-            AU_distance_cm = 1 * u.AU.to_value(u.cm)
+            AU_distance_cm = (1 * u.AU).to_value(u.cm)
             observer_distance_cm = observer_distance * AU_distance_cm
 
-        correction = 1 / (4 * np.pi * (observer_distance_cm**2))
-        dimension = np.shape(x)[0] - 1
+        return 1 / (4 * np.pi * (observer_distance_cm**2))
 
-        if isinstance(observer_distance, Quantity):
-            return np.full(dimension, correction.value) * correction.unit
-        return np.full(dimension, correction) * (1 / u.cm**2)
+    @property
+    def return_units(self):
+        return {"y": u.cm**-2}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"observer_distance": u.AU}
@@ -146,12 +147,19 @@ class Constant(FittableModel):
 
     _input_units_allow_dimensionless = True
 
-    def evaluate(self, x, constant):
-        dimension = np.shape(x)[0] - 1
+    name = "Constant"
 
-        if isinstance(constant, Quantity):
-            return np.full(dimension, constant.value) * constant.unit
-        return np.full(dimension, constant)
+    def __init__(self, constant=u.Quantity(constant.default)):
+        super().__init__(constant=constant)
+
+    def evaluate(self, x, constant):
+        return constant
+
+    @property
+    def return_units(self):
+        if isinstance(self.constant, Quantity):
+            return {"y": self.constant.unit}
+        return None
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"constant": inputs_unit["x"]}
+        return {"constant": outputs_unit["y"]}

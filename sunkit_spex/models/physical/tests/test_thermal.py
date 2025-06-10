@@ -50,7 +50,7 @@ def fvth_simple():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e44 / u.cm**3
+    emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -111,7 +111,7 @@ def chianti_kev_cont_simple():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e44 / u.cm**3
+    emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -172,7 +172,7 @@ def chianti_kev_lines_simple():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e44 / u.cm**3
+    emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -234,7 +234,7 @@ def fvth_Fe2():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e44 / u.cm**3
+    emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -297,7 +297,7 @@ def chianti_kev_cont_Fe2():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e44 / u.cm**3
+    emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -360,7 +360,7 @@ def chianti_kev_lines_Fe2():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e44 / u.cm**3
+    emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -415,12 +415,12 @@ def test_line_emission_against_ssw(ssw):
 
 def test_scalar_energy_input():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(10 * u.keV)
+        thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(10 * u.keV)
 
 
 def test_len1_energy_input():
     with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([10] * u.keV)
+        thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([10] * u.keV)
 
 
 def test_energy_out_of_range_error():
@@ -428,12 +428,12 @@ def test_energy_out_of_range_error():
         ValueError,
         match="Lower bound of the input energy must be within the range 1.0002920302956426--10.34753795157738 keV. ",
     ):
-        thermal.ThermalEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([0.01, 10] * u.keV)
+        thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([0.01, 10] * u.keV)
 
 
 def test_temperature_out_of_range_error():
     with pytest.raises(ValueError, match="All input temperature values must be within the range"):
-        thermal.ThermalEmission(0.1 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([5, 10] * u.keV)
+        thermal.ThermalEmission(0.1 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([5, 10] * u.keV)
 
 
 def test_line_energy_out_of_range_warning():
@@ -441,7 +441,7 @@ def test_line_energy_out_of_range_warning():
         # Cause all warnings to always be triggered.
         warnings.simplefilter("always")
         # Trigger a warning.
-        _ = thermal.LineEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
+        _ = thermal.LineEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             np.arange(3, 1000, 0.5) * u.keV
         )
         assert issubclass(w[0].category, UserWarning)
@@ -454,14 +454,14 @@ def test_continuum_energy_out_of_range():
     ):
         # Use an energy range that goes out of bounds
         # on the lower end--should error
-        _ = thermal.ContinuumEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
+        _ = thermal.ContinuumEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             np.arange(0.1, 28, 0.5) * u.keV
         )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         # The continuum emission should only warn if we go out of
         # bounds on the upper end.
-        _ = thermal.ContinuumEmission(6 * u.MK, 1e44 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
+        _ = thermal.ContinuumEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             np.arange(10, 1000, 0.5) * u.keV
         )
         assert issubclass(w[0].category, UserWarning)
@@ -474,7 +474,7 @@ def test_empty_flux_out_of_range():
     midpoints = energy_edges[:-1] + np.diff(energy_edges) / 2
 
     temperature = 20 << u.MK
-    em = 1e49 << u.cm**-3
+    em = 1e-5 << u.cm**-3
 
     flux = thermal.ThermalEmission(temperature, em, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(energy_edges)
     # the continuum is the one we need to check

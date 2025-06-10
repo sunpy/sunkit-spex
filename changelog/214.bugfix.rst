@@ -1,0 +1,1 @@
+Fixes bug in count_rate calculation in class:`StraightLineModel`. We now calculate the mean of count rates for a given time range rather than the sum.
