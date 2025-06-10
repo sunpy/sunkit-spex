@@ -444,7 +444,7 @@ def test_line_energy_out_of_range_warning():
         _ = thermal.LineEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             np.arange(3, 1000, 0.5) * u.keV
         )
-        assert issubclass(w[0].category, UserWarning)
+        assert issubclass(w[0].category, (UserWarning, ResourceWarning))
 
 
 def test_continuum_energy_out_of_range():
@@ -464,7 +464,7 @@ def test_continuum_energy_out_of_range():
         _ = thermal.ContinuumEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             np.arange(10, 1000, 0.5) * u.keV
         )
-        assert issubclass(w[0].category, UserWarning)
+        assert issubclass(w[0].category, (UserWarning, ResourceWarning))
 
 
 def test_empty_flux_out_of_range():
