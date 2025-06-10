@@ -114,18 +114,18 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
     Parameters
     ==========
     theta : float
-        Angle between the observer and the source
+        Angle in degrees between the observer and the source
 
     Returns
     =======
         Greens matrix interpolator
     """
-    mu = np.cos(theta)
+    mu = np.cos(np.deg2rad(theta))
 
     base_url = "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/albedo/"
     # what about 0 and 1 assume so close to 05 and 95 that it doesn't matter
     # load precomputed green matrices
-    if 0.5 <= mu <= 0.95:
+    if 0.05 <= mu <= 0.95:
         low = 5 * np.floor(mu * 20)
         high = 5 * np.ceil(mu * 20)
         low_name = f"green_compton_mu{low:03.0f}.dat"
@@ -136,10 +136,10 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
         albedo_low = green["p"].albedo[0]
         green_high = readsav(high_file)
         albedo_high = green_high["p"].albedo[0]
-        # why 20?
+        # There are 20 files from 005 to 095 in steps of 005
         albedo = albedo_low + (albedo_high - albedo_low) * (mu - (np.floor(mu * 20)) / 20)
 
-    elif mu < 0.5:
+    elif mu < 0.05:
         file = "green_compton_mu005.dat"
         file = cache.download(base_url + file)
         green = readsav(file)
@@ -215,10 +215,10 @@ def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], ani
     >>> e = np.linspace(5,  500, 5)*u.keV
     >>> albedo_matrix = get_albedo_matrix(e,theta=45*u.deg)
     >>> albedo_matrix
-    array([[3.80274484e-01, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00],
-    [5.10487362e-01, 8.35309813e-07, 0.00000000e+00, 0.00000000e+00],
-    [3.61059918e-01, 2.48711099e-01, 2.50744411e-09, 0.00000000e+00],
-    [3.09323903e-01, 2.66485260e-01, 1.23563372e-01, 1.81846722e-10]])
+    array([[7.64944936e-03, 0.00000000e+00, 0.00000000e+00, 0.00000000e+00],
+           [7.17787454e-01, 1.54795970e-10, 0.00000000e+00, 0.00000000e+00],
+           [5.22059171e-01, 3.02951100e-01, 1.46291699e-13, 0.00000000e+00],
+           [4.52582540e-01, 3.69821128e-01, 1.13435321e-01, 5.95953019e-15]])
     """
     if energy_edges[0].to_value(u.keV) < 3 or energy_edges[-1].to_value(u.keV) > 600:
         raise ValueError("Supported energy range 3 <= E <= 600 keV")
