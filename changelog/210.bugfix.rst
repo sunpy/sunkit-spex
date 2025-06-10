@@ -1,0 +1,1 @@
+ Fixes fitting by removing input_unit_equivalencies from thermal classes, class:ThermalEmission , class:ContinuumEmission and class:LineEmission . This allows compound emission to function.
