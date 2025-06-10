@@ -2606,7 +2606,9 @@ class Fitter:
                 photon_model=m * np.diff(photon_channel_bins).flatten(),
                 parameters=None,
                 srm=srm,
-                albedo_corr=False
+                albedo_corr=False,
+                albedo_angle=self.albedo_angle,
+                albedo_anisotropy=self.albedo_anisotropy
             )
 
         else:
@@ -2616,7 +2618,8 @@ class Fitter:
                 parameters=None,
                 srm=srm,
                 albedo_corr=self.albedo_corr,
-                albedo_angle=self.albedo_angle
+                albedo_angle=self.albedo_angle,
+                albedo_anisotropy=self.albedo_anisotropy
             )
 
         if include_bg and ("scaled_background_" + spectrum in self._scaled_backgrounds):
@@ -3277,17 +3280,18 @@ class Fitter:
                 photon_model=self._model, parameters=_pars, spectrum="spectrum" + str(s + 1), include_bg=True, **_rpars
             )
             _randcts.append(ctr)
+
             if _rebin_info is not None:
                 ctr = self._bin_model(ctr, *_rebin_info)
                 e_mids = np.mean(_rebin_info[2], axis=1)
+
             if self.albedo_corr:
-                residuals = [
-                (res_info[0][i] - (ctr[i] + res_info[-1][i])) / res_info[1][i] if res_info[1][i] > 0 else 0 for i in range(len(res_info[1]))
+                for i in range(len(res_info[1])):
+                    ctr[i] = ctr[i] + res_info[-1][i]
+
+            residuals = [
+                (res_info[0][i] - ctr[i]) / res_info[1][i] if res_info[1][i] > 0 else 0 for i in range(len(res_info[1]))
             ]
-            else:
-                residuals = [
-                    (res_info[0][i] - ctr[i]) / res_info[1][i] if res_info[1][i] > 0 else 0 for i in range(len(res_info[1]))
-                ]
             _randctsres.append(residuals)
             residuals = np.column_stack(
                 (residuals, residuals)
