@@ -704,7 +704,7 @@ class STIXLoader(instruments.InstrumentBlueprint):
         # self._loaded_spec_data["count_rate_error"] = counts_err/self._loaded_spec_data["effective_exposure"]/self._loaded_spec_data["count_channel_binning"]
 
         self._loaded_spec_data["count_rate"] = (
-            np.sum(
+            np.mean(
                 self._data_time_select(
                     stime=self._start_event_time, full_data=self._count_rate_perspec, etime=self._end_event_time
                 ),
@@ -723,7 +723,11 @@ class STIXLoader(instruments.InstrumentBlueprint):
                     ** 2,
                     axis=0,
                 )
-            )
+            ) / len(self._data_time_select(
+                        stime=self._start_event_time,
+                        full_data=self._count_rate_error_perspec,
+                        etime=self._end_event_time,
+                    ))
             / self._loaded_spec_data["count_channel_binning"]
         )
 
