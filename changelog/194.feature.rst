@@ -1,0 +1,1 @@
+Add two Astropy model classes, :class:`sunkit_spex.models.physical.nonthermal.ThickTarget` and :class:`sunkit_spex.models.physical.nonthermal.ThinTarget`. This provides the capability to fit using the Astropy fitting framework.
