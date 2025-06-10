@@ -162,7 +162,7 @@ class ThickTarget(FittableModel):
 
 
 class ThinTarget(FittableModel):
-    r"""Calculates the thin-target bremsstrahlung radiation of a single power-law electron distribution.
+    r"""Calculates the thin-target bremsstrahlung radiation of a dual power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
     [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
@@ -300,7 +300,7 @@ class ThinTarget(FittableModel):
 
 
 def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator):
-    """Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
+    """Calculates the thick-target bremsstrahlung radiation of a dual power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
     [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
@@ -308,17 +308,30 @@ def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, to
 
     Parameters
     ----------
+
     energy_edges : 1d array
             Edges of energy bins in units of keV.
 
     total_eflux : int or float
             Total integrated electron flux, in units of 10^35 e^- s^-1.
+            Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e35 is hidden.
+            So actual units are 1.0d35 e^- s^-1.
 
-    index : int or float
-            Power-law index of the electron distribution.
+    p : int or float
+            Power-law index of the electron distribution below the break.
 
-    e_c : int or float
+    break_energy : int or float
+                        Break energy of power law.
+
+    q : int or float
+            Power-law index of the electron distribution above the break.
+
+    low_e_cutoff : int or float
             Low-energy cut-off of the electron distribution in units of keV.
+
+    high_e_cutoff : int or float
+            High-energy cut-off of the electron distribution in units of keV.
+
 
     Returns
     -------
@@ -347,7 +360,7 @@ def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, to
 
 # def thin_fn(total_eflux, index, e_c, energies=None):
 def thin_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator):
-    """Calculates the thick-target bremsstrahlung radiation of a single power-law electron distribution.
+    """Calculates the thin-target bremsstrahlung radiation of a dual power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
     [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
@@ -355,18 +368,31 @@ def thin_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, tot
 
     Parameters
     ----------
-    energies : 2d array
-            Array of energy bins for the model to be calculated over.
-            E.g., [[1,1.5],[1.5,2],[2,2.5],...].
+    energy_edges : 1d array
+            Edges of energy bins in units of keV.
 
     total_eflux : int or float
-            Total integrated electron flux, in units of 10^35 e^- s^-1.
+        normalization factor in units of 1.0d55 cm-2 sec-1,
+        i.e. plasma density * volume of source * integrated nonthermal electron flux density
+        Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e55 is hidden.
+        So actual units are 1.0d55 cm-2 sec-1.
 
-    index : int or float
-            Power-law index of the electron distribution.
+    p : int or float
+            Power-law index of the electron distribution below the break.
 
-    e_c : int or float
+    break_energy : int or float
+                        Break energy of power law.
+
+    q : int or float
+            Power-law index of the electron distribution above the break.
+
+    low_e_cutoff : int or float
             Low-energy cut-off of the electron distribution in units of keV.
+
+    high_e_cutoff : int or float
+            High-energy cut-off of the electron distribution in units of keV.
+
+
 
     Returns
     -------
