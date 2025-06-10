@@ -1,0 +1,2 @@
+Fix bug introduced in refactoring of `~sunkit_spex.models.physical.albedo.Albedo` model. Internally the angle theta
+given in degrees wasn't converted to radians before use.
