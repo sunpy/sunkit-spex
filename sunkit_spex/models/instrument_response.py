@@ -1,15 +1,15 @@
 """Module for model components required for instrument response models."""
 
-from astropy.modeling import Fittable1DModel, Parameter
 import numpy as np
+
+from astropy.modeling import Fittable1DModel, Parameter
 
 __all__ = ["MatrixModel"]
 
 
 class MatrixModel(Fittable1DModel):
+    name = "SRM"
 
-    name = 'SRM'
-        
     c = Parameter(fixed=True)
 
     def __init__(self, matrix, input_axis, output_axis, _input_units, _output_units, c):
@@ -29,28 +29,19 @@ class MatrixModel(Fittable1DModel):
         input_widths = np.diff(self.inputs_axis)
         output_widths = np.diff(self.output_axis)
 
-        flux = ((x*input_widths) @ self.matrix * c ) / output_widths
+        flux = ((x * input_widths) @ self.matrix * c) / output_widths
 
         if hasattr(c, "unit"):
             return flux
         return flux.value
 
-
     @property
     def input_units(self):
         return self._input_units
 
-    # @input_units.setter
-    # def input_units(self, units):
-    #     self._input_units = units
-
     @property
     def return_units(self):
         return self._output_units
-
-    # @return_units.setter
-    # def return_units(self, units):
-    #     self._output_units = units
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"c": self._output_units["y"] / self._input_units["x"]}

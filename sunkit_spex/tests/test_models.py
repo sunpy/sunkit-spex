@@ -5,6 +5,8 @@ This module contains package tests for package models.
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
+from astropy import units as u
+
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
 from sunkit_spex.models.instrument_response import MatrixModel
 from sunkit_spex.models.models import GaussianModel, StraightLineModel
@@ -67,16 +69,27 @@ def test_GaussianModel_edges():
 def test_MatrixModel():
     """Test the matrix model contents and compound model behaviour."""
     size0 = 3
+    sim_x0 = np.arange(size0 + 1)
+
     srm0 = simulate_square_response_matrix(size0)
-    srm_model0 = MatrixModel(matrix=srm0, c=1, input_axis=None, output_axis=None)
+
+    srm_model0 = MatrixModel(
+        matrix=srm0,
+        c=1 * u.dimensionless_unscaled,
+        input_axis=sim_x0,
+        output_axis=sim_x0,
+        _input_units={"x": u.dimensionless_unscaled},
+        _output_units={"y": u.dimensionless_unscaled},
+    )
 
     assert_array_equal(srm_model0.matrix, srm0)
 
-    sim_x0 = np.arange(size0)
-    model_params0_init = {"edges": False, "slope": 1, "intercept": 0}
+    model_params0_init = {"edges": True, "slope": 1, "intercept": 0}
     sim_model0 = StraightLineModel(**model_params0_init)
     comp_model0 = sim_model0 | srm_model0
     comp_res0 = comp_model0(sim_x0)
-    exp_res0 = [0.00682338, 1.00348448, 1.98969213]
+
+    # exp_res0 = [0.00682338, 1.00348448, 1.98969213]
+    exp_res0 = [0.509719, 1.503166, 2.487115]
 
     assert_allclose(comp_res0, exp_res0, rtol=1e-6)
