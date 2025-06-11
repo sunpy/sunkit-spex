@@ -15,7 +15,7 @@ class MatrixModel(Fittable1DModel):
     def __init__(self, matrix, input_axis, output_axis, _input_units, _output_units, c):
         self._input_units = _input_units
         self._output_units = _output_units
-        self.inputs_axis = input_axis
+        self.input_axis = input_axis
         self.output_axis = output_axis
         self.matrix = matrix
         super().__init__(c)
@@ -26,8 +26,22 @@ class MatrixModel(Fittable1DModel):
     def evaluate(self, x, c):
         # Requires input must have a specific dimensionality
 
-        input_widths = np.diff(self.inputs_axis)
+        input_widths = np.diff(self.input_axis)
         output_widths = np.diff(self.output_axis)
+
+        # print(x)
+        # print(input_widths)
+        # print(self.matrix)
+        # print(c)
+        # print(output_widths)
+
+        # print(self.input_axis.size)
+        # print(self.output_axis.size)
+        # print(x.size)
+        # print(input_widths.size)
+        # print(self.matrix.size)
+        # print(c.size)
+        # print(output_widths.size)
 
         flux = ((x * input_widths) @ self.matrix * c) / output_widths
 

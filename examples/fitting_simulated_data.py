@@ -21,7 +21,6 @@ from matplotlib.colors import LogNorm
 
 import astropy.units as u
 from astropy.modeling import fitting
-from astropy.modeling.functional_models import Gaussian1D, Linear1D
 from astropy.visualization import quantity_support
 
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
@@ -29,6 +28,7 @@ from sunkit_spex.fitting.objective_functions.optimising_functions import minimiz
 from sunkit_spex.fitting.optimizer_tools.minimizer_tools import scipy_minimize
 from sunkit_spex.fitting.statistics.gaussian import chi_squared
 from sunkit_spex.models.instrument_response import MatrixModel
+from sunkit_spex.models.models import GaussianModel, StraightLineModel
 from sunkit_spex.spectrum import Spectrum
 from sunkit_spex.spectrum.spectrum import SpectralAxis
 
@@ -42,19 +42,20 @@ from sunkit_spex.spectrum.spectrum import SpectralAxis
 start, inc = 1.6, 0.04
 stop = 80 + inc / 2
 ph_energies = np.arange(start, stop, inc) * u.keV
+ph_energies_centers = ph_energies[:-1] + 0.5 * np.diff(ph_energies)
 
 #####################################################
 #
 # Let's start making a simulated photon spectrum
 
-sim_cont = {"slope": -1 * u.ph / u.keV, "intercept": 100 * u.ph}
-sim_line = {"amplitude": 100 * u.ph, "mean": 30 * u.keV, "stddev": 2 * u.keV}
+sim_cont = {"slope": -1 * u.ph / u.keV**2, "intercept": 100 * u.ph / u.keV}
+sim_line = {"amplitude": 100 * u.ph / u.keV, "mean": 30 * u.keV, "stddev": 2 * u.keV}
 # use a straight line model for a continuum, Gaussian for a line
-ph_model = Linear1D(**sim_cont) + Gaussian1D(**sim_line)
+ph_model = StraightLineModel(**sim_cont) + GaussianModel(**sim_line)
 
 with quantity_support():
     plt.figure()
-    plt.plot(ph_energies, ph_model(ph_energies))
+    plt.plot(ph_energies_centers, ph_model(ph_energies))
     plt.xlabel(f"Energy [{ph_energies.unit}]")
     plt.title("Simulated Photon Spectrum")
     plt.show()
@@ -63,11 +64,17 @@ with quantity_support():
 #
 # Now want a response matrix
 
-srm = simulate_square_response_matrix(ph_energies.size)
+srm = simulate_square_response_matrix(ph_energies.size - 1)
 srm_model = MatrixModel(
-    matrix=srm, input_axis=SpectralAxis(ph_energies), output_axis=SpectralAxis(ph_energies), c=1 * u.ct / u.ph
+    matrix=srm,
+    input_axis=SpectralAxis(ph_energies),
+    output_axis=SpectralAxis(ph_energies),
+    c=1 * u.ct / u.ph,
+    _input_units={"x": u.ph * u.keV**-1},
+    _output_units={"y": u.ct * u.keV**-1},
 )
-srm_model.input_units = {"x": u.ph}
+# srm_model.input_units = {"x": u.ph}
+
 
 with quantity_support():
     plt.figure()
@@ -75,14 +82,14 @@ with quantity_support():
         srm_model.matrix,
         origin="lower",
         extent=(
-            srm_model.inputs_axis[0].value,
-            srm_model.inputs_axis[-1].value,
+            srm_model.input_axis[0].value,
+            srm_model.input_axis[-1].value,
             srm_model.output_axis[0].value,
             srm_model.output_axis[-1].value,
         ),
         norm=LogNorm(),
     )
-    plt.ylabel(f"Photon Energies [{srm_model.inputs_axis.unit}]")
+    plt.ylabel(f"Photon Energies [{srm_model.input_axis.unit}]")
     plt.xlabel(f"Count Energies [{srm_model.output_axis.unit}]")
     plt.title("Simulated SRM")
     plt.show()
@@ -91,25 +98,25 @@ with quantity_support():
 #
 # Start work on a count model
 
-sim_gauss = {"amplitude": 70 * u.ct, "mean": 40 * u.keV, "stddev": 2 * u.keV}
+sim_gauss = {"amplitude": 70 * u.ct / u.keV, "mean": 40 * u.keV, "stddev": 2 * u.keV}
 # the brackets are very necessary
-ct_model = (ph_model | srm_model) + Gaussian1D(**sim_gauss)
+ct_model = ph_model | srm_model
 
 #####################################################
 #
 # Generate simulated count data to (almost) fit
 
 sim_count_model = ct_model(SpectralAxis(ph_energies))
-
 #####################################################
 #
 # Add some noise
 np_rand = np.random.default_rng(seed=10)
 sim_count_model_wn = (
-    sim_count_model + (2 * np_rand.random(sim_count_model.size) - 1) * np.sqrt(sim_count_model.value) * u.ct
+    sim_count_model + (2 * np_rand.random(sim_count_model.size)) * np.sqrt(sim_count_model.value) * u.ct / u.keV
 )
 
 obs_spec = Spectrum(sim_count_model_wn.reshape(-1), spectral_axis=ph_energies)
+
 
 #####################################################
 #
@@ -117,9 +124,9 @@ obs_spec = Spectrum(sim_count_model_wn.reshape(-1), spectral_axis=ph_energies)
 
 with quantity_support():
     plt.figure()
-    plt.plot(ph_energies, (ph_model | srm_model)(ph_energies), label="photon model features")
-    plt.plot(ph_energies, Gaussian1D(**sim_gauss)(ph_energies), label="gaussian feature")
-    plt.plot(ph_energies, sim_count_model, label="total sim. spectrum")
+    plt.plot(ph_energies_centers, (ph_model | srm_model)(ph_energies), label="photon model features")
+    plt.plot(ph_energies_centers, GaussianModel(**sim_gauss)(ph_energies), label="gaussian feature")
+    plt.plot(ph_energies_centers, sim_count_model, label="total sim. spectrum")
     plt.plot(obs_spec._spectral_axis, obs_spec.data, label="total sim. spectrum + noise", lw=0.5)
     plt.xlabel(f"Energy [{ph_energies.unit}]")
     plt.title("Simulated Count Spectrum")
@@ -135,27 +142,31 @@ with quantity_support():
 #
 # Get some initial guesses that are off from the simulated data above
 
-guess_cont = {"slope": -0.5 * u.ph / u.keV, "intercept": 80 * u.ph}
-guess_line = {"amplitude": 150 * u.ph, "mean": 32 * u.keV, "stddev": 5 * u.keV}
-guess_gauss = {"amplitude": 350 * u.ct, "mean": 39 * u.keV, "stddev": 0.5 * u.keV}
+guess_cont = {"slope": -0.5 * u.ph / u.keV**2, "intercept": 80 * u.ph / u.keV}
+guess_line = {"amplitude": 150 * u.ph / u.keV, "mean": 32 * u.keV, "stddev": 5 * u.keV}
+guess_gauss = {"amplitude": 350 * u.ct / u.keV, "mean": 39 * u.keV, "stddev": 0.5 * u.keV}
 
 #####################################################
 #
 # Define a new model since we have a rough idea of the mode we should use
 
-ph_mod_4fit = Linear1D(**guess_cont) + Gaussian1D(**guess_line)
-count_model_4fit = (ph_mod_4fit | srm_model) + Gaussian1D(**guess_gauss)
+ph_mod_4fit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
+count_model_4fit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
 
-#####################################################
-#
-# Let's fit the simulated data and plot the result
+
+# print(ph_mod_4fit(ph_energies).size)
+# print(count_model_4fit(obs_spec.data).size)
+# #####################################################
+# #
+# # Let's fit the simulated data and plot the result
+
 
 opt_res = scipy_minimize(minimize_func, count_model_4fit.parameters, (obs_spec, count_model_4fit, chi_squared))
 
 with quantity_support():
     plt.figure()
-    plt.plot(ph_energies, sim_count_model_wn, label="total sim. spectrum + noise")
-    plt.plot(ph_energies, count_model_4fit.evaluate(ph_energies.value, *opt_res.x), ls=":", label="model fit")
+    plt.plot(ph_energies_centers, sim_count_model_wn, label="total sim. spectrum + noise")
+    plt.plot(ph_energies_centers, count_model_4fit.evaluate(ph_energies.value, *opt_res.x), ls=":", label="model fit")
     plt.xlabel(f"Energy [{ph_energies.unit}]")
     plt.title("Simulated Count Spectrum Fit with Scipy")
     plt.legend()
@@ -168,31 +179,31 @@ with quantity_support():
 #
 # Try and ensure we start fresh with new model definitions
 
-guess_cont = {"slope": -0.5 * u.ph / u.keV, "intercept": 80 * u.ph}
-guess_line = {"amplitude": 150 * u.ph, "mean": 32 * u.keV, "stddev": 5 * u.keV}
+guess_cont = {"slope": -0.5 * u.ph / u.keV**2, "intercept": 80 * u.ph / u.keV}
+guess_line = {"amplitude": 150 * u.ph / u.keV, "mean": 32 * u.keV, "stddev": 5 * u.keV}
 
-ph_mod_4astropyfit = Linear1D(**guess_cont) + Gaussian1D(**guess_line)
-for m in ph_mod_4astropyfit:
-    m.output_units = {"y": u.ph}
-cgauss = Gaussian1D(**guess_gauss)
-cgauss.output_units = {"y": u.ct}
-srm_model.output_units = {"y": u.ct}
+ph_mod_4astropyfit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
+
+cgauss = GaussianModel(**guess_gauss)
+
 
 count_model_4astropyfit = (ph_mod_4astropyfit | srm_model) + cgauss
+
 
 astropy_fit = fitting.LevMarLSQFitter()
 astropy_fitted_result = astropy_fit(count_model_4astropyfit, ph_energies, obs_spec.data << obs_spec.unit)
 
 plt.figure()
-plt.plot(ph_energies, sim_count_model_wn, label="total sim. spectrum + noise")
+plt.plot(ph_energies_centers, sim_count_model_wn, label="total sim. spectrum + noise")
 plt.plot(
-    ph_energies,
+    ph_energies_centers,
     count_model_4astropyfit.evaluate(ph_energies.value, *astropy_fitted_result.parameters),
     ls=":",
     label="model fit",
 )
+
 plt.xlabel("Energy [keV]")
-plt.ylabel("cts s$^{-1}$ keV$^{-1}$")
+plt.ylabel("ct keV$^{-1}$")
 plt.title("Simulated Count Spectrum Fit with Astropy")
 plt.legend()
 plt.show()
@@ -232,6 +243,7 @@ guess_vals = tuple(guess_cont.values()) + tuple(guess_line.values()) + (1 * u.m,
 guess_vals = [g.value for g in guess_vals]
 scipy_vals = opt_res.x
 astropy_vals = astropy_fitted_result.parameters
+
 
 cell_vals = np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T
 cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T, 2).astype(str)
