@@ -70,17 +70,19 @@ class ThickTarget(FittableModel):
     of ph s^-1 keV^-1.
     """
 
+    name = "ThickTarget"
+
     n_inputs = 1
     n_outputs = 1
 
-    p = Parameter(name="p", default=2, description="Slope below break", fixed=False)
+    p = Parameter(name="p", default=5, description="Slope below break", fixed=False)
 
     break_energy = Parameter(name="break_energy", default=100, unit=u.keV, description="Break Energy", fixed=False)
 
     q = Parameter(name="q", default=5, min=0.01, description="Slope above break", fixed=True)
 
     low_e_cutoff = Parameter(
-        name="low_e_cutoff", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False
+        name="low_e_cutoff", default=15, unit=u.keV, description="Low energy electron cut off", fixed=False, min=1
     )
 
     high_e_cutoff = Parameter(
@@ -201,6 +203,8 @@ class ThinTarget(FittableModel):
     A 1d array of thin-target bremsstrahlung radiation in units
     of ph s^-1 keV^-1.
     """
+
+    name = "ThinTarget"
 
     n_inputs = 1
     n_outputs = 1

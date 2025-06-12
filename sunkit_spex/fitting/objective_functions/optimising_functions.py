@@ -2,8 +2,6 @@
 This module contains functions that can evaluate models and return a fit statistic.
 """
 
-from sunkit_spex.spectrum.spectrum import SpectralAxis
-
 __all__ = ["minimize_func"]
 
 
@@ -34,8 +32,6 @@ def minimize_func(params, obs_spec, model_func, statistic_func):
     `float`
         The value to be optimized that compares the model to the data.
     """
-    model_y = model_func.evaluate(
-        SpectralAxis._edges_from_centers(obs_spec._spectral_axis.value, obs_spec._spectral_axis.unit).value, *params
-    )
+    model_y = model_func.evaluate(obs_spec._spectral_axis._bin_edges.value, *params)
 
     return statistic_func(obs_spec.data, model_y)
