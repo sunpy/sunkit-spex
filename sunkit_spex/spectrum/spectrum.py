@@ -81,7 +81,6 @@ class SpectralAxis(SpectralCoord):
             bin_edges = value
             value = SpectralAxis._centers_from_edges(value)
 
-
         obj = super().__new__(cls, value, *args, **kwargs)
 
         if bin_specification == "edges":
@@ -217,8 +216,8 @@ class Spectrum(NDCube):
                 if spectral_axis.shape[0] == data.shape[spectral_dimension] + 1:
                     bin_specification = "edges"
                 elif spectral_axis.shape[1] == 2:
-                    spectral_axis = np.concatenate([spectral_axis[:,0], spectral_axis[:,1][-1:]])
-                    print('HELLLLOOOOO = ',spectral_axis)
+                    spectral_axis = np.concatenate([spectral_axis[:, 0], spectral_axis[:, 1][-1:]])
+                    print("HELLLLOOOOO = ", spectral_axis)
                     bin_specification = "edges"
 
                 else:
