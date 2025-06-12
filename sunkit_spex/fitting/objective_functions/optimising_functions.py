@@ -33,11 +33,10 @@ def minimize_func(params, obs_spec, model_func, statistic_func):
         The value to be optimized that compares the model to the data.
 
     """
-    if len(obs_spec._spectral_axis.shape) != 1:
+
+    if obs_spec._spectral_axis._bin_edges is not None:
         model_y = model_func.evaluate(obs_spec._spectral_axis._bin_edges.value, *params)
-    elif obs_spec.data.shape[0] < obs_spec._spectral_axis.shape[0]:
-        model_y = model_func.evaluate(obs_spec._spectral_axis._bin_edges.value, *params)
-    elif obs_spec.data.shape[0] == obs_spec._spectral_axis.shape[0]:
+    else:
         model_y = model_func.evaluate(obs_spec._spectral_axis.value, *params)
 
     return statistic_func(obs_spec.data, model_y)
