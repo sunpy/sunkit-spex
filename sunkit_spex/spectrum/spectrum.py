@@ -86,7 +86,7 @@ class SpectralAxis(SpectralCoord):
         if bin_specification == "edges":
             obj._bin_edges = bin_edges
         elif bin_specification == "edges":
-            obj._bin_edges = None
+            obj._bin_edges = "None"
 
         return obj
 
