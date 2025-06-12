@@ -217,7 +217,6 @@ class Spectrum(NDCube):
                     bin_specification = "edges"
                 elif spectral_axis.shape[1] == 2:
                     spectral_axis = np.concatenate([spectral_axis[:, 0], spectral_axis[:, 1][-1:]])
-                    print("HELLLLOOOOO = ", spectral_axis)
                     bin_specification = "edges"
 
                 else:
