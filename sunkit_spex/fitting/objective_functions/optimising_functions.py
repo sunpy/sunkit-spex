@@ -34,7 +34,7 @@ def minimize_func(params, obs_spec, model_func, statistic_func):
 
     """
 
-    if obs_spec._spectral_axis._bin_edges != "None":
+    if obs_spec._spectral_axis._bin_edges is not None:
         model_y = model_func.evaluate(obs_spec._spectral_axis._bin_edges.value, *params)
     else:
         model_y = model_func.evaluate(obs_spec._spectral_axis.value, *params)
