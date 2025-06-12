@@ -215,9 +215,10 @@ class Spectrum(NDCube):
             if not isinstance(spectral_axis, SpectralAxis):
                 if spectral_axis.shape[0] == data.shape[spectral_dimension] + 1:
                     bin_specification = "edges"
-                elif len(spectral_axis.shape) >= 1 and spectral_axis.shape[1] == 2:
-                    spectral_axis = np.concatenate([spectral_axis[:, 0], spectral_axis[:, 1][-1:]])
-                    bin_specification = "edges"
+                elif len(spectral_axis.shape) >= 1:
+                    if spectral_axis.shape[1] == 2:
+                        spectral_axis = np.concatenate([spectral_axis[:, 0], spectral_axis[:, 1][-1:]])
+                        bin_specification = "edges"
 
                 else:
                     bin_specification = "centers"
