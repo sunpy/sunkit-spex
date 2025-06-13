@@ -2539,7 +2539,7 @@ class Fitter:
             return np.concatenate(tuple(mu)), np.concatenate(tuple(alebdo_excess_count))
 
         except ValueError:
-            return [mu[i][0] for i in range(len(mu))]
+            return [mu[i][0] for i in range(len(mu))], alebdo_excess_count
 
     def _calc_counts_model(self, photon_model, parameters=None, spectrum="spectrum1", include_bg=False, for_plotting=False, **kwargs):
         """Easily calculate a spectrum's count model from the parameter table and user photon model.
@@ -4247,7 +4247,7 @@ class Fitter:
             return self._calculate_model()
         else:
             self._param_groups = [None] * int(number_of_models)
-            return [np.array([1])] * int(number_of_models), [np.array([1])] #empty models, empty array for albedo
+            return [np.array([1])] * int(number_of_models), [np.array([1])] * int(number_of_models) #empty models, empty array for albedo
 
     def plot(self, subplot_axes_grid=None, rebin=None, num_of_samples=100, hex_grid=False, plot_final_result=True):
         """Plots the latest fit or sampling result.
