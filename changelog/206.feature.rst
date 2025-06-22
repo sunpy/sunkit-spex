@@ -1,0 +1,1 @@
+Add the possibility to perform albedo correction within the legacy code. The alebdo matrix is generated with :func:`sunkit_spex.legacy.fitting.albedo.get_albedo_matrix` and the albedo correction is performed in  :class:`sunkit_spex.legacy.fitting.fitter.Fitter`.
