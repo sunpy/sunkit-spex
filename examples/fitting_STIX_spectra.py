@@ -17,7 +17,6 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.exceptions import VisibleDeprecationWarning
-from parfive import Downloader
 
 import astropy.units as u
 from astropy.time import Time
@@ -39,10 +38,10 @@ except AttributeError:
 # dl = Downloader()
 # base_url = "........"
 # file_names = [
-#     "Spectrum_Demo_TOP.fits",
-#     "SRM_Demo_TOP.fits",
-#     "stx_spectrum_241001_BKG_2.fits",
-#     "stx_srm_241001_BKG_2.fits",
+#     "stx_spectrum_2410019944_IM.fits",
+#     "stx_srm_2410019944_IM.fits",
+#     "stx_spectrum_2410019944_BKG.fits",
+#     "stx_srm_2410019944_BKG.fits",
 # ]
 #
 # for fname in file_names:
@@ -65,7 +64,9 @@ xlims, ylims = [3, 100], [1e-1, 1e6]
 # The STIX loader is also able to automatically select an SRM based on the attenuator state during the time selected for sepctroscopy. In this example we select a time right before the attenuator is inserted.
 # Load in the data...
 
-stix_spec = STIXLoader(spectrum_file="./stix/Spectrum_Demo_TOP.fits", srm_file="./stix/SRM_Demo_TOP.fits")
+stix_spec = STIXLoader(
+    spectrum_file="./stix/stx_spectrum_2410019944_IM.fits", srm_file="./stix/stx_srm_2410019944_IM.fits"
+)
 
 #####################################################
 #
@@ -249,8 +250,8 @@ plt.rcParams["font.size"] = default_text
 # ========================================================
 # Loading the data into the fitter loader
 #
-spec_bg, srm_bg = "./stix/stx_spectrum_241001_BKG_2.fits", "./stix/stx_srm_241001_BKG_2.fits"
-spec_im, srm_im = "./stix/Spectrum_Demo_TOP.fits", "./stix/SRM_Demo_TOP.fits"
+spec_bg, srm_bg = "./stix/stx_spectrum_2410019944_BKG.fits", "./stix/stx_srm_2410019944_BKG.fits"
+spec_im, srm_im = "./stix/stx_spectrum_2410019944_IM.fits", "./stix/stx_srm_2410019944_IM.fits"
 
 spec_joint = Fitter(pha_file=[spec_bg, spec_im], srm_file=[srm_bg, srm_im])
 
