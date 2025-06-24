@@ -19,11 +19,11 @@ import numpy as np
 from numpy.exceptions import VisibleDeprecationWarning
 from parfive import Downloader
 
+import astropy.units as u
 from astropy.time import Time
 
 from sunkit_spex.extern.stix import STIXLoader
 from sunkit_spex.legacy.fitting.fitter import Fitter, load
-import astropy.units as u
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 try:
@@ -36,13 +36,18 @@ except AttributeError:
 #
 # Download the example data
 
-dl = Downloader()
-base_url = "........"
-file_names = ["Spectrum_Demo_TOP.fits", "SRM_Demo_TOP.fits", "stx_spectrum_241001_BKG_2.fits", "stx_srm_241001_BKG_2.fits"]
-
-for fname in file_names:
-    dl.enqueue_file(base_url + fname, path="./stix/")
-files = dl.download()
+# dl = Downloader()
+# base_url = "........"
+# file_names = [
+#     "Spectrum_Demo_TOP.fits",
+#     "SRM_Demo_TOP.fits",
+#     "stx_spectrum_241001_BKG_2.fits",
+#     "stx_srm_241001_BKG_2.fits",
+# ]
+#
+# for fname in file_names:
+#     dl.enqueue_file(base_url + fname, path="./stix/")
+# files = dl.download()
 
 #####################################################
 #
@@ -87,7 +92,7 @@ plt.rcParams["font.size"] = default_text
 # Since the default event data is assumed to be the full time, we might want to change this.
 # In this particular case the background has been subtracted when the data was processes with IDL, therefore we don't need to set a background time.
 # See the RHESSI example notebook for how to include background subtraction.
-# 
+#
 
 # event time
 stix_spec.select_time(start=Time("2024-10-01T22:10:10"), end=Time("2024-10-01T22:10:18"))
@@ -132,18 +137,18 @@ fitter.show_params
 #
 # Looking at the spectrum, define sensible numbers for starting values (maybe some trial and error here).
 #
-# For this sepctrum, we will fit two thermals and non-thermal model over the whole energy range
+# For this spectrum, we will fit two thermals and non-thermal model over the whole energy range
 
 fitter.energy_fitting_range = [4, 84]
 
 # sort model parameters
-fitter.params["T1_spectrum1"] = {"Value":19, "Bounds":(13, 30), "Status":"free"}
-fitter.params["EM1_spectrum1"] = {"Value":470, "Bounds":(300, 800), "Status":"free"}
-fitter.params["T2_spectrum1"] = {"Value":40, "Bounds":(20, 60), "Status":"free"}
-fitter.params["EM2_spectrum1"] = {"Value":7, "Bounds":(3, 20), "Status":"free"}
-fitter.params["total_eflux1_spectrum1"] = {"Value":4, "Bounds":(1,10), "Status":"free"}
-fitter.params["index1_spectrum1"] = {"Value":4, "Bounds":(2, 15), "Status":"free"}
-fitter.params["e_c1_spectrum1"] = {"Value":17, "Bounds":(10, 27), "Status":"free"}
+fitter.params["T1_spectrum1"] = {"Value": 19, "Bounds": (13, 30), "Status": "free"}
+fitter.params["EM1_spectrum1"] = {"Value": 470, "Bounds": (300, 800), "Status": "free"}
+fitter.params["T2_spectrum1"] = {"Value": 40, "Bounds": (20, 60), "Status": "free"}
+fitter.params["EM2_spectrum1"] = {"Value": 7, "Bounds": (3, 20), "Status": "free"}
+fitter.params["total_eflux1_spectrum1"] = {"Value": 4, "Bounds": (1, 10), "Status": "free"}
+fitter.params["index1_spectrum1"] = {"Value": 4, "Bounds": (2, 15), "Status": "free"}
+fitter.params["e_c1_spectrum1"] = {"Value": 17, "Bounds": (10, 27), "Status": "free"}
 
 #####################################################
 #
@@ -247,19 +252,16 @@ plt.rcParams["font.size"] = default_text
 spec_bg, srm_bg = "./stix/stx_spectrum_241001_BKG_2.fits", "./stix/stx_srm_241001_BKG_2.fits"
 spec_im, srm_im = "./stix/Spectrum_Demo_TOP.fits", "./stix/SRM_Demo_TOP.fits"
 
-spec_joint = Fitter(pha_file=[spec_bg,
-                            spec_im],
-                    srm_file=[srm_bg,
-                            srm_im])
+spec_joint = Fitter(pha_file=[spec_bg, spec_im], srm_file=[srm_bg, srm_im])
 
 #####################################################
 #
 # Select time for integration
 
-time_joint = ["2024-10-01T22:10:10","2024-10-01T22:10:18"]
-#Intergate the emission from the background detectors
+time_joint = ["2024-10-01T22:10:10", "2024-10-01T22:10:18"]
+# Integrate the emission from the background detectors
 spec_joint.data.loaded_spec_data["spectrum1"].select_time(start=time_joint[0], end=time_joint[1])
-#Intergate the emission from the imaging detectors
+# Integrate the emission from the imaging detectors
 spec_joint.data.loaded_spec_data["spectrum2"].select_time(start=time_joint[0], end=time_joint[1])
 
 #####################################################
@@ -278,7 +280,7 @@ plt.show()
 #####################################################
 #
 # Define the energy range for fitting, the models to fit and the energy range
-spec_joint.energy_fitting_range = {"spectrum1":[6,25], "spectrum2":[11,84]}
+spec_joint.energy_fitting_range = {"spectrum1": [6, 25], "spectrum2": [11, 84]}
 
 # Fitting two thermal models and a non-thermal model and a scaling factor
 spec_joint.model = "C * (f_vth + f_vth + thick_fn)"
@@ -287,8 +289,8 @@ spec_joint.model = "C * (f_vth + f_vth + thick_fn)"
 spec_joint.loglikelihood = "chi2"
 
 # We added a scaling factor to account for systematic uncertainties
-spec_joint.params["C_spectrum1"] = {"Value":1, "Status":"fix"}
-spec_joint.params["C_spectrum2"] = {"Value":1, "Status":"free"}
+spec_joint.params["C_spectrum1"] = {"Value": 1, "Status": "fix"}
+spec_joint.params["C_spectrum2"] = {"Value": 1, "Status": "free"}
 
 #####################################################
 #
@@ -296,16 +298,16 @@ spec_joint.params["C_spectrum2"] = {"Value":1, "Status":"free"}
 
 # Define the starting parameter values and boundaries
 # The lower-T model mainly dominates in the background detectors spectrum so define them for spectrum 1
-spec_joint.params["T1_spectrum1"] = {"Value":20, "Bounds":(16, 30), "Status":"free"}
-spec_joint.params["EM1_spectrum1"] = {"Value":300, "Bounds":(200, 1000), "Status":"free"}
+spec_joint.params["T1_spectrum1"] = {"Value": 20, "Bounds": (16, 30), "Status": "free"}
+spec_joint.params["EM1_spectrum1"] = {"Value": 300, "Bounds": (200, 1000), "Status": "free"}
 
 # Tie the parameters to spectrum 2
 spec_joint.params["T1_spectrum2"] = spec_joint.params["T1_spectrum1"]
 spec_joint.params["EM1_spectrum2"] = spec_joint.params["EM1_spectrum1"]
 
 # The higher-T model dominates in the imaging detectors spectrum so define them for spectrum 2
-spec_joint.params["T2_spectrum2"] = {"Value":32, "Bounds":(30, 80), "Status":"free"}
-spec_joint.params["EM2_spectrum2"] = {"Value":500, "Bounds":(9, 800), "Status":"free"}
+spec_joint.params["T2_spectrum2"] = {"Value": 32, "Bounds": (30, 80), "Status": "free"}
+spec_joint.params["EM2_spectrum2"] = {"Value": 500, "Bounds": (9, 800), "Status": "free"}
 
 # Tie the parameters to spectrum 1
 spec_joint.params["T2_spectrum1"] = spec_joint.params["T2_spectrum2"]
@@ -317,11 +319,11 @@ spec_joint.params["EM2_spectrum1"] = spec_joint.params["EM2_spectrum2"]
 
 # Fit the non-thermal model to imaging detectors
 # electron flux param from thick_fn
-spec_joint.params["total_eflux1_spectrum2"] = {"Value":6, "Bounds":(0.9,100), "Status":"free"} # units 1e35 e^-/s
+spec_joint.params["total_eflux1_spectrum2"] = {"Value": 6, "Bounds": (0.9, 100), "Status": "free"}  # units 1e35 e^-/s
 # electron index param from thick_fn
-spec_joint.params["index1_spectrum2"] = {"Value":5, "Bounds":(2, 10), "Status":"free"}
+spec_joint.params["index1_spectrum2"] = {"Value": 5, "Bounds": (2, 10), "Status": "free"}
 # electron low energy cut-off param from thick_fn
-spec_joint.params["e_c1_spectrum2"] = {"Value":20, "Bounds":(10, 30), "Status":"free"} # units keV
+spec_joint.params["e_c1_spectrum2"] = {"Value": 20, "Bounds": (10, 30), "Status": "free"}  # units keV
 
 # Tie non-thermal models fitted to spectrum 2 to spectrum 1
 spec_joint.params["total_eflux1_spectrum1"] = spec_joint.params["total_eflux1_spectrum2"]
@@ -336,7 +338,6 @@ spec_joint.params["e_c1_spectrum1"] = spec_joint.params["e_c1_spectrum2"]
 
 spec_joint.albedo_corr = True
 spec_joint.albedo_angle = 76 * u.deg
-
 
 
 #####################################################
