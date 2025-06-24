@@ -1,0 +1,1 @@
+Adds an example notebook for fitting a single STIX spectrum and a joint fit with STIX imaging and background detectors when an attenuator is used.
