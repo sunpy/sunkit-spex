@@ -9,7 +9,32 @@ Example of Fitting STIX Spectra
 
 This notebook provides a quick examples of STIX spectral fitting with sunkit-spex.
 
-**For a more explained demonstration of the general fitting process and sunit-spex capabilities see the NuSTAR and RHESSI fitting examples.**
+**For a more explained demonstration of the general fitting process and other sunkit-spex capabilities see the NuSTAR and RHESSI fitting examples.**
+
+This is an example of how to perform a single STIX fit and a joint fit with STIX imaging and background detector spectra for when an attenuator is inserted. Therefore, in this example we use two spectral files from the same observation; one file contains spectrum from the imaging dectectors and the other file only uses the background detectors. You can obtain the files in a following way:
+
+STIX science file (ID): 2410011252
+
+STIX background file (ID): 2409216629
+
+Preparation STIX spectrum (background subtracted) and SRM:
+
+- Routine stx_convert_pixel_data in the STIX GSW in IDL
+    - Input: science file and background file
+    - Output default: background subtracted spectrum of the 24 coarsest imaging detectors with all 8 big pixels (for each time step in the science file)
+- Imaging Detector spectrum for the 01.10.2024 flare: only top pixels should be used, additional keyword: pix_ind=[0,1,2,3]
+- BKG Detector spectrum for the 01.10.2024 flare: specific detector and pixel should be used, additional keywords: det_ind=[9], pix_ind=[2], /no_attenuation
+Basic code example:
+    stx_convert_pixel_data, $
+    fits_path_data = path_sci_file,$
+    fits_path_bk = path_bkg_file, $
+    distance = distance, $
+    time_shift = time_shift, $
+    flare_location_stx = flare_location, $
+    specfile = 'stx_spectrum_241001', srmfile = 'stx_srm_241001', plot=0 , $
+    background_data = background_data, $
+    ospex_obj = ospex_obj
+
 """
 
 import warnings
@@ -223,23 +248,23 @@ plt.rcParams["font.size"] = default_text
 # Comparisons
 # -----------
 #
-# +------------------------------------------+------------------------------------+--------------------------------------------------+---------------------------------------+
-# | Model Parameter                          |Recent OSPEX Fit (from Muriel Stiefel) | This Work (MCMC, not shown here)              | This Work (normal fit)                |
-# +==========================================+====================================+==================================================+=======================================+
-# | Temperature [MK]                         | 19.61 |pm|\ 1.29                   | 19.07\ |pm|\ (-0.35, +0.26)                      | 18.64\ |pm|\ 0.22                     |
-# +------------------------------------------+------------------------------------+--------------------------------------------------+---------------------------------------+
-# | Emission Measure [cm\ :sup:`-3`]         | 471.90 |pm| 91.64\ x10\ :sup:`46`  | 484.15\ |pm|\ (-17.55, +23.02)\ |x|\ 10 :sup:`46`| 554.37\ |pm|\ 20.40\ |x|\ 10 :sup:`46`|
-# +------------------------------------------+------------------------------------+--------------------------------------------------+---------------------------------------+
-# | Superhot Temperature [MK]                | 42.36 |pm|\ 8.16                   | 37.57\ |pm|\ (-2.12, +1.61)                      | 39.58\ |pm|\ 0.96                     |
-# +------------------------------------------+------------------------------------+--------------------------------------------------+---------------------------------------+
-# | Supehot Emission Measure [cm\ :sup:`-3`] | 7.70 |pm| 6.61\ x10\ :sup:`46`     | 13.70 |pm| (-2.46, +4.59)\ |x|\ 10 :sup:`46`     | 13.55\ |pm| 1.46\ |x|\ 10 :sup:`46`   |
-# +------------------------------------------+------------------------------------+--------------------------------------------------+---------------------------------------+
-# | Electron Flux [e\ :sup:`-` s\ :sup:`-1`] | 4.41 |pm| 11.03\ x10\ :sup:`35`    | 5.35\ |pm|\ (-0.76, +0.50)\ |x|\ 10\ :sup:`35`   | 9.99\ |pm|\ 1.46\ |x|\ 10\ :sup:`35`  |
-# +------------------------------------------+------------------------------------+--------------------------------------------------+---------------------------------------+
-# | Index                                    | 4.61 |pm| 0.17                     | 4.71\ |pm|\ (-0.05, +0.05)                       | 4.74\ |pm|\ 0.05                      |
-# +------------------------------------------+------------------------------------+--------------------------------------------------+---------------------------------------+
-# | Low Energy Cut-off [keV]                 | 17.96 |pm| 12.74                   | 17.88\ |pm|\ (-0.57, +0.68)                      | 16.09\ |pm|\ 0.54                     |
-# +------------------------------------------+------------------------------------+--------------------------------------------------+---------------------------------------+
+# +------------------------------------------+------------------------------------+--------------------------------------------+------------------------------------------+
+# | Model Parameter                          |Recent OSPEX Fit (from M.Stiefel)   | This Work (MCMC, not shown here)           | This Work (normal fit)                   |
+# +==========================================+====================================+============================================+==========================================+
+# | Temperature [MK]                         | 19.61 |pm|\ 1.29                   | 19.07 (-0.35, +0.26)                       | 18.64\ |pm|\ 0.22                        |
+# +------------------------------------------+------------------------------------+--------------------------------------------+------------------------------------------+
+# | Emission Measure [cm\ :sup:`-3`]         | 471.90 |pm| 91.64\ x10\ :sup:`46`  | 484.15 (-17.55, +23.02)\ |x|\ 10 :sup:`46` | 554.37\ |pm|\ 20.40\ |x|\ 10 :sup:`46`   |
+# +------------------------------------------+------------------------------------+--------------------------------------------+------------------------------------------+
+# | Superhot Temperature [MK]                | 42.36 |pm|\ 8.16                   | 37.57 (-2.12, +1.61)                       | 39.58\ |pm|\ 0.96                        |
+# +------------------------------------------+------------------------------------+--------------------------------------------+------------------------------------------+
+# | Supehot Emission Measure [cm\ :sup:`-3`] | 7.70 |pm| 6.61\ x10\ :sup:`46`     | 13.70 (-2.46, +4.59)\ |x|\ 10 :sup:`46`    | 13.55\ |pm| 1.46\ |x|\ 10 :sup:`46`      |
+# +------------------------------------------+------------------------------------+--------------------------------------------+------------------------------------------+
+# | Electron Flux [e\ :sup:`-` s\ :sup:`-1`] | 4.41 |pm| 11.03\ x10\ :sup:`35`    | 5.35 (-0.76, +0.50)\ |x|\ 10\ :sup:`35`    | 9.99\ |pm|\ 1.46\ |x|\ 10\ :sup:`35`     |
+# +------------------------------------------+------------------------------------+--------------------------------------------+------------------------------------------+
+# | Index                                    | 4.61 |pm| 0.17                     | 4.71 (-0.05, +0.05)                        | 4.74\ |pm|\ 0.05                         |
+# +------------------------------------------+------------------------------------+--------------------------------------------+------------------------------------------+
+# | Low Energy Cut-off [keV]                 | 17.96 |pm| 12.74                   | 17.88 (-0.57, +0.68)                       | 16.09\ |pm|\ 0.54                        |
+# +------------------------------------------+------------------------------------+--------------------------------------------+------------------------------------------+
 #
 # .. |pm| replace:: :math:`\pm`
 # .. |x| replace:: :math:`\times`
@@ -299,7 +324,7 @@ spec_joint.params["C_spectrum2"] = {"Value": 1, "Status": "free"}
 
 # Define the starting parameter values and boundaries
 # The lower-T model mainly dominates in the background detectors spectrum so define them for spectrum 1
-spec_joint.params["T1_spectrum1"] = {"Value": 20, "Bounds": (16, 30), "Status": "free"}
+spec_joint.params["T1_spectrum1"] = {"Value": 20, "Bounds": (10, 30), "Status": "free"}
 spec_joint.params["EM1_spectrum1"] = {"Value": 300, "Bounds": (200, 1000), "Status": "free"}
 
 # Tie the parameters to spectrum 2
