@@ -24,6 +24,7 @@ Preparation STIX spectrum (background subtracted) and SRM:
     - Output default: background subtracted spectrum of the 24 coarsest imaging detectors with all 8 big pixels (for each time step in the science file)
 - Imaging Detector spectrum for the 01.10.2024 flare: only top pixels should be used, additional keyword: pix_ind=[0,1,2,3]
 - BKG Detector spectrum for the 01.10.2024 flare: specific detector and pixel should be used, additional keywords: det_ind=[9], pix_ind=[2], /no_attenuation
+
 Basic code example:
     stx_convert_pixel_data, $
     fits_path_data = path_sci_file,$
