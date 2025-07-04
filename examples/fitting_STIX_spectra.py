@@ -42,6 +42,7 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.exceptions import VisibleDeprecationWarning
+from parfive import Downloader
 
 import astropy.units as u
 from astropy.time import Time
@@ -60,18 +61,18 @@ except AttributeError:
 #
 # Download the example data
 
-# dl = Downloader()
-# base_url = "........"
-# file_names = [
-#     "stx_spectrum_2410019944_IM.fits",
-#     "stx_srm_2410019944_IM.fits",
-#     "stx_spectrum_2410019944_BKG.fits",
-#     "stx_srm_2410019944_BKG.fits",
-# ]
-#
-# for fname in file_names:
-#     dl.enqueue_file(base_url + fname, path="./stix/")
-# files = dl.download()
+dl = Downloader()
+base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/stix/"
+file_names = [
+    "stx_spectrum_2410019944_IM.fits",
+    "stx_srm_2410019944_IM.fits",
+    "stx_spectrum_2410019944_BKG.fits",
+    "stx_srm_2410019944_BKG.fits",
+]
+
+for fname in file_names:
+    dl.enqueue_file(base_url + fname, path="./stix/")
+files = dl.download()
 
 #####################################################
 #
