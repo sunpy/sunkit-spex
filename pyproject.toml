@@ -48,6 +48,10 @@ docs = [
   "sphinx-changelog",
   "sphinx-gallery",
 ]
+dev = [
+    "sunkit-spex[docs,tests]",
+    "tox"
+]
 
 [project.urls]
 Homepage = "https://sunkit-spex.readthedocs.io"
