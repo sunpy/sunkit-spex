@@ -15,6 +15,8 @@ from sunkit_spex.models.physical.io import (
     load_xray_abundances,
 )
 
+from sunkit_spex.spectrum.spectrum import SpectralAxis
+
 __all__ = ["ContinuumEmission", "LineEmission", "ThermalEmission"]
 
 doc_string_params = """
@@ -177,6 +179,7 @@ class ThermalEmission(FittableModel):
         **kwargs,
     ):
         self.abundance_type = abundance_type
+        
 
         if abundance_type != "sun_coronal_ext":
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
@@ -230,7 +233,7 @@ class ThermalEmission(FittableModel):
 
     def evaluate(
         self,
-        energy_edges,
+        spectral_axis,
         temperature,
         emission_measure,
         mg,
@@ -241,8 +244,10 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
+
+
         line_flux = self.line.evaluate(
-            energy_edges,
+            spectral_axis,
             temperature,
             emission_measure,
             mg,
@@ -255,7 +260,7 @@ class ThermalEmission(FittableModel):
         )
 
         cont_flux = self.cont.evaluate(
-            energy_edges,
+            spectral_axis,
             temperature,
             emission_measure,
             mg,
@@ -397,7 +402,7 @@ class ContinuumEmission(FittableModel):
 
     def evaluate(
         self,
-        energy_edges,
+        spectral_axis,
         temperature,
         emission_measure,
         mg,
@@ -408,6 +413,9 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
+        
+        energy_edges = spectral_axis.bin_edges
+
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
         else:
@@ -555,7 +563,7 @@ class LineEmission(FittableModel):
 
     def evaluate(
         self,
-        energy_edges,
+        spectral_axis,
         temperature,
         emission_measure,
         mg,
@@ -566,6 +574,9 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
+        
+        energy_edges = spectral_axis.bin_edges
+
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
         else:
