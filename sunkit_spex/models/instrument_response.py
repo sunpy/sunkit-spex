@@ -28,7 +28,6 @@ class MatrixModel(Fittable1DModel):
         input_widths = np.diff(self.input_axis)
         output_widths = np.diff(self.output_axis)
 
-
         flux = ((x * input_widths) @ self.matrix * c) / output_widths
 
         if hasattr(c, "unit"):

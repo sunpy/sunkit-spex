@@ -14,7 +14,6 @@ from sunkit_spex.models.physical.io import (
     load_chianti_lines_lite,
     load_xray_abundances,
 )
-
 from sunkit_spex.spectrum.spectrum import SpectralAxis
 
 __all__ = ["ContinuumEmission", "LineEmission", "ThermalEmission"]
@@ -179,7 +178,6 @@ class ThermalEmission(FittableModel):
         **kwargs,
     ):
         self.abundance_type = abundance_type
-        
 
         if abundance_type != "sun_coronal_ext":
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
@@ -244,8 +242,6 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
-
-
         line_flux = self.line.evaluate(
             spectral_axis,
             temperature,
@@ -413,8 +409,15 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
-        
-        energy_edges = spectral_axis.bin_edges
+        if isinstance(spectral_axis, SpectralAxis):
+            energy_edges = spectral_axis.bin_edges
+        else:
+            warnings.warn(
+                "As a SpectralAxis object was not passed, bin edges will be calculated as averages from the centers given.",
+                UserWarning,
+            )
+            spectral_axis = SpectralAxis(spectral_axis, bin_specification="centers")
+            energy_edges = spectral_axis.bin_edges
 
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
@@ -574,8 +577,15 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
-        
-        energy_edges = spectral_axis.bin_edges
+        if isinstance(spectral_axis, SpectralAxis):
+            energy_edges = spectral_axis.bin_edges
+        else:
+            warnings.warn(
+                "As a SpectralAxis object was not passed, bin edges will be calculated as averages from the centers given.",
+                UserWarning,
+            )
+            spectral_axis = SpectralAxis(spectral_axis, bin_specification="centers")
+            energy_edges = spectral_axis.bin_edges
 
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
