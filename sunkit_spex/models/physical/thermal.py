@@ -141,6 +141,7 @@ class ThermalEmission(FittableModel):
         name="emission_measure",
         default=1,
         unit=(u.cm ** (-3)),
+        min=1e-9,
         description="Emission measure of the observer",
         fixed=False,
     )

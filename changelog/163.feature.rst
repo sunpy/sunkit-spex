@@ -1,0 +1,1 @@
+Adds unit handling capability to class::MatrixModel to support Astropy fitting.
