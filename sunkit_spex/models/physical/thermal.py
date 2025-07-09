@@ -409,15 +409,7 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
-        if isinstance(spectral_axis, SpectralAxis):
-            energy_edges = spectral_axis.bin_edges
-        else:
-            warnings.warn(
-                "As a SpectralAxis object was not passed, bin edges will be calculated as averages from the centers given.",
-                UserWarning,
-            )
-            spectral_axis = SpectralAxis(spectral_axis, bin_specification="centers")
-            energy_edges = spectral_axis.bin_edges
+        energy_edges = _check_input_type(spectral_axis)
 
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
@@ -577,15 +569,7 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
-        if isinstance(spectral_axis, SpectralAxis):
-            energy_edges = spectral_axis.bin_edges
-        else:
-            warnings.warn(
-                "As a SpectralAxis object was not passed, bin edges will be calculated as averages from the centers given.",
-                UserWarning,
-            )
-            spectral_axis = SpectralAxis(spectral_axis, bin_specification="centers")
-            energy_edges = spectral_axis.bin_edges
+        energy_edges = _check_input_type(spectral_axis)
 
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
@@ -1274,6 +1258,20 @@ def _weight_emission_bins(
     neighbor_iline = iline[deviation_indices] + b
 
     return new_line_intensities, neighbor_intensities, neighbor_iline
+
+
+def _check_input_type(spectral_axis):
+    if isinstance(spectral_axis, SpectralAxis):
+        energy_edges = spectral_axis.bin_edges
+    else:
+        warnings.warn(
+            "As a SpectralAxis object was not passed, bin edges will be calculated as averages from the centers given.",
+            UserWarning,
+        )
+        spectral_axis = SpectralAxis(spectral_axis, bin_specification="centers")
+        energy_edges = spectral_axis.bin_edges
+
+    return energy_edges
 
 
 def _sanitize_inputs(energy_edges, temperature, emission_measure):
