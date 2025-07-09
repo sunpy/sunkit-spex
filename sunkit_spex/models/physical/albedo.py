@@ -1,5 +1,6 @@
-from functools import lru_cache
 import warnings
+from functools import lru_cache
+
 import numpy as np
 from numpy.typing import NDArray
 from scipy.interpolate import RegularGridInterpolator
