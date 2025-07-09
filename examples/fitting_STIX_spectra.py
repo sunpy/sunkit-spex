@@ -38,11 +38,7 @@ Basic code example:
 
 """
 
-import warnings
-
 import matplotlib.pyplot as plt
-import numpy as np
-from numpy.exceptions import VisibleDeprecationWarning
 from parfive import Downloader
 
 import astropy.units as u
@@ -50,13 +46,6 @@ from astropy.time import Time
 
 from sunkit_spex.extern.stix import STIXLoader
 from sunkit_spex.legacy.fitting.fitter import Fitter, load
-
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-try:
-    warnings.filterwarnings("ignore", category=VisibleDeprecationWarning)
-except AttributeError:
-    warnings.filterwarnings("ignore", category=np.exceptions.VisibleDeprecationWarning)
-
 
 #####################################################
 #
@@ -84,8 +73,9 @@ spec_plot_size = (10, 10)
 joint_spec_plot_size = (25, 10)
 tol = 1e-20
 spec_font_size = 18
-default_text = 10
 xlims, ylims = [3, 100], [1e-1, 1e6]
+
+plt.rcParams["font.size"] = spec_font_size
 
 #####################################################
 # The STIX loader is also able to automatically select an SRM based on the attenuator state during the time selected for sepctroscopy. In this example we select a time right before the attenuator is inserted.
@@ -106,14 +96,12 @@ stix_spec = STIXLoader(
 # Default energy range plotted is all energies but the user can define an energy rangem or ranges.
 # Ranges are inclusive at the bounds and here we see the 4$-$15 keV, 15$-$30 keV, and 30$-$60 keV ranges.
 
-plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=time_profile_size)
 
 # the line that actually plots
 stix_spec.lightcurve(energy_ranges=[[4, 15], [15, 30], [30, 60]])
 
 plt.show()
-plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
@@ -129,22 +117,18 @@ stix_spec.select_time(start=Time("2024-10-01T22:10:10"), end=Time("2024-10-01T22
 #
 # Plot again
 
-plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=time_profile_size)
 stix_spec.lightcurve(energy_ranges=[[4, 15], [15, 30], [30, 60]])
 plt.show()
-plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
 # We can also see the X-ray evolution via a spectrogram.
 
 # plot spectrogram
-plt.rcParams["font.size"] = spec_font_size
-plt.figure(figsize=(15, 10))
+plt.figure(figsize=time_profile_size)
 stix_spec.spectrogram()
 plt.show()
-plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
@@ -196,7 +180,6 @@ print(fitter.params)
 #
 # Let's plot the result.
 
-plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 
 # the line that actually plots
@@ -208,7 +191,6 @@ for a in axes:
     a.set_ylim(ylims)
     a.set_xscale("log")
 plt.show()
-plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
@@ -231,7 +213,6 @@ fitter_loaded = load(save_filename)
 #
 # Let's plot the result again
 
-plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=spec_plot_size)
 
 # the line that actually plots
@@ -243,7 +224,6 @@ for a in axes:
     a.set_ylim(ylims)
     a.set_xscale("log")
 plt.show()
-plt.rcParams["font.size"] = default_text
 
 #####################################################
 #
@@ -384,7 +364,6 @@ print(spec_joint.params)
 #
 # Let's plot the result (the albedo is shown in grey)
 
-plt.rcParams["font.size"] = spec_font_size
 plt.figure(figsize=joint_spec_plot_size)
 
 # the line that actually plots
@@ -399,4 +378,3 @@ for a in axes:
     a.set_ylim(ylims)
     a.set_xscale("log")
 plt.show()
-plt.rcParams["font.size"] = default_text
