@@ -7,7 +7,7 @@ from astropy.modeling.powerlaws import PowerLaw1D
 from astropy.units import UnitsError
 
 from sunkit_spex.models.physical.albedo import Albedo, get_albedo_matrix
-
+from sunkit_spex.spectrum.spectrum import SpectralAxis
 
 def test_get_albedo_matrix():
     e = (np.arange(597) + 4) * u.keV
@@ -34,9 +34,9 @@ def test_get_albedo_matrix_bad_angle():
 
 def test_albedo_model():
     e_edges = np.linspace(10, 300, 10) * u.keV
-    e_centers = e_edges[0:-1] + (0.5 * np.diff(e_edges))
+    e_centers = SpectralAxis(e_edges,bin_specification='edges')
     source = PowerLaw1D(amplitude=100 * u.ph, x_0=10 * u.keV, alpha=4)
-    observed = source | Albedo(energy_edges=e_edges)
+    observed = source | Albedo(spectral_axis=e_centers)
     observed(e_centers)
 
 
@@ -76,10 +76,11 @@ def test_albedo_idl():
         0.0013136881009379996,
     ]
 
-    e_ph = np.arange(11) * 2 + 10
-    albedo = Albedo(energy_edges=e_ph * u.keV, theta=45 * u.deg)
-    e_c = e_ph[:-1] + 0.5 * np.diff(e_ph)
-    spec_in = e_c**-2
+    e_ph = (np.arange(11) * 2 + 10) *u.keV
+    e_c = SpectralAxis(e_ph,bin_specification='edges')
+    albedo = Albedo(spectral_axis=e_c, theta=45 * u.deg)
+
+    spec_in = e_c.value**-2
     spec_out = albedo(spec_in[:])
     assert_allclose(idl_spec_in, spec_in)
     assert_allclose(idl_spec_out, spec_out)
