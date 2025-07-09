@@ -1,5 +1,5 @@
 from functools import lru_cache
-
+import warnings
 import numpy as np
 from numpy.typing import NDArray
 from scipy.interpolate import RegularGridInterpolator
@@ -10,6 +10,8 @@ from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
 from sunpy.data import cache
+
+from sunkit_spex.spectrum.spectrum import SpectralAxis
 
 __all__ = ["Albedo", "get_albedo_matrix"]
 
@@ -89,7 +91,7 @@ class Albedo(FittableModel):
     _input_units_allow_dimensionless = True
 
     def __init__(self, *args, **kwargs):
-        self.energy_edges = kwargs.pop("energy_edges")
+        self.spectral_axis = kwargs.pop("spectral_axis")
 
         super().__init__(*args, **kwargs)
 
@@ -97,7 +99,9 @@ class Albedo(FittableModel):
         if not isinstance(theta, Quantity):
             theta = theta * u.deg
 
-        albedo_matrix = get_albedo_matrix(self.energy_edges, theta, anisotropy)
+        energy_edges = _check_input_type(self.spectral_axis)
+
+        albedo_matrix = get_albedo_matrix(energy_edges, theta, anisotropy)
 
         return spectrum + spectrum @ albedo_matrix
 
@@ -230,3 +234,17 @@ def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], ani
     anisotropy = np.array(anisotropy).squeeze()
 
     return _calculate_albedo_matrix(tuple(energy_edges.to_value(u.keV)), theta.to_value(u.deg), anisotropy.item())
+
+
+def _check_input_type(spectral_axis):
+    if isinstance(spectral_axis, SpectralAxis):
+        energy_edges = spectral_axis.bin_edges
+    else:
+        warnings.warn(
+            "As a SpectralAxis object was not passed, bin edges will be calculated as averages from the centers given.",
+            UserWarning,
+        )
+        spectral_axis = SpectralAxis(spectral_axis, bin_specification="centers")
+        energy_edges = spectral_axis.bin_edges
+
+    return energy_edges
