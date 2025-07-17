@@ -19,6 +19,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm
 
+import astropy.units as u
 from astropy.modeling import fitting
 
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
@@ -27,6 +28,7 @@ from sunkit_spex.fitting.optimizer_tools.minimizer_tools import scipy_minimize
 from sunkit_spex.fitting.statistics.gaussian import chi_squared
 from sunkit_spex.models.instrument_response import MatrixModel
 from sunkit_spex.models.models import GaussianModel, StraightLineModel
+from sunkit_spex.spectrum.spectrum import SpectralAxis
 
 #####################################################
 #
@@ -39,12 +41,13 @@ start, inc = 1.6, 0.04
 stop = 80 + inc / 2
 ph_energies = np.arange(start, stop, inc)
 
+
 #####################################################
 #
 # Let's start making a simulated photon spectrum
 
-sim_cont = {"edges": False, "slope": -1, "intercept": 100}
-sim_line = {"edges": False, "amplitude": 100, "mean": 30, "stddev": 2}
+sim_cont = {"slope": -1, "intercept": 100}
+sim_line = {"amplitude": 100, "mean": 30, "stddev": 2}
 # use a straight line model for a continuum, Gaussian for a line
 ph_model = StraightLineModel(**sim_cont) + GaussianModel(**sim_line)
 
@@ -75,7 +78,7 @@ plt.show()
 #
 # Start work on a count model
 
-sim_gauss = {"edges": False, "amplitude": 70, "mean": 40, "stddev": 2}
+sim_gauss = {"amplitude": 70, "mean": 40, "stddev": 2}
 # the brackets are very necessary
 ct_model = (ph_model | srm_model) + GaussianModel(**sim_gauss)
 
@@ -115,9 +118,9 @@ plt.show()
 #
 # Get some initial guesses that are off from the simulated data above
 
-guess_cont = {"edges": False, "slope": -0.5, "intercept": 80}
-guess_line = {"edges": False, "amplitude": 150, "mean": 32, "stddev": 5}
-guess_gauss = {"edges": False, "amplitude": 350, "mean": 39, "stddev": 0.5}
+guess_cont = {"slope": -0.5, "intercept": 80}
+guess_line = {"amplitude": 150, "mean": 32, "stddev": 5}
+guess_gauss = {"amplitude": 350, "mean": 39, "stddev": 0.5}
 
 #####################################################
 #
