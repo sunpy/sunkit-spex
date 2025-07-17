@@ -229,9 +229,10 @@ class ThermalEmission(FittableModel):
             **kwargs,
         )
 
+
     def evaluate(
         self,
-        spectral_axis,
+        spectral_axis:SpectralAxis,
         temperature,
         emission_measure,
         mg,
@@ -242,6 +243,7 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
+        print(spectral_axis.__dict__)
         line_flux = self.line.evaluate(
             spectral_axis,
             temperature,
@@ -395,10 +397,11 @@ class ContinuumEmission(FittableModel):
             fe=fe,
             **kwargs,
         )
+    
 
     def evaluate(
         self,
-        spectral_axis,
+        spectral_axis:SpectralAxis,
         temperature,
         emission_measure,
         mg,
@@ -556,9 +559,10 @@ class LineEmission(FittableModel):
             **kwargs,
         )
 
+
     def evaluate(
         self,
-        spectral_axis,
+        spectral_axis:SpectralAxis,
         temperature,
         emission_measure,
         mg,
@@ -569,6 +573,7 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
+        print(spectral_axis.__dict__)
         energy_edges = _check_input_type(spectral_axis)
 
         if hasattr(temperature, "unit"):

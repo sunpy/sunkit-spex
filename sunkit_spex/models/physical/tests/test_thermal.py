@@ -6,6 +6,7 @@ import pytest
 import astropy.units as u
 
 from sunkit_spex.models.physical import thermal
+from sunkit_spex.spectrum.spectrum import SpectralAxis
 
 # Manually load file that was used to compile expected flux values.
 thermal.setup_continuum_parameters(
@@ -49,6 +50,7 @@ def fvth_simple():
     flux = f_vth(energy_in, [em,temp], rel_abun=rel_abun, /kev, /earth)
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
+    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -56,7 +58,7 @@ def fvth_simple():
     # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
     inputs = (
-        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+        spectral_axis, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
     )
     inputs_class = (
         temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
@@ -76,7 +78,7 @@ def fvth_simple():
         * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
     # fmt: on
-    return inputs, inputs_class, energy_edges, ssw_output
+    return inputs, inputs_class, spectral_axis, ssw_output
 
 
 def chianti_kev_cont_simple():
@@ -110,6 +112,7 @@ def chianti_kev_cont_simple():
     flux = chianti_kev_cont(temp, energy_in, /kev, /earth)
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
+    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -117,7 +120,7 @@ def chianti_kev_cont_simple():
     # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
     inputs = (
-        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+        spectral_axis, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
     )
     inputs_class = (
         temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
@@ -137,7 +140,7 @@ def chianti_kev_cont_simple():
         * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
     # fmt: on
-    return inputs, inputs_class, energy_edges, ssw_output
+    return inputs, inputs_class, spectral_axis, ssw_output
 
 
 def chianti_kev_lines_simple():
@@ -171,6 +174,7 @@ def chianti_kev_lines_simple():
     flux = chianti_kev_lines(temp, energy_in, /kev, /earth)
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
+    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -178,7 +182,7 @@ def chianti_kev_lines_simple():
     # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1
     inputs = (
-        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+        spectral_axis, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
     )
     inputs_class = (
         temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
@@ -195,7 +199,7 @@ def chianti_kev_lines_simple():
         * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
     # fmt: on
-    return inputs, inputs_class, energy_edges, ssw_output
+    return inputs, inputs_class, spectral_axis, ssw_output
 
 
 def fvth_Fe2():
@@ -233,6 +237,7 @@ def fvth_Fe2():
     Ensure you are using the same .sav file as used here.
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
+    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -240,7 +245,7 @@ def fvth_Fe2():
     # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
     inputs = (
-        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+        spectral_axis, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
     )
     inputs_class = (
         temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
@@ -259,7 +264,7 @@ def fvth_Fe2():
         * (4 * np.pi * observer_distance**2)
     )
     # fmt: on
-    return inputs, inputs_class, energy_edges, ssw_output
+    return inputs, inputs_class, spectral_axis, ssw_output
 
 
 def chianti_kev_cont_Fe2():
@@ -296,6 +301,7 @@ def chianti_kev_cont_Fe2():
     Ensure you are using the same .sav file as used here.
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
+    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -303,7 +309,7 @@ def chianti_kev_cont_Fe2():
     # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
     inputs = (
-        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+        spectral_axis, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
     )
     inputs_class = (
         temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
@@ -322,7 +328,7 @@ def chianti_kev_cont_Fe2():
         * (4 * np.pi * observer_distance**2)
     )
     # fmt: on
-    return inputs, inputs_class, energy_edges, ssw_output
+    return inputs, inputs_class, spectral_axis, ssw_output
 
 
 def chianti_kev_lines_Fe2():
@@ -359,6 +365,7 @@ def chianti_kev_lines_Fe2():
     Ensure you are using the same .sav file as used here.
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
+    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -366,7 +373,7 @@ def chianti_kev_lines_Fe2():
     # fmt: off
     mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
     inputs = (
-        energy_edges, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
+        spectral_axis, temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
     )
     inputs_class = (
         temperature, emission_measure, mg, al, si, s, ar, ca, fe, abundance_type
@@ -383,44 +390,34 @@ def chianti_kev_lines_Fe2():
         * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
     # fmt: on
-    return inputs, inputs_class, energy_edges, ssw_output
+    return inputs, inputs_class, spectral_axis, ssw_output
 
 
 @pytest.mark.parametrize("ssw", [fvth_simple, fvth_Fe2])
 def test_thermal_emission_against_ssw(ssw):
-    input_args, input_args_class, energy_edges, expected = ssw()
+    input_args, input_args_class, spectral_axis, expected = ssw()
     model_class = thermal.ThermalEmission(*input_args_class)
-    output_class = model_class(energy_edges)
+    output_class = model_class(spectral_axis)
     expected_value = expected.to_value(output_class.unit)
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.03)
 
 
 @pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, chianti_kev_cont_Fe2])
 def test_continuum_emission_against_ssw(ssw):
-    input_args, input_args_class, energy_edges, expected = ssw()
+    input_args, input_args_class, spectral_axis, expected = ssw()
     model_class = thermal.ContinuumEmission(*input_args_class)
-    output_class = model_class(energy_edges)
+    output_class = model_class(spectral_axis)
     expected_value = expected.to_value(output_class.unit)
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.03)
 
 
 @pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
 def test_line_emission_against_ssw(ssw):
-    input_args, input_args_class, energy_edges, expected = ssw()
+    input_args, input_args_class, spectral_axis, expected = ssw()
     model_class = thermal.LineEmission(*input_args_class)
-    output_class = model_class(energy_edges)
+    output_class = model_class(spectral_axis)
     expected_value = expected.to_value(output_class.unit)
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.05, atol=1e-30)
-
-
-def test_scalar_energy_input():
-    with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(10 * u.keV)
-
-
-def test_len1_energy_input():
-    with pytest.raises(ValueError, match="energy_edges must be a 1-D astropy Quantity with length greater than 1"):
-        thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([10] * u.keV)
 
 
 def test_energy_out_of_range_error():
@@ -428,7 +425,9 @@ def test_energy_out_of_range_error():
         ValueError,
         match="Lower bound of the input energy must be within the range 1.0002920302956426--10.34753795157738 keV. ",
     ):
-        thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([0.01, 10] * u.keV)
+        energy_edges = np.array([0.01, 10]) * u.keV
+        spectral_axis = SpectralAxis(energy_edges, bin_specification='edges')
+        thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(spectral_axis)
 
 
 def test_temperature_out_of_range_error():
