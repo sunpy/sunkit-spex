@@ -50,7 +50,7 @@ def fvth_simple():
     flux = f_vth(energy_in, [em,temp], rel_abun=rel_abun, /kev, /earth)
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
-    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
+    spectral_axis = SpectralAxis(energy_edges, bin_specification="edges")
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -112,7 +112,7 @@ def chianti_kev_cont_simple():
     flux = chianti_kev_cont(temp, energy_in, /kev, /earth)
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
-    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
+    spectral_axis = SpectralAxis(energy_edges, bin_specification="edges")
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -174,7 +174,7 @@ def chianti_kev_lines_simple():
     flux = chianti_kev_lines(temp, energy_in, /kev, /earth)
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
-    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
+    spectral_axis = SpectralAxis(energy_edges, bin_specification="edges")
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -237,7 +237,7 @@ def fvth_Fe2():
     Ensure you are using the same .sav file as used here.
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
-    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
+    spectral_axis = SpectralAxis(energy_edges, bin_specification="edges")
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -301,7 +301,7 @@ def chianti_kev_cont_Fe2():
     Ensure you are using the same .sav file as used here.
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
-    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
+    spectral_axis = SpectralAxis(energy_edges, bin_specification="edges")
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -365,7 +365,7 @@ def chianti_kev_lines_Fe2():
     Ensure you are using the same .sav file as used here.
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
-    spectral_axis = SpectralAxis(energy_edges,bin_specification='edges')
+    spectral_axis = SpectralAxis(energy_edges, bin_specification="edges")
     temperature = 6 * u.MK
     emission_measure = 1e-5 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
@@ -425,14 +425,16 @@ def test_energy_out_of_range_error():
         ValueError,
         match="Lower bound of the input energy must be within the range 1.0002920302956426--10.34753795157738 keV. ",
     ):
-        energy_edges = np.array([0.01, 10]) * u.keV
-        spectral_axis = SpectralAxis(energy_edges, bin_specification='edges')
-        thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(spectral_axis)
+        thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
+            SpectralAxis(np.array([0.01, 10]) * u.keV, bin_specification="edges")
+        )
 
 
 def test_temperature_out_of_range_error():
     with pytest.raises(ValueError, match="All input temperature values must be within the range"):
-        thermal.ThermalEmission(0.1 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)([5, 10] * u.keV)
+        thermal.ThermalEmission(0.1 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
+            SpectralAxis(np.array([5, 10]) * u.keV, bin_specification="edges")
+        )
 
 
 def test_line_energy_out_of_range_warning():
@@ -441,7 +443,7 @@ def test_line_energy_out_of_range_warning():
         warnings.simplefilter("always")
         # Trigger a warning.
         _ = thermal.LineEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
-            np.arange(3, 1000, 0.5) * u.keV
+            SpectralAxis(np.arange(3, 1000, 0.5) * u.keV, bin_specification="edges")
         )
         assert issubclass(w[0].category, (UserWarning, ResourceWarning))
 
@@ -454,14 +456,14 @@ def test_continuum_energy_out_of_range():
         # Use an energy range that goes out of bounds
         # on the lower end--should error
         _ = thermal.ContinuumEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
-            np.arange(0.1, 28, 0.5) * u.keV
+            SpectralAxis(np.arange(0.1, 28, 0.5) * u.keV, bin_specification="edges")
         )
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         # The continuum emission should only warn if we go out of
         # bounds on the upper end.
         _ = thermal.ContinuumEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
-            np.arange(10, 1000, 0.5) * u.keV
+            SpectralAxis(np.arange(10, 1000, 0.5) * u.keV, bin_specification="edges")
         )
         assert issubclass(w[0].category, (UserWarning, ResourceWarning))
 
@@ -475,7 +477,9 @@ def test_empty_flux_out_of_range():
     temperature = 20 << u.MK
     em = 1e-5 << u.cm**-3
 
-    flux = thermal.ThermalEmission(temperature, em, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(energy_edges)
+    flux = thermal.ThermalEmission(temperature, em, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
+        SpectralAxis(energy_edges, bin_specification="edges")
+    )
     # the continuum is the one we need to check
     max_e = thermal.CONTINUUM_GRID["energy range keV"][1] << u.keV
     should_be_zeros = midpoints >= max_e

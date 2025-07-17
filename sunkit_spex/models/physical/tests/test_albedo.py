@@ -9,6 +9,7 @@ from astropy.units import UnitsError
 from sunkit_spex.models.physical.albedo import Albedo, get_albedo_matrix
 from sunkit_spex.spectrum.spectrum import SpectralAxis
 
+
 def test_get_albedo_matrix():
     e = (np.arange(597) + 4) * u.keV
     theta = 0 * u.deg
@@ -34,7 +35,7 @@ def test_get_albedo_matrix_bad_angle():
 
 def test_albedo_model():
     e_edges = np.linspace(10, 300, 10) * u.keV
-    e_centers = SpectralAxis(e_edges,bin_specification='edges')
+    e_centers = SpectralAxis(e_edges, bin_specification="edges")
     source = PowerLaw1D(amplitude=100 * u.ph, x_0=10 * u.keV, alpha=4)
     observed = source | Albedo(spectral_axis=e_centers)
     observed(e_centers)
@@ -76,8 +77,8 @@ def test_albedo_idl():
         0.0013136881009379996,
     ]
 
-    e_ph = (np.arange(11) * 2 + 10) *u.keV
-    e_c = SpectralAxis(e_ph,bin_specification='edges')
+    e_ph = (np.arange(11) * 2 + 10) * u.keV
+    e_c = SpectralAxis(e_ph, bin_specification="edges")
     albedo = Albedo(spectral_axis=e_c, theta=45 * u.deg)
 
     spec_in = e_c.value**-2

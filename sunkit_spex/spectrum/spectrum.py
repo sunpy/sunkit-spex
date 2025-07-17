@@ -3,8 +3,6 @@ from gwcs import WCS as GWCS
 from gwcs import coordinate_frames as cf
 from ndcube import NDCube
 
-from functools import lru_cache
-
 import astropy.units as u
 from astropy.coordinates import SpectralCoord
 from astropy.modeling.tabular import Tabular1D
@@ -82,18 +80,17 @@ class SpectralAxis(SpectralCoord):
         if bin_specification == "edges":
             bin_edges = value
             value = SpectralAxis._centers_from_edges(value)
-        
+
         obj = super().__new__(cls, value, *args, **kwargs)
 
         if bin_specification == "edges":
             obj._bin_edges = bin_edges
 
         return obj
-    
+
     def __array_finalize__(self, obj):
         super().__array_finalize__(obj)
         self._bin_edges = getattr(obj, "_bin_edges", None)
-
 
     @staticmethod
     def _edges_from_centers(centers, unit):
