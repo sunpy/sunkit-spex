@@ -19,7 +19,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.colors import LogNorm
 
-import astropy.units as u
 from astropy.modeling import fitting
 
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
@@ -28,7 +27,6 @@ from sunkit_spex.fitting.optimizer_tools.minimizer_tools import scipy_minimize
 from sunkit_spex.fitting.statistics.gaussian import chi_squared
 from sunkit_spex.models.instrument_response import MatrixModel
 from sunkit_spex.models.models import GaussianModel, StraightLineModel
-from sunkit_spex.spectrum.spectrum import SpectralAxis
 
 #####################################################
 #
