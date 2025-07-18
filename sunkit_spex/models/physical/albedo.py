@@ -52,7 +52,7 @@ class Albedo(FittableModel):
         e_edges = np.linspace(5, 550, 600) * u.keV
         e_centers = e_edges[0:-1] + (0.5 * np.diff(e_edges))
         source = PowerLaw1D(amplitude=1*u.ph/(u.cm*u.s), x_0=5*u.keV, alpha=3)
-        albedo = Albedo(energy_edges=e_edges)
+        albedo = Albedo(spectral_axis=e_edges)
         observed = source | albedo
 
         with quantity_support():

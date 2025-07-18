@@ -47,8 +47,10 @@ def test_StraightLineModel_edges():
     model_params0 = {"slope": 1, "intercept": 0}
     sim_model0 = StraightLineModel(**model_params0)
     exp_res0 = [0.5, 1.5]
-    ans0_0 = sim_model0(SpectralAxis(sim_x0*u.keV,bin_specification='edges')).value
-    ans0_1 = sim_model0.evaluate(SpectralAxis(sim_x0*u.keV,bin_specification='edges'), *tuple(model_params0.values())).value
+    ans0_0 = sim_model0(SpectralAxis(sim_x0 * u.keV, bin_specification="edges")).value
+    ans0_1 = sim_model0.evaluate(
+        SpectralAxis(sim_x0 * u.keV, bin_specification="edges"), *tuple(model_params0.values())
+    ).value
 
     assert_allclose(exp_res0, ans0_0, rtol=1e-3)
     assert_allclose(ans0_0, ans0_1, rtol=1e-3)
@@ -57,11 +59,13 @@ def test_StraightLineModel_edges():
 def test_GaussianModel_edges():
     """Test the Gaussian model evaluation methods to a known output."""
     sim_x0 = np.arange(-1, 2) * np.sqrt(2 * np.log(2))
-    model_params0 = {"amplitude": 10*u.ph*u.s**-1*u.keV**-1, "mean": 0*u.keV, "stddev": 1*u.keV}
+    model_params0 = {"amplitude": 10 * u.ph * u.s**-1 * u.keV**-1, "mean": 0 * u.keV, "stddev": 1 * u.keV}
     sim_model0 = GaussianModel(**model_params0)
     exp_res0 = [8.40896415, 8.40896415]
-    ans0_0 = sim_model0(SpectralAxis(sim_x0*u.keV,bin_specification='edges')).value
-    ans0_1 = sim_model0.evaluate(SpectralAxis(sim_x0*u.keV,bin_specification='edges'), *tuple(model_params0.values())).value
+    ans0_0 = sim_model0(SpectralAxis(sim_x0 * u.keV, bin_specification="edges")).value
+    ans0_1 = sim_model0.evaluate(
+        SpectralAxis(sim_x0 * u.keV, bin_specification="edges"), *tuple(model_params0.values())
+    ).value
 
     assert_allclose(exp_res0, ans0_0, rtol=1e-3)
     assert_allclose(ans0_0, ans0_1, rtol=1e-3)
