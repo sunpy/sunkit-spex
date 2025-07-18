@@ -88,6 +88,10 @@ class SpectralAxis(SpectralCoord):
 
         return obj
 
+    def __array_finalize__(self, obj):
+        super().__array_finalize__(obj)
+        self._bin_edges = getattr(obj, "_bin_edges", None)
+
     @staticmethod
     def _edges_from_centers(centers, unit):
         """
@@ -113,6 +117,7 @@ class SpectralAxis(SpectralCoord):
         Calculates bin edges if the spectral axis was created with centers
         specified.
         """
+
         if hasattr(self, "_bin_edges"):
             return self._bin_edges
         return self._edges_from_centers(self.value, self.unit)

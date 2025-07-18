@@ -116,8 +116,8 @@ class ThickTarget(FittableModel):
             **kwargs,
         )
 
-    def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
-        energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
+    def evaluate(self, spectral_axis, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
+        energy_centers = spectral_axis
 
         if (
             hasattr(break_energy, "unit")
@@ -253,8 +253,8 @@ class ThinTarget(FittableModel):
             **kwargs,
         )
 
-    def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
-        energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
+    def evaluate(self, spectral_axis, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
+        energy_centers = spectral_axis
 
         if (
             hasattr(break_energy, "unit")
@@ -1238,3 +1238,17 @@ def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutof
         return (fcoeff / decoeff) * flux
 
     raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
+
+
+# def _check_input_type(spectral_axis):
+#     if isinstance(spectral_axis, SpectralAxis):
+#         energy_edges = spectral_axis.bin_edges
+#     else:
+#         warnings.warn(
+#             "As a SpectralAxis object was not passed, bin edges will be calculated as averages from the centers given.",
+#             UserWarning,
+#         )
+#         spectral_axis = SpectralAxis(spectral_axis, bin_specification="centers")
+#         energy_edges = spectral_axis.bin_edges
+
+#     return energy_edges
