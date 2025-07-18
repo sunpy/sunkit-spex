@@ -48,6 +48,7 @@ class Albedo(FittableModel):
         from astropy.visualization import quantity_support
 
         from sunkit_spex.models.physical.albedo import Albedo
+        from sunkit_spex.spectrum.spectrum import SpectralAxis
 
         e_centers = SpectralAxis(np.linspace(5, 550, 600) * u.keV, bin_specification='edges')
         source = PowerLaw1D(amplitude=1*u.ph/(u.cm*u.s), x_0=5*u.keV, alpha=3)
