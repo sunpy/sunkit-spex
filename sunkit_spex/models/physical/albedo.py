@@ -49,10 +49,9 @@ class Albedo(FittableModel):
 
         from sunkit_spex.models.physical.albedo import Albedo
 
-        e_edges = np.linspace(5, 550, 600) * u.keV
-        e_centers = e_edges[0:-1] + (0.5 * np.diff(e_edges))
+        e_centers = SpectralAxis(np.linspace(5, 550, 600) * u.keV, bin_specification='edges')
         source = PowerLaw1D(amplitude=1*u.ph/(u.cm*u.s), x_0=5*u.keV, alpha=3)
-        albedo = Albedo(spectral_axis=e_edges)
+        albedo = Albedo(spectral_axis=e_centers)
         observed = source | albedo
 
         with quantity_support():
