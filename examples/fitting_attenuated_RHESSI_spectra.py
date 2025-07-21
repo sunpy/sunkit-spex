@@ -23,7 +23,6 @@ from parfive import Downloader
 import astropy.time as atime
 
 from sunkit_spex.extern import rhessi
-from sunkit_spex.legacy.emission import bremsstrahlung_thick_target
 from sunkit_spex.legacy.fitting import fitter
 
 #####################################################
@@ -83,6 +82,8 @@ _ = axs[0].set(xscale="log")
 
 
 def double_thick(electron_flux, low_index, break_energy, up_index, low_cutoff, up_cutoff, energies=None):
+    from sunkit_spex.legacy.emission import bremsstrahlung_thick_target  # noqa: PLC0415
+
     mids = np.mean(energies, axis=1)
     flux = bremsstrahlung_thick_target(
         photon_energies=mids,
