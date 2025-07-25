@@ -229,6 +229,8 @@ class ThermalEmission(FittableModel):
             **kwargs,
         )
 
+        self._edges_store = None
+
     def evaluate(
         self,
         spectral_axis,
@@ -242,8 +244,15 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
-        line_flux = self.line.evaluate(
-            spectral_axis,
+        if hasattr(temperature, "unit"):
+            temperature = temperature.to(u.K)
+            energy_edges = self.edges_store
+        else:
+            temperature = (temperature * u.MK).to_value(u.K)
+            energy_edges = self.edges_store.value
+
+        cont_flux = continuum_emission(
+            energy_edges,
             temperature,
             emission_measure,
             mg,
@@ -253,10 +262,11 @@ class ThermalEmission(FittableModel):
             ar,
             ca,
             fe,
+            self.abundance_type,
         )
 
-        cont_flux = self.cont.evaluate(
-            spectral_axis,
+        line_flux = line_emission(
+            energy_edges,
             temperature,
             emission_measure,
             mg,
@@ -266,9 +276,24 @@ class ThermalEmission(FittableModel):
             ar,
             ca,
             fe,
+            self.abundance_type,
         )
 
-        return line_flux + cont_flux
+        flux = cont_flux + line_flux
+
+        if hasattr(temperature, "unit"):
+            return flux
+        return flux.value
+
+    def __call__(self, spectral_axis, **kwargs):
+        # Extract meta if input is NDData
+        edges_store = getattr(spectral_axis, "bin_edges", None)
+        self._edges_store = edges_store  # Store it directly on the instance
+        return super().__call__(spectral_axis, **kwargs)
+
+    @property
+    def edges_store(self):
+        return self._edges_store
 
     @property
     def input_units(self):
@@ -396,6 +421,8 @@ class ContinuumEmission(FittableModel):
             **kwargs,
         )
 
+        self._edges_store = None
+
     def evaluate(
         self,
         spectral_axis,
@@ -409,12 +436,12 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
-        energy_edges = _check_input_type(spectral_axis)
-
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
+            energy_edges = self.edges_store
         else:
             temperature = (temperature * u.MK).to_value(u.K)
+            energy_edges = self.edges_store.value
 
         flux = continuum_emission(
             energy_edges,
@@ -433,6 +460,16 @@ class ContinuumEmission(FittableModel):
         if hasattr(temperature, "unit"):
             return flux
         return flux.value
+
+    def __call__(self, spectral_axis, **kwargs):
+        # Extract meta if input is NDData
+        edges_store = getattr(spectral_axis, "bin_edges", None)
+        self._edges_store = edges_store  # Store it directly on the instance
+        return super().__call__(spectral_axis, **kwargs)
+
+    @property
+    def edges_store(self):
+        return self._edges_store
 
     @property
     def input_units(self):
