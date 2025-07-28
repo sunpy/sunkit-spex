@@ -2,7 +2,6 @@
 
 import numpy as np
 
-import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
@@ -15,7 +14,7 @@ class StraightLineModel(FittableModel):
 
     _input_units_allow_dimensionless = True
 
-    input_units_equivalencies = {"keV": u.spectral()}
+    # input_units_equivalencies = {"keV": u.spectral()}
 
     slope = Parameter(default=1, description="Gradient of a straight line model.")
     intercept = Parameter(default=0, description="Y-intercept of a straight line model.")
@@ -45,7 +44,7 @@ class StraightLineModel(FittableModel):
         return None
 
     def _parameter_units_for_data_units(self, input_units, output_units):
-        return {"slope": output_units["y"] / input_units["x"], "intercept": output_units["y"]}
+        return {"slope": self.slope.unit, "intercept": self.intercept.unit}
 
 
 class GaussianModel(FittableModel):
@@ -84,4 +83,4 @@ class GaussianModel(FittableModel):
         return None
 
     def _parameter_units_for_data_units(self, input_units, output_units):
-        return {"mean": input_units["x"], "stddev": input_units["x"], "amplitude": output_units["y"]}
+        return {"mean": self.mean.unit, "stddev": self.mean.unit, "amplitude": self.amplitude.unit}
