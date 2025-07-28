@@ -96,7 +96,7 @@ stix_spec = STIXLoader(
 # Default energy range plotted is all energies but the user can define an energy rangem or ranges.
 # Ranges are inclusive at the bounds and here we see the 4$-$15 keV, 15$-$30 keV, and 30$-$60 keV ranges.
 
-plt.figure(figsize=time_profile_size)
+plt.figure(layout="tight")
 
 # the line that actually plots
 stix_spec.lightcurve(energy_ranges=[[4, 15], [15, 30], [30, 60]])
@@ -107,17 +107,20 @@ plt.show()
 #
 # Since the default event data is assumed to be the full time, we might want to change this.
 # In this particular case the background has been subtracted when the data was processes with IDL, therefore we don't need to set a background time.
-# See the RHESSI example notebook for how to include background subtraction.
+# To subtract background use the .update_background_times(start=.., end=..) method.
 #
 
 # event time
-stix_spec.select_time(start=Time("2024-10-01T22:10:10"), end=Time("2024-10-01T22:10:18"))
+stix_spec.update_event_times(start=Time("2024-10-01T22:10:10"), end=Time("2024-10-01T22:10:18"))
+# Alternatively, you can select  the start and end event times in separate lines. e.g.
+# stix_spec.start_event_time = "2024-10-01T22:10:10"
+# stix_spec.end_event_time = "2024-10-01T22:10:18"
 
 #####################################################
 #
 # Plot again
 
-plt.figure(figsize=time_profile_size)
+plt.figure(layout="tight")
 stix_spec.lightcurve(energy_ranges=[[4, 15], [15, 30], [30, 60]])
 plt.show()
 
@@ -126,7 +129,7 @@ plt.show()
 # We can also see the X-ray evolution via a spectrogram.
 
 # plot spectrogram
-plt.figure(figsize=time_profile_size)
+plt.figure(layout="tight")
 stix_spec.spectrogram()
 plt.show()
 
@@ -266,11 +269,11 @@ spec_joint = Fitter(pha_file=[spec_bg, spec_im], srm_file=[srm_bg, srm_im])
 #
 # Select time for integration
 
-time_joint = ["2024-10-01T22:10:10", "2024-10-01T22:10:18"]
+time_joint = ["2024-10-01T22:11:50", "2024-10-01T22:12:00"]
 # Integrate the emission from the background detectors
-spec_joint.data.loaded_spec_data["spectrum1"].select_time(start=time_joint[0], end=time_joint[1])
+spec_joint.data.loaded_spec_data["spectrum1"].update_event_times(start=time_joint[0], end=time_joint[1])
 # Integrate the emission from the imaging detectors
-spec_joint.data.loaded_spec_data["spectrum2"].select_time(start=time_joint[0], end=time_joint[1])
+spec_joint.data.loaded_spec_data["spectrum2"].update_event_times(start=time_joint[0], end=time_joint[1])
 
 #####################################################
 #
