@@ -83,10 +83,12 @@ class STIXLoader(instruments.InstrumentBlueprint):
             Plots the STIX time profile in the energy range given and on the axes provided. Default behaviour (energy_ranges=None)
             is to include all energies.
 
-    select_time : start (str, `astropy.Time`, None), end (str, `astropy.Time`, None), background (bool)
-            Set the start and end times for the event (background=False, default) or background (background=True) data. Both and
-            end and a start time needs to be defined for the background, whereas the event time is assumed to commence/finish at the
+    update_event_time : start (str, `astropy.Time`, None), end (str, `astropy.Time`, None)
+            Set the start and end times for the event data. The event time is assumed to commence/finish at the
             first/final data time if the start/end time is not given.
+
+    update_background_time : start (str, `astropy.Time`, None), end (str, `astropy.Time`, None)
+            Set the start and end times for the background data. Both start and end time need to be defined.
 
     spectrogram : axes (axes object or None) and any kwargs are passed to matplotlib.pyplot.imshow
             Plots the STIX spectrogram of all the data.
@@ -115,9 +117,15 @@ class STIXLoader(instruments.InstrumentBlueprint):
             End time for the defined background.
             Default: None
 
+    _check_end_background_time
+            checks the input background end time
+
     _end_event_time : `astropy.Time`
             End time for the defined event.
             Default: Last time in loaded data.
+
+    _check_end_event_time
+            checks the input event end time
 
     _full_obs_time : [`astropy.Time`, `astropy.Time`]
             Start and end time of the data loaded in.
@@ -138,9 +146,15 @@ class STIXLoader(instruments.InstrumentBlueprint):
             Starting time for the defined background.
             Default: None
 
+    _check_start_background_time
+            checks the input background start time
+
     _start_event_time
             Starting time for the defined event.
             Default: First time in loaded data.
+
+    _check_start_event_time
+            checks the input event start time
 
     _time_bins_perspec : 2d array
             Array of time bins per spectrum.
@@ -507,9 +521,6 @@ class STIXLoader(instruments.InstrumentBlueprint):
                     warnings.warn(
                         f"\ndo not update event times to ({start_time}, {end_time}): "
                         "covers attenuator state change. Don't trust this fit!"
-                        "\n Note: This error will appear if doing spectral fitting with multiple spectra"
-                        " and the selected event times are correct (this is because the _update_time funtion"
-                        " which initiates _update_srm runs for every event start/end time setting). In that case, ignore the warning."
                     )
         n_states = len(self._attenuator_state_info["states"])
         new_att_state = self._attenuator_state_info["states"][0]  # default to first
@@ -745,13 +756,26 @@ class STIXLoader(instruments.InstrumentBlueprint):
     def start_event_time(self, evt_stime):
         """***Property Setter*** Sets the event start time.
 
-        Default behaviour has this set to the first data time.
-
         Parameters
         ----------
         evt_stime : str, `astropy.Time`, None
                 String to be given to astropy's Time, `astropy.Time` is used directly, None sets the
                 start event time to be the first time of the data.
+
+        Returns
+        -------
+        None.
+        """
+        # self._update_event_data_with_times()
+        self.update_event_times(evt_stime, self._end_event_time)
+
+    def _check_start_event_time(self, evt_stime):
+        """Method for checking the event start time format
+
+        Parameters
+        ----------
+        evt_stime : str, `astropy.Time`, None
+                Event start time
 
         Returns
         -------
@@ -780,7 +804,6 @@ class STIXLoader(instruments.InstrumentBlueprint):
         elif self.__warn:
             self.__time_warning()
 
-        self._update_event_data_with_times()
 
     @property
     def end_event_time(self):
@@ -796,13 +819,26 @@ class STIXLoader(instruments.InstrumentBlueprint):
     def end_event_time(self, evt_etime):
         """***Property Setter*** Sets the event end time.
 
-        Default behaviour has this set to the last data time.
-
         Parameters
         ----------
         evt_stime : str, `astropy.Time`, None
                 String to be given to astropy's Time, `astropy.Time` is used directly, None sets the
                 start event time to be the last time of the data.
+
+        Returns
+        -------
+        None.
+        """
+
+        self.update_event_times(self._start_event_time, evt_etime)
+
+    def _check_end_event_time(self, evt_etime):
+        """Method for checking the event end time format
+
+        Parameters
+        ----------
+        evt_etime : str, `astropy.Time`, None
+                Event end time
 
         Returns
         -------
@@ -823,14 +859,12 @@ class STIXLoader(instruments.InstrumentBlueprint):
             return
 
         _set_evt_etime = (not hasattr(self, "_start_event_time")) or (
-            hasattr(self, "_start_event_time") and self._start_event_time < _t
+        hasattr(self, "_start_event_time") and self._start_event_time < _t
         )
         if _set_evt_etime:
             self._end_event_time = _t
         elif self.__warn:
             self.__time_warning()
-
-        self._update_event_data_with_times()
 
     def _update_bg_data_with_times(self):
         """Changes/adds the background data in `_loaded_spec_data["extras"]` to the data in the defined background time range.
@@ -916,19 +950,26 @@ class STIXLoader(instruments.InstrumentBlueprint):
     @start_background_time.setter
     def start_background_time(self, bg_stime):
         """***Property Setter*** Sets the background start time.
+        Parameters
+        ----------
+        bg_stime : str, `astropy.Time`, None
+                String to be given to astropy's Time, `astropy.Time` is used directly, None doesn't
+                add, or will remove, any background data in `_loaded_spec_data["extras"]`.
 
-        Default behaviour has this set to None, with no background data component added.
+        Returns
+        -------
+        None.
+        """
+        self.update_background_times(start=bg_stime, end=self._end_background_time)
 
-        The `data2data_minus_background` setter is reset to False; if the `data2data_minus_background` setter
-        was used by the user and they still want to fit the event time data minus the background then this
-        must be set to True again. If you don't know what the `data2data_minus_background` setter is then
-        don't worry about it.
+
+    def _check_start_background_time(self, bg_stime):
+        """Method for checking the background start time format
 
         Parameters
         ----------
         evt_stime : str, `astropy.Time`, None
-                String to be given to astropy's Time, `astropy.Time` is used directly, None doesn't
-                add, or will remove, any background data in `_loaded_spec_data["extras"]`.
+                Background start time
 
         Returns
         -------
@@ -961,10 +1002,6 @@ class STIXLoader(instruments.InstrumentBlueprint):
         elif self.__warn:
             self.__time_warning()
 
-        self._update_bg_data_with_times()
-        # change back to separate event time and background data
-        self.data2data_minus_background = False
-
     @property
     def end_background_time(self):
         """***Property*** States the set background end time.
@@ -979,18 +1016,25 @@ class STIXLoader(instruments.InstrumentBlueprint):
     def end_background_time(self, bg_etime):
         """***Property Setter*** Sets the background end time.
 
-        Default behaviour has this set to None, with no background data component added.
+        Parameters
+        ----------
+        bg_etime : str, `astropy.Time`, None
+                String to be given to astropy's Time, `astropy.Time` is used directly, None doesn't
+                add, or will remove, any background data in `_loaded_spec_data["extras"]`.
 
-        The `data2data_minus_background` setter is reset to False; if the `data2data_minus_background` setter
-        was used by the user and they still want to fit the event time data minus the background then this
-        must be set to True again. If you don't know what the `data2data_minus_background` setter is then
-        don't worry about it.
+        Returns
+        -------
+        None.
+        """
+        self.update_background_times(start=self._start_background_time, end=bg_etime)
+
+    def _check_end_background_time(self, bg_etime):
+        """Method for checking the background end time format
 
         Parameters
         ----------
-        evt_stime : str, `astropy.Time`, None
-                String to be given to astropy's Time, `astropy.Time` is used directly, None doesn't
-                add, or will remove, any background data in `_loaded_spec_data["extras"]`.
+        evt_etime : str, `astropy.Time`, None
+                Background end time
 
         Returns
         -------
@@ -1022,10 +1066,6 @@ class STIXLoader(instruments.InstrumentBlueprint):
             self._end_background_time = _t
         elif self.__warn:
             self.__time_warning()
-
-        self._update_bg_data_with_times()
-        # change back to separate event time and background data
-        self.data2data_minus_background = False
 
     def __time_warning(self):
         """Here to provide a warning about the times being set by user.
@@ -1403,21 +1443,51 @@ class STIXLoader(instruments.InstrumentBlueprint):
 
         return ax
 
-    def select_time(self, start=None, end=None, background=False):
-        """Provides method to set start and end time of the event or background in one line.
+    def update_event_times(self, start=None, end=None):
+        """Provides method to set start and end time of the event.
 
         Parameters
         ----------
         start, end : str, `astropy.Time`, None
                 String to be given to astropy's Time, `astropy.Time` is used directly, None sets the
-                start/end event time to be the first time of the data. None doesn't add, or will remove,
-                any background data in `_loaded_spec_data["extras"]` if background is set to True.
+                start/end event time to be the first/last time of the data.
                 Default: None
 
-        background : bool
-                Determines whether the start and end times are for the event (False) or background
-                time (True).
-                Default: False
+        Returns
+        -------
+        None.
+
+        Examples
+        --------
+        # use the class to load in data
+        ar = StixLoader(pha_file=spec_file, srm_file=srm_file)
+
+        # change the event time range to something other than the full time range; equivalent to doing ar.start_event_time = "2022-10-05T10:41:20" and ar.end_event_time = "2022-10-05T10:42:24"
+        ar.update_event_times(start="2022-10-05T10:41:20", end="2022-10-05T10:42:24")
+        """
+
+        self.__warn = False if (type(start) is not type(None)) and (type(end) is not type(None)) else True
+
+        self._check_start_event_time(start)
+        self._check_end_event_time(end)
+        self._update_event_data_with_times()
+
+        self.__warn = True
+
+    def update_background_times(self, start=None, end=None):
+        """Provides method to set start and end time of the background
+        Parameters
+        ----------
+        start, end : str, `astropy.Time`, None
+                String to be given to astropy's Time, `astropy.Time` is used directly, None doesn't add, or will remove,
+                any background data in `_loaded_spec_data["extras"]`.
+                Default: None
+
+
+        The `data2data_minus_background` setter is reset to False; if the `data2data_minus_background` setter
+        was used by the user and they still want to fit the event time data minus the background then this
+        must be set to True again. If you don't know what the `data2data_minus_background` setter is then
+        don't worry about it.
 
         Returns
         -------
@@ -1429,20 +1499,36 @@ class STIXLoader(instruments.InstrumentBlueprint):
         ar = StixLoader(pha_file=spec_file, srm_file=srm_file)
 
         # define a background range if we like; equivalent to doing ar.start_background_time = "2002-10-05T10:38:32" and ar.end_background_time = "2002-10-05T10:40:32"
-        ar.select_time(start="2002-10-05T10:38:32", end="2002-10-05T10:40:32", background=True)
-
-        # change the event time range to something other than the full time range; equivalent to doing ar.start_event_time = "2002-10-05T10:41:20" and ar.end_event_time = "2002-10-05T10:42:24"
-        ar.select_time(start="2002-10-05T10:41:20", end="2002-10-05T10:42:24")
+        ar.update_background_times(start="2002-10-05T10:38:32", end="2002-10-05T10:40:32")
 
         """
         self.__warn = False if (type(start) is not type(None)) and (type(end) is not type(None)) else True
 
-        if background:
-            self.start_background_time, self.end_background_time = start, end
-        else:
-            self.start_event_time, self.end_event_time = start, end
+        self._check_start_event_time(start)
+        self._check_end_event_time(end)
+        self._update_bg_data_with_times()
+
+        # change back to separate event time and background data
+        self.data2data_minus_background = False
+
 
         self.__warn = True
+
+    def select_time(self, start=None, end=None, background=False):
+        """Outdated method, add depriciation warning. Should be using `update_background_times` and `update_event_times` to match RHESSI loader
+        """
+        if background:
+            self.update_background_times(start, end)
+        else:
+            self.update_event_times(start, end)
+
+        warnings.warn(
+        "Selecting background and event time with this method is deprecated. "
+        "In the future, please use `STIXLoader.update_event_times` to update the event time"
+        "or `STIXLoader.update_background_times` to update the background time.",
+        stacklevel=2
+    )
+
 
 def _extract_attenunator_info(att_dat, spectrum_end_time) -> dict[str, list]:
     """Pull out attenuator states and times"""
