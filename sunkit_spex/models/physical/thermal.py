@@ -251,7 +251,7 @@ class ThermalEmission(FittableModel):
             temperature = (temperature * u.MK).to_value(u.K)
             energy_edges = self.edges_store.value
 
-        cont_flux = continuum_emission(
+        line_flux = line_emission(
             energy_edges,
             temperature,
             emission_measure,
@@ -265,7 +265,7 @@ class ThermalEmission(FittableModel):
             self.abundance_type,
         )
 
-        line_flux = line_emission(
+        cont_flux = continuum_emission(
             energy_edges,
             temperature,
             emission_measure,
