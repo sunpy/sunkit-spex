@@ -78,7 +78,7 @@ jobs:
       libraries: |
         apt:
           - graphviz
-          - pypandoc
+          - pandoc
       envs: |
         - linux: build_docs
 
