@@ -5,6 +5,8 @@ This module contains package tests for package models.
 import numpy as np
 from numpy.testing import assert_allclose, assert_array_equal
 
+import astropy.units as u
+
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
 from sunkit_spex.models.instrument_response import MatrixModel
 from sunkit_spex.models.models import GaussianModel, StraightLineModel
@@ -62,8 +64,6 @@ def test_GaussianModel_edges():
 
     assert_allclose(exp_res0, ans0_0, rtol=1e-3)
     assert_allclose(ans0_0, ans0_1, rtol=1e-3)
-
-
 
 
 def test_MatrixModel():
