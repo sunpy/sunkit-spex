@@ -1,0 +1,1 @@
+Adds unit handling to :class:`sunkit_spex.models.instrument_response.MatrixModel`.
