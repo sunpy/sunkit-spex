@@ -4,6 +4,7 @@ import pytest
 import astropy.units as u
 
 from sunkit_spex.models.physical import nonthermal
+from sunkit_spex.spectrum.spectrum import SpectralAxis
 
 SSW_INTENSITY_UNIT = u.ph / u.cm**2 / u.s / u.keV
 
@@ -41,7 +42,7 @@ def thick_target():
 
     Ensure you are using the same .sav file as used here.
     """
-    energy_edges = np.arange(25, 100.5, 0.5) * u.keV
+    spectral_axis = SpectralAxis(np.arange(25, 100.5, 0.5) * u.keV, bin_specification="edges")
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
     ssw_output = (
@@ -65,7 +66,7 @@ def thick_target():
         * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
     # fmt: on
-    return energy_edges, ssw_output
+    return spectral_axis, ssw_output
 
 
 def thin_target():
@@ -101,7 +102,7 @@ def thin_target():
 
     Ensure you are using the same .sav file as used here.
     """
-    energy_edges = np.arange(25, 100.5, 0.5) * u.keV
+    spectral_axis = SpectralAxis(np.arange(25, 100.5, 0.5) * u.keV, bin_specification="edges")
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
     ssw_output = (
@@ -125,22 +126,22 @@ def thin_target():
         * SSW_INTENSITY_UNIT * (4 * np.pi * observer_distance**2)
     )
     # fmt: on
-    return energy_edges, ssw_output
+    return spectral_axis, ssw_output
 
 
 @pytest.mark.parametrize("ssw", [thick_target])
 def test_thick_target_against_ssw(ssw):
-    energy_edges, expected = ssw()
+    spectral_axis, expected = ssw()
     model = nonthermal.ThickTarget()
-    output = model(energy_edges)
+    output = model(spectral_axis)
     expected_value = expected.to_value(output.unit)
     np.testing.assert_allclose(output.value, expected_value, rtol=0.035)
 
 
 @pytest.mark.parametrize("ssw", [thin_target])
 def test_thin_target_against_ssw(ssw):
-    energy_edges, expected = ssw()
+    spectral_axis, expected = ssw()
     model = nonthermal.ThinTarget()
-    output = model(energy_edges)
+    output = model(spectral_axis)
     expected_value = expected.to_value(output.unit)
     np.testing.assert_allclose(output.value, expected_value, rtol=0.035)
