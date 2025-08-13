@@ -13,22 +13,31 @@ This notebook provides a quick examples of STIX spectral fitting with sunkit-spe
 
 This is an example of how to perform a single STIX fit and a joint fit with STIX imaging and background detector spectra for when an attenuator is inserted. Therefore, in this example we use two spectral files from the same observation; one file contains spectrum from the imaging dectectors and the other file only uses the background detectors. You can obtain the files in a following way:
 
-STIX science file (ID): 2410011252
-
-STIX background file (ID): 2409216629
+STIX science file (ID): 2410011252, STIX background file (ID): 2409216629
 
 Preparation STIX spectrum (background subtracted) and SRM:
 
-- Routine stx_convert_pixel_data in the STIX GSW in IDL
+- Routine ``stx_convert_pixel_data`` in the STIX GSW in IDL
     + Input: science file and background file
     + Output default: background subtracted spectrum of the 24 coarsest imaging detectors with all 8 big pixels (for each time step in the science file)
-- Imaging Detector spectrum for the 01.10.2024 flare: only top pixels should be used, additional keyword: pix_ind=[0,1,2,3]
-- BKG Detector spectrum for the 01.10.2024 flare: specific detector and pixel should be used, additional keywords: det_ind=[9], pix_ind=[2], /no_attenuation
+- Imaging Detector spectrum for the 01.10.2024 flare: only top pixels should be used, additional keyword: ``pix_ind=[0,1,2,3]``
+- BKG Detector spectrum for the 01.10.2024 flare: specific detector and pixel should be used, additional keywords: ``det_ind=[9], pix_ind=[2], /no_attenuation``
 
-Basic code example:
-    * stx_convert_pixel_data, $ fits_path_data = path_sci_file,$ fits_path_bk = path_bkg_file, $ distance = distance, $ time_shift = time_shift, $ flare_location_stx = flare_location, $ specfile = 'stx_spectrum_241001', srmfile = 'stx_srm_241001', plot=0 , $ background_data = background_data, $ ospex_obj = ospex_obj
+Basic IDL code example:
+
+.. code-block::
+
+    stx_convert_pixel_data, fits_path_data = path_sci_file, fits_path_bk = path_bkg_file, $
+        distance = distance, time_shift = time_shift, flare_location_stx = flare_location, $
+        specfile = 'stx_spectrum_241001', srmfile = 'stx_srm_241001', plot=0 , $
+        background_data = background_data, $ ospex_obj = ospex_obj
+
 
 """
+
+#####################################################
+#
+# Imports
 
 import matplotlib.pyplot as plt
 from parfive import Downloader
@@ -86,7 +95,7 @@ stix_spec = STIXLoader(
 # Since the STIX spectrum is the only one loaded it is under the `"spectrum1"` entry.
 #
 # Default energy range plotted is all energies but the user can define an energy rangem or ranges.
-# Ranges are inclusive at the bounds and here we see the 4$-$15 keV, 15$-$30 keV, and 30$-$60 keV ranges.
+# Ranges are inclusive at the bounds and here we see the 4-15 keV, 15-30 keV, and 30-60 keV ranges.
 
 plt.figure(layout="tight")
 
@@ -99,7 +108,7 @@ plt.show()
 #
 # Since the default event data is assumed to be the full time, we might want to change this.
 # In this particular case the background has been subtracted when the data was processes with IDL, therefore we don't need to set a background time.
-# To subtract background use the .update_background_times(start=.., end=..) method.
+# To subtract background use the ``.update_background_times(start=.., end=..)`` method.
 #
 
 # event time
@@ -143,7 +152,6 @@ fitter.show_params
 #####################################################
 #
 # Looking at the spectrum, define sensible numbers for starting values (maybe some trial and error here).
-#
 # For this spectrum, we will fit two thermals and non-thermal model over the whole energy range
 
 fitter.energy_fitting_range = [4, 84]
