@@ -20,15 +20,10 @@ class StraightLineModel(FittableModel):
     slope = Parameter(default=1, description="Gradient of a straight line model.")
     intercept = Parameter(default=0, description="Y-intercept of a straight line model.")
 
-    def __init__(self, slope=slope, intercept=intercept, edges=True, **kwargs):
-        self.edges = edges
-
+    def __init__(self, slope=slope, intercept=intercept, **kwargs):
         super().__init__(slope, intercept, **kwargs)
 
     def evaluate(self, x, slope, intercept):
-        if self.edges:
-            x = x[:-1] + 0.5 * np.diff(x)
-
         """Evaluate the straight line model at `x` with parameters `slope` and `intercept`."""
         return slope * x + intercept
 
@@ -58,16 +53,11 @@ class GaussianModel(FittableModel):
     mean = Parameter(default=0, min=0, description="X-offset for Gaussian.")
     stddev = Parameter(default=1, description="Sigma for Gaussian.")
 
-    def __init__(self, amplitude=amplitude, mean=mean, stddev=stddev, edges=True, **kwargs):
-        self.edges = edges
-
+    def __init__(self, amplitude=amplitude, mean=mean, stddev=stddev, **kwargs):
         super().__init__(amplitude, mean, stddev, **kwargs)
 
     def evaluate(self, x, amplitude, mean, stddev):
         """Evaluate the Gaussian model at `x` with parameters `amplitude`, `mean`, and `stddev`."""
-
-        if self.edges:
-            x = x[:-1] + 0.5 * np.diff(x)
 
         return amplitude * np.e ** (-((x - mean) ** 2) / (2 * stddev**2))
 

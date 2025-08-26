@@ -33,12 +33,12 @@ class InverseSquareFluxScaling(FittableModel):
 
         from sunkit_spex.models.scaling import InverseSquareFluxScaling
         from sunkit_spex.models.models import StraightLineModel
+        from sunkit_spex.spectrum.spectrum import SpectralAxis
 
         y_units = u.ph*u.keV**-1*u.s**-1
         x_units = u.keV
 
-        ph_energies = np.arange(4, 100, 0.5)*x_units
-        ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
+        ph_energies_centers = SpectralAxis(np.arange(4, 100, 0.5)*x_units, bin_specification='edges')
 
         sim_cont = {"slope": -2*y_units/x_units, "intercept": 100*y_units}
         source = StraightLineModel(**sim_cont)
@@ -47,7 +47,7 @@ class InverseSquareFluxScaling(FittableModel):
         for i, d in enumerate([0.25,0.5,1]):
             distance =  InverseSquareFluxScaling(observer_distance=d*u.AU)
             observed = source * distance
-            plt.plot(ph_energies_centers ,  observed(ph_energies), label='D = '+str(d)+' AU')
+            plt.plot(ph_energies_centers ,  observed(ph_energies_centers), label='D = '+str(d)+' AU')
         plt.loglog()
         plt.legend()
         plt.show()
@@ -114,12 +114,12 @@ class Constant(FittableModel):
 
         from sunkit_spex.models.scaling import Constant
         from sunkit_spex.models.models import StraightLineModel
+        from sunkit_spex.spectrum.spectrum import SpectralAxis
 
         y_units = u.ph*u.keV**-1*u.s**-1
         x_units = u.keV
 
-        ph_energies = np.arange(4, 100, 0.5)*x_units
-        ph_energies_centers = ph_energies[:-1] + 0.5*np.diff(ph_energies)
+        ph_energies_centers = SpectralAxis(np.arange(4, 100, 0.5)*x_units, bin_specification='edges')
 
         sim_cont = {"slope": -2*y_units/x_units, "intercept": 100*y_units}
         source = StraightLineModel(**sim_cont)
@@ -129,7 +129,7 @@ class Constant(FittableModel):
         for i, c in enumerate([0.25,0.5,1,2,4]):
             constant =  Constant(constant=c)
             observed = source * constant
-            plt.plot(ph_energies_centers ,  observed(ph_energies), label='Const = '+str(c))
+            plt.plot(ph_energies_centers ,  observed(ph_energies_centers), label='Const = '+str(c))
         plt.loglog()
         plt.legend()
         plt.show()
