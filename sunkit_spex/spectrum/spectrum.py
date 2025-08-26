@@ -85,6 +85,8 @@ class SpectralAxis(SpectralCoord):
 
         if bin_specification == "edges":
             obj._bin_edges = bin_edges
+        elif bin_specification == "centers":
+            obj._bin_edges = None
 
         return obj
 
@@ -193,14 +195,14 @@ class Spectrum(NDCube):
         if data is not None and spectral_axis is not None:
             if spectral_axis.shape[0] == data.shape[spectral_dimension]:
                 bin_specification = "centers"
-            elif spectral_axis.shape[0] == data.shape[spectral_dimension] + 1:
+            elif spectral_axis.shape[0] >= data.shape[spectral_dimension] + 1:
                 bin_specification = "edges"
-            else:
-                raise ValueError(
-                    f"Spectral axis length ({spectral_axis.shape[0]}) must be the same size or one "
-                    "greater (if specifying bin edges) than that of the spextral"
-                    f"axis ({data.shape[spectral_dimension]})"
-                )
+            # else:
+            #     raise ValueError(
+            #         f"Spectral axis length ({spectral_axis.shape[0]}) must be the same size or one "
+            #         "greater (if specifying bin edges) than that of the spextral"
+            #         f"axis ({data.shape[spectral_dimension]})"
+            #     )
 
         # Attempt to parse the spectral axis. If none is given, try instead to
         # parse a given wcs. This is put into a GWCS object to
@@ -215,6 +217,11 @@ class Spectrum(NDCube):
             if not isinstance(spectral_axis, SpectralAxis):
                 if spectral_axis.shape[0] == data.shape[spectral_dimension] + 1:
                     bin_specification = "edges"
+                elif len(spectral_axis.shape) > 1:
+                    if spectral_axis.shape[1] == 2:
+                        spectral_axis = np.concatenate([spectral_axis[:, 0], spectral_axis[:, 1][-1:]])
+                        bin_specification = "edges"
+
                 else:
                     bin_specification = "centers"
                 self._spectral_axis = SpectralAxis(spectral_axis, bin_specification=bin_specification)
