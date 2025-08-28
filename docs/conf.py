@@ -128,6 +128,7 @@ sphinx_gallery_conf = {
     "plot_gallery": "True",
     "remove_config_comments": True,
     "only_warn_on_example_error": True,
+    'pypandoc': True
 }
 
 # -- Other options ----------------------------------------------------------
