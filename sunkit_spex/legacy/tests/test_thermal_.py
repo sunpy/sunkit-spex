@@ -658,3 +658,41 @@ def test_empty_flux_out_of_range():
 
     true_zero = 0 * (hopefully_zero := flux[should_be_zeros])
     np.testing.assert_allclose(true_zero, hopefully_zero)
+
+
+def test_abundances_should_not_change():
+    """
+    Addressing the issue in PR #231, mainly that the DEFAULT_ABUNDANCES
+    table is modified at the module level inadvertently if non-default
+    abundances values are used in certain situations.
+
+    The fix is that anywhere we have that table appear during a WRITE operation,
+    we need to use a copy of it rather than modifying it in-place.
+
+    This is just a smoke test to verify that the abundance array does not
+    change between function calls with different abundances.
+    """
+    # Save the original abundance values for later comparison
+    orig = thermal.DEFAULT_ABUNDANCES[thermal.DEFAULT_ABUNDANCE_TYPE].data.copy()
+
+    rng = np.random.default_rng()
+    edges = np.geomspace(3, 30, 100)
+    # Repeat this a few times for good measure
+    for _ in range(10):
+        abundances = (
+            (20, rng.uniform()),  # Ca
+            (13, rng.uniform()),  # Al
+            (18, rng.uniform()),  # Ar
+        )
+        # Apply the model several times;
+        # if the DEFAULT_ABUNDANCES get modified, it will be multiplicative
+        for _ in range(10):
+            __ = thermal.thermal_emission(
+                energy_edges=edges << u.keV,
+                temperature=20 << u.MK,
+                emission_measure=(1 << (1e49 * u.cm**-3)),
+                relative_abundances=abundances,
+            )
+
+        after_models = thermal.DEFAULT_ABUNDANCES[thermal.DEFAULT_ABUNDANCE_TYPE].data
+        assert np.allclose(after_models.data, orig.data)
