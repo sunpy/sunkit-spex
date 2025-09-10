@@ -181,7 +181,7 @@ class ThermalEmission(FittableModel):
     ):
         self.abundance_type = abundance_type
 
-        if spectral_axis:
+        if spectral_axis is not None:
             if isinstance(spectral_axis,Spectrum):
                 if hasattr(spectral_axis, "meta") and isinstance(spectral_axis.meta, dict) and "photon_axis" in spectral_axis.meta:
                     self.spectral_axis = spectral_axis.meta['photon_axis']
@@ -190,6 +190,8 @@ class ThermalEmission(FittableModel):
 
             elif isinstance(spectral_axis,SpectralAxis):
                 self.spectral_axis = spectral_axis._bin_edges
+        else:
+            self.spectral_axis = None
 
         if abundance_type != "sun_coronal_ext":
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
@@ -268,6 +270,8 @@ class ThermalEmission(FittableModel):
                 print(energy_edges)
                 warnings.warn('User has initialised with a spectral axis, ' \
                 'therefore model will be evaluated based on this.', UserWarning)
+            else:
+                energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges.value,unit=energy_edges.unit)
                 
         else:
             temperature = (temperature * u.MK).to_value(u.K)
@@ -277,6 +281,8 @@ class ThermalEmission(FittableModel):
                 energy_edges = self.spectral_axis.value
                 warnings.warn('User has initialised with a spectral axis, ' \
                 'therefore model will be evaluated based on this.', UserWarning)
+            else:
+                energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges,unit=u.keV).value
 
         line_flux = self.line.evaluate(
             energy_edges,
@@ -422,10 +428,17 @@ class ContinuumEmission(FittableModel):
         **kwargs,
     ):
 
-        if isinstance(spectral_axis,Spectrum):
-            self.spectral_axis = spectral_axis.meta['photon_axis']
-        elif isinstance(spectral_axis,SpectralAxis):
-            self.spectral_axis = spectral_axis._bin_edges
+        if spectral_axis is not None:
+            if isinstance(spectral_axis,Spectrum):
+                if hasattr(spectral_axis, "meta") and isinstance(spectral_axis.meta, dict) and "photon_axis" in spectral_axis.meta:
+                    self.spectral_axis = spectral_axis.meta['photon_axis']
+                else:
+                    raise ValueError('Spectrum object has no photon axis stored in meta.')
+
+            elif isinstance(spectral_axis,SpectralAxis):
+                self.spectral_axis = spectral_axis._bin_edges
+        else:
+            self.spectral_axis = None
 
         self.abundance_type = abundance_type
 
@@ -599,10 +612,17 @@ class LineEmission(FittableModel):
         **kwargs,
     ):
         
-        if isinstance(spectral_axis,Spectrum):
-            self.spectral_axis = spectral_axis.meta['photon_axis']
-        elif isinstance(spectral_axis,SpectralAxis):
-            self.spectral_axis = spectral_axis._bin_edges
+        if spectral_axis is not None:
+            if isinstance(spectral_axis,Spectrum):
+                if hasattr(spectral_axis, "meta") and isinstance(spectral_axis.meta, dict) and "photon_axis" in spectral_axis.meta:
+                    self.spectral_axis = spectral_axis.meta['photon_axis']
+                else:
+                    raise ValueError('Spectrum object has no photon axis stored in meta.')
+
+            elif isinstance(spectral_axis,SpectralAxis):
+                self.spectral_axis = spectral_axis._bin_edges
+        else:
+            self.spectral_axis = None
 
 
         self.abundance_type = abundance_type
@@ -650,6 +670,8 @@ class LineEmission(FittableModel):
             temperature = temperature.to(u.K)
         else:
             temperature = (temperature * u.MK).to_value(u.K)
+
+        print(energy_edges)
 
         flux = line_emission(
             energy_edges,
