@@ -65,7 +65,7 @@ class SpectralAxis(SpectralCoord):
 
     _equivalent_unit = (*SpectralCoord._equivalent_unit, u.pixel)
 
-    def __new__(cls, value, *args, bin_specification="centers", **kwargs):
+    def __new__(cls, value, *args, bin_specification="centers", meta=None, **kwargs):
         # Enforce pixel axes are ascending
         if (
             (type(value) is u.quantity.Quantity)
@@ -82,21 +82,22 @@ class SpectralAxis(SpectralCoord):
             value = SpectralAxis._centers_from_edges(value)
 
         obj = super().__new__(cls, value, *args, **kwargs)
+        
+
 
         if bin_specification == "edges":
             obj._bin_edges = bin_edges
 
+        if meta is not None:
+            obj._meta = meta
         return obj
+
 
     def __array_finalize__(self, obj):
         super().__array_finalize__(obj)
         self._bin_edges = getattr(obj, "_bin_edges", None)
+        self._meta = getattr(obj, "_meta", None)
 
-    # @property
-    # def value(self):
-    #     print('Im DOING VALUEEEEE')
-    #     print(type(self.bin_edges))
-    #     return SpectralAxisValue(self.bin_edges,bin_specification='edges')
 
     @staticmethod
     def _edges_from_centers(centers, unit):

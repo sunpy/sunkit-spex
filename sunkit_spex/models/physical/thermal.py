@@ -15,6 +15,7 @@ from sunkit_spex.models.physical.io import (
     load_xray_abundances,
 )
 from sunkit_spex.spectrum.spectrum import SpectralAxis
+from sunkit_spex.spectrum.spectrum import Spectrum
 
 __all__ = ["ContinuumEmission", "LineEmission", "ThermalEmission"]
 
@@ -165,6 +166,7 @@ class ThermalEmission(FittableModel):
 
     def __init__(
         self,
+        spectral_axis = None, 
         temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
@@ -179,6 +181,16 @@ class ThermalEmission(FittableModel):
     ):
         self.abundance_type = abundance_type
 
+        if spectral_axis:
+            if isinstance(spectral_axis,Spectrum):
+                if hasattr(spectral_axis, "meta") and isinstance(spectral_axis.meta, dict) and "photon_axis" in spectral_axis.meta:
+                    self.spectral_axis = spectral_axis.meta['photon_axis']
+                else:
+                    raise ValueError('Spectrum object has no photon axis stored in meta.')
+
+            elif isinstance(spectral_axis,SpectralAxis):
+                self.spectral_axis = spectral_axis._bin_edges
+
         if abundance_type != "sun_coronal_ext":
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
 
@@ -191,6 +203,7 @@ class ThermalEmission(FittableModel):
             fe = 12 + np.log10(abundances[25])
 
         self.line = LineEmission(
+            spectral_axis=self.spectral_axis,
             temperature=temperature,
             emission_measure=emission_measure,
             mg=mg,
@@ -204,6 +217,7 @@ class ThermalEmission(FittableModel):
         )
 
         self.cont = ContinuumEmission(
+            spectral_axis=self.spectral_axis,
             temperature=temperature,
             emission_measure=emission_measure,
             mg=mg,
@@ -233,7 +247,7 @@ class ThermalEmission(FittableModel):
 
     def evaluate(
         self,
-        spectral_axis,
+        energy_edges,
         temperature,
         emission_measure,
         mg,
@@ -244,14 +258,27 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
+        
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
-            energy_edges = self.edges_store
+            if self.spectral_axis is not None:
+                if not np.array_equal(energy_edges,self.spectral_axis):
+                    raise ValueError('Evaluation axis must matched initialsed spectral axis.')
+                energy_edges = self.spectral_axis
+                print(energy_edges)
+                warnings.warn('User has initialised with a spectral axis, ' \
+                'therefore model will be evaluated based on this.', UserWarning)
+                
         else:
             temperature = (temperature * u.MK).to_value(u.K)
-            energy_edges = self.edges_store.value
+            if self.spectral_axis is not None:
+                if not np.array_equal(energy_edges,self.spectral_axis.value):
+                    raise ValueError('Evaluation axis must matched initialsed spectral axis.')
+                energy_edges = self.spectral_axis.value
+                warnings.warn('User has initialised with a spectral axis, ' \
+                'therefore model will be evaluated based on this.', UserWarning)
 
-        line_flux = line_emission(
+        line_flux = self.line.evaluate(
             energy_edges,
             temperature,
             emission_measure,
@@ -262,10 +289,9 @@ class ThermalEmission(FittableModel):
             ar,
             ca,
             fe,
-            self.abundance_type,
         )
 
-        cont_flux = continuum_emission(
+        cont_flux = self.cont.evaluate(
             energy_edges,
             temperature,
             emission_measure,
@@ -276,7 +302,6 @@ class ThermalEmission(FittableModel):
             ar,
             ca,
             fe,
-            self.abundance_type,
         )
 
         flux = cont_flux + line_flux
@@ -285,11 +310,11 @@ class ThermalEmission(FittableModel):
             return flux
         return flux.value
 
-    def __call__(self, spectral_axis, **kwargs):
-        # Extract meta if input is NDData
-        edges_store = getattr(spectral_axis, "bin_edges", None)
-        self._edges_store = edges_store  # Store it directly on the instance
-        return super().__call__(spectral_axis, **kwargs)
+    # def __call__(self, spectral_axis, **kwargs):
+    #     # Extract meta if input is NDData
+    #     edges_store = getattr(spectral_axis, "bin_edges", None)
+    #     self._edges_store = edges_store  # Store it directly on the instance
+    #     return super().__call__(spectral_axis, **kwargs)
 
     @property
     def edges_store(self):
@@ -383,6 +408,7 @@ class ContinuumEmission(FittableModel):
 
     def __init__(
         self,
+        spectral_axis=None,
         temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
@@ -395,6 +421,12 @@ class ContinuumEmission(FittableModel):
         abundance_type="sun_coronal_ext",
         **kwargs,
     ):
+
+        if isinstance(spectral_axis,Spectrum):
+            self.spectral_axis = spectral_axis.meta['photon_axis']
+        elif isinstance(spectral_axis,SpectralAxis):
+            self.spectral_axis = spectral_axis._bin_edges
+
         self.abundance_type = abundance_type
 
         if abundance_type != "sun_coronal_ext":
@@ -425,7 +457,7 @@ class ContinuumEmission(FittableModel):
 
     def evaluate(
         self,
-        spectral_axis,
+        energy_edges,
         temperature,
         emission_measure,
         mg,
@@ -438,10 +470,8 @@ class ContinuumEmission(FittableModel):
     ):
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
-            energy_edges = self.edges_store
         else:
             temperature = (temperature * u.MK).to_value(u.K)
-            energy_edges = self.edges_store.value
 
         flux = continuum_emission(
             energy_edges,
@@ -555,6 +585,7 @@ class LineEmission(FittableModel):
 
     def __init__(
         self,
+        spectral_axis=None,
         temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
@@ -567,6 +598,13 @@ class LineEmission(FittableModel):
         abundance_type="sun_coronal_ext",
         **kwargs,
     ):
+        
+        if isinstance(spectral_axis,Spectrum):
+            self.spectral_axis = spectral_axis.meta['photon_axis']
+        elif isinstance(spectral_axis,SpectralAxis):
+            self.spectral_axis = spectral_axis._bin_edges
+
+
         self.abundance_type = abundance_type
 
         if abundance_type != "sun_coronal_ext":
@@ -595,7 +633,7 @@ class LineEmission(FittableModel):
 
     def evaluate(
         self,
-        spectral_axis,
+        energy_edges,
         temperature,
         emission_measure,
         mg,
@@ -606,7 +644,7 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
-        energy_edges = _check_input_type(spectral_axis)
+        # energy_edges = _check_input_type(spectral_axis)
 
         if hasattr(temperature, "unit"):
             temperature = temperature.to(u.K)
