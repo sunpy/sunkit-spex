@@ -1239,20 +1239,6 @@ def _weight_emission_bins(
     return new_line_intensities, neighbor_intensities, neighbor_iline
 
 
-def _check_input_type(spectral_axis):
-    if isinstance(spectral_axis, SpectralAxis):
-        energy_edges = spectral_axis.bin_edges
-    else:
-        warnings.warn(
-            "As a SpectralAxis object was not passed, bin edges will be calculated as averages from the centers given.",
-            UserWarning,
-        )
-        spectral_axis = SpectralAxis(spectral_axis, bin_specification="centers")
-        energy_edges = spectral_axis.bin_edges
-
-    return energy_edges
-
-
 def _sanitize_inputs(energy_edges, temperature, emission_measure):
     if np.isscalar(energy_edges) or len(energy_edges) < 2 or energy_edges.ndim > 1:
         # if len(energy_edges) < 2 or energy_edges.ndim > 1:
