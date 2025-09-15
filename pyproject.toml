@@ -47,6 +47,11 @@ docs = [
   "packaging",
   "sphinx-changelog",
   "sphinx-gallery",
+  "pypandoc"
+]
+dev = [
+    "sunkit-spex[docs,tests]",
+    "tox"
 ]
 
 [project.urls]

@@ -83,6 +83,7 @@ docs/generated/
 examples/rhessi/
 examples/sunxspexRhessiSpectralFitting.pickle
 examples/nustar/
+examples/stix/
 test.pickle
 
 # PyBuilder

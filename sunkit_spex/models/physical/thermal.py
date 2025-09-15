@@ -6,6 +6,7 @@ from scipy import interpolate, stats
 
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
+from astropy.table.column import Column
 
 from sunpy.data import manager
 
@@ -15,6 +16,9 @@ from sunkit_spex.models.physical.io import (
     load_xray_abundances,
 )
 from sunkit_spex.spectrum.spectrum import SpectralAxis
+
+# The default elemental abundance values correspond to coronal values
+DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
 __all__ = ["ContinuumEmission", "LineEmission", "ThermalEmission"]
 
@@ -174,22 +178,14 @@ class ThermalEmission(FittableModel):
         ar=ar.default,
         ca=ca.default,
         fe=fe.default,
-        abundance_type="sun_coronal_ext",
+        abundance_type=DEFAULT_ABUNDANCE_TYPE,
         **kwargs,
     ):
         self.abundance_type = abundance_type
         self.spectral_axis = spectral_axis
 
-        if abundance_type != "sun_coronal_ext":
-            abundances = DEFAULT_ABUNDANCES[abundance_type].data
-
-            mg = 12 + np.log10(abundances[11])
-            al = 12 + np.log10(abundances[12])
-            si = 12 + np.log10(abundances[13])
-            s = 12 + np.log10(abundances[15])
-            ar = 12 + np.log10(abundances[17])
-            ca = 12 + np.log10(abundances[19])
-            fe = 12 + np.log10(abundances[25])
+        if abundance_type != DEFAULT_ABUNDANCE_TYPE:
+            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
         super().__init__(
             temperature=temperature,
@@ -354,22 +350,14 @@ class ContinuumEmission(FittableModel):
         ar=ar.default,
         ca=ca.default,
         fe=fe.default,
-        abundance_type="sun_coronal_ext",
+        abundance_type=DEFAULT_ABUNDANCE_TYPE,
         **kwargs,
     ):
         self.spectral_axis = spectral_axis
         self.abundance_type = abundance_type
 
-        if abundance_type != "sun_coronal_ext":
-            abundances = DEFAULT_ABUNDANCES[abundance_type].data
-
-            mg = 12 + np.log10(abundances[11])
-            al = 12 + np.log10(abundances[12])
-            si = 12 + np.log10(abundances[13])
-            s = 12 + np.log10(abundances[15])
-            ar = 12 + np.log10(abundances[17])
-            ca = 12 + np.log10(abundances[19])
-            fe = 12 + np.log10(abundances[25])
+        if abundance_type != DEFAULT_ABUNDANCE_TYPE:
+            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
         super().__init__(
             temperature=temperature,
@@ -397,6 +385,7 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
+
         energy_edges, temperature = _spectral_axis_process(temperature, energy_edges, self.spectral_axis)
 
         flux = continuum_emission(
@@ -412,10 +401,6 @@ class ContinuumEmission(FittableModel):
             fe,
             self.abundance_type,
         )
-
-        if hasattr(temperature, "unit"):
-            return flux
-        return flux.value
 
     @property
     def input_units(self):
@@ -510,22 +495,14 @@ class LineEmission(FittableModel):
         ar=ar.default,
         ca=ca.default,
         fe=fe.default,
-        abundance_type="sun_coronal_ext",
+        abundance_type=DEFAULT_ABUNDANCE_TYPE,
         **kwargs,
     ):
         self.abundance_type = abundance_type
         self.spectral_axis = spectral_axis
 
-        if abundance_type != "sun_coronal_ext":
-            abundances = DEFAULT_ABUNDANCES[abundance_type].data
-
-            mg = 12 + np.log10(abundances[11])
-            al = 12 + np.log10(abundances[12])
-            si = 12 + np.log10(abundances[13])
-            s = 12 + np.log10(abundances[15])
-            ar = 12 + np.log10(abundances[17])
-            ca = 12 + np.log10(abundances[19])
-            fe = 12 + np.log10(abundances[25])
+        if abundance_type != DEFAULT_ABUNDANCE_TYPE:
+            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
         super().__init__(
             temperature=temperature,
@@ -553,6 +530,7 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
+
         energy_edges, temperature = _spectral_axis_process(temperature, energy_edges, self.spectral_axis)
 
         flux = line_emission(
@@ -568,10 +546,6 @@ class LineEmission(FittableModel):
             fe,
             self.abundance_type,
         )
-
-        if hasattr(temperature, "unit"):
-            return flux
-        return flux.value
 
     @property
     def input_units(self):
@@ -707,7 +681,6 @@ def setup_default_abundances(filename=None):
 CONTINUUM_GRID = setup_continuum_parameters()
 LINE_GRID = setup_line_parameters()
 DEFAULT_ABUNDANCES = setup_default_abundances()
-DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
 
 @u.quantity_input
@@ -916,7 +889,7 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     temperature_K: 1-D array-like
         The temperature(s) of the plasma in unit of K.  Must not be a scalar.
 
-    abundances: 1-D `numpy.array` of same length a DEFAULT_ABUNDANCES.
+    abundances: 1-D `numpy.array` of same length as DEFAULT_ABUNDANCES.
         The abundances for the all the elements.
     """
     n_energy_bins = len(energy_edges_keV) - 1
@@ -1241,13 +1214,14 @@ def _weight_emission_bins(
 
 def _sanitize_inputs(energy_edges, temperature, emission_measure):
     if np.isscalar(energy_edges) or len(energy_edges) < 2 or energy_edges.ndim > 1:
-        # if len(energy_edges) < 2 or energy_edges.ndim > 1:
         raise ValueError("energy_edges must be a 1-D astropy Quantity with length greater than 1.")
 
-    if not hasattr(energy_edges, "unit"):
-        energy_edges = energy_edges * u.keV
-        temperature = temperature * u.K
-        emission_measure = emission_measure * u.cm**-3
+    # Add units regardless of whether or not the parameters
+    # came with them attached.
+    # If they were not already Quantities, the parameters get the default units.
+    energy_edges <<= u.keV
+    temperature <<= u.K
+    emission_measure <<= u.cm**-3
 
     energy_edges_keV = energy_edges.to(u.keV)
 
@@ -1293,8 +1267,26 @@ def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, par
         raise ValueError(message)
 
 
+def _initialize_abundances(abundances: Column) -> tuple[float]:
+    """
+    From a given abundance Column from an abundance astropy Table,
+    compute the values of logarithmic elemental abundances used in other portions of
+    the module.
+    """
+    # We don't need a copy to the abundance column here
+    # because we are only reading from it, not writing to it.
+    mg = 12 + np.log10(abundances[11])
+    al = 12 + np.log10(abundances[12])
+    si = 12 + np.log10(abundances[13])
+    s = 12 + np.log10(abundances[15])
+    ar = 12 + np.log10(abundances[17])
+    ca = 12 + np.log10(abundances[19])
+    fe = 12 + np.log10(abundances[25])
+    return (mg, al, si, s, ar, ca, fe)
+
+
 def _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe):
-    abundances = DEFAULT_ABUNDANCES[abundance_type].data
+    abundances = DEFAULT_ABUNDANCES[abundance_type].data.copy()
 
     if np.shape(mg) == (1,):
         abundances[11] = 10 ** (mg[0] - 12)

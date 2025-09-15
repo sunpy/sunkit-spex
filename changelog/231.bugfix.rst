@@ -1,0 +1,1 @@
+Ensure that the module-level abundance tables don't change in the legacy and release thermal modules.

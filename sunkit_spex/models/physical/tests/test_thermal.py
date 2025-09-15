@@ -16,7 +16,7 @@ thermal.setup_line_parameters(
     "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav"
 )
 SSW_INTENSITY_UNIT = u.ph / u.cm**2 / u.s / u.keV
-DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
+DEFAULT_ABUNDANCE_TYPE = thermal.DEFAULT_ABUNDANCE_TYPE
 
 
 def fvth_simple():
@@ -420,21 +420,26 @@ def test_line_emission_against_ssw(ssw):
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.05, atol=1e-30)
 
 
+
 def test_energy_out_of_range_error():
     with pytest.raises(
         ValueError,
         match="Lower bound of the input energy must be within the range 1.0002920302956426--10.34753795157738 keV. ",
     ):
+
         thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             SpectralAxis(np.array([0.01, 10]) * u.keV, bin_specification="edges")
         )
 
 
+
 def test_temperature_out_of_range_error():
     with pytest.raises(ValueError, match="All input temperature values must be within the range"):
+
         thermal.ThermalEmission(0.1 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             SpectralAxis(np.array([5, 10]) * u.keV, bin_specification="edges")
         )
+
 
 
 def test_line_energy_out_of_range_warning():
@@ -442,9 +447,11 @@ def test_line_energy_out_of_range_warning():
         # Cause all warnings to always be triggered.
         warnings.simplefilter("always")
         # Trigger a warning.
+
         _ = thermal.LineEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             SpectralAxis(np.arange(3, 1000, 0.5) * u.keV, bin_specification="edges")
         )
+
         assert issubclass(w[0].category, (UserWarning, ResourceWarning))
 
 
@@ -455,16 +462,20 @@ def test_continuum_energy_out_of_range():
     ):
         # Use an energy range that goes out of bounds
         # on the lower end--should error
+
         _ = thermal.ContinuumEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             SpectralAxis(np.arange(0.1, 28, 0.5) * u.keV, bin_specification="edges")
         )
+
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
         # The continuum emission should only warn if we go out of
         # bounds on the upper end.
+
         _ = thermal.ContinuumEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             SpectralAxis(np.arange(10, 1000, 0.5) * u.keV, bin_specification="edges")
         )
+
         assert issubclass(w[0].category, (UserWarning, ResourceWarning))
 
 
@@ -477,12 +488,50 @@ def test_empty_flux_out_of_range():
     temperature = 20 << u.MK
     em = 1e-5 << u.cm**-3
 
+
     flux = thermal.ThermalEmission(temperature, em, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
         SpectralAxis(energy_edges, bin_specification="edges")
     )
+
     # the continuum is the one we need to check
     max_e = thermal.CONTINUUM_GRID["energy range keV"][1] << u.keV
     should_be_zeros = midpoints >= max_e
 
     true_zero = 0 * (hopefully_zero := flux[should_be_zeros])
     np.testing.assert_allclose(true_zero, hopefully_zero)
+
+
+def test_abundances_should_not_change():
+    """
+    Addressing the issue in PR #231, mainly that the DEFAULT_ABUNDANCES
+    table is modified at the module level inadvertently if non-default
+    abundances values are used in certain situations.
+
+    The fix is that anywhere we have that table appear during a WRITE operation,
+    we need to use a copy of it rather than modifying it in-place.
+
+    This is just a smoke test to verify that the abundance array does not
+    change between function calls with different abundances.
+    """
+    # Save the original abundance values for later comparison
+    orig = thermal.DEFAULT_ABUNDANCES[thermal.DEFAULT_ABUNDANCE_TYPE].data.copy()
+
+    rng = np.random.default_rng()
+    edges = np.geomspace(3, 30, 100)
+    # Repeat this a few times for good measure
+    for _ in range(10):
+        model = thermal.ThermalEmission(
+            temperature=20 << u.MK,
+            emission_measure=(1 << (1e49 * u.cm**-3)),
+            mg=thermal.ThermalEmission.mg.default - rng.uniform(),
+            si=thermal.ThermalEmission.si.default + rng.uniform(),
+            fe=thermal.ThermalEmission.fe.default + rng.uniform(),
+        )
+
+        # Apply the model several times;
+        # if the DEFAULT_ABUNDANCES get modified, it will be multiplicative
+        for _ in range(10):
+            model(edges)
+
+        after_models = thermal.DEFAULT_ABUNDANCES[thermal.DEFAULT_ABUNDANCE_TYPE].data
+        assert np.allclose(after_models.data, orig.data)
