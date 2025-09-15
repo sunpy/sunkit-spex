@@ -180,18 +180,11 @@ class ThermalEmission(FittableModel):
         **kwargs,
     ):
         self.abundance_type = abundance_type
-
-        if spectral_axis is not None:
-            if isinstance(spectral_axis,Spectrum):
-                if hasattr(spectral_axis, "meta") and isinstance(spectral_axis.meta, dict) and "photon_axis" in spectral_axis.meta:
-                    self.spectral_axis = spectral_axis.meta['photon_axis']
-                else:
-                    raise ValueError('Spectrum object has no photon axis stored in meta.')
-
-            elif isinstance(spectral_axis,SpectralAxis):
-                self.spectral_axis = spectral_axis._bin_edges
-        else:
-            self.spectral_axis = None
+        self.spectral_axis = spectral_axis
+        # if spectral_axis is not None:
+        #     self.spectral_axis = spectral_axis
+        # else:
+        #     self.spectral_axis = None
 
         if abundance_type != "sun_coronal_ext":
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
@@ -204,33 +197,34 @@ class ThermalEmission(FittableModel):
             ca = 12 + np.log10(abundances[19])
             fe = 12 + np.log10(abundances[25])
 
-        self.line = LineEmission(
-            spectral_axis=self.spectral_axis,
-            temperature=temperature,
-            emission_measure=emission_measure,
-            mg=mg,
-            al=al,
-            si=si,
-            s=s,
-            ar=ar,
-            ca=ca,
-            fe=fe,
-            abundance_type=abundance_type,
-        )
 
-        self.cont = ContinuumEmission(
-            spectral_axis=self.spectral_axis,
-            temperature=temperature,
-            emission_measure=emission_measure,
-            mg=mg,
-            al=al,
-            si=si,
-            s=s,
-            ar=ar,
-            ca=ca,
-            fe=fe,
-            abundance_type=abundance_type,
-        )
+        # self.line = LineEmission(
+        #     spectral_axis=self.spectral_axis,
+        #     temperature=temperature,
+        #     emission_measure=emission_measure,
+        #     mg=mg,
+        #     al=al,
+        #     si=si,
+        #     s=s,
+        #     ar=ar,
+        #     ca=ca,
+        #     fe=fe,
+        #     abundance_type=abundance_type,
+        # )
+
+        # self.cont = ContinuumEmission(
+        #     spectral_axis=self.spectral_axis,
+        #     temperature=temperature,
+        #     emission_measure=emission_measure,
+        #     mg=mg,
+        #     al=al,
+        #     si=si,
+        #     s=s,
+        #     ar=ar,
+        #     ca=ca,
+        #     fe=fe,
+        #     abundance_type=abundance_type,
+        # )
 
         super().__init__(
             temperature=temperature,
@@ -245,7 +239,7 @@ class ThermalEmission(FittableModel):
             **kwargs,
         )
 
-        self._edges_store = None
+        # self._edges_store = None
 
     def evaluate(
         self,
@@ -260,31 +254,80 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
+
+        if self.spectral_axis is not None:
+            if isinstance(self.spectral_axis,SpectralAxis):
+                if hasattr(self.spectral_axis, "_meta") and isinstance(self.spectral_axis._meta, dict) and "photon_axis" in self.spectral_axis._meta:
+                    spectral_axis = self.spectral_axis._meta['photon_axis']
+                    warnings.warn('Using user defined photon_axis for evaluation')
+                elif hasattr(self.spectral_axis, "_bin_edges") :
+                    spectral_axis = self.spectral_axis._bin_edges
+                    warnings.warn('Spectrum object has no photon axis stored in meta. Using bin edges.')
+                else:
+                    spectral_axis = SpectralAxis._edges_from_centers(self.spectral_axis.value, self.spectral_axis.unit)
+                    warnings.warn('Calculating bin edges from centers as only centers passed to SpectralAxis.') 
+        else:
+            spectral_axis = None
         
+        # energy_edges = spectral_axis
+
+        # if self.spectral_axis is not None:
+        #     if isinstance(self.spectral_axis,Spectrum):
+        #         if hasattr(self.spectral_axis, "meta") and isinstance(self.spectral_axis.meta, dict) and "photon_axis" in self.spectral_axis.meta:
+        #             spectral_axis = self.spectral_axis.meta['photon_axis']
+        #         else:
+        #             raise ValueError('Spectrum object has no photon axis stored in meta.')
+
+        #     elif isinstance(self.spectral_axis,SpectralAxis):
+        #         spectral_axis = self.spectral_axis._bin_edges  
+        # else:
+        #     spectral_axis = None
+
         if hasattr(temperature, "unit"):
+
             temperature = temperature.to(u.K)
-            if self.spectral_axis is not None:
-                if not np.array_equal(energy_edges,self.spectral_axis):
+
+            if isinstance(energy_edges,SpectralAxis):
+                if hasattr(energy_edges, "_meta") and isinstance(energy_edges._meta, dict) and "photon_axis" in self.spectral_axis._meta:
+                    energy_edges = energy_edges._meta['photon_axis']
+                elif hasattr(energy_edges, "_bin_edges") :
+                    energy_edges = energy_edges._bin_edges
+                else:
+                    energy_edges = SpectralAxis._edges_from_centers(energy_edges.value, energy_edges.unit)
+            
+            if spectral_axis is not None:
+                if not np.array_equal(energy_edges,spectral_axis):
                     raise ValueError('Evaluation axis must matched initialsed spectral axis.')
-                energy_edges = self.spectral_axis
-                print(energy_edges)
+                energy_edges = spectral_axis
                 warnings.warn('User has initialised with a spectral axis, ' \
                 'therefore model will be evaluated based on this.', UserWarning)
             else:
                 energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges.value,unit=energy_edges.unit)
                 
         else:
+            
             temperature = (temperature * u.MK).to_value(u.K)
-            if self.spectral_axis is not None:
+            
+
+            # if hasattr(energy_edges, "_meta") and isinstance(energy_edges._meta, dict) and "photon_axis" in self.spectral_axis._meta:
+            #     energy_edges = energy_edges._meta['photon_axis'].value
+            # elif hasattr(energy_edges, "_bin_edges") :
+            #     energy_edges = energy_edges._bin_edges.value
+            # else:
+            #     energy_edges = SpectralAxis._edges_from_centers(energy_edges, u.keV).value
+
+            if spectral_axis is not None:
                 if not np.array_equal(energy_edges,self.spectral_axis.value):
+                    print('energy_edges = ', len(energy_edges))
+                    print('spectral_axis value = ', len(self.spectral_axis.value))
                     raise ValueError('Evaluation axis must matched initialsed spectral axis.')
-                energy_edges = self.spectral_axis.value
+                energy_edges = spectral_axis.value
                 warnings.warn('User has initialised with a spectral axis, ' \
                 'therefore model will be evaluated based on this.', UserWarning)
             else:
                 energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges,unit=u.keV).value
 
-        line_flux = self.line.evaluate(
+        cont_flux = line_emission(
             energy_edges,
             temperature,
             emission_measure,
@@ -295,9 +338,10 @@ class ThermalEmission(FittableModel):
             ar,
             ca,
             fe,
+            self.abundance_type,
         )
 
-        cont_flux = self.cont.evaluate(
+        line_flux = continuum_emission(
             energy_edges,
             temperature,
             emission_measure,
@@ -308,7 +352,36 @@ class ThermalEmission(FittableModel):
             ar,
             ca,
             fe,
+            self.abundance_type,
         )
+
+
+
+        # line_flux = self.line.evaluate(
+        #     energy_edges,
+        #     temperature,
+        #     emission_measure,
+        #     mg,
+        #     al,
+        #     si,
+        #     s,
+        #     ar,
+        #     ca,
+        #     fe,
+        # )
+
+        # cont_flux = self.cont.evaluate(
+        #     energy_edges,
+        #     temperature,
+        #     emission_measure,
+        #     mg,
+        #     al,
+        #     si,
+        #     s,
+        #     ar,
+        #     ca,
+        #     fe,
+        # )
 
         flux = cont_flux + line_flux
 
@@ -428,18 +501,7 @@ class ContinuumEmission(FittableModel):
         **kwargs,
     ):
 
-        if spectral_axis is not None:
-            if isinstance(spectral_axis,Spectrum):
-                if hasattr(spectral_axis, "meta") and isinstance(spectral_axis.meta, dict) and "photon_axis" in spectral_axis.meta:
-                    self.spectral_axis = spectral_axis.meta['photon_axis']
-                else:
-                    raise ValueError('Spectrum object has no photon axis stored in meta.')
-
-            elif isinstance(spectral_axis,SpectralAxis):
-                self.spectral_axis = spectral_axis._bin_edges
-        else:
-            self.spectral_axis = None
-
+        self.spectral_axis = spectral_axis
         self.abundance_type = abundance_type
 
         if abundance_type != "sun_coronal_ext":
@@ -466,7 +528,6 @@ class ContinuumEmission(FittableModel):
             **kwargs,
         )
 
-        self._edges_store = None
 
     def evaluate(
         self,
@@ -481,10 +542,79 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
-        if hasattr(temperature, "unit"):
-            temperature = temperature.to(u.K)
+        if self.spectral_axis is not None:
+            if isinstance(self.spectral_axis,SpectralAxis):
+                if hasattr(self.spectral_axis, "_meta") and isinstance(self.spectral_axis._meta, dict) and "photon_axis" in self.spectral_axis._meta:
+                    spectral_axis = self.spectral_axis._meta['photon_axis']
+                    warnings.warn('Using user defined photon_axis for evaluation')
+                elif hasattr(self.spectral_axis, "_bin_edges") :
+                    spectral_axis = self.spectral_axis._bin_edges
+                    warnings.warn('Spectrum object has no photon axis stored in meta. Using bin edges.')
+                else:
+                    spectral_axis = SpectralAxis._edges_from_centers(self.spectral_axis.value, self.spectral_axis.unit)
+                    warnings.warn('Calculating bin edges from centers as only centers passed to SpectralAxis.') 
         else:
+            spectral_axis = None
+        
+        # energy_edges = spectral_axis
+
+        # if self.spectral_axis is not None:
+        #     if isinstance(self.spectral_axis,Spectrum):
+        #         if hasattr(self.spectral_axis, "meta") and isinstance(self.spectral_axis.meta, dict) and "photon_axis" in self.spectral_axis.meta:
+        #             spectral_axis = self.spectral_axis.meta['photon_axis']
+        #         else:
+        #             raise ValueError('Spectrum object has no photon axis stored in meta.')
+
+        #     elif isinstance(self.spectral_axis,SpectralAxis):
+        #         spectral_axis = self.spectral_axis._bin_edges  
+        # else:
+        #     spectral_axis = None
+
+        if hasattr(temperature, "unit"):
+
+            temperature = temperature.to(u.K)
+
+            if isinstance(energy_edges,SpectralAxis):
+                if hasattr(energy_edges, "_meta") and isinstance(energy_edges._meta, dict) and "photon_axis" in self.spectral_axis._meta:
+                    energy_edges = energy_edges._meta['photon_axis']
+                elif hasattr(energy_edges, "_bin_edges") :
+                    energy_edges = energy_edges._bin_edges
+                else:
+                    energy_edges = SpectralAxis._edges_from_centers(energy_edges.value, energy_edges.unit)
+            
+            if spectral_axis is not None:
+                if not np.array_equal(energy_edges,spectral_axis):
+                    raise ValueError('Evaluation axis must matched initialsed spectral axis.')
+                energy_edges = spectral_axis
+
+
+                warnings.warn('User has initialised with a spectral axis, ' \
+                'therefore model will be evaluated based on this.', UserWarning)
+            else:
+                energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges.value,unit=energy_edges.unit)
+                
+        else:
+            
             temperature = (temperature * u.MK).to_value(u.K)
+            print('energy_edges 1 = ',energy_edges)
+
+            # if hasattr(energy_edges, "_meta") and isinstance(energy_edges._meta, dict) and "photon_axis" in self.spectral_axis._meta:
+            #     energy_edges = energy_edges._meta['photon_axis'].value
+            # elif hasattr(energy_edges, "_bin_edges") :
+            #     energy_edges = energy_edges._bin_edges.value
+            # else:
+            #     energy_edges = SpectralAxis._edges_from_centers(energy_edges, u.keV).value
+
+            if spectral_axis is not None:
+                if not np.array_equal(energy_edges,self.spectral_axis.value):
+                    print('energy_edges 2 = ', len(energy_edges))
+                    print('spectral_axis value = ', len(self.spectral_axis.value))
+                    raise ValueError('Evaluation axis must matched initialsed spectral axis.')
+                energy_edges = spectral_axis.value
+                warnings.warn('User has initialised with a spectral axis, ' \
+                'therefore model will be evaluated based on this.', UserWarning)
+            else:
+                energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges,unit=u.keV).value
 
         flux = continuum_emission(
             energy_edges,
@@ -504,15 +634,6 @@ class ContinuumEmission(FittableModel):
             return flux
         return flux.value
 
-    def __call__(self, spectral_axis, **kwargs):
-        # Extract meta if input is NDData
-        edges_store = getattr(spectral_axis, "bin_edges", None)
-        self._edges_store = edges_store  # Store it directly on the instance
-        return super().__call__(spectral_axis, **kwargs)
-
-    @property
-    def edges_store(self):
-        return self._edges_store
 
     @property
     def input_units(self):
@@ -612,20 +733,8 @@ class LineEmission(FittableModel):
         **kwargs,
     ):
         
-        if spectral_axis is not None:
-            if isinstance(spectral_axis,Spectrum):
-                if hasattr(spectral_axis, "meta") and isinstance(spectral_axis.meta, dict) and "photon_axis" in spectral_axis.meta:
-                    self.spectral_axis = spectral_axis.meta['photon_axis']
-                else:
-                    raise ValueError('Spectrum object has no photon axis stored in meta.')
-
-            elif isinstance(spectral_axis,SpectralAxis):
-                self.spectral_axis = spectral_axis._bin_edges
-        else:
-            self.spectral_axis = None
-
-
         self.abundance_type = abundance_type
+        self.spectral_axis = spectral_axis
 
         if abundance_type != "sun_coronal_ext":
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
@@ -666,12 +775,77 @@ class LineEmission(FittableModel):
     ):
         # energy_edges = _check_input_type(spectral_axis)
 
-        if hasattr(temperature, "unit"):
-            temperature = temperature.to(u.K)
+        if self.spectral_axis is not None:
+            if isinstance(self.spectral_axis,SpectralAxis):
+                if hasattr(self.spectral_axis, "_meta") and isinstance(self.spectral_axis._meta, dict) and "photon_axis" in self.spectral_axis._meta:
+                    spectral_axis = self.spectral_axis._meta['photon_axis']
+                    warnings.warn('Using user defined photon_axis for evaluation')
+                elif hasattr(self.spectral_axis, "_bin_edges") :
+                    spectral_axis = self.spectral_axis._bin_edges
+                    warnings.warn('Spectrum object has no photon axis stored in meta. Using bin edges.')
+                else:
+                    spectral_axis = SpectralAxis._edges_from_centers(self.spectral_axis.value, self.spectral_axis.unit)
+                    warnings.warn('Calculating bin edges from centers as only centers passed to SpectralAxis.') 
         else:
-            temperature = (temperature * u.MK).to_value(u.K)
+            spectral_axis = None
+        
+        # energy_edges = spectral_axis
 
-        print(energy_edges)
+        # if self.spectral_axis is not None:
+        #     if isinstance(self.spectral_axis,Spectrum):
+        #         if hasattr(self.spectral_axis, "meta") and isinstance(self.spectral_axis.meta, dict) and "photon_axis" in self.spectral_axis.meta:
+        #             spectral_axis = self.spectral_axis.meta['photon_axis']
+        #         else:
+        #             raise ValueError('Spectrum object has no photon axis stored in meta.')
+
+        #     elif isinstance(self.spectral_axis,SpectralAxis):
+        #         spectral_axis = self.spectral_axis._bin_edges  
+        # else:
+        #     spectral_axis = None
+
+        if hasattr(temperature, "unit"):
+
+
+            temperature = temperature.to(u.K)
+
+            if isinstance(energy_edges,SpectralAxis):
+                if hasattr(energy_edges, "_meta") and isinstance(energy_edges._meta, dict) and "photon_axis" in self.spectral_axis._meta:
+                    energy_edges = energy_edges._meta['photon_axis']
+                elif hasattr(energy_edges, "_bin_edges") :
+                    energy_edges = energy_edges._bin_edges
+                else:
+                    energy_edges = SpectralAxis._edges_from_centers(energy_edges.value, energy_edges.unit)
+            
+            if spectral_axis is not None:
+                if not np.array_equal(energy_edges,spectral_axis):
+                    raise ValueError('Evaluation axis must matched initialsed spectral axis.')
+                energy_edges = spectral_axis
+                warnings.warn('User has initialised with a spectral axis, ' \
+                'therefore model will be evaluated based on this.', UserWarning)
+            else:
+                energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges.value,unit=energy_edges.unit)
+                
+        else:
+            
+            temperature = (temperature * u.MK).to_value(u.K)
+            
+            # if hasattr(energy_edges, "_meta") and isinstance(energy_edges._meta, dict) and "photon_axis" in self.spectral_axis._meta:
+            #     energy_edges = energy_edges._meta['photon_axis'].value
+            # elif hasattr(energy_edges, "_bin_edges") :
+            #     energy_edges = energy_edges._bin_edges.value
+            # else:
+            #     energy_edges = SpectralAxis._edges_from_centers(energy_edges, u.keV).value
+
+            if spectral_axis is not None:
+                if not np.array_equal(energy_edges,self.spectral_axis.value):
+                    print('energy_edges = ', len(energy_edges))
+                    print('spectral_axis value = ', len(self.spectral_axis.value))
+                    raise ValueError('Evaluation axis must matched initialsed spectral axis.')
+                energy_edges = spectral_axis.value
+                warnings.warn('User has initialised with a spectral axis, ' \
+                'therefore model will be evaluated based on this.', UserWarning)
+            else:
+                energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges,unit=u.keV).value
 
         flux = line_emission(
             energy_edges,

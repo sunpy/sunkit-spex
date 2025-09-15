@@ -83,8 +83,7 @@ class SpectralAxis(SpectralCoord):
 
         obj = super().__new__(cls, value, *args, **kwargs)
         
-
-
+    
         if bin_specification == "edges":
             obj._bin_edges = bin_edges
 
@@ -211,7 +210,7 @@ class Spectrum(NDCube):
             else:
                 raise ValueError(
                     f"Spectral axis length ({spectral_axis.shape[0]}) must be the same size or one "
-                    "greater (if specifying bin edges) than that of the spextral"
+                    "greater (if specifying bin edges) than that of the spectral"
                     f"axis ({data.shape[spectral_dimension]})"
                 )
 
@@ -231,6 +230,9 @@ class Spectrum(NDCube):
                 else:
                     bin_specification = "centers"
                 self._spectral_axis = SpectralAxis(spectral_axis, bin_specification=bin_specification)
+            
+            if isinstance(spectral_axis, SpectralAxis):
+                self._spectral_axis = spectral_axis
 
             wcs = gwcs_from_array(self._spectral_axis)
 
@@ -242,3 +244,8 @@ class Spectrum(NDCube):
                 uncertainty=uncertainty,
                 **kwargs,
             )
+    
+    # def __array_finalize__(self, obj):
+    #     super().__array_finalize__(obj)
+    #     self._bin_edges = getattr(obj, "_bin_edges", None)
+    #     self._meta = getattr(obj, "_meta", None)
