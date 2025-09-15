@@ -420,26 +420,21 @@ def test_line_emission_against_ssw(ssw):
     np.testing.assert_allclose(output_class.value, expected_value, rtol=0.05, atol=1e-30)
 
 
-
 def test_energy_out_of_range_error():
     with pytest.raises(
         ValueError,
         match="Lower bound of the input energy must be within the range 1.0002920302956426--10.34753795157738 keV. ",
     ):
-
         thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             SpectralAxis(np.array([0.01, 10]) * u.keV, bin_specification="edges")
         )
 
 
-
 def test_temperature_out_of_range_error():
     with pytest.raises(ValueError, match="All input temperature values must be within the range"):
-
         thermal.ThermalEmission(0.1 * u.MK, 1e-5 / u.cm**3, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
             SpectralAxis(np.array([5, 10]) * u.keV, bin_specification="edges")
         )
-
 
 
 def test_line_energy_out_of_range_warning():
@@ -487,7 +482,6 @@ def test_empty_flux_out_of_range():
 
     temperature = 20 << u.MK
     em = 1e-5 << u.cm**-3
-
 
     flux = thermal.ThermalEmission(temperature, em, 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.1)(
         SpectralAxis(energy_edges, bin_specification="edges")

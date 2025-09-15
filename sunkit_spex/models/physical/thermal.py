@@ -385,7 +385,6 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
-
         energy_edges, temperature = _spectral_axis_process(temperature, energy_edges, self.spectral_axis)
 
         flux = continuum_emission(
@@ -401,6 +400,10 @@ class ContinuumEmission(FittableModel):
             fe,
             self.abundance_type,
         )
+
+        if hasattr(temperature, "unit"):
+            return flux
+        return flux.value
 
     @property
     def input_units(self):
@@ -530,7 +533,6 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
-
         energy_edges, temperature = _spectral_axis_process(temperature, energy_edges, self.spectral_axis)
 
         flux = line_emission(
@@ -546,6 +548,10 @@ class LineEmission(FittableModel):
             fe,
             self.abundance_type,
         )
+
+        if hasattr(temperature, "unit"):
+            return flux
+        return flux.value
 
     @property
     def input_units(self):
