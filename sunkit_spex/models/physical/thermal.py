@@ -15,7 +15,6 @@ from sunkit_spex.models.physical.io import (
     load_xray_abundances,
 )
 from sunkit_spex.spectrum.spectrum import SpectralAxis
-from sunkit_spex.spectrum.spectrum import Spectrum
 
 __all__ = ["ContinuumEmission", "LineEmission", "ThermalEmission"]
 
@@ -161,12 +160,11 @@ class ThermalEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
-    # input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
         self,
-        spectral_axis = None, 
+        spectral_axis=None,
         temperature=u.Quantity(temperature.default, temperature.unit),
         emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
         mg=mg.default,
@@ -181,10 +179,6 @@ class ThermalEmission(FittableModel):
     ):
         self.abundance_type = abundance_type
         self.spectral_axis = spectral_axis
-        # if spectral_axis is not None:
-        #     self.spectral_axis = spectral_axis
-        # else:
-        #     self.spectral_axis = None
 
         if abundance_type != "sun_coronal_ext":
             abundances = DEFAULT_ABUNDANCES[abundance_type].data
@@ -210,7 +204,6 @@ class ThermalEmission(FittableModel):
             **kwargs,
         )
 
-
     def evaluate(
         self,
         energy_edges,
@@ -224,9 +217,7 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
-        
-
-        energy_edges, temperature = _spectral_axis_process(temperature, energy_edges,self.spectral_axis)
+        energy_edges, temperature = _spectral_axis_process(temperature, energy_edges, self.spectral_axis)
 
         cont_flux = line_emission(
             energy_edges,
@@ -256,45 +247,11 @@ class ThermalEmission(FittableModel):
             self.abundance_type,
         )
 
-
-
-        # line_flux = self.line.evaluate(
-        #     energy_edges,
-        #     temperature,
-        #     emission_measure,
-        #     mg,
-        #     al,
-        #     si,
-        #     s,
-        #     ar,
-        #     ca,
-        #     fe,
-        # )
-
-        # cont_flux = self.cont.evaluate(
-        #     energy_edges,
-        #     temperature,
-        #     emission_measure,
-        #     mg,
-        #     al,
-        #     si,
-        #     s,
-        #     ar,
-        #     ca,
-        #     fe,
-        # )
-
         flux = cont_flux + line_flux
 
         if hasattr(temperature, "unit"):
             return flux
         return flux.value
-
-    # def __call__(self, spectral_axis, **kwargs):
-    #     # Extract meta if input is NDData
-    #     edges_store = getattr(spectral_axis, "bin_edges", None)
-    #     self._edges_store = edges_store  # Store it directly on the instance
-    #     return super().__call__(spectral_axis, **kwargs)
 
     @property
     def edges_store(self):
@@ -383,7 +340,6 @@ class ContinuumEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
-    # input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
@@ -401,7 +357,6 @@ class ContinuumEmission(FittableModel):
         abundance_type="sun_coronal_ext",
         **kwargs,
     ):
-
         self.spectral_axis = spectral_axis
         self.abundance_type = abundance_type
 
@@ -429,7 +384,6 @@ class ContinuumEmission(FittableModel):
             **kwargs,
         )
 
-
     def evaluate(
         self,
         energy_edges,
@@ -443,8 +397,7 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
-
-        energy_edges, temperature = _spectral_axis_process(temperature, energy_edges,self.spectral_axis)
+        energy_edges, temperature = _spectral_axis_process(temperature, energy_edges, self.spectral_axis)
 
         flux = continuum_emission(
             energy_edges,
@@ -463,7 +416,6 @@ class ContinuumEmission(FittableModel):
         if hasattr(temperature, "unit"):
             return flux
         return flux.value
-
 
     @property
     def input_units(self):
@@ -544,7 +496,6 @@ class LineEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
-    # input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
@@ -562,7 +513,6 @@ class LineEmission(FittableModel):
         abundance_type="sun_coronal_ext",
         **kwargs,
     ):
-        
         self.abundance_type = abundance_type
         self.spectral_axis = spectral_axis
 
@@ -603,8 +553,7 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
-
-        energy_edges, temperature = _spectral_axis_process(temperature, energy_edges,self.spectral_axis)
+        energy_edges, temperature = _spectral_axis_process(temperature, energy_edges, self.spectral_axis)
 
         flux = line_emission(
             energy_edges,
@@ -1382,60 +1331,66 @@ def _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe):
     return abundances
 
 
-def _spectral_axis_process(temperature, energy_edges,spectral_axis):
-
+def _spectral_axis_process(temperature, energy_edges, spectral_axis):
     if spectral_axis is not None:
-        if isinstance(spectral_axis,SpectralAxis):
-            if hasattr(spectral_axis, "_meta") and isinstance(spectral_axis._meta, dict) and "photon_axis" in spectral_axis._meta:
-                spectral_axis_clean = spectral_axis._meta['photon_axis']
-                warnings.warn('Using user defined photon_axis for evaluation')
-            elif hasattr(spectral_axis, "_bin_edges") :
+        if isinstance(spectral_axis, SpectralAxis):
+            if (
+                hasattr(spectral_axis, "_meta")
+                and isinstance(spectral_axis._meta, dict)
+                and "photon_axis" in spectral_axis._meta
+            ):
+                spectral_axis_clean = spectral_axis._meta["photon_axis"]
+                warnings.warn("Using user defined photon_axis for evaluation")
+            elif hasattr(spectral_axis, "_bin_edges"):
                 spectral_axis_clean = spectral_axis._bin_edges
-                warnings.warn('Spectrum object has no photon axis stored in meta. Using bin edges.')
+                warnings.warn("Spectrum object has no photon axis stored in meta. Using bin edges.")
             else:
                 spectral_axis_clean = SpectralAxis._edges_from_centers(spectral_axis.value, spectral_axis.unit)
-                warnings.warn('Calculating bin edges from centers as only centers passed to SpectralAxis.') 
+                warnings.warn("Calculating bin edges from centers as only centers passed to SpectralAxis.")
     else:
         spectral_axis_clean = None
-    
-    if hasattr(temperature, "unit"):
 
+    if hasattr(temperature, "unit"):
         temperature = temperature.to(u.K)
 
-        if isinstance(energy_edges,SpectralAxis):
-            if hasattr(energy_edges, "_meta") and isinstance(energy_edges._meta, dict) and "photon_axis" in spectral_axis._meta:
-                energy_edges = energy_edges._meta['photon_axis']
-            elif hasattr(energy_edges, "_bin_edges") :
+        if isinstance(energy_edges, SpectralAxis):
+            if (
+                hasattr(energy_edges, "_meta")
+                and isinstance(energy_edges._meta, dict)
+                and "photon_axis" in spectral_axis._meta
+            ):
+                energy_edges = energy_edges._meta["photon_axis"]
+            elif hasattr(energy_edges, "_bin_edges"):
                 energy_edges = energy_edges._bin_edges
             else:
                 energy_edges = SpectralAxis._edges_from_centers(energy_edges.value, energy_edges.unit)
-        
+
         if spectral_axis is not None:
-            if not np.array_equal(energy_edges,spectral_axis_clean):
-                raise ValueError('Evaluation axis must matched initialsed spectral axis.')
+            if not np.array_equal(energy_edges, spectral_axis_clean):
+                raise ValueError("Evaluation axis must matched initialised spectral axis.")
             energy_edges = spectral_axis_clean
-            warnings.warn('User has initialised with a spectral axis, ' \
-            'therefore model will be evaluated based on this.', UserWarning)
+            warnings.warn(
+                "User has initialised with a spectral axis, therefore model will be evaluated based on this.",
+                UserWarning,
+            )
         else:
-            energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges.value,unit=energy_edges.unit)
-            
+            energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges.value, unit=energy_edges.unit)
+
     else:
-        
         temperature = (temperature * u.MK).to_value(u.K)
 
         if spectral_axis_clean is not None:
-            if not np.array_equal(energy_edges,spectral_axis.value):
-                print('energy_edges = ', len(energy_edges))
-                print('spectral_axis value = ', len(spectral_axis.value))
-                raise ValueError('Evaluation axis must matched initialsed spectral axis.')
+            if not np.array_equal(energy_edges, spectral_axis.value):
+                raise ValueError("Evaluation axis must matched initialised spectral axis.")
             energy_edges = spectral_axis_clean.value
-            warnings.warn('User has initialised with a spectral axis, ' \
-            'therefore model will be evaluated based on this.', UserWarning)
+            warnings.warn(
+                "User has initialised with a spectral axis, therefore model will be evaluated based on this.",
+                UserWarning,
+            )
         else:
-            energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges,unit=u.keV).value
-        
-    return energy_edges, temperature
+            energy_edges = SpectralAxis._edges_from_centers(centers=energy_edges, unit=u.keV).value
 
+    return energy_edges, temperature
 
 
 # ### Continuum emission, kris

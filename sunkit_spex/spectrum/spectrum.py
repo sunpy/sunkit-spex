@@ -82,8 +82,7 @@ class SpectralAxis(SpectralCoord):
             value = SpectralAxis._centers_from_edges(value)
 
         obj = super().__new__(cls, value, *args, **kwargs)
-        
-    
+
         if bin_specification == "edges":
             obj._bin_edges = bin_edges
 
@@ -91,12 +90,10 @@ class SpectralAxis(SpectralCoord):
             obj._meta = meta
         return obj
 
-
     def __array_finalize__(self, obj):
         super().__array_finalize__(obj)
         self._bin_edges = getattr(obj, "_bin_edges", None)
         self._meta = getattr(obj, "_meta", None)
-
 
     @staticmethod
     def _edges_from_centers(centers, unit):
@@ -230,7 +227,7 @@ class Spectrum(NDCube):
                 else:
                     bin_specification = "centers"
                 self._spectral_axis = SpectralAxis(spectral_axis, bin_specification=bin_specification)
-            
+
             if isinstance(spectral_axis, SpectralAxis):
                 self._spectral_axis = spectral_axis
 
@@ -244,7 +241,7 @@ class Spectrum(NDCube):
                 uncertainty=uncertainty,
                 **kwargs,
             )
-    
+
     # def __array_finalize__(self, obj):
     #     super().__array_finalize__(obj)
     #     self._bin_edges = getattr(obj, "_bin_edges", None)
