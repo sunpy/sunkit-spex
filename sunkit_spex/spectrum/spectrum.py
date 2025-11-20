@@ -117,6 +117,10 @@ class SpectralAxis(SpectralCoord):
             return self._bin_edges
         return self._edges_from_centers(self.value, self.unit)
 
+    def __array_finalize__(self, obj):
+        super().__array_finalize__(obj)
+        self._bin_edges = getattr(obj, "_bin_edges", None)
+
 
 class Spectrum(NDCube):
     r"""
@@ -134,15 +138,15 @@ class Spectrum(NDCube):
     ----------
     data : `~astropy.units.Quantity`
         The data for this spectrum. This can be a simple `~astropy.units.Quantity`,
-        or an existing `~Spectrum1D` or `~ndcube.NDCube` object.
+        or an existing `~Spectrum` or `~ndcube.NDCube` object.
     uncertainty : `~astropy.nddata.NDUncertainty`
         Contains uncertainty information along with propagation rules for
         spectrum arithmetic. Can take a unit, but if none is given, will use
         the unit defined in the flux.
     spectral_axis : `~astropy.units.Quantity` or `~specutils.SpectralAxis`
-        Dispersion information with the same shape as the dimension specified by spectral_dimension
+        Dispersion information with the same shape as the dimension specified by spectral_axis_index
         of shape plus one if specifying bin edges.
-    spectral_dimension : `int` default 0
+    spectral_axis_index : `int` default 0
         The dimension of the data which represents the spectral information default to first dimension index 0.
     mask : `~numpy.ndarray`-like
         Array where values in the flux to be masked are those that
@@ -157,7 +161,7 @@ class Spectrum(NDCube):
     >>> import numpy as np
     >>> import astropy.units as u
     >>> from sunkit_spex.spectrum import Spectrum
-    >>> spec = Spectrum(np.arange(1, 11)*u.watt, spectral_axis=np.arange(1, 12)*u.keV)
+    >>> spec = Spectrum(np.arange(1, 11)*u.watt,spectral_axis=np.arange(1, 12)*u.keV)
     >>> spec
     <sunkit_spex.spectrum.spectrum.Spectrum object at ...
     NDCube
@@ -169,20 +173,60 @@ class Spectrum(NDCube):
     """
 
     def __init__(
-        self, data, *, uncertainty=None, spectral_axis=None, spectral_dimension=0, mask=None, meta=None, **kwargs
+        self,
+        data,
+        *,
+        uncertainty=None,
+        spectral_axis=None,
+        spectral_axis_index=None,
+        wcs=None,
+        mask=None,
+        meta=None,
+        **kwargs,
     ):
-        # If the flux (data) argument is already a Spectrum (as it would
+        # If the data argument is already a Spectrum (as it would
         # be for internal arithmetic operations), avoid setup entirely.
         if isinstance(data, Spectrum):
+            self._spectral_axis = spectral_axis
+            self._spectral_dimension = spectral_axis_index
             super().__init__(data)
             return
 
-        # Ensure that the flux argument is an astropy quantity
-        if data is not None:
-            if not isinstance(data, u.Quantity):
-                raise ValueError("Flux must be a `Quantity` object.")
-            if data.isscalar:
-                data = u.Quantity([data])
+        # Check for pre-defined entries in the kwargs dictionary.
+        unknown_kwargs = set(kwargs).difference(
+            {"data", "unit", "uncertainty", "meta", "mask", "copy", "extra_coords", "global_coords", "psf"}
+        )
+
+        if len(unknown_kwargs) > 0:
+            raise ValueError(
+                "Initializer contains unknown arguments(s): {}.".format(", ".join(map(str, unknown_kwargs)))
+            )
+
+        # Handle initializing from NDCube objects
+        if isinstance(data, NDCube):
+            if data.unit is None:
+                raise ValueError("Input NDCube missing unit parameter")
+
+            # Change the data array from bare ndarray to a Quantity
+            q_data = data.data << u.Unit(data.unit)
+
+            self.__init__(q_data, uncertainty=data.uncertainty, mask=data.mask, wcs=data.wcs)
+            return
+
+        self._spectral_axis_index = spectral_axis_index
+        # If here data is should be an array or quantity
+        if spectral_axis_index is None and data is not None:
+            if data.ndim == 1:
+                self._spectral_axis_index = 0
+        elif data is None:
+            self._spectral_axis_index = 0
+
+        # Ensure that the data argument is an astropy quantity
+        # if data is not None:
+        #     if not isinstance(data, u.Quantity):
+        #         raise ValueError("Data must be a `Quantity` object.")
+        #     if data.isscalar:
+        #         data = u.Quantity([data])
 
         # Ensure that the unit information codified in the quantity object is
         # the One True Unit.
@@ -191,41 +235,146 @@ class Spectrum(NDCube):
         # If flux and spectral axis are both specified, check that their lengths
         # match or are off by one (implying the spectral axis stores bin edges)
         if data is not None and spectral_axis is not None:
-            if spectral_axis.shape[0] == data.shape[spectral_dimension]:
+            if spectral_axis.shape[0] == data.shape[self.spectral_axis_index]:
                 bin_specification = "centers"
-            elif spectral_axis.shape[0] == data.shape[spectral_dimension] + 1:
+            elif spectral_axis.shape[0] == data.shape[self.spectral_axis_index] + 1:
                 bin_specification = "edges"
             else:
                 raise ValueError(
-                    f"Spectral axis length ({spectral_axis.shape[0]}) must be the same size or one "
-                    "greater (if specifying bin edges) than that of the spextral"
-                    f"axis ({data.shape[spectral_dimension]})"
+                    f"Spectral axis length ({spectral_axis.shape[0]}) must be the "
+                    "same size or one greater (if specifying bin edges) than that "
+                    f"of the corresponding flux axis ({data.shape[self.spectral_axis_index]})"
                 )
+
+        # If a WCS is provided, determine which axis is the spectral axis
+        if wcs is not None:
+            naxis = None
+            if hasattr(wcs, "naxis"):
+                naxis = wcs.naxis
+            # GWCS doesn't have naxis
+            elif hasattr(wcs, "world_n_dim"):
+                naxis = wcs.world_n_dim
+
+            if naxis is not None and naxis > 1:
+                temp_axes = []
+                phys_axes = wcs.world_axis_physical_types
+                if self._spectral_axis_index is None:
+                    for i in range(len(phys_axes)):
+                        if phys_axes[i] is None:
+                            continue
+                        if phys_axes[i][0:2] == "em" or phys_axes[i][0:5] == "spect" or phys_axes[i][7:12] == "Spect":
+                            temp_axes.append(i)
+                    if len(temp_axes) != 1:
+                        raise ValueError(
+                            f"Input WCS must have exactly one axis with spectral units, found {len(temp_axes)}"
+                        )
+                    # Due to FITS conventions, the WCS axes are listed in opposite
+                    # order compared to the data array.
+                    self._spectral_axis_index = len(data.shape) - temp_axes[0] - 1
+
+            else:
+                if data is not None and data.ndim == 1:
+                    self._spectral_axis_index = 0
+                else:
+                    if self.spectral_axis_index is None:
+                        raise ValueError("WCS is 1D but flux is multi-dimensional. Please specify spectral_axis_index.")
 
         # Attempt to parse the spectral axis. If none is given, try instead to
         # parse a given wcs. This is put into a GWCS object to
         # then be used behind-the-scenes for all operations.
         if spectral_axis is not None:
             # Ensure that the spectral axis is an astropy Quantity
-            if not isinstance(spectral_axis, u.Quantity):
+            if not isinstance(spectral_axis, (u.Quantity, SpectralAxis)):
                 raise ValueError("Spectral axis must be a `Quantity` or `SpectralAxis` object.")
 
-            # If a spectral axis is provided as an astropy Quantity, convert it
-            # to a SpectralAxis object.
+            # If spectral axis is provided as an astropy Quantity, convert it
+            # to a specutils SpectralAxis object.
             if not isinstance(spectral_axis, SpectralAxis):
-                if spectral_axis.shape[0] == data.shape[spectral_dimension] + 1:
-                    bin_specification = "edges"
-                else:
-                    bin_specification = "centers"
                 self._spectral_axis = SpectralAxis(spectral_axis, bin_specification=bin_specification)
+            # If a SpectralAxis object is provided, we assume it doesn't need
+            # information from other keywords added
+            else:
+                self._spectral_axis = spectral_axis
 
-            wcs = gwcs_from_array(self._spectral_axis)
+            if wcs is None:
+                wcs = gwcs_from_array(self._spectral_axis)
 
-            super().__init__(
-                data=data.value if isinstance(data, u.Quantity) else data,
-                wcs=wcs,
-                mask=mask,
-                meta=meta,
-                uncertainty=uncertainty,
-                **kwargs,
+        elif wcs is None:
+            # If no spectral axis or wcs information is provided, initialize
+            # with an empty gwcs based on the data.
+            if self.spectral_axis_index is None:
+                if data.ndim == 1:
+                    self._spectral_axis_index = 0
+                else:
+                    raise ValueError("Must specify spectral_axis_index if no WCS or spectral axis is input.")
+            size = data.shape[self.spectral_axis_index] if not data.isscalar else 1
+            wcs = gwcs_from_array(
+                np.arange(size) * u.Unit("pixel"), data.shape, spectral_axis_index=self.spectral_axis_index
             )
+
+        super().__init__(data=data.value if isinstance(data, u.Quantity) else data, wcs=wcs, **kwargs)
+
+        # If no spectral_axis was provided, create a SpectralCoord based on
+        # the WCS
+        if spectral_axis is None:
+            # If the WCS doesn't have a spectral attribute, we assume it's the
+            # dummy GWCS we created or a solely spectral WCS
+            if hasattr(self.wcs, "spectral"):
+                # Handle generated 1D WCS that aren't set to spectral
+                if not self.wcs.is_spectral and self.wcs.naxis == 1:
+                    spec_axis = self.wcs.pixel_to_world(np.arange(self.data.shape[self.spectral_axis_index]))
+                else:
+                    spec_axis = self.wcs.spectral.pixel_to_world(np.arange(self.data.shape[self.spectral_axis_index]))
+            else:
+                # We now keep the entire GWCS, including spatial information, so we need to include
+                # all axes in the pixel_to_world call. Note that this assumes/requires that the
+                # dispersion is the same at all spatial locations.
+                wcs_args = []
+                for i in range(len(self.data.shape)):
+                    wcs_args.append(np.zeros(self.data.shape[self.spectral_axis_index]))
+                # Replace with arange for the spectral axis
+                wcs_args[self.spectral_axis_index] = np.arange(self.data.shape[self.spectral_axis_index])
+                wcs_args.reverse()
+                temp_coords = self.wcs.pixel_to_world(*wcs_args)
+                # If there are spatial axes, temp_coords will have a SkyCoord and a SpectralCoord
+                if isinstance(temp_coords, list):
+                    for coords in temp_coords:
+                        if isinstance(coords, SpectralCoord):
+                            spec_axis = coords
+                            break
+                    else:
+                        # WCS axis ordering is reverse of numpy
+                        spec_axis = temp_coords[len(temp_coords) - self.spectral_axis_index - 1]
+                else:
+                    spec_axis = temp_coords
+
+            try:
+                if spec_axis.unit.is_equivalent(u.one):
+                    spec_axis = spec_axis * u.pixel
+            except AttributeError:
+                raise AttributeError(f"spec_axis does not have unit: {type(spec_axis)} {spec_axis}")
+
+            self._spectral_axis = SpectralAxis(spec_axis)
+
+        # make sure that spectral axis is strictly increasing
+        if not np.all(self._spectral_axis[1:] >= self._spectral_axis[:-1]):
+            raise ValueError("Spectral axis must be strictly increasing or decreasing.")
+
+        if hasattr(self, "uncertainty") and self.uncertainty is not None:
+            if not data.shape == self.uncertainty.array.shape:
+                raise ValueError(
+                    f"Data axis ({data.shape}) and uncertainty ({self.uncertainty.array.shape}) shapes must be the "
+                    "same."
+                )
+
+    # @property
+    # def data(self):
+    #     return u.Quantity(self._data, unit=self.unit, copy=False)
+
+    @property
+    def spectral_axis(self):
+        return self._spectral_axis
+
+    @property
+    def spectral_axis_index(self):
+        return self._spectral_axis_index
