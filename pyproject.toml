@@ -18,16 +18,16 @@ authors = [
 dependencies = [
     "corner>=2.2",
     "emcee>=3.1",
-    "matplotlib>=3.7",
+    "matplotlib>=3.9",
     "nestle>=0.2",
     "numdifftools>=0.9.40",
-    "numpy>=1.24",
-    "parfive>=2.0",
-    "scipy>=1.11",
-    "sunpy>=6.0",
-    "xarray>=2022.10",
+    "numpy>=1.26",  # Note: keeping support for numpy 1.x for now
+    "parfive>=2.1",
+    "scipy>=1.12",
+    "sunpy>=7.0",
+    "xarray>=2023.12",
     "gwcs>=0.21.0",
-    "ndcube>=2.1",
+    "ndcube>=2.3",
 ]
 
 dynamic = ["version"]
