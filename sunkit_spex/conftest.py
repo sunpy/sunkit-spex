@@ -6,6 +6,7 @@ from astropy.wcs import WCS
 from sunkit_spex.spectrum import Spectrum
 
 
+@pytest.fixture
 def wcs_et():
     header = {
         "CTYPE1": "TIME    ",  # data type
