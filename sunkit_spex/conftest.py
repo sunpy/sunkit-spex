@@ -55,11 +55,11 @@ from sunkit_spex.spectrum import Spectrum
 @pytest.fixture
 def wcs_et():
     header = {
-        "CTYPE1": "TIME    ",  # data type
-        "CUNIT1": "min",  # data unit
-        "CDELT1": 0.4,  # interval
-        "CRPIX1": 0,  # home pixel (units = pixels)
-        "CRVAL1": 0,  # home coordinate (units = data unit) eg here the home coordinate is time = 0 min
+        "CTYPE1": "TIME    ",
+        "CUNIT1": "min",
+        "CDELT1": 0.4,
+        "CRPIX1": 0,
+        "CRVAL1": 0,
         "CTYPE2": "ENERGY   ",
         "CUNIT2": "keV",
         "CDELT2": 0.2,
@@ -75,3 +75,128 @@ def spec():
     timeenergy = wcs_et()
     data = np.arange(1, 11) * u.watt
     return Spectrum(data, wcs=timeenergy)
+
+
+@pytest.fixture
+def wcs_dt():
+    header = {
+        "CTYPE1": "DETECTOR",
+        "CUNIT1": "",
+        "CDELT1": 0,
+        "CRPIX1": 0,
+        "CRVAL1": 0,
+        "CTYPE2": "ENERGY   ",
+        "CUNIT2": "keV",
+        "CDELT2": 0.2,
+        "CRPIX2": 0,
+        "CRVAL2": 0,
+        "DATEREF": "2020-01-01T00:00:00",
+    }
+    return WCS(header=header)
+
+
+@pytest.fixture
+def dve():
+    detectorenergy = wcs_dt()
+    data = np.arange(1, 11) * u.watt
+    return Spectrum(data, wcs=detectorenergy)
+
+
+@pytest.fixture
+def wcs_ess():
+    header = {
+        "CTYPE1": "ENERGY    ",
+        "CUNIT1": "keV",
+        "CDELT1": 0.2,
+        "CRPIX1": 0,
+        "CRVAL1": 0,
+        "CTYPE2": "HPLT-TAN",
+        "CUNIT2": "deg",
+        "CDELT2": 0.5,
+        "CRPIX2": 2,
+        "CRVAL2": 0.5,
+        "CTYPE3": "HPLN-TAN",
+        "CUNIT3": "deg",
+        "CDELT3": 0.4,
+        "CRPIX3": 2,
+        "CRVAL3": 1,
+        "DATEREF": "2020-01-01T00:00:00",
+    }
+    return WCS(header=header)
+
+
+@pytest.fixture
+def evsvs():
+    energyspacespace = wcs_ess()
+    data = np.arange(1, 11) * u.watt
+    return Spectrum(data, wcs=energyspacespace)
+
+
+@pytest.fixture
+def wcs_etd():
+    header = {
+        "CTYPE1": "ENERGY    ",
+        "CUNIT1": "keV",
+        "CDELT1": 0.2,
+        "CRPIX1": 0,
+        "CRVAL1": 0,
+        "CTYPE2": "TIME",
+        "CUNIT2": "min",
+        "CDELT2": 0.4,
+        "CRPIX2": 0,
+        "CRVAL2": 0,
+        "CTYPE3": "DETECTOR",
+        "CUNIT3": "",
+        "CDELT3": 0,
+        "CRPIX3": 0,
+        "CRVAL3": 0,
+        "DATEREF": "2020-01-01T00:00:00",
+    }
+    return WCS(header=header)
+
+
+@pytest.fixture
+def evtvd():
+    energytimedetector = wcs_etd()
+    data = np.arange(1, 11) * u.watt
+    return Spectrum(data, wcs=energytimedetector)
+
+
+@pytest.fixture
+def wcs_esstp():
+    header = {
+        "CTYPE1": "ENERGY    ",
+        "CUNIT1": "keV",
+        "CDELT1": 0.2,
+        "CRPIX1": 0,
+        "CRVAL1": 0,
+        "CTYPE2": "HPLT-TAN",
+        "CUNIT2": "deg",
+        "CDELT2": 0.5,
+        "CRPIX2": 2,
+        "CRVAL2": 0.5,
+        "CTYPE3": "HPLN-TAN",
+        "CUNIT3": "deg",
+        "CDELT3": 0.4,
+        "CRPIX3": 2,
+        "CRVAL3": 1,
+        "CTYPE4": "TIME",
+        "CUNIT4": "min",
+        "CDELT4": 0.4,
+        "CRPIX4": 0,
+        "CRVAL4": 0,
+        "CTYPE5": "POLARISATION",
+        "CUNIT5": "C/m2",
+        "CDELT5": 0.4,
+        "CRPIX5": 0,
+        "CRVAL5": 0,
+        "DATEREF": "2020-01-01T00:00:00",
+    }
+    return WCS(header=header)
+
+
+@pytest.fixture
+def evsvsvtvp():
+    esstp = wcs_esstp()
+    data = np.arange(1, 11) * u.watt
+    return Spectrum(data, wcs=esstp)
