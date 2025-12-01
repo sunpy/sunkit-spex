@@ -71,7 +71,7 @@ def wcs_et():
 
 
 @pytest.fixture
-def spec():
-    timeenergy = wcs_et()
+def spec(wcs_et):
+    timeenergy = wcs_et
     data = np.arange(1, 11) * u.watt
     return Spectrum(data, wcs=timeenergy)
