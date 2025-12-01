@@ -1,0 +1,1 @@
+Fixes background subtraction bug in STIX loader in class:`STIXLoader`. The background time now now handled properly and not replaced with even time.
