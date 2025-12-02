@@ -39,6 +39,17 @@ def test_spectrum_spectral_axis_bin_centers():
     assert_array_equal(spec._spectral_axis, [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5] * u.keV)
 
 
+def test_spectrum_from_spectrum():
+    spec_orig = Spectrum(np.arange(1, 11) * u.watt, spectral_axis=np.arange(1, 12) * u.keV)
+    spec_new = Spectrum(spec_orig)
+    spec_orig == spec_new
+
+
+def test_spectrum_unknow_keywords():
+    with pytest.raises(ValueError, match=r"Initializer contains unknown arguments."):
+        Spectrum(np.arange(1, 11) * u.watt, spectral_axis=np.arange(1, 12) * u.keV, mykeyword="myvalue")
+
+
 def test_spectrum_from_ndcube_wcs():
     header = {
         "CTYPE1": "TIME    ",

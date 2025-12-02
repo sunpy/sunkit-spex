@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import numpy as np
 from gwcs import WCS as GWCS
 from gwcs import coordinate_frames as cf
@@ -142,10 +144,10 @@ class Spectrum(NDCube):
     uncertainty : `~astropy.nddata.NDUncertainty`
         Contains uncertainty information along with propagation rules for
         spectrum arithmetic. Can take a unit, but if none is given, will use
-        the unit defined in the flux.
+        the unit defined in the data.
     spectral_axis : `~astropy.units.Quantity` or `~specutils.SpectralAxis`
         Dispersion information with the same shape as the dimension specified by spectral_axis_index
-        of shape plus one if specifying bin edges.
+        or shape plus one if specifying bin edges.
     spectral_axis_index : `int` default 0
         The dimension of the data which represents the spectral information default to first dimension index 0.
     mask : `~numpy.ndarray`-like
@@ -329,43 +331,43 @@ class Spectrum(NDCube):
 
         # If no spectral_axis was provided, create a SpectralCoord based on
         # the WCS
-        if spectral_axis is None:
-            # If the WCS doesn't have a spectral attribute, we assume it's the
-            # dummy GWCS we created or a solely spectral WCS
-            if hasattr(self.wcs, "spectral"):
-                # Handle generated 1D WCS that aren't set to spectral
-                if not self.wcs.is_spectral and self.wcs.naxis == 1:
-                    spec_axis = self.wcs.pixel_to_world(np.arange(self.data.shape[self.spectral_axis_index]))
-                else:
-                    spec_axis = self.wcs.spectral.pixel_to_world(np.arange(self.data.shape[self.spectral_axis_index]))
-            else:
-                # We now keep the entire GWCS, including spatial information, so we need to include
-                # all axes in the pixel_to_world call. Note that this assumes/requires that the
-                # dispersion is the same at all spatial locations.
-                wcs_args = [np.zeros(self.data.shape[self.spectral_axis_index]) for i in range(len(self.data.shape))]
-                # Replace with arange for the spectral axis
-                wcs_args[self.spectral_axis_index] = np.arange(self.data.shape[self.spectral_axis_index])
-                wcs_args.reverse()
-                temp_coords = self.wcs.pixel_to_world(*wcs_args)
-                # If there are spatial axes, temp_coords will have a SkyCoord and a SpectralCoord
-                if isinstance(temp_coords, list):
-                    for coords in temp_coords:
-                        if isinstance(coords, SpectralCoord):
-                            spec_axis = coords
-                            break
-                    else:
-                        # WCS axis ordering is reverse of numpy
-                        spec_axis = temp_coords[len(temp_coords) - self.spectral_axis_index - 1]
-                else:
-                    spec_axis = temp_coords
-
-            try:
-                if spec_axis.unit.is_equivalent(u.one):
-                    spec_axis = spec_axis * u.pixel
-            except AttributeError:
-                raise AttributeError(f"spec_axis does not have unit: {type(spec_axis)} {spec_axis}")
-
-            self._spectral_axis = SpectralAxis(spec_axis)
+        # if spectral_axis is None:
+        #     # If the WCS doesn't have a spectral attribute, we assume it's the
+        #     # dummy GWCS we created or a solely spectral WCS
+        #     if hasattr(self.wcs, "spectral"):
+        #         # Handle generated 1D WCS that aren't set to spectral
+        #         if not self.wcs.is_spectral and self.wcs.naxis == 1:
+        #             spec_axis = self.wcs.pixel_to_world(np.arange(self.data.shape[self.spectral_axis_index]))
+        #         else:
+        #             spec_axis = self.wcs.spectral.pixel_to_world(np.arange(self.data.shape[self.spectral_axis_index]))
+        #     else:
+        #         # We now keep the entire GWCS, including spatial information, so we need to include
+        #         # all axes in the pixel_to_world call. Note that this assumes/requires that the
+        #         # dispersion is the same at all spatial locations.
+        #         wcs_args = [np.zeros(self.data.shape[self.spectral_axis_index]) for i in range(len(self.data.shape))]
+        #         # Replace with arange for the spectral axis
+        #         wcs_args[self.spectral_axis_index] = np.arange(self.data.shape[self.spectral_axis_index])
+        #         wcs_args.reverse()
+        #         temp_coords = self.wcs.pixel_to_world(*wcs_args)
+        #         # If there are spatial axes, temp_coords will have a SkyCoord and a SpectralCoord
+        #         if isinstance(temp_coords, list):
+        #             for coords in temp_coords:
+        #                 if isinstance(coords, SpectralCoord):
+        #                     spec_axis = coords
+        #                     break
+        #             else:
+        #                 # WCS axis ordering is reverse of numpy
+        #                 spec_axis = temp_coords[len(temp_coords) - self.spectral_axis_index - 1]
+        #         else:
+        #             spec_axis = temp_coords
+        #
+        #     try:
+        #         if spec_axis.unit.is_equivalent(u.one):
+        #             spec_axis = spec_axis * u.pixel
+        #     except AttributeError:
+        #         raise AttributeError(f"spec_axis does not have unit: {type(spec_axis)} {spec_axis}")
+        #
+        #     self._spectral_axis = SpectralAxis(spec_axis)
 
         # make sure that spectral axis is strictly increasing
         if not np.all(self._spectral_axis[1:] >= self._spectral_axis[:-1]):
@@ -383,6 +385,27 @@ class Spectrum(NDCube):
         item = tuple(sanitize_slices(item, len(self.shape)))
         sliced_spec_axis = self.spectral_axis[item[self.spectral_axis_index]]
         return Spectrum(sliced_cube, spectral_axis=sliced_spec_axis)
+
+    def _slice(self, item):
+        kwargs = super()._slice(item)
+        item = tuple(sanitize_slices(item, len(self.shape)))
+
+        kwargs["spectral_axis_index"] = self.spectral_axis_index
+        kwargs["spectral_axis"] = self.spectral_axis[item[self.spectral_axis_index]]
+        return kwargs
+
+    def _new_instance(self, **kwargs):
+        keys = ("unit", "wcs", "mask", "meta", "uncertainty", "psf", "spectral_axis")
+        full_kwargs = {k: deepcopy(getattr(self, k, None)) for k in keys}
+        # We Explicitly DO NOT deepcopy any data
+        full_kwargs["data"] = self.data
+        full_kwargs.update(kwargs)
+        new_spectrum = type(self)(**full_kwargs)
+        if self.extra_coords is not None:
+            new_spectrum._extra_coords = deepcopy(self.extra_coords)
+        if self.global_coords is not None:
+            new_spectrum._global_coords = deepcopy(self.global_coords)
+        return new_spectrum
 
     @property
     def spectral_axis(self):
