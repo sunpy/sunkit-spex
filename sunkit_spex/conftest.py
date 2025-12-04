@@ -53,14 +53,15 @@ from sunkit_spex.spectrum import Spectrum
 
 
 @pytest.fixture
-def wcs_et():
+def wcs_energy_time():
+    """Return WCS object with time and energy axes."""
     header = {
-        "CTYPE1": "TIME    ",
+        "CTYPE1": "TIME",
         "CUNIT1": "min",
         "CDELT1": 0.4,
         "CRPIX1": 0,
         "CRVAL1": 0,
-        "CTYPE2": "ENERGY   ",
+        "CTYPE2": "ENERGY",
         "CUNIT2": "keV",
         "CDELT2": 0.2,
         "CRPIX2": 0,
@@ -71,21 +72,23 @@ def wcs_et():
 
 
 @pytest.fixture
-def spec(wcs_et):
-    timeenergy = wcs_et
+def spectrum_energy_time():
+    """Return Spectrum Object with linear data, and time and energy spectral axes."""
+    timeenergy = wcs_energy_time
     data = np.arange(1, 11) * u.watt
     return Spectrum(data, wcs=timeenergy)
 
 
 @pytest.fixture
-def wcs_dt():
+def wcs_detector_energy():
+    """Return WCS object with detector and energy axes."""
     header = {
         "CTYPE1": "DETECTOR",
         "CUNIT1": "",
-        "CDELT1": 0,
-        "CRPIX1": 0,
-        "CRVAL1": 0,
-        "CTYPE2": "ENERGY   ",
+        "CDELT1": 1,
+        "CRPIX1": 1,
+        "CRVAL1": 1,
+        "CTYPE2": "ENERGY",
         "CUNIT2": "keV",
         "CDELT2": 0.2,
         "CRPIX2": 0,
@@ -96,16 +99,18 @@ def wcs_dt():
 
 
 @pytest.fixture
-def dve():
-    detectorenergy = wcs_dt()
+def spectrum_detector_energy():
+    """Return Spectrum object with linear data, and detector and energy spectral axes."""
+    detectorenergy = wcs_detector_energy()
     data = np.arange(1, 11) * u.watt
     return Spectrum(data, wcs=detectorenergy)
 
 
 @pytest.fixture
-def wcs_ess():
+def wcs_energy_space_space():
+    """Return WCS object with energy and two spatial axes."""
     header = {
-        "CTYPE1": "ENERGY    ",
+        "CTYPE1": "ENERGY",
         "CUNIT1": "keV",
         "CDELT1": 0.2,
         "CRPIX1": 0,
@@ -126,14 +131,16 @@ def wcs_ess():
 
 
 @pytest.fixture
-def evsvs():
-    energyspacespace = wcs_ess()
+def spectrum_energy_space_space():
+    """Return Spectrum object with linear data, and energy and two spatial spectral axes."""
+    energyspacespace = wcs_energy_space_space()
     data = np.arange(1, 11) * u.watt
     return Spectrum(data, wcs=energyspacespace)
 
 
 @pytest.fixture
-def wcs_etd():
+def wcs_energy_time_detector():
+    """Return WCS object with energy and time and detector axes."""
     header = {
         "CTYPE1": "ENERGY    ",
         "CUNIT1": "keV",
@@ -147,25 +154,27 @@ def wcs_etd():
         "CRVAL2": 0,
         "CTYPE3": "DETECTOR",
         "CUNIT3": "",
-        "CDELT3": 0,
-        "CRPIX3": 0,
-        "CRVAL3": 0,
+        "CDELT3": 1,
+        "CRPIX3": 1,
+        "CRVAL3": 1,
         "DATEREF": "2020-01-01T00:00:00",
     }
     return WCS(header=header)
 
 
 @pytest.fixture
-def evtvd():
-    energytimedetector = wcs_etd()
+def spectrum_energy_time_detector():
+    """Return Spectrum object with linear data, and energy, time and detector spectral axes."""
+    energytimedetector = wcs_energy_time_detector()
     data = np.arange(1, 11) * u.watt
     return Spectrum(data, wcs=energytimedetector)
 
 
 @pytest.fixture
-def wcs_esstp():
+def wcs_energy_2space_time_stokes():
+    """Return WCS object with energy, 2 spatial, time and Stokes axes."""
     header = {
-        "CTYPE1": "ENERGY    ",
+        "CTYPE1": "ENERGY",
         "CUNIT1": "keV",
         "CDELT1": 0.2,
         "CRPIX1": 0,
@@ -196,7 +205,8 @@ def wcs_esstp():
 
 
 @pytest.fixture
-def evsvsvtvp():
-    esstp = wcs_esstp()
+def spectrum_energy_2space_time_stokes():
+    """Return Spectrum object with linear data, and energy, two spatial, time and Stokes spectral axes."""
+    esstp = wcs_energy_2space_time_stokes()
     data = np.arange(1, 11) * u.watt
     return Spectrum(data, wcs=esstp)
