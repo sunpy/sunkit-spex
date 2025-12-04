@@ -185,7 +185,7 @@ def wcs_esstp():
         "CDELT4": 0.4,
         "CRPIX4": 0,
         "CRVAL4": 0,
-        "CTYPE5": "POLARISATION",
+        "CTYPE5": "STOKES",
         "CUNIT5": "C/m2",
         "CDELT5": 0.4,
         "CRPIX5": 0,
