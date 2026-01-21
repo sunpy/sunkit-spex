@@ -1,1 +1,1 @@
-Fixes background subtraction bug in STIX loader in class:`STIXLoader`. The background time now now handled properly and not replaced with even time.
+Fix time selection bugs in `~sunkit_spex.extern.stix.STIXLoader`
