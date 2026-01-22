@@ -388,7 +388,7 @@ def chianti_kev_lines_Fe2():
 
 @pytest.mark.parametrize("ssw", [fvth_simple, fvth_Fe2])
 def test_thermal_emission_against_ssw(ssw):
-    input_args, input_args_class, energy_edges, expected = ssw()
+    _, input_args_class, energy_edges, expected = ssw()
     model_class = thermal.ThermalEmission(*input_args_class)
     output_class = model_class(energy_edges)
     expected_value = expected.to_value(output_class.unit)
@@ -397,7 +397,7 @@ def test_thermal_emission_against_ssw(ssw):
 
 @pytest.mark.parametrize("ssw", [chianti_kev_cont_simple, chianti_kev_cont_Fe2])
 def test_continuum_emission_against_ssw(ssw):
-    input_args, input_args_class, energy_edges, expected = ssw()
+    _, input_args_class, energy_edges, expected = ssw()
     model_class = thermal.ContinuumEmission(*input_args_class)
     output_class = model_class(energy_edges)
     expected_value = expected.to_value(output_class.unit)
@@ -406,7 +406,7 @@ def test_continuum_emission_against_ssw(ssw):
 
 @pytest.mark.parametrize("ssw", [chianti_kev_lines_simple, chianti_kev_lines_Fe2])
 def test_line_emission_against_ssw(ssw):
-    input_args, input_args_class, energy_edges, expected = ssw()
+    _, input_args_class, energy_edges, expected = ssw()
     model_class = thermal.LineEmission(*input_args_class)
     output_class = model_class(energy_edges)
     expected_value = expected.to_value(output_class.unit)
@@ -426,7 +426,7 @@ def test_len1_energy_input():
 def test_energy_out_of_range_error():
     with pytest.raises(
         ValueError,
-        match="Lower bound of the input energy must be within the range 1.0002920302956426--10.34753795157738 keV. ",
+        match=r"Lower bound of the input energy must be within the range 1.0002920302956426--10.34753795157738 keV. ",
     ):
         thermal.ThermalEmission(6 * u.MK, 1e-5 / u.cm**3)([0.01, 10] * u.keV)
 
@@ -448,7 +448,7 @@ def test_line_energy_out_of_range_warning():
 def test_continuum_energy_out_of_range():
     with pytest.raises(
         ValueError,
-        match="Lower bound of the input energy must be within the range 1.0009873438468269--200.15819869050395 keV.",
+        match=r"Lower bound of the input energy must be within the range 1.0009873438468269--200.15819869050395 keV.",
     ):
         # Use an energy range that goes out of bounds
         # on the lower end--should error
