@@ -111,8 +111,9 @@ plt.show()
 # To subtract background use the ``.update_background_times(start=.., end=..)`` method.
 #
 
-# event time
+# Update event and bkg times
 stix_spec.update_event_times(start=Time("2024-10-01T22:10:10"), end=Time("2024-10-01T22:10:18"))
+stix_spec.update_background_times(start=Time("2024-10-01T22:00:00"), end=Time("2024-10-01T22:01:00"))
 # Alternatively, you can select  the start and end event times in separate lines. e.g.
 # stix_spec.start_event_time = "2024-10-01T22:10:10"
 # stix_spec.end_event_time = "2024-10-01T22:10:18"
