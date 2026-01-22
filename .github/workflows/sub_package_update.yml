@@ -147,7 +147,7 @@ jobs:
             if (result.search.edges.length === 0) {
               github.rest.issues.create({
                 owner: variables.owner,
-                repo: variables.n   ame,
+                repo: variables.name,
                 body: issue_body,
                 title: variables.title,
                 labels: [variables.label],
