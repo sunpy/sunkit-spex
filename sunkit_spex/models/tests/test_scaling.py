@@ -59,5 +59,5 @@ def test_constant_scaling_class_against_expected_output(constant):
 
 
 def test_input_units_observer_distance():
-    with pytest.raises(ValueError, match="Observer distance input must be an Astropy length convertible to AU."):
+    with pytest.raises(ValueError, match=r"Observer distance input must be an Astropy length convertible to AU."):
         scaling.InverseSquareFluxScaling(observer_distance=1 * u.keV)(np.linspace(3, 28, 100))

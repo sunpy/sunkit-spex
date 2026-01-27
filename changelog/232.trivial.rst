@@ -1,0 +1,1 @@
+Removes commented out code from `~sunkit_spex.models.physical.thermal`

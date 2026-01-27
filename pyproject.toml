@@ -9,25 +9,25 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sunkit_spex"
 description = "A package for solar X-ray spectroscopy."
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 readme = { file = "README.rst", content-type = "text/x-rst" }
-license = { file = "licenses/LICENSE.rst" }
+license-files = ["licenses/LICENSE.rst"]
 authors = [
   { name = "The SunPy Community", email = "sunpy@googlegroups.com" },
 ]
 dependencies = [
     "corner>=2.2",
     "emcee>=3.1",
-    "matplotlib>=3.7",
+    "matplotlib>=3.9",
     "nestle>=0.2",
-    "numdifftools>=0.9.40",
-    "numpy>=1.24",
-    "parfive>=2.0",
-    "scipy>=1.11",
-    "sunpy>=6.0",
-    "xarray>=2022.10",
+    "numdifftools>=0.9.42",
+    "numpy>=1.26",  # Note: keeping support for numpy 1.x for now
+    "parfive>=2.1",
+    "scipy>=1.12",
+    "sunpy>=7.0",
+    "xarray>=2023.12",
     "gwcs>=0.21.0",
-    "ndcube>=2.1",
+    "ndcube>=2.3",
 ]
 
 dynamic = ["version"]
@@ -47,6 +47,11 @@ docs = [
   "packaging",
   "sphinx-changelog",
   "sphinx-gallery",
+  "pypandoc"
+]
+dev = [
+    "sunkit-spex[docs,tests]",
+    "tox"
 ]
 
 [project.urls]

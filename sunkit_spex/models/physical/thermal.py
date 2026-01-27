@@ -6,6 +6,7 @@ from scipy import interpolate, stats
 
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
+from astropy.table.column import Column
 
 from sunpy.data import manager
 
@@ -14,6 +15,9 @@ from sunkit_spex.models.physical.io import (
     load_chianti_lines_lite,
     load_xray_abundances,
 )
+
+# The default elemental abundance values correspond to coronal values
+DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
 __all__ = ["ContinuumEmission", "LineEmission", "ThermalEmission"]
 
@@ -173,21 +177,13 @@ class ThermalEmission(FittableModel):
         ar=ar.default,
         ca=ca.default,
         fe=fe.default,
-        abundance_type="sun_coronal_ext",
+        abundance_type=DEFAULT_ABUNDANCE_TYPE,
         **kwargs,
     ):
         self.abundance_type = abundance_type
 
-        if abundance_type != "sun_coronal_ext":
-            abundances = DEFAULT_ABUNDANCES[abundance_type].data
-
-            mg = 12 + np.log10(abundances[11])
-            al = 12 + np.log10(abundances[12])
-            si = 12 + np.log10(abundances[13])
-            s = 12 + np.log10(abundances[15])
-            ar = 12 + np.log10(abundances[17])
-            ca = 12 + np.log10(abundances[19])
-            fe = 12 + np.log10(abundances[25])
+        if abundance_type != DEFAULT_ABUNDANCE_TYPE:
+            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
         self.line = LineEmission(
             temperature=temperature,
@@ -352,7 +348,6 @@ class ContinuumEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
-    # input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
@@ -366,21 +361,13 @@ class ContinuumEmission(FittableModel):
         ar=ar.default,
         ca=ca.default,
         fe=fe.default,
-        abundance_type="sun_coronal_ext",
+        abundance_type=DEFAULT_ABUNDANCE_TYPE,
         **kwargs,
     ):
         self.abundance_type = abundance_type
 
-        if abundance_type != "sun_coronal_ext":
-            abundances = DEFAULT_ABUNDANCES[abundance_type].data
-
-            mg = 12 + np.log10(abundances[11])
-            al = 12 + np.log10(abundances[12])
-            si = 12 + np.log10(abundances[13])
-            s = 12 + np.log10(abundances[15])
-            ar = 12 + np.log10(abundances[17])
-            ca = 12 + np.log10(abundances[19])
-            fe = 12 + np.log10(abundances[25])
+        if abundance_type != DEFAULT_ABUNDANCE_TYPE:
+            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
         super().__init__(
             temperature=temperature,
@@ -408,12 +395,7 @@ class ContinuumEmission(FittableModel):
         ca,
         fe,
     ):
-        if hasattr(temperature, "unit"):
-            temperature = temperature.to(u.K)
-        else:
-            temperature = (temperature * u.MK).to_value(u.K)
-
-        flux = continuum_emission(
+        return continuum_emission(
             energy_edges,
             temperature,
             emission_measure,
@@ -426,10 +408,6 @@ class ContinuumEmission(FittableModel):
             fe,
             self.abundance_type,
         )
-
-        if hasattr(temperature, "unit"):
-            return flux
-        return flux.value
 
     @property
     def input_units(self):
@@ -510,7 +488,6 @@ class LineEmission(FittableModel):
 
     fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
 
-    # input_units_equivalencies = {"keV": u.spectral(), "K": u.temperature_energy()}
     _input_units_allow_dimensionless = True
 
     def __init__(
@@ -524,21 +501,13 @@ class LineEmission(FittableModel):
         ar=ar.default,
         ca=ca.default,
         fe=fe.default,
-        abundance_type="sun_coronal_ext",
+        abundance_type=DEFAULT_ABUNDANCE_TYPE,
         **kwargs,
     ):
         self.abundance_type = abundance_type
 
-        if abundance_type != "sun_coronal_ext":
-            abundances = DEFAULT_ABUNDANCES[abundance_type].data
-
-            mg = 12 + np.log10(abundances[11])
-            al = 12 + np.log10(abundances[12])
-            si = 12 + np.log10(abundances[13])
-            s = 12 + np.log10(abundances[15])
-            ar = 12 + np.log10(abundances[17])
-            ca = 12 + np.log10(abundances[19])
-            fe = 12 + np.log10(abundances[25])
+        if abundance_type != DEFAULT_ABUNDANCE_TYPE:
+            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
         super().__init__(
             temperature=temperature,
@@ -566,12 +535,7 @@ class LineEmission(FittableModel):
         ca,
         fe,
     ):
-        if hasattr(temperature, "unit"):
-            temperature = temperature.to(u.K)
-        else:
-            temperature = (temperature * u.MK).to_value(u.K)
-
-        flux = line_emission(
+        return line_emission(
             energy_edges,
             temperature,
             emission_measure,
@@ -584,10 +548,6 @@ class LineEmission(FittableModel):
             fe,
             self.abundance_type,
         )
-
-        if hasattr(temperature, "unit"):
-            return flux
-        return flux.value
 
     @property
     def input_units(self):
@@ -723,7 +683,6 @@ def setup_default_abundances(filename=None):
 CONTINUUM_GRID = setup_continuum_parameters()
 LINE_GRID = setup_line_parameters()
 DEFAULT_ABUNDANCES = setup_default_abundances()
-DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
 
 
 @u.quantity_input
@@ -932,7 +891,7 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     temperature_K: 1-D array-like
         The temperature(s) of the plasma in unit of K.  Must not be a scalar.
 
-    abundances: 1-D `numpy.array` of same length a DEFAULT_ABUNDANCES.
+    abundances: 1-D `numpy.array` of same length as DEFAULT_ABUNDANCES.
         The abundances for the all the elements.
     """
     n_energy_bins = len(energy_edges_keV) - 1
@@ -1257,13 +1216,14 @@ def _weight_emission_bins(
 
 def _sanitize_inputs(energy_edges, temperature, emission_measure):
     if np.isscalar(energy_edges) or len(energy_edges) < 2 or energy_edges.ndim > 1:
-        # if len(energy_edges) < 2 or energy_edges.ndim > 1:
         raise ValueError("energy_edges must be a 1-D astropy Quantity with length greater than 1.")
 
-    if not hasattr(energy_edges, "unit"):
-        energy_edges = energy_edges * u.keV
-        temperature = temperature * u.K
-        emission_measure = emission_measure * u.cm**-3
+    # Add units regardless of whether or not the parameters
+    # came with them attached.
+    # If they were not already Quantities, the parameters get the default units.
+    energy_edges <<= u.keV
+    temperature <<= u.K
+    emission_measure <<= u.cm**-3
 
     energy_edges_keV = energy_edges.to(u.keV)
 
@@ -1309,8 +1269,26 @@ def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, par
         raise ValueError(message)
 
 
+def _initialize_abundances(abundances: Column) -> tuple[float]:
+    """
+    From a given abundance Column from an abundance astropy Table,
+    compute the values of logarithmic elemental abundances used in other portions of
+    the module.
+    """
+    # We don't need a copy to the abundance column here
+    # because we are only reading from it, not writing to it.
+    mg = 12 + np.log10(abundances[11])
+    al = 12 + np.log10(abundances[12])
+    si = 12 + np.log10(abundances[13])
+    s = 12 + np.log10(abundances[15])
+    ar = 12 + np.log10(abundances[17])
+    ca = 12 + np.log10(abundances[19])
+    fe = 12 + np.log10(abundances[25])
+    return (mg, al, si, s, ar, ca, fe)
+
+
 def _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe):
-    abundances = DEFAULT_ABUNDANCES[abundance_type].data
+    abundances = DEFAULT_ABUNDANCES[abundance_type].data.copy()
 
     if np.shape(mg) == (1,):
         abundances[11] = 10 ** (mg[0] - 12)
@@ -1331,283 +1309,3 @@ def _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe):
         abundances[25] = 10 ** (fe - 12)
 
     return abundances
-
-
-# ### Continuum emission, kris
-# from astropy import constants as const
-# from sunkit_spex.io import load_chianti_continuum, load_xray_abundances # chianti_kev_cont_common_load,
-# from scipy.stats.mstats import gmean
-# from scipy.interpolate import interp1d
-# # load in everything for the chianti_kev_cont code of "mine". This only needs done once so do it here.
-
-# def chianti_kev_units(spectrum, funits, wedg, kev=False, earth=False, date=None):
-#     """
-#     An IDL routine to convert to the correct units. Making sure we are in keV^-1 and cm^-2 using the Sun-to-Earth distance.
-#     I feel this is almost useless now but I wrote it to be consistent with IDL.
-
-#     From: https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/chianti_kev_units.pro
-
-#     Parameters
-#     ----------
-#     spectrum: 1-D array your fluxes
-#         A list of energy bin edges.
-
-#     funits: int
-#         Is you want to input a custom distance from the Sun rather than letting it be the Earth then this could be set
-#         to the distance in cm squared..
-
-#     wedg: 1-D array
-#         Width of the energy bins that correspond to the input spectrum.
-
-#     kev: bool
-#         Would you like your units in keV^-1? Then set to True.
-#         Default: False
-
-#     earth: bool
-#         Would you like your units in cm^-2 using the Sun-to-Earth distance? Then set to True.
-#         Default: False
-
-#     date: `astropy.time.Time`
-#         If earth=True and you want the distance to be on a certain date then pass an astrpy time here.
-#         Default: None
-
-#     Returns
-#     -------
-#     Flux: Dimensionless list only because I just return the value, but the units should be ph s^-1 cm^-2 keV^-1
-#     """
-
-#     # date is an `astropy.time.Time`
-#     if kev:
-#         if earth:
-#             thisdist = 1.49627e13 # cm, default in these scripts is from2 April 1992 for some reason
-#             if type(date)!=type(None):
-#                 thisdist = sunpy.coordinates.get_sunearth_distance(time=date).to(u.cm)
-#             funits = thisdist**2 #per cm^2, unlike mewe_kev  don't use 4pi, chianti is per steradian
-#         funits = (1e44/funits)/ wedg
-#         # Nominally 1d44/funits is 4.4666308e17 and alog10(4.4666e17) is 17.64998
-#         # That's for emisson measure of 1d44cm-3, so for em of 1d49cm-3 we have a factor who's log10 is 22.649, just like kjp
-#         spectrum = spectrum * funits
-#     return spectrum
-
-
-# CONTINUUM_INFO = load_chianti_continuum()#chianti_kev_cont_common_load()
-# CONTINUUM_INFO = [CONTINUUM_INFO["element_index"], {"edge_str":{"WVL":CONTINUUM_INFO["coords"]["wavelength"],
-#                                                                 "WVLEDGE":CONTINUUM_INFO["attrs"]["wavelength_edges"]},
-#                                                     "ctemp":CONTINUUM_INFO["coords"]["temperature"],
-#                                                     ""}]
-# ABUNDANCE = load_xray_abundances(abundance_type="sun_coronal")
-# # continuum_intensities = xarray.DataArray(
-# #         intensities,
-# #         dims=["element_index", "temperature", "wavelength"],
-# #         coords={"element_index": contents["zindex"],
-# #                 "temperature": contents["ctemp"],
-# #                 "wavelength": _clean_array_dims(contents["edge_str"]["WVL"])},
-# #         attrs={"units": {"data": intensity_unit,
-# #                          "temperature": temperature_unit,
-# #                          "wavelength": wave_unit},
-# #                "file": contfile,
-# #                "wavelength_edges": _clean_array_dims(contents["edge_str"]["WVLEDGE"]) * wave_unit,
-# #                "chianti_doc": _clean_chianti_doc(contents["chianti_doc"])
-# #                })
-
-# CONVERSION = (const.h * const.c / u.AA).to_value(u.keV)
-
-# EWVL  = CONVERSION/CONTINUUM_INFO[1]['edge_str']['WVL'] # wavelengths from A to keV
-# WWVL  = np.diff(CONTINUUM_INFO[1]['edge_str']['WVLEDGE']) # 'wavestep' in IDL
-# NWVL  = len(EWVL)
-# LOGT = np.log10(CONTINUUM_INFO[1]['ctemp'])
-
-# # Read line, continuum and abundance data into global variables.
-# CONTINUUM_GRID = setup_continuum_parameters()
-# LINE_GRID = setup_line_parameters()
-# DEFAULT_ABUNDANCES = setup_default_abundances()
-# DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
-
-
-# def chianti_kev_cont(energy=None, temperature=None, use_interpol=True):
-#     """
-#     Returns the continuum contribution from a plasma of a given temperature and emission measure.
-
-#     From: https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/chianti_kev_cont.pro
-
-#     Parameters
-#     ----------
-#     energy: `astropy.units.Quantity` (list with units u.keV)
-#         A list of energy bin edges. Each entry is an energy bin, e.g., [[1,1.5], [1.5,2], ...].
-
-#     temperature: `astropy.units.Quantity`
-#         The electron temperature of the plasma.
-#         Default: 5 MK
-
-#     use_interpol: bool
-#         Set to True if you want to interpolate to your energy values in the grid. The alternative is not set up yet so this
-#         can only be True at the minute.
-
-#     Returns
-#     -------
-#     Flux: Dimensionless list but the units should be ph s^-1 cm^-2 keV^-1. The output will be scaled by 1e49.
-#     """
-#     # temp is a temperature in MK. E.g., temp=5
-#     # energy is a list of energy bin boundaries in keV. E.g., [[1,1.5], [1.5,2], [2,2.5], ...]
-
-#     # Need a default temperature?
-#     if type(temperature)==type(None):
-#         temperature = 5 # MK
-#     else:
-#         temperature = temperature.value
-
-#     # Need default energies?
-#     if type(energy)==type(None):
-#         width = 0.006
-#         en_lo = np.arange(3, 9, 0.006)[:,None] # [:,None] to give a second axis, each entry is now a row
-#         en_hi = np.arange(3.006, 9.006, 0.006)[:,None] # these are just default energies
-#         energy = np.concatenate((en_lo, en_hi), axis=1)
-#     else:
-#         energy = energy.value
-
-#     # set up all grid information that was loaded when the class was initialised
-#     continuum_info = CONTINUUM_INFO# chianti_kev_cont_common_load()
-#     abundance = ABUNDANCE #load_xray_abundances(abundance_type="sun_coronal")
-
-#     conversion = CONVERSION # keV to A conversion, ~12.39854
-
-#     mgtemp = temperature * 1e6
-#     u = np.log10(mgtemp)
-
-#     #Add in continuum
-#     wedg  = np.diff(energy).reshape((len(energy)))
-#     ewvl  = EWVL # wavelengths from A to keV
-#     wwvl  = WWVL # 'wavestep' in IDL
-#     nwvl  = NWVL # number of grid wavelengths
-
-#     # print("Min/max energies [keV]: ",np.min(ewvl), np.max(ewvl))
-
-#     logt = LOGT # grid temperatures = log(temperature)
-#     ntemp = len(logt)
-#     selt = np.argwhere(logt<=u)[-1] # what gap does my temp land in the logt array (inclusive of the lower boundary)
-#     index = np.clip([selt-1, selt, selt+1], 0, ntemp-1) # find the indexes either side of that gap
-#     tband = logt[index]
-#     s=1
-#     x0, x1, x2 = tband[0][0], tband[1][0], tband[2][0] # temperatures either side of that gap
-
-#     # print("Min/max temperatures [MK]: ",np.min(continuum_info[1]['ctemp'])/1e6, np.max(continuum_info[1]['ctemp'])/1e6)
-
-#     ewvl_exp = ewvl.reshape((1,len(ewvl))) # reshape for matrix multiplication
-
-#     # all wavelengths divided by corresponding temp[0] (first row), then exvl/temp[1] second row, exvl/temp[2] third row
-#     # inverse boltzmann factor of hv/kT and 11.6e6 from keV-to-J conversion over k = 1.6e-16 / 1.381e-23 ~ 11.6e6
-#     exponential = (np.ones((3,1)) @ ewvl_exp) / ((10**logt[index]/11.6e6) @ np.ones((1,nwvl)))
-#     exponential = np.exp(np.clip(exponential, None, 80)) #  not sure why clipping at 80
-#     # this is just from dE/dA = E/A from E=hc/A (A=wavelength) for change of variables from Angstrom to keV: dE = dA * (E/A)
-#     # have this repeated for 3 rows since this is the form of the expontial's different temps
-#     # np.matmul() is quicker than @ I think
-#     deltae = np.matmul(np.ones((3,1)), wwvl.reshape((1,len(ewvl)))) * (ewvl / continuum_info[1]['edge_str']['WVL'])
-#     gmean_en = gmean(energy, axis=1) # geometric mean of each energy boundary pair
-#     # We include default_abundance because it will have zeroes for elements not included
-#     # and ones for those included
-#     default_abundance = abundance * 0.0
-#     zindex = continuum_info[0]
-#     default_abundance[zindex] = 1.0
-#     select = np.where(default_abundance>0)
-#     tcont = gmean_en * 0.0
-#     spectrum = copy(tcont) # make a copy otherwise changing the original tcont changes spectrum
-
-
-#     abundance_ratio = 1.0 + abundance*0.0
-
-#     # none of this yet
-#     # if keyword_set( rel_abun) then $
-#     #     abundance_ratio[rel_abun[0,*]-1] = rel_abun[1,*]
-
-#     abundance_ratio = (default_abundance*abundance*abundance_ratio) # this is just "abundance", not sure how necessary the abundance lines down to here are in this situation in Python.
-#     # Maybe to double check the files match up? Since "select" should == "np.sort(zindex)"
-#     # first index is for abundance elements, middle index for totcont stuff is temp, third is for the wavelengths
-#     # the wavelength dimension is weird because it is split into totcont_lo and totcont.
-#     # totcont_lo is the continuum <1 keV I think and totcont is >=1 keV, so adding the wavelength dimension of each of these you get the number of wavlengths provided by continuum_info[1]['edge_str']['WVL']
-#     # look here for more info on how the CHIANTI file is set-up **** https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/setup_chianti_cont.pro ****
-#     # this exact script won't create the folder Python is using the now since some of the wavelengths and deltas don't match-up
-#     totcontindx = np.concatenate((continuum_info[1]["totcont_lo"][:, index.T[0], :], continuum_info[1]["totcont"][:, index.T[0], :]), axis=2) # isolate temps and then combine along wavelength axis
-#     # careful from here on out. IDL's indexes are backwards to Pythons
-#     # Python's a[:,:,0] == IDL's a[0,*,*], a[:,0,:] == a[*,0,*], and then a[0,:,:] == a[*,*,0]
-#     tcdbase = totcontindx # double(totcontindx[*, *, *])
-#     tcd     = totcontindx[0,:,:] #get the first abundances continuum info #double(totcontindx[*, *, 0])
-
-
-#     # for each temperature, multiply through by the abundances
-#     tcd = np.tensordot(abundance_ratio[select],tcdbase,axes=([0],[0]))
-
-#     # work in log space for the temperatures
-#     u = np.log(u)
-#     x1, x0, x2 = np.log(x1), np.log(x0), np.log(x2)
-
-#     # convert to per keV with deltae and then scale the continuum values by exponential
-#     gaunt = tcd/deltae * exponential # the 3 temps and all wavelengths
-
-
-#     #     use_interpol = True # False #
-#     # define valid range
-#     vrange = np.where(gaunt[0,:]>0) # no. of entries = nrange, temp1 ranges
-#     nrange = len(vrange[0])
-#     vrange1 = np.where(gaunt[1,:]>0) # no. of entries = nrange1, temp2 ranges
-#     nrange1 = len(vrange1[0])
-#     vrange = vrange if nrange<nrange1 else vrange1
-#     vrange1 = np.where(gaunt[2,:]>0) # no. of entries = nrange1, temp3 ranges
-#     nrange1 = len(vrange1[0])
-#     vrange = vrange if nrange<nrange1 else vrange1
-#     gaunt = gaunt[:,vrange[0]]
-#     ewvl  = ewvl[vrange[0]]
-#     maxe = ewvl[0]
-#     vgmean = np.where(gmean_en<maxe)
-#     nvg = len(vgmean[0])
-
-#     if nvg>1:
-#         gmean_en = gmean_en[vgmean[0]]
-#         #     print(gaunt[0,:].shape, ewvl.shape, gmean_en.shape)
-#         if  use_interpol:
-#             cont0 = interp1d(ewvl, gaunt[0,:])(gmean_en) # get the continuum values at input energies from the CHIANTI file as temp1
-#             cont1 = interp1d(ewvl, gaunt[1,:])(gmean_en) # temp2
-#             cont2 = interp1d(ewvl, gaunt[2,:])(gmean_en) # temp2
-#         else:
-#             return
-#             # don't really see the point in this at the moment
-#             # venergy = np.where(energy[:,1]<maxe) # only want energies <max from the CHIANTI file
-#             # energyv = energy[venergy[0],:]
-#             # wen = np.diff(energyv)[:,0]
-#             # edges_in_kev = conversion / continuum_info[1]['edge_str']['WVLEDGE']
-#             # edges_in_kev = edges_in_kev.reshape((len(edges_in_kev), 1))
-#             # e2 = np.concatenate((edges_in_kev[:-1], edges_in_kev[1:]), axis=1)[vrange[0],:]
-
-#             # # this obviously isn't the same as the IDL script but just to continue
-#             # cont0_func = interp1d(np.mean(e2, axis=1), gaunt[0,:]*abs(np.diff(e2)[:,0]))
-#             # cont0 = cont0_func(np.mean(energyv, axis=1))/wen
-#             # cont1_func = interp1d(np.mean(e2, axis=1), gaunt[1,:]*abs(np.diff(e2)[:,0]))
-#             # cont1 = cont1_func(np.mean(energyv, axis=1))/wen
-#             # cont2_func = interp1d(np.mean(e2, axis=1), gaunt[2,:]*abs(np.diff(e2)[:,0]))
-#             # cont2 = cont2_func(np.mean(energyv, axis=1))/wen
-
-#         # work in log space with the temperatures
-#         cont0, cont1, cont2 = np.log(cont0), np.log(cont1), np.log(cont2)
-#         # now find weighted average of the continuum values at each temperature
-#         # i.e., weight_in_relation_to_u_for_cont0_which_is_at_x0 = w0 = (u-x1) * (u-x2) / ((x0-x1) * (x0-x2))
-#         # also w0+w1+w2=1, so the weights are normalised which is why we don't divide by the sum of the weights for the average
-#         ynew = np.exp( cont0 * (u-x1) * (u-x2) / ((x0-x1) * (x0-x2)) +
-#                         cont1 * (u-x0) * (u-x2) / ((x1-x0) * (x1-x2)) +
-#                         cont2 * (u-x0) * (u-x1) / ((x2-x0) * (x2-x1)))
-#         tcont[vgmean[0]] = tcont[vgmean[0]] + ynew
-
-#         # scale values back by the exponential
-#         tcont[vgmean[0]] = tcont[vgmean[0]] * np.exp( -np.clip((gmean_en/(temperature/11.6)), None, 80)) # no idea why this is clipped at 80 again
-
-#         spectrum[vgmean[0]] = spectrum[vgmean[0]] + tcont[vgmean[0]] * wedg[vgmean[0]]
-
-
-#     funits =  1.      #default units
-
-#     # now need https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/chianti_kev_units.pro
-#     # chianti_kev_units, spectrum, funits, kev=kev, wedg=wedg, earth=earth, date=date
-#     spectrum = chianti_kev_units(spectrum, funits, wedg, kev=True, earth=True, date=None)
-
-#     # And failing everything else, set all nan, inf, -inf to 0.0
-#     spectrum[~np.isfinite(spectrum)] = 0
-
-#     return energy, spectrum * 1e5 # the 1e5 makes the emission measure up to 1e49 instead of 1e44

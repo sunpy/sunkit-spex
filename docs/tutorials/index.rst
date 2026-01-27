@@ -6,3 +6,5 @@ New to sunkit-spex? Well, you came to the right place: read this material to qui
 
 .. toctree::
    :maxdepth: 1
+
+   installation

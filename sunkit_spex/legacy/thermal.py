@@ -321,7 +321,7 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
     temperature_K: 1-D array-like
         The temperature(s) of the plasma in unit of K.  Must not be a scalar.
 
-    abundances: 1-D `numpy.array` of same length a DEFAULT_ABUNDANCES.
+    abundances: 1-D `numpy.array` of same length as DEFAULT_ABUNDANCES.
         The abundances for the all the elements.
     """
     # Handle inputs and derive some useful parameters from them
@@ -411,7 +411,7 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     temperature_K: 1-D array-like
         The temperature(s) of the plasma in unit of K.  Must not be a scalar.
 
-    abundances: 1-D `numpy.array` of same length a DEFAULT_ABUNDANCES.
+    abundances: 1-D `numpy.array` of same length as DEFAULT_ABUNDANCES.
         The abundances for the all the elements.
     """
     n_energy_bins = len(energy_edges_keV) - 1
@@ -764,7 +764,7 @@ def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, par
 
 
 def _calculate_abundances(abundance_type, relative_abundances):
-    abundances = DEFAULT_ABUNDANCES[abundance_type].data
+    abundances = DEFAULT_ABUNDANCES[abundance_type].data.copy()
     if relative_abundances:
         # Convert input relative abundances to array where
         # first axis is atomic number, i.e == index + 1
