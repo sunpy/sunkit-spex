@@ -19,7 +19,6 @@ class MatrixModel(Fittable1DModel):
         self.output_axis = output_axis
         self.matrix = matrix
         super().__init__(c)
-        # self.matrix.value = self.matrix.value.flatten()
 
     _input_units_allow_dimensionless = True
 
@@ -28,20 +27,6 @@ class MatrixModel(Fittable1DModel):
 
         input_widths = np.diff(self.input_axis)
         output_widths = np.diff(self.output_axis)
-
-        # print(x)
-        # print(input_widths)
-        # print(self.matrix)
-        # print(c)
-        # print(output_widths)
-
-        # print(self.input_axis.size)
-        # print(self.output_axis.size)
-        # print(x.size)
-        # print(input_widths.size)
-        # print(self.matrix.size)
-        # print(c.size)
-        # print(output_widths.size)
 
         flux = ((x * input_widths) @ self.matrix * c) / output_widths
 
