@@ -20,7 +20,6 @@ import numpy as np
 from matplotlib.colors import LogNorm
 
 import astropy.units as u
-from astropy.modeling import fitting
 from astropy.visualization import quantity_support
 
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
@@ -161,7 +160,11 @@ count_model_4fit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
 # # Let's fit the simulated data and plot the result
 
 
-opt_res = scipy_minimize(minimize_func, count_model_4fit.parameters, (sim_count_model_wn.value, ph_energies.value, count_model_4fit, chi_squared))
+opt_res = scipy_minimize(
+    minimize_func,
+    count_model_4fit.parameters,
+    (sim_count_model_wn.value, ph_energies.value, count_model_4fit, chi_squared),
+)
 
 with quantity_support():
     plt.figure()
