@@ -161,7 +161,7 @@ count_model_4fit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
 # # Let's fit the simulated data and plot the result
 
 
-opt_res = scipy_minimize(minimize_func, count_model_4fit.parameters, (obs_spec, count_model_4fit, chi_squared))
+opt_res = scipy_minimize(minimize_func, count_model_4fit.parameters, (sim_count_model_wn.value, ph_energies.value, count_model_4fit, chi_squared))
 
 with quantity_support():
     plt.figure()
@@ -179,74 +179,86 @@ with quantity_support():
 #
 # Try and ensure we start fresh with new model definitions
 
-guess_cont = {"slope": -0.5 * u.ph / u.keV**2, "intercept": 80 * u.ph / u.keV}
-guess_line = {"amplitude": 150 * u.ph / u.keV, "mean": 32 * u.keV, "stddev": 5 * u.keV}
+# guess_cont = {"slope": -0.5 * u.ph / u.keV**2, "intercept": 80 * u.ph / u.keV}
+# guess_line = {"amplitude": 150 * u.ph / u.keV, "mean": 32 * u.keV, "stddev": 5 * u.keV}
 
-ph_mod_4astropyfit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
+# ph_mod_4astropyfit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
 
-cgauss = GaussianModel(**guess_gauss)
-
-
-count_model_4astropyfit = (ph_mod_4astropyfit | srm_model) + cgauss
+# cgauss = GaussianModel(**guess_gauss)
 
 
-astropy_fit = fitting.LevMarLSQFitter()
-astropy_fitted_result = astropy_fit(count_model_4astropyfit, ph_energies, obs_spec.data << obs_spec.unit)
+# count_model_4astropyfit = (ph_mod_4astropyfit | srm_model) + cgauss
 
-plt.figure()
-plt.plot(ph_energies_centers, sim_count_model_wn, label="total sim. spectrum + noise")
-plt.plot(
-    ph_energies_centers,
-    count_model_4astropyfit.evaluate(ph_energies.value, *astropy_fitted_result.parameters),
-    ls=":",
-    label="model fit",
-)
 
-plt.xlabel("Energy [keV]")
-plt.ylabel("ct keV$^{-1}$")
-plt.title("Simulated Count Spectrum Fit with Astropy")
-plt.legend()
-plt.show()
+# astropy_fit = fitting.LevMarLSQFitter()
+# astropy_fitted_result = astropy_fit(count_model_4astropyfit, ph_energies, obs_spec.data << obs_spec.unit)
+
+# plt.figure()
+# plt.plot(ph_energies_centers, sim_count_model_wn, label="total sim. spectrum + noise")
+# plt.plot(
+#     ph_energies_centers,
+#     count_model_4astropyfit.evaluate(ph_energies.value, *astropy_fitted_result.parameters),
+#     ls=":",
+#     label="model fit",
+# )
+
+# plt.xlabel("Energy [keV]")
+# plt.ylabel("ct keV$^{-1}$")
+# plt.title("Simulated Count Spectrum Fit with Astropy")
+# plt.legend()
+# plt.show()
 
 #####################################################
 #
-# Display a table of the fitted results
 
 # plt.figure(layout="constrained")
 
-
 # row_labels = (
-#     tuple(sim_cont)[-2:] + tuple(f"{p}1" for p in tuple(sim_line)[-3:]) + tuple(f"{p}2" for p in tuple(sim_gauss)[-3:])
+#     tuple(sim_cont) + tuple(f"{p}1" for p in tuple(sim_line)) + ("C",) + tuple(f"{p}2" for p in tuple(sim_gauss))
 # )
 # column_labels = ("True Values", "Guess Values", "Scipy Fit", "Astropy Fit")
-# true_vals = np.array(tuple(sim_cont.values())[-2:] + tuple(sim_line.values())[-3:] + tuple(sim_gauss.values())[-3:])
-# guess_vals = np.array(
-#     tuple(guess_cont.values())[-2:] + tuple(guess_line.values())[-3:] + tuple(guess_gauss.values())[-3:]
-# )
+# true_vals = tuple(sim_cont.values()) + tuple(sim_line.values()) + (1 * u.m,) + tuple(sim_gauss.values())
+# true_vals = [t.value for t in true_vals]
+# guess_vals = tuple(guess_cont.values()) + tuple(guess_line.values()) + (1 * u.m,) + tuple(guess_gauss.values())
+# guess_vals = [g.value for g in guess_vals]
 # scipy_vals = opt_res.x
 # astropy_vals = astropy_fitted_result.parameters
 
-# print(np.shape(scipy_vals))
-# print(np.shape(astropy_vals))
-# print(np.shape(true_vals))
-# print(np.shape(guess_vals))
+
+# cell_vals = np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T
+# cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T, 2).astype(str)
+
+# plt.axis("off")
+# plt.table(
+#     cellText=cell_text,
+#     cellColours=None,
+#     cellLoc="center",
+#     rowLabels=row_labels,
+#     rowColours=None,
+#     colLabels=column_labels,
+#     colColours=None,
+#     colLoc="center",
+#     bbox=[0, 0, 1, 1],
+# )
+
+# plt.show()
+
 
 plt.figure(layout="constrained")
 
 row_labels = (
     tuple(sim_cont) + tuple(f"{p}1" for p in tuple(sim_line)) + ("C",) + tuple(f"{p}2" for p in tuple(sim_gauss))
 )
-column_labels = ("True Values", "Guess Values", "Scipy Fit", "Astropy Fit")
+column_labels = ("True Values", "Guess Values", "Scipy Fit")
 true_vals = tuple(sim_cont.values()) + tuple(sim_line.values()) + (1 * u.m,) + tuple(sim_gauss.values())
 true_vals = [t.value for t in true_vals]
 guess_vals = tuple(guess_cont.values()) + tuple(guess_line.values()) + (1 * u.m,) + tuple(guess_gauss.values())
 guess_vals = [g.value for g in guess_vals]
 scipy_vals = opt_res.x
-astropy_vals = astropy_fitted_result.parameters
 
 
-cell_vals = np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T
-cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T, 2).astype(str)
+cell_vals = np.vstack((true_vals, guess_vals, scipy_vals)).T
+cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals)).T, 2).astype(str)
 
 plt.axis("off")
 plt.table(
