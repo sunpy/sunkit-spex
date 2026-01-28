@@ -78,8 +78,8 @@ def test_MatrixModel():
         c=1 * u.dimensionless_unscaled,
         input_axis=sim_x0,
         output_axis=sim_x0,
-        _input_units={"x": u.dimensionless_unscaled},
-        _output_units={"y": u.dimensionless_unscaled},
+        input_spec_units={"x": u.dimensionless_unscaled},
+        output_spec_units={"y": u.dimensionless_unscaled},
     )
 
     assert_array_equal(srm_model0.matrix, srm0)
