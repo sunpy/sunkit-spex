@@ -10,9 +10,11 @@ Example of Fitting RHESSI Spectra
 This notebook provides a quick overlook of the fitting code in sunkit-spex and some real examples of fitting RHESSI
 spectra that can be compared to published works.
 
-Try fitting the spectra presented in [Fletcher2007]_ an M1.2 flare which occurred on 2002 October 5.
+Try fitting the spectra presented in `Fletcher2007`_ an M1.2 flare which occurred on 2002 October 5.
 
 **For a more explained demonstration of the general fitting process and capabilities see the NuSTAR fitting example.**
+
+.. _Fletcher2007: https://iopscience.iop.org/article/10.1086/5104466
 """
 
 import warnings
@@ -381,20 +383,16 @@ fitter.save(save_filename)
 # -----------
 #
 # +------------------------------------------+------------------------------------+-------------------------------------+-----------------------------------+------------------------------------+------------------------------------------+
-# | Model Parameter                          | OSPEX (Flecther et al. 2007) [*]_  | Recent OSPEX Fit (from Iain Hannah) | This Work (Minimize Soln, evt-bg) | This Work (Minimize Soln)          | This Work (MCMC)                         |
+# | Model Parameter                          | OSPEX (Flecther et al. 2007)       | Recent OSPEX Fit (from Iain Hannah) | This Work (Minimize Soln, evt-bg) | This Work (Minimize Soln)          | This Work (MCMC)                         |
 # +==========================================+====================================+=====================================+===================================+====================================+==========================================+
-# | Temperature [MK]                         | 24.13                              | 22.45                               | 22.7\ |pm|\ 0.1                   | 22.9\ |pm|\ 0.1                    | :math:`22.71^{+0.29}_{-0.34}`            |
+# | Temperature [MK]                         | 24.13                              | 22.45                               | :math:`22.7 \pm 0.1`              | :math:`22.9 \pm 0.1`               | :math:`22.71^{+0.29}_{-0.34}`            |
 # +------------------------------------------+------------------------------------+-------------------------------------+-----------------------------------+------------------------------------+------------------------------------------+
-# | Emission Measure [cm\ :sup:`-3`]         | 1.6x10\ :sup:`47`                  | 2.0\ |x| 10\ :sup:`47`              | 1.92 |pm| 0.05\ |x|\ 10 :sup:`47` | 1.90\ |pm| 0.04\ |x|\ 10\ :sup:`47`| :math:`1.83^{+0.09}_{-0.08}\times10^{47}`|
+# | Emission Measure [cm\ :sup:`-3`]         | :math:`1.6 \times 10^47`           | :math:`2.0 \times 10^47`            | :math:`1.92 \pm 0.05 \times 10^47`| :math:`1.90 \pm 0.04 \times 10^47` | :math:`1.83^{+0.09}_{-0.08}\times10^{47}`|
 # +------------------------------------------+------------------------------------+-------------------------------------+-----------------------------------+------------------------------------+------------------------------------------+
-# | Electron Flux [e\ :sup:`-` s\ :sup:`-1`] |                                    | 9.8\ |x|\ 10\ :sup:`34`             | 8.8\ |pm|\ 0.2\ |x|\ 10\ :sup:`34`| 8.5\ |pm|\ 0.2\ |x|\ 10\ :sup:`34` |  :math:`8.5^{+1.1}_{-1.2}\times10^{34}`  |
+# | Electron Flux [e\ :sup:`-` s\ :sup:`-1`] |                                    | :math:`9.8 \times 10^34`            | :math:`8.8 \pm 0.2 \times 10^34`  | :math:`8.5 \pm 0.2 \times 10^34`   |  :math:`8.5^{+1.1}_{-1.2}\times10^{34}`  |
 # +------------------------------------------+------------------------------------+-------------------------------------+-----------------------------------+------------------------------------+------------------------------------------+
-# | Index                                    |                                    | 5.77                                | 5.70\ |pm|\ 0.05                  | 5.71\ |pm|\ 0.05                   |  :math:`5.65^{+0.06}_{-0.04}`            |
+# | Index                                    |                                    | 5.77                                | :math:`5.70 \pm 0.05`             | :math:`5.71 \pm 0.05`              |  :math:`5.65^{+0.06}_{-0.04}`            |
 # +------------------------------------------+------------------------------------+-------------------------------------+-----------------------------------+------------------------------------+------------------------------------------+
-# | Low Energy Cut-off [keV]                 |                                    | 19.44                               | 19.8\ |pm|\ 0.1                   | 19.9\ |pm|\ 0.1                    |  :math:`19.8^{+0.6}_{-0.5}`              |
+# | Low Energy Cut-off [keV]                 |                                    | 19.44                               | :math:`19.8 \pm 0.1`              | :math:`19.9 \pm 0.1`               |  :math:`19.8^{+0.6}_{-0.5}`              |
 # +------------------------------------------+------------------------------------+-------------------------------------+-----------------------------------+------------------------------------+------------------------------------------+
 #
-# .. |pm| replace:: :math:`\pm`
-# .. |x| replace:: :math:`\times`
-# .. [*] Fletcher *et al.* 2007's spectrum is fit with a broken power-law model approximating the thick target model.
-# .. [Fletcher2007] https://iopscience.iop.org/article/10.1086/510446

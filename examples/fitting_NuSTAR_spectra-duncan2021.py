@@ -3,11 +3,13 @@
 Fitting NuSTAR Spectra: Duncan *et al.* 2021 comparison
 =========================================================
 
-This spectrum corresponds to the may1618 microflare in [Duncan2021]_.
+This spectrum corresponds to the may1618 microflare in `Duncan2021`_.
 
 An example of fitting multiple spectra simultaneously with 2 models where each model is allowed to vary at different times
 
 We also allow the gain slope response parameter to vary.
+
+.. _Duncan2021: https://iopscience.iop.org/article/10.3847/1538-4357/abca3d
 """
 
 import warnings
@@ -156,21 +158,17 @@ plt.rcParams["font.size"] = default_font_size
 # For the 2 thermal model fitting
 #
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Model Parameter                        | XSPEC (Duncan et al. 2021) [*]_               | This Work                                |
+# | Model Parameter                        | XSPEC (Duncan et al. 2021)                    | This Work                                |
 # +========================================+===============================================+==========================================+
-# | Temperature 1 [MK]                     | :math:`4.1^{+0.1}_{-0.1}`                     | 4.8\ |pm|\ 0.3                           |
+# | Temperature 1 [MK]                     | :math:`4.1^{+0.1}_{-0.1}`                     | :math:`4.8 \pm 0.3`                      |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Emission Measure 1 [cm\ :sup:`-3`]     | :math:`1.4^{+0.6}_{-0.4}\times10^{47}`        | 7.6 |pm| 2.4\ |x|\ 10 :sup:`46`          |
+# | Emission Measure 1 [cm\ :sup:`-3`]     | :math:`1.4^{+0.6}_{-0.4} \times 10^{47}`      | :math:`7.6 \pm 2.4 \times 10^46          |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Temperature 2 [MK]                     | :math:`10.00^{+0.03}_{-0.03}`                 | 10.4\ |pm|\ 0.1                          |
+# | Temperature 2 [MK]                     | :math:`10.00^{+0.03}_{-0.03}`                 | :math:`10.4 \pm 0.1`                     |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Emission Measure 2 [cm\ :sup:`-3`]     | :math:`4.6^{+0.1}_{-0.2}\times10^{45}`        | 4.3 |pm| 0.3\ |x|\ 10 :sup:`45`          |
+# | Emission Measure 2 [cm\ :sup:`-3`]     | :math:`4.6^{+0.1}_{-0.2} \times 10^{45}`      | :math:`4.3 \pm 0.3 \times 10^45          |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
 #
-# .. |pm| replace:: :math:`\pm`
-# .. |x| replace:: :math:`\times`
-# .. [*] Duncan *et al.* 2021's may1618 microflare
-# .. [Duncan2021] https://iopscience.iop.org/article/10.3847/1538-4357/abca3d
 
 #####################################################
 #
@@ -179,8 +177,10 @@ plt.rcParams["font.size"] = default_font_size
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
 # | Model Parameter                        | XSPEC (Duncan et al. 2021)                    | This Work                                |
 # +========================================+===============================================+==========================================+
-# | Gain Slope                             | 0.977\ |pm|\ 0.002                            | 0.978\ |pm|\ 0.001                       |
+# | Gain Slope                             | :math:`0.977 \pm 0.002`                       | :math:`0.978 \pm 0.001`                  |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
+#
+# .. _[Duncan2021]: https://iopscience.iop.org/article/10.3847/1538-4357/abca3d
 
 #####################################################
 # Although these values are slightly different, it is important to note that XSPEC and sunkit-spex work from different atomic databases. We also note that for a similar isothermal fit the temperature can drop/rise if the emission measure rises/drops and so fitting not just one but two of these models allows for these to vary more. We do see that this work (for this microflare) produces higher temperatures but correspondingly lower emission measures.

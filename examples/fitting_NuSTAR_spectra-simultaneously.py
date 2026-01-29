@@ -3,7 +3,9 @@
 Fitting NuSTAR Spectra: Simultaneous Fitting
 ============================================
 
-A real example from [Cooper2021]_ of fitting two NuSTAR spectra simultaneously.
+A real example from `Cooper2021`_ of fitting two NuSTAR spectra simultaneously.
+
+.. _Cooper2021: https://academic.oup.com/mnras/article/507/3/3936/6354806
 """
 
 import warnings
@@ -120,21 +122,18 @@ plt.rcParams["font.size"] = default_font_size
 # Comparison
 #
 # +------------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Model Parameter                          | XSPEC (Cooper et al. 2021) [*]_               | This Work                                |
+# | Model Parameter                          | XSPEC (Cooper et al. 2021)                    | This Work                                |
 # +==========================================+===============================================+==========================================+
-# | Temperature 1 [MK]                       | :math:`3.05^{+0.04}_{-0.35}`                  | 3.19\ |pm|\ 0.23                         |
+# | Temperature 1 [MK]                       | :math:`3.05^{+0.04}_{-0.35}`                  | :math:`3.19 \pm 0.23`                    |
 # +------------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Emission Measure 1 [cm\ :sup:`-3`]       | :math:`1.70^{+1.99}_{-0.08}\times10^{47}`     | 1.45 |pm| 0.72\ |x|\ 10 :sup:`46`        |
+# | Emission Measure 1 [cm\ :sup:`-3`]       | :math:`1.70^{+1.99}_{-0.08}\times10^{47}`     | :math:`1.45 \pm 0.72 \times 10^46`       |
 # +------------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Temperature 2 [MK]                       | :math:`6.60^{+0.20}_{-0.61}`                  | 7.13\ |pm|\ 0.97                         |
+# | Temperature 2 [MK]                       | :math:`6.60^{+0.20}_{-0.61}`                  | :math:`7.13 \pm 0.97`                    |
 # +------------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Emission Measure 2 [cm\ :sup:`-3`]       | :math:`3.8^{+4.0}_{-0.7}\times10^{43}`        | 2.80 |pm| 2.80\ |x|\ 10 :sup:`43`        |
+# | Emission Measure 2 [cm\ :sup:`-3`]       | :math:`3.8^{+4.0}_{-0.7}\times10^{43}`        | :math:`2.80 \pm 2.80 \times 10^43`       |
 # +------------------------------------------+-----------------------------------------------+------------------------------------------+
 #
-# .. |pm| replace:: :math:`\pm`
-# .. |x| replace:: :math:`\times`
-# .. [*] Cooper *et al.* 2021's microflare 10, pre-flare.
-# .. [Cooper2021] https://academic.oup.com/mnras/article/507/3/3936/6354806
+# .. _Cooper2021: https://academic.oup.com/mnras/article/507/3/3936/6354806
 
 #####################################################
 # Although these values are slightly different (almost or are within error margins), it is important to note that XSPEC and sunkit-spex work from different atomic databases. We also note that for a similar isothermal fit the temperature can drop/rise if the emission measure rises/drops and so fitting not just one but two of these models allows for these to vary more. We do see that this work (for this microflare time) produces slightly higher temperatures but correspondingly lower emission measures.

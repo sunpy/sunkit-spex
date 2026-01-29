@@ -6,7 +6,7 @@ Fitting Attenuated RHESSI Spectra
 
 Fitting attenuated RHESSI Spectra
 
-This is looking at the M9 class flare observed by RHESSI from [Knuth+Glesener 2020](https://iopscience.iop.org/article/10.3847/1538-4357/abb779).
+This is looking at the M9 class flare observed by RHESSI from `KnuthGlesener2020`_.
 
 We perform spectroscopy on the interval where the thick attenuator is inserted.
 
@@ -14,6 +14,7 @@ We perform spectroscopy on the interval where the thick attenuator is inserted.
 
  Systematic error is important to add to RHESSI data so that the minimizer has some wiggle room.
 
+.. _KnuthGlesener2020: https://iopscience.iop.org/article/10.3847/1538-4357/abb779
 """
 
 import matplotlib.pyplot as plt
