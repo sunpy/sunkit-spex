@@ -53,7 +53,7 @@ def gwcs_from_array(array):
 
 
 class SpectralAxis(SpectralCoord):
-    """
+    r"""
     Coordinate object representing spectral values corresponding to a specific
     spectrum. Overloads SpectralCoord with additional information (currently
     only bin edges).
@@ -77,6 +77,9 @@ class SpectralAxis(SpectralCoord):
         ):
             raise ValueError("u.pix spectral axes should always be ascending")
 
+        if bin_specification == "edges" and value.size < 2:
+            raise ValueError('If bin_specification="centers" have at least two bin edges.')
+
         # Convert to bin centers if bin edges were given, since SpectralCoord
         # only accepts centers
         if bin_specification == "edges":
@@ -91,33 +94,21 @@ class SpectralAxis(SpectralCoord):
         return obj
 
     @staticmethod
-    def _edges_from_centers(centers, unit):
-        """
-        Calculates interior bin edges based on the average of each pair of
-        centers, with the two outer edges based on extrapolated centers added
-        to the beginning and end of the spectral axis.
-        """
-        a = np.insert(centers, 0, 2 * centers[0] - centers[1])
-        b = np.append(centers, 2 * centers[-1] - centers[-2])
-        edges = (a + b) / 2
-        return edges * unit
-
-    @staticmethod
     def _centers_from_edges(edges):
-        """
+        r"""
         Calculates the bin centers as the average of each pair of edges
         """
         return (edges[1:] + edges[:-1]) / 2
 
     @lazyproperty
     def bin_edges(self):
-        """
+        r"""
         Calculates bin edges if the spectral axis was created with centers
         specified.
         """
-        if hasattr(self, "_bin_edges"):
+        if hasattr(self, "_bin_edges") and self._bin_edges is not None:
             return self._bin_edges
-        return self._edges_from_centers(self.value, self.unit)
+        return None
 
     def __array_finalize__(self, obj):
         super().__array_finalize__(obj)
@@ -186,8 +177,8 @@ class Spectrum(NDCube):
         # If the data argument is already a Spectrum (as it would
         # be for internal arithmetic operations), avoid setup entirely.
         if isinstance(data, Spectrum):
-            self._spectral_axis = spectral_axis
-            self._spectral_dimension = spectral_axis_index
+            self._spectral_axis = data.spectral_axis
+            self._spectral_axis_index = data.spectral_axis_index
             super().__init__(data)
             return
 
@@ -218,7 +209,7 @@ class Spectrum(NDCube):
             return
 
         self._spectral_axis_index = spectral_axis_index
-        # If here data is should be an array or quantity
+        # If here data should be an array or quantity
         if spectral_axis_index is None and data is not None:
             if data.ndim == 1:
                 self._spectral_axis_index = 0
@@ -267,6 +258,7 @@ class Spectrum(NDCube):
 
         # If data and spectral axis are both specified, check that their lengths
         # match or are off by one (implying the spectral axis stores bin edges)
+        bin_specification = "centers"  # default value
         if data is not None and spectral_axis is not None:
             if spectral_axis.shape[0] == data.shape[self.spectral_axis_index]:
                 bin_specification = "centers"
@@ -314,64 +306,12 @@ class Spectrum(NDCube):
         if wcs is None:
             wcs = gwcs_from_array(self._spectral_axis)
 
-        if wcs is None:
-            # If no spectral axis or wcs information is provided, initialize
-            # with an empty gwcs based on the data.
-            if self.spectral_axis_index is None:
-                if data.ndim == 1:
-                    self._spectral_axis_index = 0
-                else:
-                    raise ValueError("Must specify spectral_axis_index if no WCS or spectral axis is input.")
-            size = data.shape[self.spectral_axis_index] if not data.isscalar else 1
-            wcs = gwcs_from_array(
-                np.arange(size) * u.Unit("pixel"), data.shape, spectral_axis_index=self.spectral_axis_index
-            )
-
         super().__init__(data=data.value if isinstance(data, u.Quantity) else data, wcs=wcs, **kwargs)
 
-        # If no spectral_axis was provided, create a SpectralCoord based on
-        # the WCS
-        # if spectral_axis is None:
-        #     # If the WCS doesn't have a spectral attribute, we assume it's the
-        #     # dummy GWCS we created or a solely spectral WCS
-        #     if hasattr(self.wcs, "spectral"):
-        #         # Handle generated 1D WCS that aren't set to spectral
-        #         if not self.wcs.is_spectral and self.wcs.naxis == 1:
-        #             spec_axis = self.wcs.pixel_to_world(np.arange(self.data.shape[self.spectral_axis_index]))
-        #         else:
-        #             spec_axis = self.wcs.spectral.pixel_to_world(np.arange(self.data.shape[self.spectral_axis_index]))
-        #     else:
-        #         # We now keep the entire GWCS, including spatial information, so we need to include
-        #         # all axes in the pixel_to_world call. Note that this assumes/requires that the
-        #         # dispersion is the same at all spatial locations.
-        #         wcs_args = [np.zeros(self.data.shape[self.spectral_axis_index]) for i in range(len(self.data.shape))]
-        #         # Replace with arange for the spectral axis
-        #         wcs_args[self.spectral_axis_index] = np.arange(self.data.shape[self.spectral_axis_index])
-        #         wcs_args.reverse()
-        #         temp_coords = self.wcs.pixel_to_world(*wcs_args)
-        #         # If there are spatial axes, temp_coords will have a SkyCoord and a SpectralCoord
-        #         if isinstance(temp_coords, list):
-        #             for coords in temp_coords:
-        #                 if isinstance(coords, SpectralCoord):
-        #                     spec_axis = coords
-        #                     break
-        #             else:
-        #                 # WCS axis ordering is reverse of numpy
-        #                 spec_axis = temp_coords[len(temp_coords) - self.spectral_axis_index - 1]
-        #         else:
-        #             spec_axis = temp_coords
-        #
-        #     try:
-        #         if spec_axis.unit.is_equivalent(u.one):
-        #             spec_axis = spec_axis * u.pixel
-        #     except AttributeError:
-        #         raise AttributeError(f"spec_axis does not have unit: {type(spec_axis)} {spec_axis}")
-        #
-        #     self._spectral_axis = SpectralAxis(spec_axis)
-
-        # make sure that spectral axis is strictly increasing
-        if not np.all(self._spectral_axis[1:] >= self._spectral_axis[:-1]):
-            raise ValueError("Spectral axis must be strictly increasing or decreasing.")
+        # make sure that spectral axis is strictly increasing or strictly decreasing
+        is_strictly_increasing = np.all(self._spectral_axis[1:] > self._spectral_axis[:-1])
+        if len(self._spectral_axis) > 1 and not (is_strictly_increasing):
+            raise ValueError("Spectral axis must be strictly increasing decreasing.")
 
         if hasattr(self, "uncertainty") and self.uncertainty is not None:
             if not data.shape == self.uncertainty.array.shape:
