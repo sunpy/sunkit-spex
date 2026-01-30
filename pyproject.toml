@@ -40,7 +40,7 @@ tests = [
   "pytest-xdist",
 ]
 docs = [
-  "sphinx",
+  "sphinx<9.0",
   "sphinx-automodapi",
   "sphinx-changelog",
   "sunpy-sphinx-theme",

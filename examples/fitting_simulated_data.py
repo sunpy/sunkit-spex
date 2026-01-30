@@ -68,9 +68,9 @@ srm_model = MatrixModel(
     matrix=srm,
     input_axis=SpectralAxis(ph_energies),
     output_axis=SpectralAxis(ph_energies),
-    c=1 * u.ct / u.ph,
     input_spec_units={"x": u.ph * u.keV**-1},
     output_spec_units={"y": u.ct * u.keV**-1},
+    c=1 * u.ct / u.ph,
 )
 # srm_model.input_units = {"x": u.ph}
 

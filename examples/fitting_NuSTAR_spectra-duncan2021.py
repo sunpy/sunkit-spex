@@ -83,6 +83,7 @@ print(spec.params)
 #####################################################
 #
 # freeze the ones we don't want to vary
+
 spec.params["C_spectrum1"] = {"Status": "frozen"}
 
 #####################################################
@@ -97,6 +98,7 @@ spec.params["C_spectrum2"] = {"Status": "free", "Bounds": (0.5, 2)}
 #####################################################
 #
 # Fit lower energy range with the first thermal model first
+
 spec.params["T2_spectrum1"] = "frozen"
 spec.params["EM2_spectrum1"] = "frozen"
 spec.energy_fitting_range = [2.5, 4]
@@ -118,6 +120,7 @@ spec.params["EM2_spectrum1"] = "free"
 #####################################################
 #
 # Need the gain slope to vary too for this microflare but only needed for the 6.7 keV line
+
 print(spec.rParams)
 spec.rParams["gain_slope_spectrum1"] = "free"
 spec.rParams["gain_slope_spectrum2"] = spec.rParams["gain_slope_spectrum1"]
@@ -162,11 +165,11 @@ plt.rcParams["font.size"] = default_font_size
 # +========================================+===============================================+==========================================+
 # | Temperature 1 [MK]                     | :math:`4.1^{+0.1}_{-0.1}`                     | :math:`4.8 \pm 0.3`                      |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Emission Measure 1 [cm\ :sup:`-3`]     | :math:`1.4^{+0.6}_{-0.4} \times 10^{47}`      | :math:`7.6 \pm 2.4 \times 10^46          |
+# | Emission Measure 1 [cm\ :sup:`-3`]     | :math:`1.4^{+0.6}_{-0.4} \times 10^{47}`      | :math:`7.6 \pm 2.4 \times 10^46`         |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
 # | Temperature 2 [MK]                     | :math:`10.00^{+0.03}_{-0.03}`                 | :math:`10.4 \pm 0.1`                     |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
-# | Emission Measure 2 [cm\ :sup:`-3`]     | :math:`4.6^{+0.1}_{-0.2} \times 10^{45}`      | :math:`4.3 \pm 0.3 \times 10^45          |
+# | Emission Measure 2 [cm\ :sup:`-3`]     | :math:`4.6^{+0.1}_{-0.2} \times 10^{45}`      | :math:`4.3 \pm 0.3 \times 10^45`         |
 # +----------------------------------------+-----------------------------------------------+------------------------------------------+
 #
 
@@ -183,4 +186,7 @@ plt.rcParams["font.size"] = default_font_size
 # .. _[Duncan2021]: https://iopscience.iop.org/article/10.3847/1538-4357/abca3d
 
 #####################################################
-# Although these values are slightly different, it is important to note that XSPEC and sunkit-spex work from different atomic databases. We also note that for a similar isothermal fit the temperature can drop/rise if the emission measure rises/drops and so fitting not just one but two of these models allows for these to vary more. We do see that this work (for this microflare) produces higher temperatures but correspondingly lower emission measures.
+# Although these values are slightly different, it is important to note that XSPEC and sunkit-spex work from different
+# atomic databases. We also note that for a similar isothermal fit the temperature can drop/rise if the emission measure
+# rises/drops and so fitting not just one but two of these models allows for these to vary more. We do see that this
+# work (for this microflare) produces higher temperatures but correspondingly lower emission measures.
