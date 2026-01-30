@@ -12,8 +12,11 @@ a square response matrix to the data-space (count-space).
 
     * The response is square so the count and photon energy axes are identical.
     * No errors are included in the fitting statistic.
+    * The SciPy minimization does not hold any parameters fixed, even those which are marked as fixed.
 
 """
+
+from collections import OrderedDict
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,8 +50,8 @@ ph_energies_centers = ph_energies[:-1] + 0.5 * np.diff(ph_energies)
 #
 # Let's start making a simulated photon spectrum
 
-sim_cont = {"slope": -1 * u.ph / u.keV**2, "intercept": 100 * u.ph / u.keV}
-sim_line = {"amplitude": 100 * u.ph / u.keV, "mean": 30 * u.keV, "stddev": 2 * u.keV}
+sim_cont = OrderedDict({"slope": -1 * u.ph / u.keV**2, "intercept": 100 * u.ph / u.keV})
+sim_line = OrderedDict({"amplitude": 100 * u.ph / u.keV, "mean": 30 * u.keV, "stddev": 2 * u.keV})
 # use a straight line model for a continuum, Gaussian for a line
 ph_model = StraightLineModel(**sim_cont) + GaussianModel(**sim_line)
 
@@ -68,12 +71,9 @@ srm_model = MatrixModel(
     matrix=srm,
     input_axis=SpectralAxis(ph_energies),
     output_axis=SpectralAxis(ph_energies),
-    input_spec_units={"x": u.ph * u.keV**-1},
-    output_spec_units={"y": u.ct * u.keV**-1},
-    c=1 * u.ct / u.ph,
+    input_spec_units=(u.ph / u.keV),
+    output_spec_units=(u.ct / u.keV),
 )
-# srm_model.input_units = {"x": u.ph}
-
 
 with quantity_support():
     plt.figure()
@@ -97,8 +97,7 @@ with quantity_support():
 #
 # Start work on a count model
 
-sim_gauss = {"amplitude": 70 * u.ct / u.keV, "mean": 40 * u.keV, "stddev": 2 * u.keV}
-# the brackets are very necessary
+sim_gauss = OrderedDict({"amplitude": 70 * u.ct / u.keV, "mean": 40 * u.keV, "stddev": 2 * u.keV})
 ct_model = ph_model | srm_model
 
 #####################################################
@@ -141,9 +140,9 @@ with quantity_support():
 #
 # Get some initial guesses that are off from the simulated data above
 
-guess_cont = {"slope": -0.5 * u.ph / u.keV**2, "intercept": 80 * u.ph / u.keV}
-guess_line = {"amplitude": 150 * u.ph / u.keV, "mean": 32 * u.keV, "stddev": 5 * u.keV}
-guess_gauss = {"amplitude": 350 * u.ct / u.keV, "mean": 39 * u.keV, "stddev": 0.5 * u.keV}
+guess_cont = OrderedDict({"slope": -0.5 * u.ph / u.keV**2, "intercept": 80 * u.ph / u.keV})
+guess_line = OrderedDict({"amplitude": 150 * u.ph / u.keV, "mean": 32 * u.keV, "stddev": 5 * u.keV})
+guess_gauss = OrderedDict({"amplitude": 350 * u.ct / u.keV, "mean": 39 * u.keV, "stddev": 0.5 * u.keV})
 
 #####################################################
 #
@@ -152,9 +151,6 @@ guess_gauss = {"amplitude": 350 * u.ct / u.keV, "mean": 39 * u.keV, "stddev": 0.
 ph_mod_4fit = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
 count_model_4fit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
 
-
-# print(ph_mod_4fit(ph_energies).size)
-# print(count_model_4fit(obs_spec.data).size)
 # #####################################################
 # #
 # # Let's fit the simulated data and plot the result
@@ -169,7 +165,12 @@ opt_res = scipy_minimize(
 with quantity_support():
     plt.figure()
     plt.plot(ph_energies_centers, sim_count_model_wn, label="total sim. spectrum + noise")
-    plt.plot(ph_energies_centers, count_model_4fit.evaluate(ph_energies.value, *opt_res.x), ls=":", label="model fit")
+    plt.plot(
+        ph_energies_centers,
+        count_model_4fit.evaluate(ph_energies.value, *opt_res.x).value << (u.ct / u.keV),
+        ls=":",
+        label="model fit",
+    )
     plt.xlabel(f"Energy [{ph_energies.unit}]")
     plt.title("Simulated Count Spectrum Fit with Scipy")
     plt.legend()

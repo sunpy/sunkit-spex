@@ -75,11 +75,10 @@ def test_MatrixModel():
 
     srm_model0 = MatrixModel(
         matrix=srm0,
-        c=1 * u.dimensionless_unscaled,
         input_axis=sim_x0,
         output_axis=sim_x0,
-        input_spec_units={"x": u.dimensionless_unscaled},
-        output_spec_units={"y": u.dimensionless_unscaled},
+        input_spec_units=u.dimensionless_unscaled,
+        output_spec_units=u.dimensionless_unscaled,
     )
 
     assert_array_equal(srm_model0.matrix, srm0)
