@@ -11,3 +11,4 @@ you quickly accomplish common tasks.
    :maxdepth: 1
 
    ../generated/gallery/index
+   ../generated/gallery/legacy/index

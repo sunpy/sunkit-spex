@@ -57,7 +57,7 @@ file_names = [
 ]
 
 for fname in file_names:
-    dl.enqueue_file(base_url + fname, path="./nustar/Duncan2021/")
+    dl.enqueue_file(base_url + fname, path="../../nustar/Duncan2021/")
 files = dl.download()
 
 
@@ -65,7 +65,7 @@ files = dl.download()
 #
 # First, load in your data files, here we load in 2 spectra
 
-_dir = "./nustar/Duncan2021/"
+_dir = "../../nustar/Duncan2021/"
 spec = Fitter(pha_file=[_dir + "nu80410201001A06_1618_p_chu2_N_sr.pha", _dir + "nu80410201001B06_1618_p_chu2_N_sr.pha"])
 
 #####################################################

@@ -47,7 +47,7 @@ docs = [
   "packaging",
   "sphinx-changelog",
   "sphinx-gallery",
-  "pypandoc"
+  "joblib", # for sphinx-gallery parallel
 ]
 dev = [
     "sunkit-spex[docs,tests]",
