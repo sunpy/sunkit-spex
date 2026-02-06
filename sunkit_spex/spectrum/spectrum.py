@@ -190,11 +190,12 @@ def gwcs_from_array(array, flux_shape, spectral_axis_index=None):
         input_frame=detector_frame,
         output_frame=output_frame,
     )
+    tabular_gwcs.bounding_box = None
 
     # Store the intended unit from the origin input array
     #     tabular_gwcs._input_unit = orig_array.unit
 
-    return tabular_gwcs  # noqa: RET504
+    return tabular_gwcs
 
 
 class SpectralAxis(SpectralCoord):

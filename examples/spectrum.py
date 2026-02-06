@@ -28,7 +28,7 @@ rng = np.random.default_rng()
 # energy. We will start of by creating some synthetic data and corresponding energy bins as well as some important metadata
 # in this case the exposure time.
 
-data = rng.rand(50) * u.ct
+data = rng.random(50) * u.ct
 energy = np.linspace(1, 50, 50) * u.keV
 time = Time("2025-02-18T15:08")
 
