@@ -151,18 +151,29 @@ print(spec_2d_time_energy_crop_values.spectral_axis)
 # 2D Spectrum ( e.g. detector v energy)
 # -------------------------------------
 
-# data = rng.rand(10, 50) * u.ct
-# energy = np.linspace(1, 50, 50) * u.keV
+data = rng.random((10, 50)) * u.ct
+energy = np.linspace(1, 50, 50) * u.keV
+
+exposure_time = np.arange(10) * u.s
+labels = np.array([f"det_+{chr(97 + i)}" for i in range(10)])
+
+meta = NDMeta()
+meta.add("exposure_time", exposure_time, axes=0)
+meta.add("detector", labels, axes=0)
+
+spec_2d_det_time = Spectrum(data, spectral_axis=energy, spectral_axis_index=1, meta=meta)
+spec_2d_det_time
+
+
+#####################################################
 #
-# exposure_time = np.arange(10) * u.s
-# labels = np.array([chr(97 + i) for i in range(10)])
+
+spec_2d_det_time.crop((SpectralCoord(10 * u.keV), None), (SpectralCoord(20 * u.keV), None))
+
+#####################################################
 #
-# meta = NDMeta()
-# meta.add("exposure_time", exposure_time, axes=0)
-# meta.add("detector", labels, axes=0)
-#
-# spec_2d_det_time = Spectrum(data, spectral_axis=energy, spectral_axis_index=1, meta=meta)
-# spec_2d_det_time
+
+spec_2d_det_time.crop_by_values((10 * u.keV, 0), (20 * u.keV, 2))
 
 #####################################################
 #
