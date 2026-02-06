@@ -2,21 +2,112 @@ from operator import add, mul, sub, truediv
 
 import numpy as np
 import pytest
+from gwcs import coordinate_frames as cf
 from ndcube import NDCube
 from ndcube.extra_coords import QuantityTableCoordinate, TimeTableCoordinate
 from ndcube.wcs.wrappers import CompoundLowLevelWCS
 from numpy.testing import assert_array_equal
 
 import astropy.units as u
-from astropy.coordinates import SpectralCoord
+from astropy.modeling import models
 from astropy.nddata import StdDevUncertainty
 from astropy.tests.helper import assert_quantity_allclose
 from astropy.time import Time
 from astropy.wcs import WCS
 
-from sunkit_spex.spectrum.spectrum import SpectralAxis, Spectrum, gwcs_from_array
+from sunkit_spex.spectrum.spectrum import SpectralAxis, SpectralGWCS, Spectrum, gwcs_from_array
 
 rng = np.random.default_rng()
+
+
+def test_spectral_gwcs_init_and_copy():
+    # Setup dummy transform and frames
+    trans = models.Identity(1)
+    # Create distinct frames with unique names
+    # Usually 'detector' or 'pixel' for input, and 'world' or 'spectral' for output
+    input_frame = cf.CoordinateFrame(naxes=1, axes_type=["SPECTRAL"], axes_order=(0,), name="pixel_frame")
+
+    output_frame = cf.CoordinateFrame(naxes=1, axes_type=["SPECTRAL"], axes_order=(0,), name="world_frame")
+    sgwcs = SpectralGWCS(
+        forward_transform=trans, input_frame=input_frame, output_frame=output_frame, original_unit="Angstrom"
+    )
+
+    assert sgwcs.original_unit == "Angstrom"
+
+    # Test shallow copy
+    sgwcs_copy = sgwcs.copy()
+    assert sgwcs_copy.original_unit == sgwcs.original_unit
+    assert sgwcs_copy is not sgwcs
+
+    # Test deep copy
+    sgwcs_deepcopy = sgwcs.deepcopy()
+    assert sgwcs_deepcopy.original_unit == sgwcs.original_unit
+    assert sgwcs_deepcopy is not sgwcs
+
+
+def test_gwcs_from_array_1d_wavelength():
+    wavelengths = np.linspace(4000, 7000, 100) * u.AA
+    flux_shape = (100,)
+
+    wcs = gwcs_from_array(wavelengths, flux_shape)
+
+    assert isinstance(wcs, SpectralGWCS)
+    assert wcs.output_frame.unit[0] == u.AA
+    assert wcs.output_frame.axes_names[0] == "wavelength"
+
+    # Test forward transform (pixel to world)
+    assert np.allclose(wcs(0), 4000)
+    assert np.allclose(wcs(99), 7000)
+
+    # Test inverse transform (world to pixel)
+    assert np.allclose(wcs.invert(4000), 0)
+
+
+def test_gwcs_from_array_3d_cube():
+    # 3D cube: (Spatial, Spatial, Spectral) -> (y, x, lambda)
+    # In numpy: shape is (ny, nx, nlambda)
+    # We want spectral axis to be index 2
+    n_lambda = 50
+    flux_shape = (10, 20, n_lambda)
+    freqs = np.linspace(100, 200, n_lambda) * u.keV
+
+    # Note: spectral_axis_index is relative to numpy shape
+    wcs = gwcs_from_array(freqs, flux_shape, spectral_axis_index=2)
+
+    assert wcs.output_frame.naxes == 3
+    assert wcs.forward_transform.n_inputs == 3
+
+    # Test mapping: (x, y, lambda_pix) -> (spatial, spatial, freq)
+    # GWCS/WCS usually expects (x, y, z) input order
+    world = wcs.pixel_to_world(0, 0, 0)  # pixels for x, y, lambda
+    assert world[0] == 100 * u.keV
+    assert wcs.output_frame.frames[1].axes_names[0] == "energy"
+
+
+def test_gwcs_from_array_descending():
+    # Test descending spectral axis for inverse transform logic
+    waves = np.array([5000, 4000, 3000]) * u.AA
+    wcs = gwcs_from_array(waves, (3,))
+
+    assert np.allclose(wcs(0), 5000)
+    assert np.allclose(wcs(2), 3000)
+
+    # Check that inverse works correctly on flipped table
+    assert np.allclose(wcs.invert(3000), 2)
+    assert np.allclose(wcs.invert(5000), 0)
+
+
+def test_gwcs_from_array_invalid_units():
+    data = np.arange(10) * u.Jy  # Flux units are not valid for spectral axis
+    with pytest.raises(ValueError, match="Spectral axis units must be one of"):
+        gwcs_from_array(data, (10,))
+
+
+def test_gwcs_from_array_missing_index():
+    data = np.linspace(1, 10, 10) * u.m
+    # 2D flux but no index provided
+    with pytest.raises(ValueError, match="spectral_axis_index must be set"):
+        gwcs_from_array(data, (10, 10))
 
 
 def test_spectrum_quantity_bin_edges():
@@ -84,7 +175,7 @@ def test_spectrum_from_ndcube_wcs():
         Spectrum(cube)
 
     with pytest.raises(ValueError, match=r"Spectral axis"):
-        Spectrum(cube, spectral_axis=spec_axis_edges[:-1])
+        Spectrum(cube, spectral_axis=spec_axis_edges[1:-1])
 
     spec = Spectrum(cube, spectral_axis=spec_axis_edges)
     assert isinstance(spec, Spectrum)
@@ -296,42 +387,6 @@ def test_spectrum_with_valid_uncertainty():
     assert spec.uncertainty.array.shape == data.shape
 
 
-def test_gwcs_from_array_ascending():
-    """Test gwcs_from_array with ascending array."""
-    array = np.array([1, 2, 3, 4, 5]) * u.keV
-    wcs = gwcs_from_array(array)
-
-    # Test pixel_to_world
-    result = wcs.pixel_to_world(0)
-    assert_quantity_allclose(result, 1 * u.keV)
-
-    result = wcs.pixel_to_world(4)
-    assert_quantity_allclose(result, 5 * u.keV)
-
-
-def test_gwcs_from_array_descending():
-    """Test gwcs_from_array with descending array."""
-    array = np.array([5, 4, 3, 2, 1]) * u.keV
-    wcs = gwcs_from_array(array)
-
-    # Test pixel_to_world
-    result = wcs.pixel_to_world(0)
-    assert_quantity_allclose(result, 5 * u.keV)
-
-    result = wcs.pixel_to_world(4)
-    assert_quantity_allclose(result, 1 * u.keV)
-
-
-def test_gwcs_from_array_world_to_pixel():
-    """Test gwcs_from_array world_to_pixel transformation."""
-    array = np.array([1, 2, 3, 4, 5]) * u.keV
-    wcs = gwcs_from_array(array)
-
-    # Test world_to_pixel - requires SpectralCoord
-    result = wcs.world_to_pixel(SpectralCoord(3 * u.keV))
-    assert np.isclose(result, 2.0)
-
-
 def test_slice_preserves_spectral_axis_index():
     """Test that slicing preserves spectral_axis_index."""
     spec = Spectrum(np.arange(1, 11) * u.watt, spectral_axis=(np.arange(1, 11) + 0.5) * u.keV)
@@ -340,7 +395,7 @@ def test_slice_preserves_spectral_axis_index():
 
 
 def test_slice_updates_spectral_axis():
-    """Test that slicing correctly updates spectral_axis."""
+    """Test that slicing correctly slices spectral_axis."""
     spec = Spectrum(np.arange(1, 11) * u.watt, spectral_axis=(np.arange(1, 11) + 0.5) * u.keV)
     sliced = spec[2:5]
     assert_quantity_allclose(sliced.spectral_axis, [3.5, 4.5, 5.5] * u.keV)

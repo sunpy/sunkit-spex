@@ -1,3 +1,4 @@
+import copy
 from copy import deepcopy
 
 import numpy as np
@@ -7,6 +8,7 @@ from ndcube import NDCube
 
 import astropy.units as u
 from astropy.coordinates import SpectralCoord
+from astropy.modeling.mappings import Identity, Mapping
 from astropy.modeling.tabular import Tabular1D
 from astropy.utils import lazyproperty
 from astropy.wcs.wcsapi import sanitize_slices
@@ -17,39 +19,182 @@ __all__ = ["SpectralAxis", "Spectrum", "gwcs_from_array"]
 __doctest_requires__ = {"Spectrum": ["ndcube>=2.3"]}
 
 
-def gwcs_from_array(array):
+class SpectralGWCS(GWCS):
+    """
+    This is a placeholder lookup-table GWCS created when a :class:`~specutils.Spectrum` is
+    instantiated with a ``spectral_axis`` and no WCS.
+    """
+
+    def __init__(self, *args, **kwargs):
+        self.original_unit = kwargs.pop("original_unit", "")
+        super().__init__(*args, **kwargs)
+
+    def copy(self):
+        """
+        Return a shallow copy of the object.
+
+        Convenience method so user doesn't have to import the
+        :mod:`copy` stdlib module.
+
+        .. warning::
+            Use `deepcopy` instead of `copy` unless you know why you need a
+            shallow copy.
+        """
+        return copy.copy(self)
+
+    def deepcopy(self):
+        """
+        Return a deep copy of the object.
+
+        Convenience method so user doesn't have to import the
+        :mod:`copy` stdlib module.
+        """
+        return copy.deepcopy(self)
+
+
+def gwcs_from_array(array, flux_shape, spectral_axis_index=None):
     """
     Create a new WCS from provided tabular data. This defaults to being
-    a GWCS object.
+    a GWCS object with a lookup table for the spectral axis and filler
+    pixel to pixel identity conversions for spatial axes, if they exist.
     """
     orig_array = u.Quantity(array)
+    naxes = len(flux_shape)
 
-    coord_frame = cf.CoordinateFrame(naxes=1, axes_type=("SPECTRAL",), axes_order=(0,))
-    spec_frame = cf.SpectralFrame(unit=array.unit, axes_order=(0,))
+    if naxes > 1:
+        if spectral_axis_index is None:
+            raise ValueError("spectral_axis_index must be set for multidimensional flux arrays")
+        # Axis order is reversed for WCS from numpy array
+        spectral_axis_index = naxes - spectral_axis_index - 1
+    elif naxes == 1:
+        spectral_axis_index = 0
+
+    axes_order = list(np.arange(naxes))
+    axes_type = [
+        "SPATIAL",
+    ] * naxes
+    axes_type[spectral_axis_index] = "SPECTRAL"
+
+    detector_frame = cf.CoordinateFrame(
+        naxes=naxes,
+        name="detector",
+        unit=[
+            u.pix,
+        ]
+        * naxes,
+        axes_order=axes_order,
+        axes_type=axes_type,
+    )
+
+    if array.unit in ("", "pix", "pixel"):
+        # Spectrum was initialized without a wcs or spectral axis
+        spectral_frame = cf.CoordinateFrame(
+            naxes=1,
+            unit=[
+                array.unit,
+            ],
+            axes_type=[
+                "Spectral",
+            ],
+            axes_order=(spectral_axis_index,),
+        )
+    else:
+        phys_types = None
+        # Note that some units have multiple physical types, so we can't just set the
+        # axis name to the physical type string.
+        if array.unit.physical_type == "length":
+            axes_names = [
+                "wavelength",
+            ]
+        elif array.unit.physical_type == "frequency":
+            axes_names = [
+                "frequency",
+            ]
+        elif array.unit.physical_type == "velocity":
+            axes_names = [
+                "velocity",
+            ]
+            phys_types = [
+                "spect.dopplerVeloc.optical",
+            ]
+        elif array.unit.physical_type == "wavenumber":
+            axes_names = [
+                "wavenumber",
+            ]
+        elif array.unit.physical_type == "energy":
+            axes_names = [
+                "energy",
+            ]
+        else:
+            raise ValueError("Spectral axis units must be one of length,frequency, velocity, energy, or wavenumber")
+
+        spectral_frame = cf.SpectralFrame(
+            unit=array.unit, axes_order=(spectral_axis_index,), axes_names=axes_names, axis_physical_types=phys_types
+        )
+
+    if naxes > 1:
+        axes_order.remove(spectral_axis_index)
+        spatial_frame = cf.CoordinateFrame(
+            naxes=naxes - 1,
+            unit=[
+                "",
+            ]
+            * (naxes - 1),
+            axes_type=[
+                "Spatial",
+            ]
+            * (naxes - 1),
+            axes_order=axes_order,
+        )
+        output_frame = cf.CompositeFrame(frames=[spatial_frame, spectral_frame])
+    else:
+        output_frame = spectral_frame
 
     # In order for the world_to_pixel transformation to automatically convert
-    # input units, the equivalencies in the lookup table have to be extended
+    # input units, the equivalencies in the look up table have to be extended
     # with spectral unit information.
-    SpectralTabular1D = type("SpectralTabular1D", (Tabular1D,), {"input_units_equivalencies": {"x0": u.spectral()}})
+    SpectralTabular1D = type(
+        "SpectralTabular1D", (Tabular1D,), {"input_units_equivalencies": {"x0": u.spectral()}, "bounds_error": True}
+    )
 
-    forward_transform = SpectralTabular1D(np.arange(len(array)), lookup_table=array)
+    # We pass through the pixel values of spatial axes with Identity and use a lookup
+    # table for the spectral axis values. We use Mapping to pipe the values to the correct
+    # model depending on which axis is the spectral axis
+    if naxes == 1:
+        forward_transform = SpectralTabular1D(np.arange(len(array)) * u.pix, lookup_table=array)
+    else:
+        axes_order.append(spectral_axis_index)
+        # WCS axis order is reverse of numpy array order
+        mapped_axes = axes_order
+        out_mapping = np.ones(len(mapped_axes)).astype(int)
+        for i in range(len(mapped_axes)):
+            out_mapping[mapped_axes[i]] = i
+        forward_transform = (
+            Mapping(mapped_axes)
+            | Identity(naxes - 1) & SpectralTabular1D(np.arange(len(array)) * u.pix, lookup_table=array)
+            | Mapping(out_mapping)
+        )
+
     # If our spectral axis is in descending order, we have to flip the lookup
     # table to be ascending in order for world_to_pixel to work.
     if len(array) == 0 or array[-1] > array[0]:
-        forward_transform.inverse = SpectralTabular1D(array, lookup_table=np.arange(len(array)))
+        forward_transform.inverse = SpectralTabular1D(array, lookup_table=np.arange(len(array)) * u.pix)
     else:
-        forward_transform.inverse = SpectralTabular1D(array[::-1], lookup_table=np.arange(len(array))[::-1])
+        raise ValueError("Unsupported ")
+        # forward_transform.inverse = SpectralTabular1D(
+        #         array[::-1], lookup_table=np.arange(len(array))[::-1])
 
-    class SpectralGWCS(GWCS):
-        def pixel_to_world(self, *args, **kwargs):
-            if orig_array.unit == "":
-                return u.Quantity(super().pixel_to_world_values(*args, **kwargs))
-            return super().pixel_to_world(*args, **kwargs).to(orig_array.unit, equivalencies=u.spectral())
-
-    return SpectralGWCS(forward_transform=forward_transform, input_frame=coord_frame, output_frame=spec_frame)
+    tabular_gwcs = SpectralGWCS(
+        original_unit=orig_array.unit,
+        forward_transform=forward_transform,
+        input_frame=detector_frame,
+        output_frame=output_frame,
+    )
 
     # Store the intended unit from the origin input array
     #     tabular_gwcs._input_unit = orig_array.unit
+
+    return tabular_gwcs  # noqa: RET504
 
 
 class SpectralAxis(SpectralCoord):
@@ -117,10 +262,10 @@ class SpectralAxis(SpectralCoord):
 
 class Spectrum(NDCube):
     r"""
-    Spectrum container for data with one spectral axis.
+    Spectrum container for data which share a common spectral axis.
 
     Note that "1D" in this case refers to the fact that there is only one
-    spectral axis.  `Spectrum` can contain ND data where
+    spectral axis. `Spectrum` can contain ND data where
     ``data`` have a shape with dimension greater than 1.
 
     Notes
@@ -290,21 +435,24 @@ class Spectrum(NDCube):
 
         # Check the spectral_axis matches the wcs
         if wcs is not None:
-            if hasattr(wcs, "spectral"):
+            wsc_coords = None
+            if hasattr(wcs, "spectral") and getattr(wcs, "is_spectral", False):
                 wcs_coords = wcs.spectral.pixel_to_world(np.arange(data.shape[self.spectral_axis_index])).to("keV")
             elif wcs.pixel_n_dim == 1:
                 wcs_coords = wcs.pixel_to_world(np.arange(data.shape[self.spectral_axis_index]))
-            else:
-                array_index = wcs.pixel_n_dim - self._spectral_axis_index - 1
-                pixels = [0] * wcs.pixel_n_dim
-                pixels[array_index] = np.arange(data.shape[self.spectral_axis_index])
-                wcs_coords = wcs.pixel_to_world(*pixels)[array_index]
-
-            if not u.allclose(self._spectral_axis, wcs_coords):
-                raise ValueError(f"Spectral axis {self._spectral_axis} and wcs spectral axis {wcs_coords} must match.")
+            # else:
+            #     array_index = wcs.pixel_n_dim - self._spectral_axis_index - 1
+            #     pixels = [0] * wcs.pixel_n_dim
+            #     pixels[array_index] = np.arange(data.shape[self.spectral_axis_index])
+            #     wcs_coords = wcs.pixel_to_world(*pixels)[array_index]
+            if wsc_coords is not None:
+                if not u.allclose(self._spectral_axis, wcs_coords):
+                    raise ValueError(
+                        f"Spectral axis {self._spectral_axis} and wcs spectral axis {wcs_coords} must match."
+                    )
 
         if wcs is None:
-            wcs = gwcs_from_array(self._spectral_axis)
+            wcs = gwcs_from_array(self._spectral_axis, data.shape, spectral_axis_index=self.spectral_axis_index)
 
         super().__init__(data=data.value if isinstance(data, u.Quantity) else data, wcs=wcs, **kwargs)
 
