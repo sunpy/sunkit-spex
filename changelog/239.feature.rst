@@ -1,0 +1,1 @@
+Add a new `sunkit_spex.spectrum.spectrum.Spectrum` object to hold spectral data. `~`~sunkit_spex.spectrum.spectrum.Spectrum` is based on `NDCube` and butils on it coordinate aware method and metadata handling.

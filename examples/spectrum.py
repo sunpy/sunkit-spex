@@ -12,6 +12,7 @@ This example will demonstrate how to store spectral data in `~sunkit_spex.spectr
 
 import numpy as np
 from ndcube import NDMeta
+from ndcube.extra_coords import QuantityTableCoordinate, TimeTableCoordinate
 
 import astropy.units as u
 from astropy.coordinates import SpectralCoord
@@ -51,30 +52,30 @@ spec_1d
 # standard sliceing methods:
 
 spec_1d_sliced = spec_1d[10:20]
-spec_1d_sliced.shape
-spec_1d_sliced.axis_world_coords_values()
-spec_1d_sliced.meta
-spec_1d_sliced.spectral_axis
+print(spec_1d_sliced.shape)
+print(spec_1d_sliced.axis_world_coords_values())
+print(spec_1d_sliced.meta)
+print(spec_1d_sliced.spectral_axis)
 
 #####################################################
 #
 # High level coordinate objects such as SkyCoord and SpectralCoord
 
 spec_1d_crop = spec_1d.crop(SpectralCoord(10.5, unit=u.keV), SpectralCoord(20, unit=u.keV))
-spec_1d_crop.shape
-spec_1d_crop.axis_world_coords_values()
-spec_1d_crop.meta
-spec_1d_crop.spectral_axis
+print(spec_1d_crop.shape)
+print(spec_1d_crop.axis_world_coords_values())
+print(spec_1d_crop.meta)
+print(spec_1d_crop.spectral_axis)
 
 #####################################################
 #
 # And Quantities
 
 spec_1d_crop_value = spec_1d.crop_by_values((10.5 * u.keV), (20.5 * u.keV))
-spec_1d_crop_value.shape
-spec_1d_crop_value.axis_world_coords_values()
-spec_1d_crop_value.meta
-spec_1d_crop_value.spectral_axis
+print(spec_1d_crop_value.shape)
+print(spec_1d_crop_value.axis_world_coords_values())
+print(spec_1d_crop_value.meta)
+print(spec_1d_crop_value.spectral_axis)
 
 #####################################################
 #
@@ -84,70 +85,71 @@ spec_1d_crop_value.spectral_axis
 # series of spectra as a function of time. Here we will simulate a series of 10 spectra taken over 10 minutes. Again we
 # begin by creating our synthetic data as before but additionally creating the time variable.
 
-# data = rng.random(10, 50) * u.ct
-# energy = np.linspace(1, 50, 51) * u.keV
-# times = Time("2025-02-18T15:08") + np.arange(10) * u.min
-# exposure_time = np.arange(5, 15) * u.s
+data = rng.random((10, 50)) * u.ct
+energy = np.linspace(1, 50, 51) * u.keV
+times = Time("2025-02-18T15:08") + np.arange(10) * u.min
+exposure_time = np.arange(5, 15) * u.s
 
 #####################################################
 #
 # We are also going to demonstrate the  power of the sliceable metadata, so in this example each of the individual
 # spectra have different exposure times (this could be another important information regard the observation)
 
-# meta = NDMeta()
-# meta.add("exposure_time", exposure_time, axes=(0,))
-#
-# time_coord = TimeTableCoordinate(times, names="time", physical_types="time")
-# energy_coord = QuantityTableCoordinate(energy, names="energy", physical_types="em.energy")
-# wcs = (energy_coord | time_coord).wcs
-#
-# spec_2d_time_energy = Spectrum(data, spectral_axis=energy, wcs=wcs, spectral_axis_index=1, meta=meta)
-# spec_2d_time_energy.axis_world_coords_values()
+meta = NDMeta()
+meta.add("exposure_time", exposure_time, axes=(0,))
 
-######################################################
-#
-# For this example we're assuming we don't have a full WCS for the data so we utilise `extra_coords` to store the
-# temporal axes.
+time_coord = TimeTableCoordinate(times, names="time", physical_types="time")
+energy_coord = QuantityTableCoordinate(energy, names="energy", physical_types="em.energy")
+wcs = (energy_coord & time_coord).wcs
 
-# spec_2d_time_energy.extra_coords.add("time", (0,), times)
-#
-# spec_2d_time_energy
-# spec_2d_time_energy.shape
-# spec_2d_time_energy.axis_world_coords_values()
-# spec_2d_time_energy.meta
+spec_2d_time_energy = Spectrum(data, spectral_axis=energy, wcs=wcs, spectral_axis_index=1, meta=meta)
 
 ######################################################
 #
 # Again all standard slicing works
 
-# spec_2d_time_energy[2:5]
-# spec_2d_time_energy[:, 10:20]
-# spec_2d_time_energy_sliced = spec_2d_time_energy[2:5, 10:20]
+spec_2d_time_energy[2:5]
+spec_2d_time_energy[:, 10:20]
+spec_2d_time_energy_sliced = spec_2d_time_energy[2:5, 10:20]
 
 ######################################################
 #
 # We can being to see the usefulness of the sliceable metadata notice how the exposure time entry has been sliced
 # appropriately
 
-# spec_2d_time_energy_sliced
-# spec_2d_time_energy_sliced.shape
-# spec_2d_time_energy_sliced.axis_world_coords_values()
-# spec_2d_time_energy_sliced.meta
+print(spec_2d_time_energy_sliced.shape)
+print(spec_2d_time_energy_sliced.axis_world_coords_values())
+print(spec_2d_time_energy_sliced.meta)
+print(spec_2d_time_energy_sliced.spectral_axis)
 
 ######################################################
 #
-# The same can be archived using coordinate objects or values
+# The same can be archived using height level coordinate objects
+#
 
-# spec_2d_time_energy_crop = spec_2d_time_energy.crop(
-#     [Time("2025-02-18T15:09"), SpectralCoord(10, unit=u.keV)],
-#     [Time("2025-02-18T15:014"), SpectralCoord(20, unit=u.keV)],
-# )
-# spec_2d_time_energy_crop.crop_by_values()
+spec_2d_time_energy_crop = spec_2d_time_energy.crop(
+    [SpectralCoord(10, unit=u.keV), Time("2025-02-18T15:10")], [SpectralCoord(20, unit=u.keV), Time("2025-02-18T15:12")]
+)
+
+print(spec_2d_time_energy_crop.shape)
+print(spec_2d_time_energy_crop.axis_world_coords_values())
+print(spec_2d_time_energy_crop.meta)
+print(spec_2d_time_energy_crop.spectral_axis)
+
+######################################################
+#
+# Or Quantities as before
+spec_2d_time_energy_crop_values = spec_2d_time_energy.crop_by_values((10 * u.keV, 2 * u.min), (19.5 * u.keV, 4 * u.min))
+
+print(spec_2d_time_energy_crop_values.shape)
+print(spec_2d_time_energy_crop_values.axis_world_coords_values())
+print(spec_2d_time_energy_crop_values.meta)
+print(spec_2d_time_energy_crop_values.spectral_axis)
 
 #####################################################
 #
 # 2D Spectrum ( e.g. detector v energy)
-#
+# -------------------------------------
 
 # data = rng.rand(10, 50) * u.ct
 # energy = np.linspace(1, 50, 50) * u.keV
@@ -165,7 +167,7 @@ spec_1d_crop_value.spectral_axis
 #####################################################
 #
 # 3D Spectrum ( e.g. detector v energy v time)
-#
+# --------------------------------------------
 
 # data = rng.random(10, 20, 30) * u.ct
 # energy = np.linspace(1, 31, 31) * u.keV
@@ -187,7 +189,7 @@ spec_1d_crop_value.spectral_axis
 #####################################################
 #
 # 4D Spectrum ( e.g. spatial v spatial v energy v time)
-#
+# -----------------------------------------------------
 
 # import numpy as np
 # from ndcube import NDMeta
