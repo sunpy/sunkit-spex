@@ -1,1 +1,1 @@
-Deprecate the `sunkit-spex.legacy` module.
+Deprecate the `sunkit_spex.legacy` module.
