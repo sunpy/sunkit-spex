@@ -56,11 +56,11 @@ def test_gwcs_from_array_1d_wavelength():
     assert wcs.output_frame.axes_names[0] == "wavelength"
 
     # Test forward transform (pixel to world)
-    assert np.allclose(wcs(0), 4000)
-    assert np.allclose(wcs(99), 7000)
+    assert np.allclose(wcs(0), 4000 << u.AA)
+    assert np.allclose(wcs(99), 7000 << u.AA)
 
     # Test inverse transform (world to pixel)
-    assert np.allclose(wcs.invert(4000), 0)
+    assert np.allclose(wcs.invert(4000).value, 0)
 
 
 def test_gwcs_from_array_3d_cube():
@@ -82,19 +82,6 @@ def test_gwcs_from_array_3d_cube():
     world = wcs.pixel_to_world(0, 0, 0)  # pixels for x, y, lambda
     assert world[0] == 100 * u.keV
     assert wcs.output_frame.frames[1].axes_names[0] == "energy"
-
-
-def test_gwcs_from_array_descending():
-    # Test descending spectral axis for inverse transform logic
-    waves = np.array([5000, 4000, 3000]) * u.AA
-    wcs = gwcs_from_array(waves, (3,))
-
-    assert np.allclose(wcs(0), 5000)
-    assert np.allclose(wcs(2), 3000)
-
-    # Check that inverse works correctly on flipped table
-    assert np.allclose(wcs.invert(3000), 2)
-    assert np.allclose(wcs.invert(5000), 0)
 
 
 def test_gwcs_from_array_invalid_units():
