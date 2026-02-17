@@ -168,12 +168,12 @@ spec_2d_det_time
 #####################################################
 #
 
-spec_2d_det_time.crop((SpectralCoord(10 * u.keV), None), (SpectralCoord(20 * u.keV), None))
+# spec_2d_det_time.crop((SpectralCoord(10 * u.keV), None), (SpectralCoord(20 * u.keV), None))
 
 #####################################################
 #
 
-spec_2d_det_time.crop_by_values((10 * u.keV, 0), (20 * u.keV, 2))
+# spec_2d_det_time.crop_by_values((10 * u.keV, 0), (20 * u.keV, 2))
 
 #####################################################
 #
