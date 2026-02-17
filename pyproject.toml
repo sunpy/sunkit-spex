@@ -23,10 +23,10 @@ dependencies = [
     "numdifftools>=0.9.42",
     "numpy>=1.26",  # Note: keeping support for numpy 1.x for now
     "parfive>=2.1",
-    "scipy>=1.12",
+    "scipy>=1.14.1",
     "sunpy>=7.0",
     "xarray>=2023.12",
-    "gwcs>=0.25.0,<1.0.0", #until https://github.com/sunpy/ndcube/issues/913 is resolved
+    "gwcs>=0.26.0,<1.0.0", #until https://github.com/sunpy/ndcube/issues/913 is resolved
     "ndcube>=2.3",
 ]
 
