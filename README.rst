@@ -46,7 +46,7 @@
     :alt: Documentation Status
 
 Usage of Generative AI
-----------------------
+======================
 
 We expect authentic engagement in our community.
 **Do not post the output from Large Language Models or similar generative AI as code, issues or comments on GitHub or any other platform.**
@@ -88,6 +88,16 @@ Code of Conduct
 ===============
 
 When you are interacting with the ``sunkit-spex`` and th wider SunPy Community you are asked to follow our `Code of Conduct <https://sunpy.org/coc>`__.
+
+
+License
+=======
+
+This project is Copyright (c) The SunPy Community and licensed under
+the terms of the BSD 3-Clause license. This package is based upon
+the `Openastronomy packaging guide <https://github.com/OpenAstronomy/packaging-guide>`_
+which is licensed under the BSD 3-clause licence. See the licenses folder for
+more information.
 
 .. _sunkit-spex chat: https://app.element.io/#/room/#sunxspex:openastronomy.org
 .. _Issues list: https://github.com/sunpy/sunkit-spex/issues?q=is%3Aissue+is%3Aopen
