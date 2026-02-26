@@ -16,11 +16,7 @@ authors = [
   { name = "The SunPy Community", email = "sunpy@googlegroups.com" },
 ]
 dependencies = [
-    "corner>=2.2",
-    "emcee>=3.1",
     "matplotlib>=3.9",
-    "nestle>=0.2",
-    "numdifftools>=0.9.42",
     "numpy>=1.26",  # Note: keeping support for numpy 1.x for now
     "parfive>=2.1",
     "scipy>=1.14.1",
@@ -33,6 +29,12 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
+legacy = [
+    "corner>=2.2",
+    "emcee>=3.1",
+    "nestle>=0.2",
+    "numdifftools>=0.9.42",
+]
 tests = [
   "pytest",
   "pytest-doctestplus",
@@ -50,7 +52,7 @@ docs = [
   "joblib", # for sphinx-gallery parallel
 ]
 dev = [
-    "sunkit-spex[docs,tests]",
+    "sunkit-spex[legacy,docs,tests]",
     "tox"
 ]
 
