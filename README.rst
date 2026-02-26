@@ -58,7 +58,7 @@ If you are new to ``sunkit-spex``, the best place to start is the `example galle
 Changes
 =======
 
-See our `changelog <https://sunkit-spex.readthedocs.io/en/stable/whatsnew/changelog.html>`__. for the latest changes in ``sunkit-spex``.
+See our `changelog <https://sunkit-spex.readthedocs.io/en/stable/whatsnew/changelog.html>`__ for the latest changes in ``sunkit-spex``.
 
 Getting Help
 ============
