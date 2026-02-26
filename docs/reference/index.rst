@@ -9,7 +9,7 @@ Software and API.
 .. toctree::
    :maxdepth: 2
 
-
-   fitting
+   spectrum
    models
+   fitting
    legacy
