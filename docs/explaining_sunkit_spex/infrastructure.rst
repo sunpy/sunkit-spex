@@ -17,14 +17,11 @@ together, enabling the model-to-data comparison and also indicates how the
 three categories are dependent on each other issuing the need for checks.
 
 .. raw:: html
-    :file: ./pipeline.drawio.svg
+    :file: ./basic-pipeline.drawio.svg
 
-1. For data provided from a given instrument team, **Instrument Data 
-   Containers (1a)** will exist to store the instrument data. The API of such 
-   containers will be common but the underlying operations being called will 
-   be instrument specific. The instrument container is able to output (a) 
-   **Spectrum container(s) (1b)**, each containing all information relavent for 
-   fitting a specific spectrum.
+1. For data provided from a given instrument team, a user can use **Spectrum 
+   containers** to store the all information relavent for fitting each 
+   specific spectrum.
 
 2. **Core Model Objects** are provided although users can create their own.
    These borrow their use from Astropy somewhat and can be combined into 
