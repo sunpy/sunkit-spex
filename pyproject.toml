@@ -27,6 +27,19 @@ dependencies = [
 ]
 
 dynamic = ["version"]
+keywords = ["solar physics", "solar", "science", "sun", "x-ray", "gamma-ray", "spectra"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Physics",
+]
 
 [project.optional-dependencies]
 legacy = [
@@ -60,6 +73,9 @@ dev = [
 Homepage = "https://sunkit-spex.readthedocs.io"
 "Source Code" = "https://github.com/sunpy/sunkit-spex"
 Download = "https://pypi.org/project/sunkit-spex"
+Documentation = "https://sunkit-spex.readthedocs.io"
+Changelog = "https://sunkit-spex.readthedocs.io/en/stable/whatsnew/changelog.html"
+"Issue Tracker" = "https://github.com/sunpy/sunkit-spex/issues"
 Documentation = "https://sunkit-spex.readthedocs.io/en/latest/"
 Changelog = "https://sunkit-spex.readthedocs.io/en/latest/whatsnew/changelog.html"
 "Issue Tracker" = "https://github.com/sunpy/sunkit-spex/issues"
