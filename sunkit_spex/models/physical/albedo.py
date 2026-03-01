@@ -88,8 +88,14 @@ class Albedo(FittableModel):
 
     _input_units_allow_dimensionless = True
 
-    def __init__(self, *args, **kwargs):
-        self.energy_edges = kwargs.pop("energy_edges")
+    def __init__(self,energy_edges=None,spectral_model=True, *args, **kwargs):
+
+        self.spectral_model = spectral_model
+
+        # if self.spectral_model:
+        self.energy_edges = energy_edges
+        # else:
+        #     self.energy_edges = kwargs.pop("energy_edges")
 
         super().__init__(*args, **kwargs)
 

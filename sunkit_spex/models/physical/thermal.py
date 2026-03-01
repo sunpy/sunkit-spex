@@ -263,7 +263,12 @@ class ThermalEmission(FittableModel):
             fe,
         )
 
-        return line_flux + cont_flux
+        flux = line_flux + cont_flux
+
+        if hasattr(energy_edges,"unit"):
+            return flux
+        else:
+            return flux.value
 
     @property
     def input_units(self):
@@ -1222,7 +1227,7 @@ def _sanitize_inputs(energy_edges, temperature, emission_measure):
     # came with them attached.
     # If they were not already Quantities, the parameters get the default units.
     energy_edges <<= u.keV
-    temperature <<= u.K
+    temperature <<= u.MK
     emission_measure <<= u.cm**-3
 
     energy_edges_keV = energy_edges.to(u.keV)
@@ -1239,6 +1244,7 @@ def _sanitize_inputs(energy_edges, temperature, emission_measure):
 
 
 def _error_if_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
+    print(input_values)
     if input_values.min() < grid_range[0] or input_values.max() > grid_range[1]:
         if param_name == "temperature":
             message_unit = "MK"

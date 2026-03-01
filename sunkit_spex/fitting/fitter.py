@@ -6,8 +6,6 @@ import astropy.units as u
 from astropy.modeling import fitting
 from astropy.modeling import models
 
-import re
-
 import numpy as np
 
 from sunkit_spex.models.physical.thermal import ThermalEmission
@@ -32,70 +30,71 @@ class Fitter:
         self._fitting_method = fitting_method
 
 
-    def get_data(self):
-
-        count_rate = self._spectrum_object['count_rate'] * u.cts * u.keV**-1 * u.s**-1 
-        count_rate_error = self._spectrum_object['count_rate_error'] * u.cts * u.keV**-1 * u.s**-1 
-
-        photon_energy_edges = self._spectrum_object['photon_energy_edges'] * u.keV
-        photon_bin_widths = np.diff(photon_energy_edges)
-
-        effective_livetime = self._spectrum_object['effective_livetime'] * u.s
-        
-        angle = self._spectrum_object['angle'] * u.deg
-        distance = self._spectrum_object['distance'] * u.AU.to(u.cm)
-
-
-        counts = count_rate * photon_bin_widths *  effective_livetime
-        counts_error = count_rate_error * photon_bin_widths *  effective_livetime
-
-        return  (
-            count_rate, 
-                count_rate_error,
-                counts, 
-                counts_error,
-                photon_energy_edges, 
-                photon_bin_widths,
-                effective_livetime,
-                angle, distance 
-                )
-
     @property
     def model(self):
         return self._model
-
-
             
     
     def _set_abledo_angle(self):
+
+        match = np.where(np.array(self._model.submodel_names)=='Albedo')[0]
         
-        pattern = re.compile(r"^albedo_(\d+)$")
+        # if np.shape(match) != 0:
+        #     param_names = [f'theta_{str(ind)}' for ind in match]
 
-        for name in self.model.submodel_names:
-            match = pattern.match(name.lower())
-            if match:
-                x = match.group(1)
-                param_name = f"theta_{x}"
-                setattr(self.model, param_name, self.data.angle)
-                getattr(self.model, param_name).fixed = True
+        #     for param_name in param_names:
+        #         setattr(self._model, param_name, self._spectrum_object.meta['angle'])
+        #         getattr(self._model, param_name).fixed = True 
 
-    def _set_distance_value(self):
+        if 'Albedo' in self.model.submodel_names:
+
+            print(len(self._spectrum_object.meta['ph_axis']))
+
+            self._model = self._model.replace_submodel('Albedo',Albedo(energy_edges=self._spectrum_object.meta['ph_axis'],
+                                                                       theta=self._spectrum_object.meta['angle']))    
+
+    def _set_observer_distance(self):
+
+        match = np.where(np.array(self._model.submodel_names)=='InverseSquareFluxScaling')[0]
         
-        pattern = re.compile(r"^InverseSquareFluxScaling_(\d+)$")
+        if np.shape(match) != 0:
+            param_names = [f'observer_distance_{str(ind)}' for ind in match]
 
-        for name in self.model.submodel_names:
-            match = pattern.match(name.lower())
-            if match:
-                x = match.group(1)
-                param_name = f"distance_{x}"
-                setattr(self.model, param_name, self.data.distance)
-                getattr(self.model, param_name).fixed = True
+            for param_name in param_names:
+                setattr(self._model, param_name, self._spectrum_object.meta['distance'])
+                getattr(self._model, param_name).fixed = True        
 
+    def _set_srm(self):
+        
+        if 'SRM' in self.model.submodel_names:
 
+            self._model = self._model.replace_submodel('SRM',MatrixModel(matrix= self._spectrum_object.meta['srm'],   
+                                                                         spectrum_object=self._spectrum_object, 
+                                                                         model_spec_units=u.ph * u.keV**-1 * u.s**-1 * u.cm**-2))            
+                                                        
     def _fit_prep(self):
 
         self._set_abledo_angle()
-        self._set_distance_value()
+        self._set_observer_distance()
+        self._set_srm()
+    
+    def do_fit(self):
+
+        self._fit_prep()
+
+        w = (1/self._spectrum_object.uncertainty.array) << self._spectrum_object.uncertainty.unit
+        data = self._spectrum_object.data << self._spectrum_object.unit
+
+        print('spec_axis = ',self._spectrum_object.spectral_axis.bin_edges)
+        print('spec_data = ',data)
+
+        fitted_model = self._fitting_method(model=self._model,
+                                            x=self._spectrum_object.meta['ph_axis'],
+                                            y=data,
+                                            weights=w,
+                                            estimate_jacobian=True)
+        
+        return fitted_model
 
         
 

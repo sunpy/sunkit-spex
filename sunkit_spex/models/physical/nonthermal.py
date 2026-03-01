@@ -140,6 +140,7 @@ class ThickTarget(FittableModel):
             flux = thick_fn(
                 energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, self.integrator
             )
+        print('nt_flux = ',flux)
 
         return flux
 
