@@ -47,7 +47,7 @@ file_names = [
 ]
 
 for fname in file_names:
-    dl.enqueue_file(base_url + fname, path="./nustar/m3_time2628/")
+    dl.enqueue_file(base_url + fname, path="../../nustar/m3_time2628/")
 files = dl.download()
 
 #####################################################
@@ -56,7 +56,7 @@ files = dl.download()
 
 
 # First, load in your data files, here we load in 1 spectrum
-_dir = "./nustar/m3_time2628/"
+_dir = "../../nustar/m3_time2628/"
 spec = Fitter(pha_file=[_dir + "nu80414202001A06_chu23_S_cl_grade0_sr.pha"])
 
 #####################################################
