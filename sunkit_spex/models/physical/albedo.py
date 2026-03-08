@@ -102,6 +102,8 @@ class Albedo(FittableModel):
     def evaluate(self, spectrum, theta, anisotropy):
         if not isinstance(theta, Quantity):
             theta = theta * u.deg
+        
+        print('albedo ee = ',self.energy_edges)
 
         albedo_matrix = get_albedo_matrix(self.energy_edges, theta, anisotropy)
 

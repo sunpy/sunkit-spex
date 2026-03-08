@@ -52,20 +52,30 @@ class MatrixModel(Fittable1DModel):
         if self.spectral_model:
 
             matrix = self.spectrum_object.meta['srm']
-            input_axis = self.spectrum_object.spectral_axis.bin_edges
+            input_axis = np.array(self.spectrum_object.spectral_axis.bin_edges)
             input_widths = np.diff(input_axis)
+            output_widths = np.diff(self.spectrum_object.meta['ph_axis'])
+
+            # print('IR SRM = ',self.spectrum_object.meta['srm'].shape)
+            # print('IR SRM = ',self.spectrum_object.spectral_axis.bin_edges.shape)
+
             geo_area = self.spectrum_object.meta['geo_area'] 
             exposure_time = self.spectrum_object.meta['exposure_time'] 
             norm = input_widths * exposure_time * geo_area
+
+            # print('input_widths = ',input_widths)
+            # print('exposure_time = ',exposure_time)
+            # print('geo_area = ',geo_area)
 
             # print(x.unit)
             # print(conversion_factor.unit)
             # print(norm.unit)
 
-            flux =  (x @ matrix) * conversion_factor * norm
+            # flux =  (x @ matrix) * conversion_factor * norm
+            flux =  (((x*output_widths*exposure_time)@ (matrix*geo_area*u.cm**2)) * conversion_factor ) 
 
         else:
-            flux =  x  @ matrix * conversion_factor
+            flux =  x  @ matrix * conversion_factor * (geo_area*u.cm**2)
 
         print('HHEERRREEEE')
 
@@ -131,3 +141,16 @@ class MatrixModel(Fittable1DModel):
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
         return {"conversion_factor": self.conversion_factor.unit}
+
+    # @property
+    # def input_units(self):
+    #     # return {"x": self.model_spec_units }SS
+    #     return {"x": u.ph * u.keV**-1 * u.s**-1 * u.cm**-2 }
+
+    # @property
+    # def return_units(self):
+    #     # return {"y": self.data_spec_units}
+    #     return {"y": u.ct* u.keV**-1 * u.s**-1}
+
+    # def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+    #     return {"conversion_factor": self.conversion_factor.unit}
