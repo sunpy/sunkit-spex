@@ -56,7 +56,11 @@ dev = [
 
 [project.urls]
 Homepage = "https://sunkit-spex.readthedocs.io"
+"Source Code" = "https://github.com/sunpy/sunkit-spex"
 Download = "https://pypi.org/project/sunkit-spex"
+Documentation = "https://sunkit-spex.readthedocs.io/en/latest/"
+Changelog = "https://sunkit-spex.readthedocs.io/en/latest/whatsnew/changelog.html"
+"Issue Tracker" = "https://github.com/sunpy/sunkit-spex/issues"
 
 [tool.setuptools]
 zip-safe = false
