@@ -39,6 +39,7 @@ jobs:
       cache-path: |
         $HOME/sunpy/data_manager
       cache-key: sunpy-data-linux-${{ github.ref }}
+      cache-restore-keys: sunpy-data-linux-refs/heads/main
       envs: |
         - linux: py313
     secrets:
@@ -73,18 +74,23 @@ jobs:
         - linux: py314
           cache-path: $HOME/sunpy/data_manager
           cache-key: sunpy-data-linux-${{ github.ref }}
+          cache-restore-keys: sunpy-data-linux-refs/heads/main
         - windows: py312
           cache-path: $HOME/sunpy/data_manager
           cache-key: sunpy-data-windows-${{ github.ref }}
+          cache-restore-keys: sunpy-data-windows-refs/heads/main
         - macos: py312
           cache-path: $HOME/sunpy/data_manager
           cache-key: sunpy-data-macos-${{ github.ref }}
+          ache-restore-keys: sunpy-data-macos-refs/heads/main
         - linux: py312-oldestdeps
           cache-path: $HOME/sunpy/data_manager
           cache-key: sunpy-data-linux-${{ github.ref }}
+          cache-restore-keys: sunpy-data-linux-refs/heads/main
         - linux: py314-devdeps
           cache-path: $HOME/sunpy/data_manager
           cache-key: sunpy-data-linux-${{ github.ref }}
+          cache-restore-keys: sunpy-data-linux-refs/heads/main
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
