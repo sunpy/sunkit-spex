@@ -36,6 +36,10 @@ jobs:
       submodules: false
       coverage: codecov
       toxdeps: tox-pypi-filter
+      cache-path: |
+        ~/sunpy/data_manager/*.sav
+        ~/sunpy/data_manager/*.genx
+      cache-key: sunpy-data-${{ github.ref }}
       envs: |
         - linux: py313
     secrets:
@@ -62,6 +66,10 @@ jobs:
       submodules: false
       coverage: codecov
       toxdeps: tox-pypi-filter
+      cache-path: |
+        ~/sunpy/data_manager/*.sav
+        ~/sunpy/data_manager/*.genx
+      cache-key: sunpy-data-${{ github.ref }}
       posargs:
       envs: |
         - linux: py314
