@@ -37,8 +37,7 @@ jobs:
       coverage: codecov
       toxdeps: tox-pypi-filter
       cache-path: |
-        ~/sunpy/data_manager/*.sav
-        ~/sunpy/data_manager/*.genx
+        ~/sunpy/data_manager
       cache-key: sunpy-data-${{ github.ref }}
       envs: |
         - linux: py313
@@ -67,8 +66,7 @@ jobs:
       coverage: codecov
       toxdeps: tox-pypi-filter
       cache-path: |
-        ~/sunpy/data_manager/*.sav
-        ~/sunpy/data_manager/*.genx
+        ~/sunpy/data_manager
       cache-key: sunpy-data-${{ github.ref }}
       posargs:
       envs: |
