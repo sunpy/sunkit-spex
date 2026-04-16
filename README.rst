@@ -74,7 +74,7 @@ For more information or to ask questions about ``sunkit-spex`` please check out:
 -  `sunkit-spex chat`_
 
 Acknowledging or Citing ``sunkit-spex``
-=================================
+=======================================
 
 If you use ``sunkit-spex`` in your scientific work, we would appreciate your citing it in your publications |Zenodo - Latest DOI|.
 The continued growth and development of ``sunkit-spex`` is dependent on the community being aware of ``sunkit-spex``.
