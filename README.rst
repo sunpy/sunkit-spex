@@ -56,6 +56,8 @@ For more information see our documentation on fair and appropriate `AI usage <ht
 Installation
 ============
 
+See out `installation guide <https://sunkit-spex.readthedocs.io/en/latest/tutorials/installation.html>`__
+
 If you are new to ``sunkit-spex``, the best place to start is the `example gallery <https://sunkit-spex.readthedocs.io/en/latest/generated/gallery/index.html>`__ it includes a collection of short, specific examples of using ``sunkit-spex``.
 
 Changes
