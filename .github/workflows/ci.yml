@@ -38,7 +38,7 @@ jobs:
       toxdeps: tox-pypi-filter
       cache-path: |
         $HOME/sunpy/data_manager
-      cache-key: sunpy-data-${{ github.ref }}
+      cache-key: sunpy-data-linux-${{ github.ref }}
       envs: |
         - linux: py313
     secrets:
@@ -71,10 +71,20 @@ jobs:
       posargs:
       envs: |
         - linux: py314
+          cache-path: $HOME/sunpy/data_manager
+          cache-key: sunpy-data-linux-${{ github.ref }}
         - windows: py312
+          cache-path: $HOME/sunpy/data_manager
+          cache-key: sunpy-data-windows-${{ github.ref }}
         - macos: py312
+          cache-path: $HOME/sunpy/data_manager
+          cache-key: sunpy-data-macos-${{ github.ref }}
         - linux: py312-oldestdeps
+          cache-path: $HOME/sunpy/data_manager
+          cache-key: sunpy-data-linux-${{ github.ref }}
         - linux: py314-devdeps
+          cache-path: $HOME/sunpy/data_manager
+          cache-key: sunpy-data-linux-${{ github.ref }}
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
