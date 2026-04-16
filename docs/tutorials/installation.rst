@@ -25,4 +25,8 @@ Change into the sunkit-spex repo, then install sunkit-spex:
 	$ cd sunkit-spex
 	$ pip install -e .
 
+or to install the legacy dependencies
+
+	$ pip install -e .[legacy]
+
 This will install the development version of sunkit-spex. Please see the :ref:`sunpy-tutorial-installing` guide.
