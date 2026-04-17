@@ -94,12 +94,15 @@ jobs:
       submodules: false
       pytest: false
       toxdeps: tox-pypi-filter
+      cache-path: ~/sunpy/data_manager
       libraries: |
         apt:
           - graphviz
           - pandoc
       envs: |
         - linux: build_docs
+          cache-key: sunpy-data-linux-${{ github.ref }}
+          cache-restore-keys: sunpy-data-linux-refs/heads/main
 
   build_dists:
     # Build wheels on PRs only when labelled. Releases will only be published if tagged ^v.*
