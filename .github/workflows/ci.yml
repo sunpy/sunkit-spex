@@ -36,8 +36,11 @@ jobs:
       submodules: false
       coverage: codecov
       toxdeps: tox-pypi-filter
+      cache-path: ~/sunpy/data_manager
       envs: |
         - linux: py313
+          cache-key: sunpy-data-linux-${{ github.ref }}
+          cache-restore-keys: sunpy-data-linux-refs/heads/main
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -62,13 +65,24 @@ jobs:
       submodules: false
       coverage: codecov
       toxdeps: tox-pypi-filter
+      cache-path: ~/sunpy/data_manager
       posargs:
       envs: |
         - linux: py314
+          cache-key: sunpy-data-linux-${{ github.ref }}
+          cache-restore-keys: sunpy-data-linux-refs/heads/main
         - windows: py312
+          cache-key: sunpy-data-windows-${{ github.ref }}
+          cache-restore-keys: sunpy-data-windows-refs/heads/main
         - macos: py312
+          cache-key: sunpy-data-macos-${{ github.ref }}
+          ache-restore-keys: sunpy-data-macos-refs/heads/main
         - linux: py312-oldestdeps
+          cache-key: sunpy-data-linux-${{ github.ref }}
+          cache-restore-keys: sunpy-data-linux-refs/heads/main
         - linux: py314-devdeps
+          cache-key: sunpy-data-linux-${{ github.ref }}
+          cache-restore-keys: sunpy-data-linux-refs/heads/main
     secrets:
       CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
@@ -80,12 +94,15 @@ jobs:
       submodules: false
       pytest: false
       toxdeps: tox-pypi-filter
+      cache-path: ~/sunpy/data_manager
       libraries: |
         apt:
           - graphviz
           - pandoc
       envs: |
         - linux: build_docs
+          cache-key: sunpy-data-linux-${{ github.ref }}
+          cache-restore-keys: sunpy-data-linux-refs/heads/main
 
   build_dists:
     # Build wheels on PRs only when labelled. Releases will only be published if tagged ^v.*
