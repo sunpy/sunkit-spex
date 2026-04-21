@@ -1,11 +1,10 @@
-***************
 ``sunkit-spex``
-***************
+===============
 
 +-----------------------------------+-----------------------------------+-----------------------------------+
 |           Release                 |           Development             |           Community               |
 +===================================+===================================+===================================+
-|       |Latest PyPi Version|       |        |Python Versions|          |         |Matrix Chat Room|        |
+|       |Latest PyPi Version|       |        |Python Versions|          |       |Matrix Chat Room|          |
 +-----------------------------------+-----------------------------------+-----------------------------------+
 |         |Zenodo - Latest DOI|     |     |Project Status: Active|      |       |Powered by Sunpy|          |
 +-----------------------------------+-----------------------------------+-----------------------------------+
@@ -13,8 +12,6 @@
 +-----------------------------------+-----------------------------------+-----------------------------------+
 |                                   |  |CodeCov Code Coverage|          |                                   |
 +-----------------------------------+-----------------------------------+-----------------------------------+
-
-
 
 .. |Latest PyPi Version| image:: https://img.shields.io/pypi/v/sunkit-spex.svg
    :target: https://pypi.python.org/pypi/sunkit-spex/
@@ -46,7 +43,7 @@
     :alt: Documentation Status
 
 Usage of Generative AI
-======================
+----------------------
 
 We expect authentic engagement in our community.
 **Do not post the output from Large Language Models or similar generative AI as code, issues or comments on GitHub or any other platform.**
@@ -54,52 +51,47 @@ If you use generative AI tools as an aid in developing code or documentation cha
 For more information see our documentation on fair and appropriate `AI usage <https://docs.sunpy.org/en/latest/dev_guide/contents/ai_usage.html>`__.
 
 Installation
-============
+------------
 
 See the `installation guide <https://sunkit-spex.readthedocs.io/en/latest/tutorials/installation.html>`__.
 
 If you are new to ``sunkit-spex``, the best place to start is the `example gallery <https://sunkit-spex.readthedocs.io/en/latest/generated/gallery/index.html>`__ it includes a collection of short, specific examples of using ``sunkit-spex``.
 
 Changes
-=======
+-------
 
 See our `changelog <https://sunkit-spex.readthedocs.io/en/stable/whatsnew/changelog.html>`__ for the latest changes in ``sunkit-spex``.
 
 Getting Help
-============
+------------
 
 For more information or to ask questions about ``sunkit-spex`` please check out:
 
 -  `sunkit-spex documentation <https://sunkit-spex.readthedocs.io/en/stable/?badge=stable>`__
--  `sunkit-spex chat`_
+-  `#sunxspex:openastronomy.org`_
 
 Acknowledging or Citing ``sunkit-spex``
-=======================================
+----------------------------------------
 
 If you use ``sunkit-spex`` in your scientific work, we would appreciate your citing it in your publications |Zenodo - Latest DOI|.
 The continued growth and development of ``sunkit-spex`` is dependent on the community being aware of ``sunkit-spex``.
 
 Contributing
-============
+------------
 
-sunkit-spex is a community-driven open-source project that welcomes any and all contributions.
-Whether you are a developer, student, or user, you can help by contributing code, documentation, or community support.
+We love contributions! sunkit-spex is open source,
+built on open source, and we'd love to have you hang out in our community.
 
-If you would like to get involved, there are many different ways to contribute to the sunkit-spex.
+If you would like to get involved, check out the `Developers Guide`_ section of the SunPy docs.
+Stop by our chat room `#sunxspex:openastronomy.org`_ if you have any questions.
+Help is always welcome so let us know what you like to work on, or check out the `issues page`_ for the list of known outstanding items.
 
-Help is always welcome, so come and say hello by joining the `sunkit-spex chat`_ and look over the `Issues list`_ for the ideal places to start.
+For more information on contributing to SunPy, please read our `Newcomers' guide`_.
 
-.. _Issues list: https://github.com/sunpy/sunkit-spex/issues?q=is%3Aissue+is%3Aopen
-
-Code of Conduct
-===============
-
-When you are interacting with the ``sunkit-spex`` and th wider SunPy Community you are asked to follow our `Code of Conduct <https://sunpy.org/coc>`__.
-
-.. _sunkit-spex chat: https://app.element.io/#/room/#sunxspex:openastronomy.org
+When you are interacting with the SunPy community you are asked to follow our `code of conduct <https://sunpy.org/coc>`__.
 
 License
-=======
+-------
 
 This project is Copyright (c) The SunPy Community and licensed under
 the terms of the BSD 3-Clause license. This package is based upon
@@ -107,9 +99,7 @@ the `Openastronomy packaging guide <https://github.com/OpenAstronomy/packaging-g
 which is licensed under the BSD 3-clause licence. See the licenses folder for
 more information.
 
-.. _sunkit-spex chat: https://app.element.io/#/room/#sunxspex:openastronomy.org
-.. _Issues list: https://github.com/sunpy/sunkit-spex/issues?q=is%3Aissue+is%3Aopen
+.. _`#sunxspex:openastronomy.org`: https://app.element.io/#/room/#sunxspex:openastronomy.org
 .. _Developers Guide: https://docs.sunpy.org/en/latest/dev_guide/index.html
-.. _`#sunpy:openastronomy.org`: https://app.element.io/#/room/#sunpy:openastronomy.org
 .. _issues page: https://github.com/sunpy/sunkit-spex/issues
 .. _Newcomers' guide: https://docs.sunpy.org/en/latest/dev_guide/contents/newcomers.html
