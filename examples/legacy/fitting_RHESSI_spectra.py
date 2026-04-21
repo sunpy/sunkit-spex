@@ -39,7 +39,7 @@ except AttributeError:
 # Download the example data
 
 dl = Downloader()
-base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/rhessi/"
+base_url = "https://homepages.dias.ie/smaloney/sunkit-spex/rhessi/"
 file_names = ["20021005_103800_spec.fits", "20021005_103800_srm.fits"]
 
 for fname in file_names:
