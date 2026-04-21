@@ -1,1 +1,0 @@
-Move `add_photon_model`, `del_photon_model`, `add_var`, `del_var` to instance methods on `Fitter` class.
