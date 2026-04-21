@@ -3,11 +3,13 @@
 # Prune folders
 exclude .codecov.yaml
 exclude .codespellrc
+exclude .coveragerc
 exclude .cruft.json
 exclude .editorconfig
 exclude .gitattributes
 exclude .gitignore
-exclude .isrot.cfg
+exclude .github
+exclude .isort.cfg
 exclude .mailmap
 exclude .pre-commit-config.yaml
 exclude .readthedocs.yaml
