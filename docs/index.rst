@@ -10,6 +10,9 @@ How the documentation is organized
 The Fitter documentation is divided into  four sections a high-level overview of its organisation
 will help you know where to look for certain things:
 
+* :doc:`Explaining Sunkit-spex </explaining_sunkit_spex/index>` explains the need 
+  and design for the package.
+
 * :doc:`Tutorials </tutorials/index>` take you by the hand through a series of
   steps to create fit an X-ray spectrum.
 
@@ -28,6 +31,7 @@ will help you know where to look for certain things:
    :maxdepth: 2
    :caption: Contents:
 
+   explaining_sunkit_spex/index
    tutorials/index
    how_to/index
    discussion/index
