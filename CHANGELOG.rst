@@ -11,15 +11,16 @@ Breaking Changes
 - Update minimum python version to python version to 3.9 and add testing for 3.10 and 3.11. (`#121 <https://github.com/sunpy/sunkit-spex/pull/121>`__)
 - Renamed `sunxspex_fitting` module to `fitting_legacy` and added a new `fitting` module. (`#137 <https://github.com/sunpy/sunkit-spex/pull/137>`__)
 - Remove redundant 'legacy' in module from `~sunkit_spex.legacy.fitting_legacy` to `~sunkit_spex.legacy.fitting`. (`#158 <https://github.com/sunpy/sunkit-spex/pull/158>`__)
-- Bump minimum python version to 3.12 and also update some dependencies:
-  * matplotlib>=3.9
-  * numdifftools>=0.9.42
-  * numpy>=1.26
-  * parfive>=2.1
-  * scipy>=1.12
-  * sunpy>=7.0
-  * xarray>=2023.12
-  * ndcube>=2.3 (`#234 <https://github.com/sunpy/sunkit-spex/pull/234>`__)
+- Bump minimum version dependencies:
+   * python>=3.12
+   * matplotlib>=3.9
+   * numdifftools>=0.9.42
+   * numpy>=1.26
+   * parfive>=2.1
+   * scipy>=1.12
+   * sunpy>=7.0
+   * xarray>=2023.12
+   * ndcube>=2.3 (`#234 <https://github.com/sunpy/sunkit-spex/pull/234>`__)
 
 
 Deprecations
