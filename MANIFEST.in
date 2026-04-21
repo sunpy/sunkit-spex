@@ -21,6 +21,9 @@ exclude .zenodo.json
 exclude CITATION.cff
 exclude tox.ini
 
+# Prune folders
+prune .github
+prune changelog
 # This subpackage is only used in development checkouts
 # and should not be included in built tarballs
 prune sunkit_spex/_dev
