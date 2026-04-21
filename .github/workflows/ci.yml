@@ -36,7 +36,11 @@ jobs:
       submodules: false
       coverage: codecov
       toxdeps: tox-pypi-filter
-      cache-path: ~/sunpy/data_manager
+      cache-path: |
+        ~/sunpy/data_manager
+        examples/stix
+        examples/rhessi
+        examples/nustar
       envs: |
         - linux: py313
           cache-key: sunpy-data-linux-${{ github.ref }}
@@ -65,7 +69,11 @@ jobs:
       submodules: false
       coverage: codecov
       toxdeps: tox-pypi-filter
-      cache-path: ~/sunpy/data_manager
+      cache-path: |
+        ~/sunpy/data_manager
+        examples/stix
+        examples/rhessi
+        examples/nustar
       posargs:
       envs: |
         - linux: py314
@@ -94,7 +102,11 @@ jobs:
       submodules: false
       pytest: false
       toxdeps: tox-pypi-filter
-      cache-path: ~/sunpy/data_manager
+      cache-path: |
+        ~/sunpy/data_manager
+        examples/stix
+        examples/rhessi
+        examples/nustar
       libraries: |
         apt:
           - graphviz
