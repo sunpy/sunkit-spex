@@ -29,7 +29,7 @@ from sunkit_spex.legacy.fitting import fitter
 #
 # Download the example data
 dl = Downloader()
-base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/rhessi/"
+base_url = "https://homepages.dias.ie/smaloney/sunkit-spex/rhessi/"
 file_names = ["rhessi-2011-jul-stixbins-spec.fits", "rhessi-2011-jul-stixbins-srm.fits"]
 
 for fname in file_names:

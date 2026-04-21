@@ -53,7 +53,7 @@ from sunkit_spex.legacy.fitting.fitter import Fitter, load
 # Download the example data
 
 dl = Downloader()
-base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/stix/"
+base_url = "https://homepages.dias.ie/smaloney/sunkit-spex/stix/"
 file_names = [
     "stx_spectrum_2410019944_IM.fits",
     "stx_srm_2410019944_IM.fits",
