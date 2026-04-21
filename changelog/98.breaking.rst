@@ -1,1 +1,0 @@
-Update STIX spectrogram and srm loading and plotting functions for the new STIX file format.

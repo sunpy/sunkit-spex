@@ -1,9 +1,0 @@
-Bump minimum python version to 3.12 and also update some dependencies:
-* matplotlib>=3.9
-* numdifftools>=0.9.42
-* numpy>=1.26
-* parfive>=2.1
-* scipy>=1.12
-* sunpy>=7.0
-* xarray>=2023.12
-* ndcube>=2.3

@@ -1,1 +1,0 @@
-Split the gallery into `Examples` and `Legacy Examples` sections.
