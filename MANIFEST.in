@@ -20,7 +20,7 @@ exclude tox.ini
 prune .github
 prune build
 prune changelog
-global-exclude *.pyc *.o
+
 # This subpackage is only used in development checkouts
 # and should not be included in built tarballs
 prune sunkit_spex/_dev
