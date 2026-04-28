@@ -46,7 +46,7 @@ class Fitter:
 
         if 'Albedo' in self.model.submodel_names:
 
-            print(len(self._spectrum_object.meta['ph_axis']))
+            # print(len(self._spectrum_object.meta['ph_axis']))
 
             replacement_albedo = Albedo(energy_edges=self._spectrum_object.meta['ph_axis'],
                                                                        theta=self._spectrum_object.meta['angle'])
@@ -124,12 +124,12 @@ class Fitter:
 
         self._spectrum_object = self._spectrum_object[mask[0]:mask[-1]+1]
 
-        print(self._spectrum_object.spectral_axis.bin_edges.shape)
+        # print(self._spectrum_object.spectral_axis.bin_edges.shape)
 
         self._spectrum_object.spectral_axis._bin_edges = np.array(self._spectrum_object.spectral_axis.bin_edges[mask[0]:mask[-1]+2])
 
 
-        print(self._spectrum_object.spectral_axis.bin_edges.shape)
+        # print(self._spectrum_object.spectral_axis.bin_edges.shape)
 
         if 'srm' in self._spectrum_object.meta:
             self._spectrum_object.meta['srm'] = \

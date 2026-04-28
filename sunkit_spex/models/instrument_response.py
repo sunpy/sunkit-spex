@@ -37,7 +37,7 @@ class MatrixModel(Fittable1DModel):
                 self.data_spec_units = spectrum_object.unit
                 conversion_factor = 1* u.ct / u.ph
                 # conversion_factor = 1 << (self.data_spec_units / self.model_spec_units)
-                print(conversion_factor)
+                # print(conversion_factor)
             else:
                 self.data_spec_units = data_spec_units
                 # conversion_factor = 1 << (data_spec_units / model_spec_units)
@@ -77,7 +77,7 @@ class MatrixModel(Fittable1DModel):
         else:
             flux =  x  @ matrix * conversion_factor * (geo_area*u.cm**2)
 
-        print('HHEERRREEEE')
+        # print('HHEERRREEEE')
 
         if hasattr(conversion_factor,"unit"):
             return flux
