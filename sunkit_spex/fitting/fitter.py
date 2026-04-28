@@ -14,7 +14,7 @@ from sunkit_spex.models.physical.nonthermal import ThickTarget
 from sunkit_spex.models.physical.albedo import Albedo
 from sunkit_spex.models.scaling import InverseSquareFluxScaling
 from sunkit_spex.models.instrument_response import MatrixModel
-from sunkit_spex.visualisation.plotter import plot
+# from sunkit_spex.visualisation.plotter import plot
 
 __all__ = ["fitter"]
 
@@ -39,7 +39,6 @@ class Fitter:
     def model(self):
         return self._model
     
-
             
     
     def _set_abledo_angle(self):
@@ -167,29 +166,29 @@ class Fitter:
         # return fitted_model
 
         
-    def plot_fit_results(self,save=True):
+    # def plot_fit_results(self,save=True):
 
 
-        if save:
-            plot(self._spectrum_object.spectral_axis._bin_edges*u.keV,
-                self._spectrum_object.meta['ph_axis'], 
-                self._spectrum_object.data << self._spectrum_object.unit, 
-                self._spectrum_object.uncertainty.array << self._spectrum_object.unit,
-                self.fitted_model,
-                f'{self._spectrum_object.meta['time_range'][0]}_{self._spectrum_object.meta['time_range'][1]}_sunkit_spex_fit.png',
-                f'{self._spectrum_object.meta['time_range'][0]} - {self._spectrum_object.meta['time_range'][1]}',
-                self.fitting_method.fit_info['param_cov'],
-                self._spectrum_object)
-        else:
-            plot(self._spectrum_object.spectral_axis._bin_edges*u.keV,
-                self._spectrum_object.meta['ph_axis'], 
-                self._spectrum_object.data << self._spectrum_object.unit, 
-                self._spectrum_object.uncertainty.array << self._spectrum_object.unit,
-                self.fitted_model,
-                False,
-                f'{self._spectrum_object.meta['time_range'][0]} - {self._spectrum_object.meta['time_range'][1]}',
-                self.fitting_method.fit_info['param_cov'],
-                self._spectrum_object)
+    #     if save:
+    #         plot(self._spectrum_object.spectral_axis._bin_edges*u.keV,
+    #             self._spectrum_object.meta['ph_axis'], 
+    #             self._spectrum_object.data << self._spectrum_object.unit, 
+    #             self._spectrum_object.uncertainty.array << self._spectrum_object.unit,
+    #             self.fitted_model,
+    #             f'{self._spectrum_object.meta['time_range'][0]}_{self._spectrum_object.meta['time_range'][1]}_sunkit_spex_fit.png',
+    #             f'{self._spectrum_object.meta['time_range'][0]} - {self._spectrum_object.meta['time_range'][1]}',
+    #             self.fitting_method.fit_info['param_cov'],
+    #             self._spectrum_object)
+    #     else:
+    #         plot(self._spectrum_object.spectral_axis._bin_edges*u.keV,
+    #             self._spectrum_object.meta['ph_axis'], 
+    #             self._spectrum_object.data << self._spectrum_object.unit, 
+    #             self._spectrum_object.uncertainty.array << self._spectrum_object.unit,
+    #             self.fitted_model,
+    #             False,
+    #             f'{self._spectrum_object.meta['time_range'][0]} - {self._spectrum_object.meta['time_range'][1]}',
+    #             self.fitting_method.fit_info['param_cov'],
+    #             self._spectrum_object)
 
 
 
