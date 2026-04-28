@@ -2,7 +2,7 @@ Legacy (`sunkit_spex.legacy`)
 *****************************
 
 .. warning::
-   The legacy module contains legacy code which will no longer be maintained and will be removed in the near future.
+   The legacy module has been deprecated since version 0.4 and will be removed in a future version.
 
 .. automodapi:: sunkit_spex.legacy
 .. automodapi:: sunkit_spex.legacy.thermal

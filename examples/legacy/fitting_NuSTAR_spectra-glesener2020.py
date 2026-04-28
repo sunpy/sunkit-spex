@@ -51,7 +51,7 @@ gles_xlims, gles_ylims = [2, 12], [1e1, 1e4]
 
 dl = Downloader()
 
-base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/nustar/Glesener2020/"
+base_url = "https://homepages.dias.ie/smaloney/sunkit-spex/nustar/Glesener2020/"
 file_names = [
     "nu20312001001B06_cl_grade0_sr_grp.pha",
     "nu20312001001B06_cl_grade0_sr.arf",
@@ -62,14 +62,14 @@ file_names = [
 ]
 
 for fname in file_names:
-    dl.enqueue_file(base_url + fname, path="./nustar/Glesener2020/")
+    dl.enqueue_file(base_url + fname, path="../../nustar/Glesener2020/")
 files = dl.download()
 
 
 #####################################################
 #
 # First, load in your data files, here we load in 2 spectra
-_dir = "./nustar/Glesener2020/"
+_dir = "../../nustar/Glesener2020/"
 # In the files here, the ARF and RMF file have different names to the PHA files so cannot use the PHA file name to help find the others so...
 spec = Fitter(
     pha_file=_dir + "nu20312001001B06_cl_grade0_sr_grp.pha",
@@ -141,7 +141,7 @@ plt.rcParams["font.size"] = default_font_size
 # In the original Figure 3(c), a broken power law is used as the cold thick target does not exist ins XPSEC.
 #
 # First, load in your data files, here we load in 2 spectra
-_dir = "./nustar/Glesener2020/"
+_dir = "../../nustar/Glesener2020/"
 spec = Fitter(
     pha_file=[_dir + "nu20312001001A06_cl_grade0_sr_grp.pha", _dir + "nu20312001001B06_cl_grade0_sr_grp.pha"],
     arf_file=[_dir + "nu20312001001A06_cl_grade0_sr.arf", _dir + "nu20312001001B06_cl_grade0_sr.arf"],
@@ -227,7 +227,7 @@ plt.rcParams["font.size"] = default_font_size
 #
 # First, load in your data files, here we load in 1 spectrum
 
-_dir = "./nustar/Glesener2020/"
+_dir = "../../nustar/Glesener2020/"
 spec = Fitter(
     pha_file=_dir + "nu20312001001B06_cl_grade0_sr_grp.pha",
     arf_file=_dir + "nu20312001001B06_cl_grade0_sr.arf",
@@ -286,7 +286,7 @@ plt.rcParams["font.size"] = default_font_size
 #
 # First, load in your data files, here we load in 2 spectra
 
-_dir = "./nustar/Glesener2020/"
+_dir = "../../nustar/Glesener2020/"
 spec = Fitter(
     pha_file=[_dir + "nu20312001001A06_cl_grade0_sr_grp.pha", _dir + "nu20312001001B06_cl_grade0_sr_grp.pha"],
     arf_file=[_dir + "nu20312001001A06_cl_grade0_sr.arf", _dir + "nu20312001001B06_cl_grade0_sr.arf"],

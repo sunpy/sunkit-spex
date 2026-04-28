@@ -5,7 +5,7 @@
 # http://www.sphinx-doc.org/en/master/config
 
 import datetime
-import pathlib
+from pathlib import Path
 
 from packaging.version import Version
 
@@ -76,10 +76,10 @@ default_role = "py:obj"
 # Example configuration for intersphinx: refer to the Python standard library.
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", (None, "http://data.astropy.org/intersphinx/python3.inv")),
-    "numpy": ("https://docs.scipy.org/doc/numpy/", (None, "http://data.astropy.org/intersphinx/numpy.inv")),
-    "scipy": ("https://docs.scipy.org/doc/scipy/reference/", (None, "http://data.astropy.org/intersphinx/scipy.inv")),
-    "matplotlib": ("https://matplotlib.org/", (None, "http://data.astropy.org/intersphinx/matplotlib.inv")),
-    "astropy": ("http://docs.astropy.org/en/stable/", None),
+    "numpy": ("https://docs.scipy.org/doc/numpy/", (None, "https://numpy.org/doc/stable/objects.inv")),
+    "scipy": ("https://docs.scipy.org/doc/scipy/reference/", (None, "https://docs.scipy.org/doc/scipy/objects.inv")),
+    "matplotlib": ("https://matplotlib.org/", (None, "https://matplotlib.org/stable/objects.inv")),
+    "astropy": ("http://docs.astropy.org/en/stable/", (None, "https://docs.astropy.org/en/stable/objects.inv")),
     "sunpy": ("https://docs.sunpy.org/en/stable/", None),
 }
 
@@ -117,18 +117,15 @@ autoclass_content = "both"
 
 # -- Options for the Sphinx gallery -------------------------------------------
 
-path = pathlib.Path.cwd()
-example_dir = path.parent.joinpath("examples")
 sphinx_gallery_conf = {
-    "backreferences_dir": str(path.joinpath("generated", "modules")),
+    "backreferences_dir": str(Path("generated") / "modules"),
     "filename_pattern": "^((?!skip_).)*$",
-    "examples_dirs": example_dir,
-    "gallery_dirs": path.joinpath("generated", "gallery"),
+    "examples_dirs": str(Path("..") / "examples"),
+    "gallery_dirs": str(Path("generated") / "gallery"),
     "abort_on_example_error": False,
-    "plot_gallery": "True",
     "remove_config_comments": True,
     "only_warn_on_example_error": True,
-    'pypandoc': True
+    "parallel": True,
 }
 
 # -- Other options ----------------------------------------------------------

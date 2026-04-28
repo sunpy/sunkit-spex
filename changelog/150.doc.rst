@@ -1,1 +1,0 @@
-Add 'sphinx-gallery' to how-to section.

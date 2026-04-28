@@ -53,7 +53,7 @@ from sunkit_spex.legacy.fitting.fitter import Fitter, load
 # Download the example data
 
 dl = Downloader()
-base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/stix/"
+base_url = "https://homepages.dias.ie/smaloney/sunkit-spex/stix/"
 file_names = [
     "stx_spectrum_2410019944_IM.fits",
     "stx_srm_2410019944_IM.fits",
@@ -62,7 +62,7 @@ file_names = [
 ]
 
 for fname in file_names:
-    dl.enqueue_file(base_url + fname, path="./stix/")
+    dl.enqueue_file(base_url + fname, path="../../stix/")
 files = dl.download()
 
 #####################################################
@@ -83,7 +83,7 @@ plt.rcParams["font.size"] = spec_font_size
 # Load in the data...
 
 stix_spec = STIXLoader(
-    spectrum_file="./stix/stx_spectrum_2410019944_IM.fits", srm_file="./stix/stx_srm_2410019944_IM.fits"
+    spectrum_file="../../stix/stx_spectrum_2410019944_IM.fits", srm_file="../../stix/stx_srm_2410019944_IM.fits"
 )
 
 #####################################################
@@ -202,7 +202,7 @@ plt.show()
 # ----------------
 #
 
-save_filename = "./stix/sunkitspexSTIXpectralFitting.pickle"
+save_filename = "../../stix/sunkitspexSTIXpectralFitting.pickle"
 fitter.save(save_filename)
 
 #####################################################
@@ -266,8 +266,8 @@ plt.show()
 # ========================================================
 # Loading the data into the fitter loader
 #
-spec_bg, srm_bg = "./stix/stx_spectrum_2410019944_BKG.fits", "./stix/stx_srm_2410019944_BKG.fits"
-spec_im, srm_im = "./stix/stx_spectrum_2410019944_IM.fits", "./stix/stx_srm_2410019944_IM.fits"
+spec_bg, srm_bg = "../../stix/stx_spectrum_2410019944_BKG.fits", "../../stix/stx_srm_2410019944_BKG.fits"
+spec_im, srm_im = "../../stix/stx_spectrum_2410019944_IM.fits", "../../stix/stx_srm_2410019944_IM.fits"
 
 spec_joint = Fitter(pha_file=[spec_bg, spec_im], srm_file=[srm_bg, srm_im])
 

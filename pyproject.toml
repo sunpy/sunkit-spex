@@ -16,23 +16,38 @@ authors = [
   { name = "The SunPy Community", email = "sunpy@googlegroups.com" },
 ]
 dependencies = [
-    "corner>=2.2",
-    "emcee>=3.1",
     "matplotlib>=3.9",
-    "nestle>=0.2",
-    "numdifftools>=0.9.42",
     "numpy>=1.26",  # Note: keeping support for numpy 1.x for now
     "parfive>=2.1",
-    "scipy>=1.12",
+    "scipy>=1.14.1",
     "sunpy>=7.0",
     "xarray>=2023.12",
-    "gwcs>=0.21.0",
+    "gwcs>=0.26.0,<1.0.0", #until https://github.com/sunpy/ndcube/issues/913 is resolved
     "ndcube>=2.3",
 ]
 
 dynamic = ["version"]
+keywords = ["solar physics", "solar", "science", "sun", "x-ray", "gamma-ray", "spectra"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Physics",
+]
 
 [project.optional-dependencies]
+legacy = [
+    "corner>=2.2",
+    "emcee>=3.1",
+    "nestle>=0.2",
+    "numdifftools>=0.9.42",
+]
 tests = [
   "pytest",
   "pytest-doctestplus",
@@ -47,16 +62,20 @@ docs = [
   "packaging",
   "sphinx-changelog",
   "sphinx-gallery",
-  "pypandoc"
+  "joblib", # for sphinx-gallery parallel
 ]
 dev = [
-    "sunkit-spex[docs,tests]",
+    "sunkit-spex[legacy,docs,tests]",
     "tox"
 ]
 
 [project.urls]
 Homepage = "https://sunkit-spex.readthedocs.io"
+"Source Code" = "https://github.com/sunpy/sunkit-spex"
 Download = "https://pypi.org/project/sunkit-spex"
+Documentation = "https://sunkit-spex.readthedocs.io"
+Changelog = "https://sunkit-spex.readthedocs.io/en/latest/whatsnew/changelog.html"
+"Issue Tracker" = "https://github.com/sunpy/sunkit-spex/issues"
 
 [tool.setuptools]
 zip-safe = false

@@ -26,4 +26,5 @@ python:
     - method: pip
       extra_requirements:
         - docs
+        - legacy
       path: .

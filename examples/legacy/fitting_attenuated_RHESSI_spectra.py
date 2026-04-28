@@ -29,11 +29,11 @@ from sunkit_spex.legacy.fitting import fitter
 #
 # Download the example data
 dl = Downloader()
-base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/rhessi/"
+base_url = "https://homepages.dias.ie/smaloney/sunkit-spex/rhessi/"
 file_names = ["rhessi-2011-jul-stixbins-spec.fits", "rhessi-2011-jul-stixbins-srm.fits"]
 
 for fname in file_names:
-    dl.enqueue_file(base_url + fname, path="./rhessi/")
+    dl.enqueue_file(base_url + fname, path="../../rhessi/")
 files = dl.download()
 
 
@@ -42,7 +42,8 @@ files = dl.download()
 # Load in the spectrum and SRM, notice the warning about attenuator changes!
 
 rl = rhessi.RhessiLoader(
-    spectrum_fn="./rhessi/rhessi-2011-jul-stixbins-spec.fits", srm_fn="./rhessi/rhessi-2011-jul-stixbins-srm.fits"
+    spectrum_fn="../../rhessi/rhessi-2011-jul-stixbins-spec.fits",
+    srm_fn="../../rhessi/rhessi-2011-jul-stixbins-srm.fits",
 )
 
 #####################################################

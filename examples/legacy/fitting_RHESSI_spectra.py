@@ -39,11 +39,11 @@ except AttributeError:
 # Download the example data
 
 dl = Downloader()
-base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/rhessi/"
+base_url = "https://homepages.dias.ie/smaloney/sunkit-spex/rhessi/"
 file_names = ["20021005_103800_spec.fits", "20021005_103800_srm.fits"]
 
 for fname in file_names:
-    dl.enqueue_file(base_url + fname, path="./rhessi/")
+    dl.enqueue_file(base_url + fname, path="../../rhessi/")
 files = dl.download()
 
 #####################################################
@@ -61,7 +61,9 @@ xlims, ylims = [3, 100], [5e-4, 1e4]
 #
 # Load in the data...
 
-rhess_spec = RhessiLoader(spectrum_fn="./rhessi/20021005_103800_spec.fits", srm_fn="./rhessi/20021005_103800_srm.fits")
+rhess_spec = RhessiLoader(
+    spectrum_fn="../../rhessi/20021005_103800_spec.fits", srm_fn="../../rhessi/20021005_103800_srm.fits"
+)
 
 #####################################################
 #
@@ -358,7 +360,7 @@ plt.rcParams["font.size"] = default_text
 # ----------------
 #
 
-save_filename = "./sunxspexRhessiSpectralFitting.pickle"
+save_filename = "../sunxspexRhessiSpectralFitting.pickle"
 fitter.save(save_filename)
 
 #####################################################

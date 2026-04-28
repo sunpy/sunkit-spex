@@ -11,3 +11,8 @@ you quickly accomplish common tasks.
    :maxdepth: 1
 
    ../generated/gallery/index
+.. toctree::
+   :maxdepth: 1
+   :hidden:
+
+   ../generated/gallery/legacy/index

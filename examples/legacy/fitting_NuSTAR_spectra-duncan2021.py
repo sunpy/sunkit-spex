@@ -46,7 +46,7 @@ dunc_xlims, dunc_ylims = [2.5, 11], [1e0, 4e4]
 
 dl = Downloader()
 
-base_url = "https://sky.dias.ie/public.php/dav/files/BHW6y6aXiGGosM6/nustar/Duncan2021/"
+base_url = "https://homepages.dias.ie/smaloney/sunkit-spex/nustar/Duncan2021/"
 file_names = [
     "nu80410201001A06_1618_p_chu2_N_sr.pha",
     "nu80410201001A06_1618_p_chu2_N_sr.arf",
@@ -57,7 +57,7 @@ file_names = [
 ]
 
 for fname in file_names:
-    dl.enqueue_file(base_url + fname, path="./nustar/Duncan2021/")
+    dl.enqueue_file(base_url + fname, path="../../nustar/Duncan2021/")
 files = dl.download()
 
 
@@ -65,7 +65,7 @@ files = dl.download()
 #
 # First, load in your data files, here we load in 2 spectra
 
-_dir = "./nustar/Duncan2021/"
+_dir = "../../nustar/Duncan2021/"
 spec = Fitter(pha_file=[_dir + "nu80410201001A06_1618_p_chu2_N_sr.pha", _dir + "nu80410201001B06_1618_p_chu2_N_sr.pha"])
 
 #####################################################
