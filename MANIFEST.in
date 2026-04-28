@@ -1,14 +1,20 @@
 # Exclude specific files
 # All files which are tracked by git and not explicitly excluded here are included by setuptools_scm
 exclude .codecov.yaml
+exclude .codespellrc
 exclude .coveragerc
 exclude .cruft.json
+exclude .editorconfig
 exclude .gitignore
 exclude .isort.cfg
+exclude .mailmap
 exclude .pre-commit-config.yaml
 exclude .readthedocs.yaml
 exclude .rtd-environment.yml
 exclude .ruff.toml
+exclude .sunpy-template.yml
+exclude .zenodo.json
+exclude tox.ini
 
 # Prune folders
 prune .github
