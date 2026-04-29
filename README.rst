@@ -25,8 +25,8 @@
 .. |Project Status: Active| image:: https://www.repostatus.org/badges/latest/active.svg
    :target: https://www.repostatus.org/#active
 
-.. |Zenodo - Latest DOI| image:: https://zenodo.org/badge/175066331.svg
-   :target: https://zenodo.org/doi/10.5281/zenodo.11526911
+.. |Zenodo - Latest DOI| image:: https://zenodo.org/badge/DOI/10.5281/zenodo.11526911.svg
+   :target: https://doi.org/10.5281/zenodo.11526911
 
 .. |Continuous Integration Status| image:: https://github.com/sunpy/sunkit-spex/actions/workflows/ci.yml/badge.svg?branch=main
    :target: https://github.com/sunpy/sunkit-spex/actions/workflows/ci.yml
@@ -52,8 +52,14 @@ For more information see our documentation on fair and appropriate `AI usage <ht
 
 Installation
 ------------
+To install the latest release use pip or your package managers equivalent.
 
-See the `installation guide <https://sunkit-spex.readthedocs.io/en/latest/tutorials/installation.html>`__.
+.. code-block::
+
+    $ pip install sunkit-spex
+    $ pip install sunkit-spex[legacy]  # with optional legacy dependencies
+
+For more details and development installs see the `installation guide <https://sunkit-spex.readthedocs.io/en/latest/tutorials/installation.html>`__.
 
 If you are new to ``sunkit-spex``, the best place to start is the `example gallery <https://sunkit-spex.readthedocs.io/en/latest/generated/gallery/index.html>`__ it includes a collection of short, specific examples of using ``sunkit-spex``.
 
