@@ -4,6 +4,8 @@ omit =
   sunkit_spex/*setup_package*
   sunkit_spex/extern/*
   sunkit_spex/version*
+  sunkit_spex/_dev/*
+  */sunkit_spex/_dev/*
   */sunkit_spex/conftest.py
   */sunkit_spex/*setup_package*
   */sunkit_spex/extern/*
