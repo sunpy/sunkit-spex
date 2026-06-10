@@ -22,7 +22,7 @@ dependencies = [
     "scipy>=1.14.1",
     "sunpy>=7.0",
     "xarray>=2023.12",
-    "gwcs>=0.26.0,<1.0.0", #until https://github.com/sunpy/ndcube/issues/913 is resolved
+    "gwcs>=0.26.0",
     "ndcube>=2.3",
 ]
 
