@@ -56,11 +56,11 @@ def test_gwcs_from_array_1d_wavelength():
     assert wcs.output_frame.axes_names[0] == "wavelength"
 
     # Test forward transform (pixel to world)
-    assert np.allclose(wcs(0), 4000 << u.AA)
-    assert np.allclose(wcs(99), 7000 << u.AA)
+    assert np.allclose(wcs.pixel_to_world(0), 4000 * u.AA)
+    assert np.allclose(wcs.pixel_to_world(99), 7000 * u.AA)
 
     # Test inverse transform (world to pixel)
-    assert np.allclose(wcs.invert(4000).value, 0)
+    assert np.allclose(wcs.world_to_pixel_values(4000), 0)
 
 
 def test_gwcs_from_array_3d_cube():
