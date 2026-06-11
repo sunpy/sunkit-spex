@@ -137,7 +137,7 @@ def gwcs_from_array(array, flux_shape, spectral_axis_index=None):
         spatial_frame = cf.CoordinateFrame(
             naxes=naxes - 1,
             unit=[
-                "",
+                u.pix,
             ]
             * (naxes - 1),
             axes_type=[
