@@ -1474,14 +1474,21 @@ class Fitter:
             # assign the spectrum parameter values to their model param counterpart
             sep_params = dict(zip(self._orig_params, ordered_kwarg_values))
 
-            # calculate the [photon s^-1 cm^-2]
+            # calculate the [photon s^-1 cm^-2] -> keep this as before
             m = (
                 self._model(**sep_params, energies=kwargs["photon_channels"][s]) * kwargs["photon_channel_widths"][s]
             )  # np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1]
             cts_model, cts_albedo_exess = make_model(
-                energies=kwargs["photon_channels"][s], photon_model=m, parameters=None, srm=kwargs["total_responses"][s], albedo_corr=self.albedo_corr, albedo_angle =self.albedo_angle, albedo_anisotropy=self.albedo_anisotropy
+                energies=kwargs["photon_channels"][s],
+                photon_model=m,
+                parameters=None,
+                photon_energy_widths=kwargs["photon_channel_widths"][s],
+                srm=kwargs["total_responses"][s],
+                albedo_corr=self.albedo_corr,
+                albedo_angle=self.albedo_angle,
+                albedo_anisotropy=self.albedo_anisotropy,
             )
 
             if "scaled_background_spectrum" + str(s + 1) in self._scaled_backgrounds:
@@ -2603,8 +2610,9 @@ class Fitter:
         if for_plotting:
             cts_model, _ = make_model(
                 energies=photon_channel_bins,
-                photon_model=m * np.diff(photon_channel_bins).flatten(),
+                photon_model=m * np.diff(photon_channel_bins).flatten(), # keep this as before [photon s^-1 cm^-2]
                 parameters=None,
+                photon_energy_widths=np.diff(photon_channel_bins).flatten(),
                 srm=srm,
                 albedo_corr=False,
                 albedo_angle=self.albedo_angle,
@@ -2614,8 +2622,9 @@ class Fitter:
         else:
             cts_model, _ = make_model(
                 energies=photon_channel_bins,
-                photon_model=m * np.diff(photon_channel_bins).flatten(),
+                photon_model=m * np.diff(photon_channel_bins).flatten(), # keep this as before [photon s^-1 cm^-2]
                 parameters=None,
+                photon_energy_widths=np.diff(photon_channel_bins).flatten(),
                 srm=srm,
                 albedo_corr=self.albedo_corr,
                 albedo_angle=self.albedo_angle,
@@ -5655,7 +5664,16 @@ def imports():
     return _imps
 
 
-def make_model(energies=None, photon_model=None, parameters=None, srm=None, albedo_corr=False, albedo_angle=0, albedo_anisotropy=1):
+def make_model(
+    energies=None,
+    photon_model=None,
+    parameters=None,
+    photon_energy_widths=None,
+    srm=None,
+    albedo_corr=False,
+    albedo_angle=0,
+    albedo_anisotropy=1,
+):
     """Takes a photon model array ( or function if you provide the pinputs with parameters), the spectral response matrix and returns a model count spectrum.
 
     Parameters
@@ -5665,11 +5683,16 @@ def make_model(energies=None, photon_model=None, parameters=None, srm=None, albe
             Default : None
 
     photon_model : function/array/list
-            Array -OR- function representing the photon model (if it's a function, provide the parameters of the function as a list, e.g. parameters = [energies, const, power]).
+            Array [photon s^-1 cm^-2] -OR- function representing the photon model (if it's a function, provide the parameters of the function as a list, e.g. parameters = [energies, const, power]).
             Default : None
 
     parameters : list
             List representing the inputs a photon model function, if a function is provided, excludeing the energies the spectrum is over.
+            Default : None
+
+    photon_energy_widths : array/list
+            Optional photon-energy bin widths. If provided, the photon model is divided by these widths, the SRM multiplied by them before
+            folding through the SRM.
             Default : None
 
     srm : matrix/array
@@ -5686,6 +5709,12 @@ def make_model(energies=None, photon_model=None, parameters=None, srm=None, albe
         photon_spec = photon_model
     else:
         photon_spec = photon_model(energies, *parameters)
+
+    # if photon_energy_widths provided remove from photon spec and apply to the srm instead
+    # since the photon_spec has been provided 
+    if photon_energy_widths is not None:
+        photon_spec = photon_spec / photon_energy_widths
+        srm = photon_energy_widths[:, None] * srm
 
     if albedo_corr:
         photon_spec, albedo_excess_phot  = albedo(photon_spec, energies, albedo_angle, anisotropy=albedo_anisotropy)
