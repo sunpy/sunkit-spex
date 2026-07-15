@@ -3855,7 +3855,18 @@ class Fitter:
             res.plot(energy_channels_res, residuals, color="k", alpha=0.8)  # , drawstyle='steps-mid'
 
             if self.albedo_corr and albedo_excess_count.size > 0:
-                axs.plot(energy_channels, albedo_excess_count, color="grey")
+                axs.plot(energy_channels, albedo_excess_count, color="plum",alpha=1.0)
+                rainbow_text_lines(
+                (0.1, 0.99),
+                strings=["Albedo"],
+                colors=["plum"],
+                xycoords="axes fraction",
+                verticalalignment="top",
+                horizontalalignment="left",
+                ax=axes,
+                alpha=1.0,
+                fontsize="small",
+            )
 
         if self._latest_fit_run == "mcmc":
             _rebin_info = (
@@ -3888,6 +3899,10 @@ class Fitter:
             ) = count_rates, energy_channel_error, count_rate_errors
             # other
             log_plotting_info["residuals"], log_plotting_info["fitting_range"] = residuals, fitting_range
+            if self.albedo_corr and np.size(albedo_excess_count) > 0:
+                log_plotting_info["albedo_excess_count"] = np.array(albedo_excess_count).copy()
+            else:
+                log_plotting_info["albedo_excess_count"] = np.array([])
             # do we have submodels
             if hasattr(self, "_corresponding_submod_inputs"):
                 log_plotting_info["submodels"] = spec_submods[0]
