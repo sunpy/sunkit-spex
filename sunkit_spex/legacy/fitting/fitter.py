@@ -5708,7 +5708,7 @@ def make_model(
         """Fold photon spectrum through SRM with optional SRM-row width scaling."""
         if widths is None:
             return np.matmul(spec, matrix)
-        # Equivalent to spec @ (widths[:, None] * matrix) without allocating that dense temporary.
+        # Equivalent to spec @ (widths[:, None] * matrix) without allocating full temporary matrix
         return np.einsum("i,ij,i->j", spec, matrix, widths)
 
     # if parameters is None then assume the photon_model input is already a spectrum to test, else make the model spectrum from the function and parameters
