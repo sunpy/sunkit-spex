@@ -3553,7 +3553,7 @@ class Fitter:
                     value = value * 1e35
                 value_fmt = ".2e"
                 error_fmt = ".2e"
-                if pname.startswith(("T", "index", "e_c")):
+                if pname.startswith(("T", "index", "e_c", "C")):
                     value_fmt = ".2f"
                     error_fmt = ".2f"
                 if np.all(error) == np.all([0, 0]):
