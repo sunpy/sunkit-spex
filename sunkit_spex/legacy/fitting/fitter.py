@@ -5704,25 +5704,30 @@ def make_model(
     A model count spectrum.
     """
 
+    def _fold_through_srm(spec, matrix, widths=None):
+        """Fold photon spectrum through SRM with optional SRM-row width scaling."""
+        if widths is None:
+            return np.matmul(spec, matrix)
+        # Equivalent to spec @ (widths[:, None] * matrix) without allocating that dense temporary.
+        return np.einsum("i,ij,i->j", spec, matrix, widths)
+
     # if parameters is None then assume the photon_model input is already a spectrum to test, else make the model spectrum from the function and parameters
     if type(parameters) == type(None):
         photon_spec = photon_model
     else:
         photon_spec = photon_model(energies, *parameters)
 
-    # if photon_energy_widths provided remove from photon spec and apply to the srm instead
-    # since the photon_spec has been provided 
+    # Albedo correction is applied to differential flux, so divide by bin widths first.
     if photon_energy_widths is not None:
         photon_spec = photon_spec / photon_energy_widths
-        srm = photon_energy_widths[:, None] * srm
 
     if albedo_corr:
-        photon_spec, albedo_excess_phot  = albedo(photon_spec, energies, albedo_angle, anisotropy=albedo_anisotropy)
-        albedo_excess_count = np.matmul(albedo_excess_phot, srm)
+        photon_spec, albedo_excess_phot = albedo(photon_spec, energies, albedo_angle, anisotropy=albedo_anisotropy)
+        albedo_excess_count = _fold_through_srm(albedo_excess_phot, srm, photon_energy_widths)
     else:
         albedo_excess_count = np.array([])
 
-    model_cts_spectrum = np.matmul(photon_spec, srm)
+    model_cts_spectrum = _fold_through_srm(photon_spec, srm, photon_energy_widths)
 
     return model_cts_spectrum, albedo_excess_count
 
