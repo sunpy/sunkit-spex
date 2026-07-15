@@ -5709,7 +5709,9 @@ def make_model(
         if widths is None:
             return np.matmul(spec, matrix)
         # Equivalent to spec @ (widths[:, None] * matrix) without allocating full temporary matrix
-        return np.einsum("i,ij,i->j", spec, matrix, widths)
+        return np.einsum("i,ij,i->j", spec, matrix, widths, optimize=True)
+        # Above really faster, what about just
+        # return np.matmul(spec, widths[:, None] * matrix)
 
     # if parameters is None then assume the photon_model input is already a spectrum to test, else make the model spectrum from the function and parameters
     if type(parameters) == type(None):
