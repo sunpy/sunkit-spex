@@ -3542,16 +3542,38 @@ class Fitter:
             _xycoords = "axes fraction"
             for p in plot_params:
                 par_spec = p.split("_spectrum")
+                pname = par_spec[0]
                 error = self.params["Error", p]
+                value = self.params["Value", p]
+                if pname.startswith("EM"):
+                    error = np.asarray(error) * 1e46
+                    value = value * 1e46
+                if pname.startswith("total_eflux"):
+                    error = np.asarray(error) * 1e35
+                    value = value * 1e35
+                value_fmt = ".2e"
+                error_fmt = ".2e"
+                if pname.startswith(("T", "index", "e_c")):
+                    value_fmt = ".2f"
+                    error_fmt = ".2f"
                 if np.all(error) == np.all([0, 0]):
-                    param_str += [par_spec[0] + ": {0:.2e}".format(self.params["Value", p]) + "\n"]
+                    param_str += [pname + f": {value:{value_fmt}}" + "\n"]
                 else:
-                    param_str += [
-                        par_spec[0]
-                        + ": {0:.2e}".format(self.params["Value", p])
-                        + f"$^{{+{error[1]:.2e}}}_{{-{error[0]:.2e}}}$"
-                        + "\n"
-                    ]  # str(round(self.params["Value", p], 2))
+                    param_str += [pname + f": {value:{value_fmt}}"
+                                + f"$^{{+{error[1]:{error_fmt}}}}_{{-{error[0]:{error_fmt}}}}$"
+                                + "\n"
+                                ]
+                # par_spec = p.split("_spectrum")
+                # error = self.params["Error", p]
+                # if np.all(error) == np.all([0, 0]):
+                #     param_str += [par_spec[0] + ": {0:.2e}".format(self.params["Value", p]) + "\n"]
+                # else:
+                #     param_str += [
+                #         par_spec[0]
+                #         + ": {0:.2e}".format(self.params["Value", p])
+                #         + f"$^{{+{error[1]:.2e}}}_{{-{error[0]:.2e}}}$"
+                #         + "\n"
+                #     ]  # str(round(self.params["Value", p], 2))
             # join param strings correctly and annotate the axes depending on whether they should be coloured with sub-models if present
             self._annotate_params(axs, param_str, submod_param_cols, _xycoords)
 
