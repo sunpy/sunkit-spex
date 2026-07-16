@@ -3552,7 +3552,7 @@ class Fitter:
                 if pname.startswith("EM"):
                     scl=1e46
                     punts=" cm$^{-3}$"
-                if pname.startswith("total_eflux"):
+                if pname.startswith(("total_eflux", "tot_eflux")):
                     scl=1e35
                     punts=" e$^-$s$^{-1}$"
                 if pname.startswith("plasma_d"):
@@ -3560,14 +3560,14 @@ class Fitter:
                     punts=" cm$^{-3}$"
                 if pname.startswith(("T", "loop_temp")):
                     punts=" MK"
-                if pname.startswith("e_c"):
+                if pname.startswith(("e_c", "ec")):
                     punts=" keV"
                 if pname.startswith("length"):
                     punts=" Mm"
                 value_fmt = ".2e"
                 error_fmt = ".2e"
                 # Only have f_vth, thick_fn and thick_warm as the models from photon_models_for_fitting.py
-                if pname.startswith(("T", "index", "e_c", "C", "loop_temp","length")):
+                if pname.startswith(("T", "index", "e_c", "C", "ind", "ec", "loop_temp","length")):
                     value_fmt = ".2f"
                     error_fmt = ".2f"
                 if np.all(error) == np.all([0, 0]):
