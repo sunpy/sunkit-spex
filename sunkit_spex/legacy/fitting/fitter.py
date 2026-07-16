@@ -3546,14 +3546,24 @@ class Fitter:
                 error = self.params["Error", p]
                 value = self.params["Value", p]
                 scl=1
+                punts=""
                 # Might not have an error value so just change scale factor
                 # and apply this at the end when making the nice string
                 if pname.startswith("EM"):
                     scl=1e46
+                    punts=" cm$^{-3}$"
                 if pname.startswith("total_eflux"):
                     scl=1e35
+                    punts=" e$^-$s$^{-1}$"
                 if pname.startswith("plasma_d"):
                     scl=1e10
+                    punts=" cm$^{-3}$"
+                if pname.startswith(("T", "loop_temp")):
+                    punts=" MK"
+                if pname.startswith("e_c"):
+                    punts=" keV"
+                if pname.startswith("length"):
+                    punts=" Mm"
                 value_fmt = ".2e"
                 error_fmt = ".2e"
                 # Only have f_vth, thick_fn and thick_warm as the models from photon_models_for_fitting.py
@@ -3562,12 +3572,12 @@ class Fitter:
                     error_fmt = ".2f"
                 if np.all(error) == np.all([0, 0]):
                     value = value * scl
-                    param_str += [pname + f": {value:{value_fmt}}" + "\n"]
+                    param_str += [pname + f": {value:{value_fmt}}"+ punts + "\n"]
                 else:
                     value = np.asarray(value) * scl
                     error = np.asarray(error) * scl
                     param_str += [pname + f": {value:{value_fmt}}"
-                                + f"$^{{+{error[1]:{error_fmt}}}}_{{-{error[0]:{error_fmt}}}}$"
+                                + f"$^{{+{error[1]:{error_fmt}}}}_{{-{error[0]:{error_fmt}}}}$" + punts
                                 + "\n"
                                 ]
                 # par_spec = p.split("_spectrum")
