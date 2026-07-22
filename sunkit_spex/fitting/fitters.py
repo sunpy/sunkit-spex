@@ -123,11 +123,12 @@ class JointFitter(Fitter):
 
         fkwarg |= {"jfit_param_indices": jfit_param_indices, "parameter_units": param_units}
 
-        from scipy.optimize import minimize
+        from scipy.optimize import minimize  # noqa
 
         ## should really call self._opt_method()
         # optimize.least_squares just minimises the square of what comes out of self.objective_function
-        fun = lambda x: self.objective_function(x, *(models, farg), **fkwarg)
+        # need the lambda function for now since `minimize` won't accept other kwargs
+        fun = lambda x: self.objective_function(x, *(models, farg), **fkwarg)  # noqa
         result = minimize(
             fun,
             jmodel_params,
@@ -164,6 +165,7 @@ class JointFitter(Fitter):
 
         if len(param_units) > 0:
             return param_units
+        return None
 
     def __call__(self, *args, fkwarg=None, inplace=False):
         """
@@ -232,7 +234,6 @@ def fitter_to_model_params_array(model, fps, use_min_max_bounds=True, *, fit_par
             parameters[slice_] = getattr(model, name).value
             continue
 
-        shape = metrics["shape"]
         size = metrics["size"]
 
         values = fps[offset : offset + size]
