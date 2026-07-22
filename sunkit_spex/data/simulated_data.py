@@ -19,7 +19,7 @@ def simulate_square_response_matrix(size, random_seed=10):
         The length of each side of the square response matrix.
 
     random_seed : `int`, optional
-        The seed input for the random number generator. This will accept 
+        The seed input for the random number generator. This will accept
         any value input accepted by `numpy.random.default_rng`.
 
     Returns
@@ -61,21 +61,21 @@ def simulate_gaussian_data_source(x, amplitude, mean, stddev, noise=0.1, random_
     ----------
     x : `numpy.ndarray`
         The x-values at which the Gaussian model should be evaluated.
-    
+
     amplitude, mean, stddev : `float`, `int`
         The amplitude, mean, and standard deviation, respectively, for
         the Gaussian model.
-    
+
     noise: `float`, `int`
-        Value to determine the spread of the noise multiplied to the 
+        Value to determine the spread of the noise multiplied to the
         output.
         Default: 0.1
 
     random_seed : `int`, optional
-        The seed input for the random number generator for including 
-        noise. This will accept any value input accepted by 
-        ``numpy.random.default_rng``. The Gaussian output will be 
-        multiplied by 
+        The seed input for the random number generator for including
+        noise. This will accept any value input accepted by
+        ``numpy.random.default_rng``. The Gaussian output will be
+        multiplied by
         ``np.random.default_rng(random_seed).normal(1.0, noise, x.shape)``.
         Default: 147
 
@@ -91,4 +91,3 @@ def simulate_gaussian_data_source(x, amplitude, mean, stddev, noise=0.1, random_
     y *= rng.normal(1.0, noise, x.shape)
 
     return y
-

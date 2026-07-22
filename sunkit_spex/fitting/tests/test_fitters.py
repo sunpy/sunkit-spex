@@ -2,11 +2,12 @@
 This module contains package tests for the fitters functions.
 """
 
+import numpy as np
+from numpy.testing import assert_allclose
+
 from astropy.modeling import models
 from astropy.modeling.optimizers import SLSQP
 from astropy.modeling.statistic import leastsquare
-import numpy as np
-from numpy.testing import assert_allclose
 
 from sunkit_spex.data.simulated_data import simulate_gaussian_data_source
 from sunkit_spex.fitting.fitters import JointFitter

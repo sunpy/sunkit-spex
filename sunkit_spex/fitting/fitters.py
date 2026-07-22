@@ -1,6 +1,7 @@
+import numpy as np
+
 from astropy import units as u
 from astropy.modeling.fitting import Fitter, _validate_model, model_to_fit_params
-import numpy as np
 
 
 class JointFitter(Fitter):
