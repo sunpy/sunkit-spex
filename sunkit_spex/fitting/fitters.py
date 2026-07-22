@@ -1,9 +1,8 @@
-from astropy.modeling.fitting import (Fitter,
-                                      fitter_unit_support,
-                                      model_to_fit_params, 
-                                      _validate_model)
-from astropy import units as u
 import numpy as np
+
+from astropy import units as u
+from astropy.modeling.fitting import Fitter, _validate_model, model_to_fit_params
+
 
 class JointFitter(Fitter):
     def __init__(self, optimizer, statistic):
@@ -28,26 +27,22 @@ class JointFitter(Fitter):
             jfit_param_indices.append(fit_param_indices)
             jmodel_bounds_lower.extend(model_bounds[0])
             jmodel_bounds_upper.extend(model_bounds[1])
-            
+
         # return
         jmodel_bounds = (tuple(jmodel_bounds_lower), tuple(jmodel_bounds_upper))
         return jmodel_params, jfit_param_indices, jmodel_bounds
-    
+
     def _update_model_params(self, models, fps, jfit_param_indices):
         for mod_num, model in enumerate(models):
             # The param list is rebuilt with those being fitted and those not
             free_inds_in_mod = jfit_param_indices[mod_num]
-            mod_fps = fps[:len(free_inds_in_mod)]
+            mod_fps = fps[: len(free_inds_in_mod)]
 
             # get the reconstructed parameter array for the given model
             mod_params = fitter_to_model_params_array(
-                model,
-                mod_fps,
-                self._use_min_max_bounds,
-                fit_param_indices=free_inds_in_mod,
-                model_list=models
+                model, mod_fps, self._use_min_max_bounds, fit_param_indices=free_inds_in_mod, model_list=models
             )
-            # udpate the model so tied parameters stay up-to-date
+            # update the model so tied parameters stay up-to-date
             model.parameters = mod_params
 
             # avoid awkward indexing by removing the params we've used and accounted for
@@ -55,10 +50,7 @@ class JointFitter(Fitter):
             fps = np.delete(fps, remove)
             del mod_fps, free_inds_in_mod
 
-
-    def objective_function(self, fps, *args, 
-                           weights=None, jfit_param_indices=None, 
-                           parameter_units=None):
+    def objective_function(self, fps, *args, weights=None, jfit_param_indices=None, parameter_units=None):
         """
         Function to minimize.
 
@@ -80,23 +72,24 @@ class JointFitter(Fitter):
 
         Job is to call `self._stat_method`
         """
-        
+
         models = args[0]
         xs = args[1][0]
         ys = args[1][1]
-        
+
         fitted = []
 
-        # double call incase earlier model relies on new parameters in later model
+        # double call in case earlier model relies on new parameters in later model
         self._update_model_params(models, fps, jfit_param_indices)
         self._update_model_params(models, fps, jfit_param_indices)
 
         for mod_num, model in enumerate(models):
-
             # units, make sure we have units
             if parameter_units is not None:
                 pu = parameter_units[mod_num]
-                mod_params = [round(mp, 15) if unit is None else round(mp, 15)*unit for mp, unit in zip(model.parameters, pu)]
+                mod_params = [
+                    round(mp, 15) if unit is None else round(mp, 15) * unit for mp, unit in zip(model.parameters, pu)
+                ]
 
             # actually evaluate the model with the constructed units and get residuals
             res = model.evaluate(xs[mod_num], *mod_params) - ys[mod_num]
@@ -104,11 +97,11 @@ class JointFitter(Fitter):
             value = value.value if isinstance(value, u.Quantity) else value
 
             fitted.extend(value)
-        
-        return np.sum(np.ravel(fitted)**2)
-    
+
+        return np.sum(np.ravel(fitted) ** 2)
+
     def _verify_input(self, args):
-        if len(args)%3!=0:
+        if len(args) % 3 != 0:
             raise ValueError(
                 f"Expected list of ``model1, x1, y1, model2, ...`` in args "
                 f"but {len(args)} provided is not divisible by 3."
@@ -119,47 +112,45 @@ class JointFitter(Fitter):
         models are the models
         farg are the xs and ys for the models
         fkwargs are anything else
-            
+
         Job is to call `self._opt_method` and pass in `self.objective_function`
         """
         fkwarg = {} if fkwarg is None else fkwarg
 
         jmodel_params, jfit_param_indices, jmodel_bounds = self.joint_model_to_fit_params(models)
-        
+
         param_units = self._get_param_units(models)
 
-        fkwarg |= {"jfit_param_indices":jfit_param_indices,
-                   "parameter_units":param_units}
-        
-        
+        fkwarg |= {"jfit_param_indices": jfit_param_indices, "parameter_units": param_units}
+
         from scipy.optimize import minimize
+
         ## should really call self._opt_method()
         # optimize.least_squares just minimises the square of what comes out of self.objective_function
-        fun=lambda x: self.objective_function(x, *(models, farg), **fkwarg)
+        fun = lambda x: self.objective_function(x, *(models, farg), **fkwarg)
         result = minimize(
-            fun, 
+            fun,
             jmodel_params,
-            bounds=tuple(zip(jmodel_bounds[0],jmodel_bounds[1])),
+            bounds=tuple(zip(jmodel_bounds[0], jmodel_bounds[1])),
             method="Nelder-Mead",
             tol=1e-8,
         )
 
         self.fit_info["params"] = result.x
 
-        # udpate the models with the fitted values
+        # update the models with the fitted values
         for mod_num, model in enumerate(models):
             free_inds_in_mod = jfit_param_indices[mod_num]
-            fps = result.x[:len(free_inds_in_mod)]
+            fps = result.x[: len(free_inds_in_mod)]
             parameters = fitter_to_model_params_array(
-                model, fps, self._use_min_max_bounds, fit_param_indices=jfit_param_indices[mod_num],
-                model_list=models
+                model, fps, self._use_min_max_bounds, fit_param_indices=jfit_param_indices[mod_num], model_list=models
             )
             model.parameters = parameters
             remove = np.arange(len(free_inds_in_mod))
             result.x = np.delete(result.x, remove)
 
         return models
-    
+
     @staticmethod
     def _get_param_units(models):
         param_units = []
@@ -170,8 +161,8 @@ class JointFitter(Fitter):
                 param_units.append(units)
             else:
                 param_units.append([None for _ in model.param_names])
-        
-        if len(param_units)>0:
+
+        if len(param_units) > 0:
             return param_units
 
     def __call__(self, *args, fkwarg=None, inplace=False):
@@ -190,14 +181,14 @@ class JointFitter(Fitter):
         # verify the models and change the ones in the fitters to copies of the original
         for model_num, model in enumerate(models):
             models[model_num] = _validate_model(
-                                                model,
-                                                ["fixed", "tied", "bounds", "eqcons", "ineqcons"],
-                                                copy=not inplace,
+                model,
+                ["fixed", "tied", "bounds", "eqcons", "ineqcons"],
+                copy=not inplace,
             )
 
         self.fitted_models = self._run_fitter(
             models,
-            (xs, ys), 
+            (xs, ys),
             fkwarg=fkwarg,
         )
 
@@ -205,10 +196,7 @@ class JointFitter(Fitter):
 
 
 ## KRIS: All I did was add ``model_list``
-def fitter_to_model_params_array(
-    model, fps, use_min_max_bounds=True, *, fit_param_indices=None, 
-    model_list=None
-):
+def fitter_to_model_params_array(model, fps, use_min_max_bounds=True, *, fit_param_indices=None, model_list=None):
     """
     Constructs the full list of model parameters from the fitted and
     constrained parameters.
@@ -281,8 +269,8 @@ def fitter_to_model_params_array(
 
     return parameters
 
-def fitter_to_model_params(model, fps, use_min_max_bounds=True,
-                           model_list=None):
+
+def fitter_to_model_params(model, fps, use_min_max_bounds=True, model_list=None):
     """
     Constructs the full list of model parameters from the fitted and
     constrained parameters.
@@ -300,7 +288,6 @@ def fitter_to_model_params(model, fps, use_min_max_bounds=True,
     """
     _, fit_param_indices, _ = model_to_fit_params(model)
     parameters = fitter_to_model_params_array(
-        model, fps, use_min_max_bounds, fit_param_indices=fit_param_indices,
-        model_list=model_list
+        model, fps, use_min_max_bounds, fit_param_indices=fit_param_indices, model_list=model_list
     )
     model.parameters = parameters

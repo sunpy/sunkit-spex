@@ -1,0 +1,1 @@
+Add ``sunkit_spex.fitting.fitters.JointFitter`` and two gallery examples showing its use. This new fitter follows the Astropy fitter API and allows simultaneous fitting to be performed between N data-model sets.
