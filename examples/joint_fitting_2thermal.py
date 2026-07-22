@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from astropy import units as u
-# imports
 from astropy.modeling.optimizers import SLSQP
 from astropy.modeling.statistic import leastsquare
 

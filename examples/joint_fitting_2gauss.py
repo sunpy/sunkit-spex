@@ -12,7 +12,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from astropy.modeling import Fittable1DModel
-# imports
 from astropy.modeling.functional_models import FLOAT_EPSILON, Gaussian1D
 from astropy.modeling.optimizers import SLSQP
 from astropy.modeling.parameters import Parameter
