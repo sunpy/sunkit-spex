@@ -58,13 +58,14 @@ class JointFitter(Fitter):
         >>> fit_joint = fitters.JointFitter(optimizer=SLSQP, statistic=leastsquare)
 
         >>> def print_output(output):
-        ...     print(f'List of fitting parameter values:\\n\\t{output[0]}')
+        ...     values = [float(v) for v in output[0]]
+        ...     print(f'List of fitting parameter values:\\n\\t{values}')
         ...     print(f'List of fitting parameter indices per model:\\n\\t{output[1]}')
         ...     print(f'Tuple of fitting parameter lower and upper bounds:\\n\\t{output[2]}')
 
         >>> print_output(fit_joint.joint_model_to_fit_params([gjf1, gjf2]))
         List of fitting parameter values:
-            [np.float64(3.0), np.float64(5.5), np.float64(1.0), np.float64(6.0), np.float64(0.1)]
+            [3.0, 5.5, 1.0, 6.0, 0.1]
         List of fitting parameter indices per model:
             [[0, 1], [0, 1, 2]]
         Tuple of fitting parameter lower and upper bounds:
@@ -74,7 +75,7 @@ class JointFitter(Fitter):
         >>> gjf2.mean.tied = lambda models: models[0].mean.value
         >>> print_output(fit_joint.joint_model_to_fit_params([gjf1, gjf2]))
         List of fitting parameter values:
-            [np.float64(3.0), np.float64(5.5), np.float64(1.0), np.float64(0.1)]
+            [3.0, 5.5, 1.0, 0.1]
         List of fitting parameter indices per model:
             [[0, 1], [0, 2]]
         Tuple of fitting parameter lower and upper bounds:
