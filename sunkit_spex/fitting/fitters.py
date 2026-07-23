@@ -3,8 +3,22 @@ import numpy as np
 from astropy import units as u
 from astropy.modeling.fitting import Fitter, _validate_model, model_to_fit_params
 
+__all__ = ["JointFitter"]
+
 
 class JointFitter(Fitter):
+    """
+    Base class for all joint fitters.
+
+    Parameters
+    ==========
+    optimizer : callable
+        A callable implementing an optimization algorithm.
+
+    statistic : callable
+        Statistic function.
+    """
+
     def __init__(self, optimizer, statistic):
         super().__init__(optimizer=optimizer, statistic=statistic)
         self.fit_info = {}
@@ -12,10 +26,60 @@ class JointFitter(Fitter):
         self._use_min_max_bounds = True
 
     def joint_model_to_fit_params(self, models):
-        """
-        jmodel_params (N_fparams,)
-        jfit_param_indices (N_models, N_fparams_in_model)
-        jmodel_bounds ((N_fparams,), (N_fparams,))
+        """Obtains the parameter values, indices, and bounds to be fitted.
+
+        Parameters
+        ==========
+        models : `list[~astropy.modeling.FittableModel]`
+            A list of the model(s).
+
+        Returns
+        =======
+        `list[float]`, `list[list[int]]`, `tuple[tuple[float]]` :
+            First output (1) is a list of the values being fitted. Second
+            output (2) is a list of index lists tracking where each
+            value from (1) comes from in each model. Output three (3) is
+            a tuple of two tuples, the first and second being the lower
+            and upper bounds, respectively, of fittable parameters in (1).
+
+        Examples
+        ========
+        >>> from astropy.modeling.functional_models import Gaussian1D
+        >>> from astropy.modeling.optimizers import SLSQP
+        >>> from astropy.modeling.statistic import leastsquare
+        >>>
+        >>> from sunkit_spex.fitting import fitters
+        >>>
+        >>> # define models and give bounds
+        >>> # fix one parameter so that won't be fittable
+        >>> gjf1 = Gaussian1D(amplitude=3, mean=5.5, stddev=0.4, bounds={"mean": (0.5, 10)}, fixed={"stddev": True})
+        >>> gjf2 = Gaussian1D(amplitude=1, mean=6, stddev=0.1)
+        >>>
+        >>> # set-up ``JointFitter`` to use the method
+        >>> fit_joint = fitters.JointFitter(optimizer=SLSQP, statistic=leastsquare)
+        >>>
+        >>> def print_output(output):
+        ...     print(f'List of fitting parameter values:\\n\\t{output[0]}')
+        ...     print(f'List of fitting parameter indices per model:\\n\\t{output[1]}')
+        ...     print(f'Tuple of fitting parameter lower and upper bounds:\\n\\t{output[2]}')
+        >>>
+        >>> print_output(fit_joint.joint_model_to_fit_params([gjf1, gjf2]))
+        List of fitting parameter values:
+            [np.float64(3.0), np.float64(5.5), np.float64(1.0), np.float64(6.0), np.float64(0.1)]
+        List of fitting parameter indices per model:
+            [[0, 1], [0, 1, 2]]
+        Tuple of fitting parameter lower and upper bounds:
+            ((-inf, 0.5, -inf, -inf, 1.1754943508222875e-38), (inf, 10.0, inf, inf, inf))
+        >>>
+        >>> # tie one model parameter to another so another won't be fittable
+        >>> gjf2.mean.tied = lambda models: models[0].mean.value
+        >>> print_output(fit_joint.joint_model_to_fit_params([gjf1, gjf2]))
+        List of fitting parameter values:
+            [np.float64(3.0), np.float64(5.5), np.float64(1.0), np.float64(0.1)]
+        List of fitting parameter indices per model:
+            [[0, 1], [0, 2]]
+        Tuple of fitting parameter lower and upper bounds:
+            ((-inf, 0.5, -inf, 1.1754943508222875e-38), (inf, 10.0, inf, inf))
         """
         jmodel_params = []
         jfit_param_indices = []
@@ -33,6 +97,7 @@ class JointFitter(Fitter):
         return jmodel_params, jfit_param_indices, jmodel_bounds
 
     def _update_model_params(self, models, fps, jfit_param_indices):
+        """Updates model parameter values inplace to the ones given."""
         for mod_num, model in enumerate(models):
             # The param list is rebuilt with those being fitted and those not
             free_inds_in_mod = jfit_param_indices[mod_num]
@@ -54,15 +119,22 @@ class JointFitter(Fitter):
         """
         Function to minimize.
 
+        Job is to call ``self._stat_method`` which should calculate the
+        value between the model output and data.
+
         Parameters
-        ----------
-        fps : list
+        ==========
+        fps : `list[float]`
             the fitted parameters - result of an one iteration of the
             fitting algorithm
-        args : dict
-            tuple of measured and input coordinates
-            args is always passed as a tuple from optimize.leastsq
-        fit_param_indices : list, optional
+
+        *args : `tuple`
+            A tuple of measured and input coordinates
+
+        weights : `list[list[float]]`
+            A list of the weights associated with the given datasets
+
+        fit_param_indices : `list[list[int]]`
             The ``fit_param_indices`` as returned by ``self.model_to_fit_params``.
             This is a list of the parameter indices being fit, so excluding any
             tied or fixed parameters.  This can be passed in to the objective
@@ -70,7 +142,9 @@ class JointFitter(Fitter):
             This must be optional as not all fitters support passing kwargs to
             the objective function.
 
-        Job is to call `self._stat_method`
+        parameter_units : `list[~astropy.Quantity]` or `NoneType`
+            A list of parameter units for the fittable parameters if they
+            exist.
         """
 
         models = args[0]
@@ -101,6 +175,7 @@ class JointFitter(Fitter):
         return np.sum(np.ravel(fitted) ** 2)
 
     def _verify_input(self, args):
+        """Verify the arguments given come in ``model, x, y`` groups."""
         if len(args) % 3 != 0:
             raise ValueError(
                 f"Expected list of ``model1, x1, y1, model2, ...`` in args "
@@ -109,11 +184,13 @@ class JointFitter(Fitter):
 
     def _run_fitter(self, models, farg, fkwarg=None):
         """
-        models are the models
-        farg are the xs and ys for the models
-        fkwargs are anything else
+        Function to set-up and run the optimization method.
 
         Job is to call `self._opt_method` and pass in `self.objective_function`
+
+        - farg are the xs and ys for the models
+        - fkwargs are anything else needed to be passed to the objective
+        function
         """
         fkwarg = {} if fkwarg is None else fkwarg
 
@@ -154,6 +231,7 @@ class JointFitter(Fitter):
 
     @staticmethod
     def _get_param_units(models):
+        """Obtains the parameter units if the model supports units."""
         param_units = []
         for model in models:
             if model._supports_unit_fitting:
@@ -172,7 +250,27 @@ class JointFitter(Fitter):
         Fit data to these models keeping some of the parameters common to the
         two models.
 
-        Setup, call `self._run_fitter`, and sort results
+        Purpose is to setup, call `self._run_fitter`, and sort results.
+
+        Parameters
+        ==========
+        *args :
+            The ``model``, ``x``, and ``y`` groups given.
+
+        fkwarg :
+            Fitting keyword arguments.
+            Default: None
+
+        inplace : `bool`
+            Defines whether the models should be updated in-place or if
+            updates should happen to copies of the models.
+            Default: False
+
+        Returns
+        =======
+        `list[~astropy.modeling.FittableModel]` :
+            A list of the models (copies if ``inplace`` is False) with
+            their parameters updated with the fitted result.
         """
         self._verify_input(args)
 
@@ -204,7 +302,7 @@ def fitter_to_model_params_array(model, fps, use_min_max_bounds=True, *, fit_par
     constrained parameters.
 
     Parameters
-    ----------
+    ==========
     model :
         The model being fit
     fps :
@@ -213,6 +311,13 @@ def fitter_to_model_params_array(model, fps, use_min_max_bounds=True, *, fit_par
         If set, the parameter bounds for the model will be enforced on each
         parameter with bounds.
         Default: True
+    fit_param_indices :
+        Index locations of the fit parameters located in the model.
+    model_list :
+        Is checked when parameters are tied and allows one model's
+        parameter to be tied to another, separate model's parameter in
+        the list.
+        Default: None
     """
     has_tied = model.has_tied
     has_bound = use_min_max_bounds and model.has_bounds
@@ -277,7 +382,7 @@ def fitter_to_model_params(model, fps, use_min_max_bounds=True, model_list=None)
     constrained parameters.
 
     Parameters
-    ----------
+    ==========
     model :
         The model being fit
     fps :
@@ -286,6 +391,11 @@ def fitter_to_model_params(model, fps, use_min_max_bounds=True, model_list=None)
         If set, the parameter bounds for the model will be enforced on each
         parameter with bounds.
         Default: True
+    model_list :
+        Is checked when parameters are tied and allows one model's
+        parameter to be tied to another, separate model's parameter in
+        the list.
+        Default: None
     """
     _, fit_param_indices, _ = model_to_fit_params(model)
     parameters = fitter_to_model_params_array(
