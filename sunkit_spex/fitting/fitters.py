@@ -44,36 +44,36 @@ class JointFitter(Fitter):
 
         Examples
         ========
-        >>> from astropy.modeling.functional_models import Gaussian1D
-        >>> from astropy.modeling.optimizers import SLSQP
-        >>> from astropy.modeling.statistic import leastsquare
-        >>>
-        >>> from sunkit_spex.fitting import fitters
-        >>>
-        >>> # define models and give bounds
-        >>> # fix one parameter so that won't be fittable
-        >>> gjf1 = Gaussian1D(amplitude=3, mean=5.5, stddev=0.4, bounds={"mean": (0.5, 10)}, fixed={"stddev": True})
-        >>> gjf2 = Gaussian1D(amplitude=1, mean=6, stddev=0.1)
-        >>>
-        >>> # set-up ``JointFitter`` to use the method
-        >>> fit_joint = fitters.JointFitter(optimizer=SLSQP, statistic=leastsquare)
-        >>>
-        >>> def print_output(output):
-        ...     print(f'List of fitting parameter values:\\n\\t{output[0]}')
-        ...     print(f'List of fitting parameter indices per model:\\n\\t{output[1]}')
-        ...     print(f'Tuple of fitting parameter lower and upper bounds:\\n\\t{output[2]}')
-        >>>
-        >>> print_output(fit_joint.joint_model_to_fit_params([gjf1, gjf2]))
+        >> from astropy.modeling.functional_models import Gaussian1D
+        >> from astropy.modeling.optimizers import SLSQP
+        >> from astropy.modeling.statistic import leastsquare
+        >>
+        >> from sunkit_spex.fitting import fitters
+        >>
+        >> # define models and give bounds
+        >> # fix one parameter so that won't be fittable
+        >> gjf1 = Gaussian1D(amplitude=3, mean=5.5, stddev=0.4, bounds={"mean": (0.5, 10)}, fixed={"stddev": True})
+        >> gjf2 = Gaussian1D(amplitude=1, mean=6, stddev=0.1)
+        >>
+        >> # set-up ``JointFitter`` to use the method
+        >> fit_joint = fitters.JointFitter(optimizer=SLSQP, statistic=leastsquare)
+        >>
+        >> def print_output(output):
+        ..     print(f'List of fitting parameter values:\\n\\t{output[0]}')
+        ..     print(f'List of fitting parameter indices per model:\\n\\t{output[1]}')
+        ..     print(f'Tuple of fitting parameter lower and upper bounds:\\n\\t{output[2]}')
+
+        >> print_output(fit_joint.joint_model_to_fit_params([gjf1, gjf2]))
         List of fitting parameter values:
             [np.float64(3.0), np.float64(5.5), np.float64(1.0), np.float64(6.0), np.float64(0.1)]
         List of fitting parameter indices per model:
             [[0, 1], [0, 1, 2]]
         Tuple of fitting parameter lower and upper bounds:
             ((-inf, 0.5, -inf, -inf, 1.1754943508222875e-38), (inf, 10.0, inf, inf, inf))
-        >>>
-        >>> # tie one model parameter to another so another won't be fittable
-        >>> gjf2.mean.tied = lambda models: models[0].mean.value
-        >>> print_output(fit_joint.joint_model_to_fit_params([gjf1, gjf2]))
+
+        >> # tie one model parameter to another so another won't be fittable
+        >> gjf2.mean.tied = lambda models: models[0].mean.value
+        >> print_output(fit_joint.joint_model_to_fit_params([gjf1, gjf2]))
         List of fitting parameter values:
             [np.float64(3.0), np.float64(5.5), np.float64(1.0), np.float64(0.1)]
         List of fitting parameter indices per model:
