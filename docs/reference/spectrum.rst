@@ -1,5 +1,5 @@
-Models (`sunkit_spex.spectrum`)
-*******************************
+Spectrum (`sunkit_spex.spectrum`)
+*********************************
 
 ``sunkit_spex.spectrum`` module contains objects for holding spectral data
 
