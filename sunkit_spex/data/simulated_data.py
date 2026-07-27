@@ -5,7 +5,9 @@ Module to store functions used to generate simulated data products.
 from astropy.modeling.functional_models import Gaussian1D
 import numpy as np
 
-__all__ = ["simulate_square_response_matrix", "simulate_gaussian_data_source"]
+from sunkit_spex.models.physical.thermal import ThermalEmission
+
+__all__ = ["simulate_square_response_matrix", "simulate_gaussian_data_source", "simulate_thermal_data_source"]
 
 
 def simulate_square_response_matrix(size, random_seed=10):
@@ -90,4 +92,46 @@ def simulate_gaussian_data_source(x, amplitude, mean, stddev, noise=0.1, random_
     y = area_model(x)
     y *= rng.normal(1.0, noise, x.shape)
 
+    return y
+
+def simulate_thermal_data_source(energy_edges, temperature, emission_measure, noise=0.1, random_seed=147):
+    """Generate data from a thermal model.
+
+    Parameters
+    ----------
+    energy_edges : `~astropy.Quantity`
+        The x-values at which the Gaussian model should be evaluated.
+
+    temperature, emission_measure : `~astropy.Quantity`
+        The temeprature and emission measure, respectively, for
+        the ``sunkit_spex.models.physical.thermal.ThermalEmission``
+        model.
+
+    noise: `float`, `int`
+        Value to determine the spread of the noise multiplied to the
+        output.
+        Default: 0.1
+
+    random_seed : `int`, optional
+        The seed input for the random number generator for including
+        noise. This will accept any value input accepted by
+        ``numpy.random.default_rng``. The mode output will be multiplied
+        by
+        ``np.random.default_rng(random_seed).normal(1.0, noise, x.shape)``.
+        Default: 147
+
+    Returns
+    -------
+    `~astropy.Quantity`
+        The simulated 1D thermal data.
+    """
+    data_g1 = ThermalEmission(
+        temperature=temperature,
+        emission_measure=emission_measure,
+        fixed={"mg": True, "al": True, "si": True, "s": True, "ar": True, "ca": True, "fe": True},
+    )
+    mid_energy = (energy_edges[:-1] + energy_edges[1:]) / 2
+    y = data_g1(energy_edges)
+    rng = np.random.default_rng(random_seed)
+    y *= rng.normal(1.0, noise, mid_energy.shape)
     return y
