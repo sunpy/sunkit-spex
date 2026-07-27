@@ -15,6 +15,7 @@ from sunkit_spex.models.physical.io import (
     load_chianti_lines_lite,
     load_xray_abundances,
 )
+from sunkit_spex.models.scaling import norm_thermal_emission_measure_units
 
 # The default elemental abundance values correspond to coronal values
 DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
@@ -144,7 +145,7 @@ class ThermalEmission(FittableModel):
     emission_measure = Parameter(
         name="emission_measure",
         default=1,
-        unit=(u.cm ** (-3)),
+        unit=norm_thermal_emission_measure_units,
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -185,6 +186,8 @@ class ThermalEmission(FittableModel):
         if abundance_type != DEFAULT_ABUNDANCE_TYPE:
             mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
+        emission_measure <<= norm_thermal_emission_measure_units
+        
         self.line = LineEmission(
             temperature=temperature,
             emission_measure=emission_measure,
@@ -278,7 +281,7 @@ class ThermalEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
+        return {"temperature": u.MK, "emission_measure": norm_thermal_emission_measure_units}
 
 
 class ContinuumEmission(FittableModel):
@@ -332,7 +335,7 @@ class ContinuumEmission(FittableModel):
     emission_measure = Parameter(
         name="emission_measure",
         default=1,
-        unit=(u.cm ** (-3)),
+        unit=norm_thermal_emission_measure_units,
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -422,7 +425,7 @@ class ContinuumEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
+        return {"temperature": u.MK, "emission_measure": norm_thermal_emission_measure_units}
 
 
 class LineEmission(FittableModel):
@@ -471,8 +474,8 @@ class LineEmission(FittableModel):
 
     emission_measure = Parameter(
         name="emission_measure",
-        default=1e50,
-        unit=(u.cm ** (-3)),
+        default=1,
+        unit=norm_thermal_emission_measure_units,
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -511,7 +514,7 @@ class LineEmission(FittableModel):
 
         if abundance_type != DEFAULT_ABUNDANCE_TYPE:
             mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
-
+        
         super().__init__(
             temperature=temperature,
             emission_measure=emission_measure,
@@ -562,7 +565,7 @@ class LineEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
+        return {"temperature": u.MK, "emission_measure": norm_thermal_emission_measure_units}
 
 
 def setup_continuum_parameters(filename=None):
@@ -725,7 +728,7 @@ def continuum_emission(
     # Calculate flux.
     flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
 
-    flux *= emission_measure * 1e49
+    flux *= emission_measure 
 
     if temperature_K.isscalar and emission_measure.isscalar:
         flux = flux[0]
@@ -769,8 +772,8 @@ def line_emission(
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
 
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)
-
-    flux *= emission_measure * 1e49
+    
+    flux *= emission_measure
 
     if temperature_K.isscalar and emission_measure.isscalar:
         flux = flux[0]
@@ -1226,14 +1229,14 @@ def _sanitize_inputs(energy_edges, temperature, emission_measure):
     # If they were not already Quantities, the parameters get the default units.
     energy_edges <<= u.keV
     temperature <<= u.K
-    emission_measure <<= u.cm**-3
+    emission_measure <<= norm_thermal_emission_measure_units
 
     energy_edges_keV = energy_edges.to(u.keV)
 
     temperature_K = temperature.to(u.K)
     if temperature.isscalar:
         temperature_K = np.array([temperature_K.value]) * temperature_K.unit
-
+    
     emission_measure = emission_measure.to(u.cm**-3)
     if emission_measure.isscalar:
         emission_measure = np.array([emission_measure.value]) * emission_measure.unit

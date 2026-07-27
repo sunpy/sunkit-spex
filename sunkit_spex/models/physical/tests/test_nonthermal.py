@@ -4,6 +4,7 @@ import pytest
 import astropy.units as u
 
 from sunkit_spex.models.physical import nonthermal
+from sunkit_spex.models.scaling import norm_thick_target_eflux_units, norm_thin_target_eflux_units
 
 SSW_INTENSITY_UNIT = u.ph / u.cm**2 / u.s / u.keV
 
@@ -144,3 +145,27 @@ def test_thin_target_against_ssw(ssw):
     output = model(energy_edges)
     expected_value = expected.to_value(output.unit)
     np.testing.assert_allclose(output.value, expected_value, rtol=0.035)
+
+def test_thick_target_flux_scaling():
+    """Test thick target flux units being scaled."""
+    energy_edges = np.arange(2, 15, 0.1) << u.keV
+    for _flux in np.arange(1, 10, 0.5):
+        eflux = (_flux * 1e35) << (u.electron * u.s**-1)
+        s_eflux = _flux << norm_thick_target_eflux_units
+        model = nonthermal.ThickTarget(total_eflux=eflux)
+        s_model = nonthermal.ThickTarget(total_eflux=s_eflux)
+        np.testing.assert_allclose(model(energy_edges).value, s_model(energy_edges).value)
+        np.testing.assert_allclose(model.evaluate(energy_edges, *model.parameters).value,
+                                   s_model.evaluate(energy_edges, *s_model.parameters).value)
+
+def test_thin_target_flux_scaling():
+    """Test thin target flux units being scaled."""
+    energy_edges = np.arange(2, 15, 0.1) << u.keV
+    for _flux in np.arange(1, 10, 0.5):
+        eflux = (_flux * 1e55) << (u.electron * u.cm**-2 * u.s**-1)
+        s_eflux = _flux << norm_thin_target_eflux_units
+        model = nonthermal.ThinTarget(total_eflux=eflux)
+        s_model = nonthermal.ThinTarget(total_eflux=s_eflux)
+        np.testing.assert_allclose(model(energy_edges).value, s_model(energy_edges).value)
+        np.testing.assert_allclose(model.evaluate(energy_edges, *model.parameters).value,
+                                   s_model.evaluate(energy_edges, *s_model.parameters).value)

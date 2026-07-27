@@ -5,7 +5,7 @@ import numpy as np
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 
-from sunkit_spex.models.scaling import norm_thick_target_eflux_units
+from sunkit_spex.models.scaling import norm_thick_target_eflux_units, norm_thin_target_eflux_units
 from sunkit_spex.legacy import constants as const
 from sunkit_spex.legacy.integrate import gauss_legendre
 
@@ -89,7 +89,7 @@ class ThickTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5e35, unit=(u.electron * u.s**-1), description="Total electron flux", fixed=True
+        name="total_eflux", default=1.5, unit=norm_thick_target_eflux_units, description="Total electron flux", fixed=False
     )
 
     _input_units_allow_dimensionless = True
@@ -106,6 +106,8 @@ class ThickTarget(FittableModel):
         **kwargs,
     ):
         self.integrator = integrator
+
+        total_eflux <<= norm_thick_target_eflux_units
 
         super().__init__(
             p=p,
@@ -124,9 +126,7 @@ class ThickTarget(FittableModel):
         break_energy <<= self.break_energy.unit
         low_e_cutoff <<= self.low_e_cutoff.unit
         high_e_cutoff <<= self.high_e_cutoff.unit
-        print(total_eflux)
         total_eflux <<= norm_thick_target_eflux_units
-        print(total_eflux)
         
         flux = bremsstrahlung_thick_target(
             energy_centers.value,
@@ -136,14 +136,14 @@ class ThickTarget(FittableModel):
             low_e_cutoff.value,
             high_e_cutoff.value,
             self.integrator,
-        ) * total_eflux.value
+        ) * total_eflux.decompose().value
 
-        return flux
+        return flux * self.return_units[self.outputs[0]]
 
     @property
     def input_units(self):
         # The units for the 'energy_edges' variable should be an energy (default keV)
-        return {self.inputs[0]: u.keV}
+        return {self.inputs[0]: u.keV}  
 
     @property
     def return_units(self):
@@ -154,9 +154,8 @@ class ThickTarget(FittableModel):
             "break_energy": u.keV,
             "low_e_cutoff": u.keV,
             "high_e_cutoff": u.keV,
-            "total_eflux": u.electron * u.s**-1,
+            "total_eflux": norm_thick_target_eflux_units,
         }
-
 
 class ThinTarget(FittableModel):
     r"""Calculates the thin-target bremsstrahlung radiation of a dual power-law electron distribution.
@@ -222,7 +221,7 @@ class ThinTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=u.s**-1 * u.cm**-2, description="Total electron flux", fixed=True
+        name="total_eflux", default=1.5, unit=norm_thin_target_eflux_units, description="Total electron flux", fixed=True
     )
 
     _input_units_allow_dimensionless = True
@@ -239,6 +238,8 @@ class ThinTarget(FittableModel):
         **kwargs,
     ):
         self.integrator = integrator
+
+        total_eflux <<= norm_thin_target_eflux_units
 
         super().__init__(
             p=p,
@@ -257,7 +258,7 @@ class ThinTarget(FittableModel):
         break_energy <<= self.break_energy.unit
         low_e_cutoff <<= self.low_e_cutoff.unit
         high_e_cutoff <<= self.high_e_cutoff.unit
-        total_eflux <<= self.total_eflux.unit
+        total_eflux <<= norm_thin_target_eflux_units 
         
         flux = bremsstrahlung_thin_target(
             energy_centers.value,
@@ -266,10 +267,10 @@ class ThinTarget(FittableModel):
             q,
             low_e_cutoff.value,
             high_e_cutoff.value,
-            self.integrator,
-        ) * total_eflux.value * 1e55
+            integrator=self.integrator,
+        ) * total_eflux.to((u.electron * u.cm ** (-2) * u.s**-1)).value
 
-        return flux
+        return flux * self.return_units[self.outputs[0]]
 
     @property
     def input_units(self):
@@ -285,7 +286,7 @@ class ThinTarget(FittableModel):
             "break_energy": u.keV,
             "low_e_cutoff": u.keV,
             "high_e_cutoff": u.keV,
-            "total_eflux": u.s**-1 * u.cm**-2,
+            "total_eflux": norm_thin_target_eflux_units,
             # "total_eflux": u.electron * u.s**-1,
         }
 
