@@ -237,6 +237,9 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
+        energy_edges <<= u.keV
+        temperature <<= self.temperature.unit
+        emission_measure <<= self.emission_measure.unit
         line_flux = self.line.evaluate(
             energy_edges,
             temperature,

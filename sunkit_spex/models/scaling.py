@@ -4,8 +4,11 @@ import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
-__all__ = ["Constant", "InverseSquareFluxScaling"]
+__all__ = ["Constant", "InverseSquareFluxScaling", "scaled_thick_target_eflux_units"]
 
+
+
+norm_thick_target_eflux_units = u.def_unit("scaled_eflux_units", 1e-35 * (u.electron * u.s**-1))
 
 class InverseSquareFluxScaling(FittableModel):
     """

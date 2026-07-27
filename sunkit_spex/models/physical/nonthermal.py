@@ -5,6 +5,7 @@ import numpy as np
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 
+from sunkit_spex.models.scaling import norm_thick_target_eflux_units
 from sunkit_spex.legacy import constants as const
 from sunkit_spex.legacy.integrate import gauss_legendre
 
@@ -88,7 +89,7 @@ class ThickTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True
+        name="total_eflux", default=1.5e35, unit=(u.electron * u.s**-1), description="Total electron flux", fixed=True
     )
 
     _input_units_allow_dimensionless = True
@@ -119,27 +120,23 @@ class ThickTarget(FittableModel):
     def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
         energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
 
-        if (
-            hasattr(break_energy, "unit")
-            or hasattr(energy_centers, "unit")
-            or hasattr(low_e_cutoff, "unit")
-            or hasattr(high_e_cutoff, "unit")
-            or hasattr(total_eflux, "unit")
-        ):
-            flux = thick_fn(
-                energy_centers.value,
-                p,
-                break_energy.value,
-                q,
-                low_e_cutoff.value,
-                high_e_cutoff.value,
-                total_eflux.value,
-                self.integrator,
-            )
-        else:
-            flux = thick_fn(
-                energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, self.integrator
-            )
+        energy_centers <<= u.keV
+        break_energy <<= self.break_energy.unit
+        low_e_cutoff <<= self.low_e_cutoff.unit
+        high_e_cutoff <<= self.high_e_cutoff.unit
+        print(total_eflux)
+        total_eflux <<= norm_thick_target_eflux_units
+        print(total_eflux)
+        
+        flux = bremsstrahlung_thick_target(
+            energy_centers.value,
+            p,
+            break_energy.value,
+            q,
+            low_e_cutoff.value,
+            high_e_cutoff.value,
+            self.integrator,
+        ) * total_eflux.value
 
         return flux
 
@@ -255,28 +252,22 @@ class ThinTarget(FittableModel):
 
     def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
         energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
-
-        if (
-            hasattr(break_energy, "unit")
-            or hasattr(energy_centers, "unit")
-            or hasattr(low_e_cutoff, "unit")
-            or hasattr(high_e_cutoff, "unit")
-            or hasattr(total_eflux, "unit")
-        ):
-            flux = thin_fn(
-                energy_centers.value,
-                p,
-                break_energy.value,
-                q,
-                low_e_cutoff.value,
-                high_e_cutoff.value,
-                total_eflux.value,
-                self.integrator,
-            )
-        else:
-            flux = thin_fn(
-                energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, self.integrator
-            )
+        
+        energy_centers <<= u.keV
+        break_energy <<= self.break_energy.unit
+        low_e_cutoff <<= self.low_e_cutoff.unit
+        high_e_cutoff <<= self.high_e_cutoff.unit
+        total_eflux <<= self.total_eflux.unit
+        
+        flux = bremsstrahlung_thin_target(
+            energy_centers.value,
+            p,
+            break_energy.value,
+            q,
+            low_e_cutoff.value,
+            high_e_cutoff.value,
+            self.integrator,
+        ) * total_eflux.value * 1e55
 
         return flux
 
@@ -297,127 +288,6 @@ class ThinTarget(FittableModel):
             "total_eflux": u.s**-1 * u.cm**-2,
             # "total_eflux": u.electron * u.s**-1,
         }
-
-
-def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator):
-    """Calculates the thick-target bremsstrahlung radiation of a dual power-law electron distribution.
-
-    [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
-    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
-    [3] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro
-
-    Parameters
-    ----------
-
-    energy_edges : 1d array
-            Edges of energy bins in units of keV.
-
-    total_eflux : int or float
-            Total integrated electron flux, in units of 10^35 e^- s^-1.
-            Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e35 is hidden.
-            So actual units are 1.0d35 e^- s^-1.
-
-    p : int or float
-            Power-law index of the electron distribution below the break.
-
-    break_energy : int or float
-                        Break energy of power law.
-
-    q : int or float
-            Power-law index of the electron distribution above the break.
-
-    low_e_cutoff : int or float
-            Low-energy cut-off of the electron distribution in units of keV.
-
-    high_e_cutoff : int or float
-            High-energy cut-off of the electron distribution in units of keV.
-
-
-    Returns
-    -------
-    A 1d array of thick-target bremsstrahlung radiation in units
-    of ph s^-1 keV^-1.
-    """
-
-    # hack = np.round([p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux], 15)
-    # p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux = hack[0], hack[1], hack[2], hack[3], hack[4], hack[5]
-
-    # energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
-
-    # we want a single power law electron distribution,
-    # so set break_energy == high_e_cutoff at a high value.
-    # we don't care about q at E > break_energy.
-    # high_break = energies.max() * 10
-
-    output = bremsstrahlung_thick_target(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, integrator)
-
-    output[np.isnan(output)] = 0
-    output[~np.isfinite(output)] = 0
-
-    # convert to 1e35 e-/s
-    return output * total_eflux * 1e35
-
-
-# def thin_fn(total_eflux, index, e_c, energies=None):
-def thin_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator):
-    """Calculates the thin-target bremsstrahlung radiation of a dual power-law electron distribution.
-
-    [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
-    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
-    [3] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro
-
-    Parameters
-    ----------
-    energy_edges : 1d array
-            Edges of energy bins in units of keV.
-
-    total_eflux : int or float
-        normalization factor in units of 1.0d55 cm-2 sec-1,
-        i.e. plasma density * volume of source * integrated nonthermal electron flux density
-        Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e55 is hidden.
-        So actual units are 1.0d55 cm-2 sec-1.
-
-    p : int or float
-            Power-law index of the electron distribution below the break.
-
-    break_energy : int or float
-                        Break energy of power law.
-
-    q : int or float
-            Power-law index of the electron distribution above the break.
-
-    low_e_cutoff : int or float
-            Low-energy cut-off of the electron distribution in units of keV.
-
-    high_e_cutoff : int or float
-            High-energy cut-off of the electron distribution in units of keV.
-
-
-
-    Returns
-    -------
-    A 1d array of thin-target bremsstrahlung radiation in units
-    of ph s^-1 keV^-1.
-    """
-
-    # hack = np.round([total_eflux, index, e_c], 15)
-    # total_eflux, index, e_c = hack[0], hack[1], hack[2]
-
-    # energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
-    # energies = energy_centers
-    # we want a single power law electron distribution,
-    # so set break_energy == high_e_cutoff at a high value.
-    # we don't care about q at E > break_energy.
-    # high_break = energies.max() * 10
-    output = bremsstrahlung_thin_target(
-        energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator
-    )
-
-    output[np.isnan(output)] = 0
-    output[~np.isfinite(output)] = 0
-
-    # convert to 1e35 e-/s
-    return output * total_eflux * 1e55
 
 
 class BrokenPowerLawElectronDistribution:
