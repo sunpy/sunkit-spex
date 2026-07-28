@@ -6,9 +6,9 @@ import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 from astropy.modeling.functional_models import FLOAT_EPSILON
 
-from sunkit_spex.models.scaling import norm_thick_target_eflux_units, norm_thin_target_eflux_units
 from sunkit_spex.legacy import constants as const
 from sunkit_spex.legacy.integrate import gauss_legendre
+from sunkit_spex.models.scaling import norm_thick_target_eflux_units, norm_thin_target_eflux_units
 
 const = const.Constants()
 
@@ -31,7 +31,7 @@ References
 
 __all__ = ["ThickTarget", "ThinTarget"]
 
-FLOAT_EPSILON_FOR_POWER_LAW = 1+FLOAT_EPSILON*1e30
+FLOAT_EPSILON_FOR_POWER_LAW = 1 + FLOAT_EPSILON * 1e30
 
 
 class ThickTarget(FittableModel):
@@ -77,22 +77,48 @@ class ThickTarget(FittableModel):
     n_inputs = 1
     n_outputs = 1
 
-    p = Parameter(name="p", default=2, description="Slope below break", fixed=False, bounds=(FLOAT_EPSILON_FOR_POWER_LAW, None))
+    p = Parameter(
+        name="p", default=2, description="Slope below break", fixed=False, bounds=(FLOAT_EPSILON_FOR_POWER_LAW, None)
+    )
 
-    break_energy = Parameter(name="break_energy", default=100, unit=u.keV, description="Break Energy", fixed=True, bounds=(FLOAT_EPSILON, None))
+    break_energy = Parameter(
+        name="break_energy",
+        default=100,
+        unit=u.keV,
+        description="Break Energy",
+        fixed=True,
+        bounds=(FLOAT_EPSILON, None),
+    )
 
-    q = Parameter(name="q", default=5, description="Slope above break", fixed=True, bounds=(FLOAT_EPSILON_FOR_POWER_LAW, None))
+    q = Parameter(
+        name="q", default=5, description="Slope above break", fixed=True, bounds=(FLOAT_EPSILON_FOR_POWER_LAW, None)
+    )
 
     low_e_cutoff = Parameter(
-        name="low_e_cutoff", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False, bounds=(FLOAT_EPSILON, None)
+        name="low_e_cutoff",
+        default=7,
+        unit=u.keV,
+        description="Low energy electron cut off",
+        fixed=False,
+        bounds=(FLOAT_EPSILON, None),
     )
 
     high_e_cutoff = Parameter(
-        name="high_e_cutoff", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True, bounds=(FLOAT_EPSILON, None)
+        name="high_e_cutoff",
+        default=1500,
+        unit=u.keV,
+        description="High energy electron cut off",
+        fixed=True,
+        bounds=(FLOAT_EPSILON, None),
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=norm_thick_target_eflux_units, description="Total electron flux", fixed=False, bounds=(0, None)
+        name="total_eflux",
+        default=1.5,
+        unit=norm_thick_target_eflux_units,
+        description="Total electron flux",
+        fixed=False,
+        bounds=(0, None),
     )
 
     _input_units_allow_dimensionless = True
@@ -130,23 +156,26 @@ class ThickTarget(FittableModel):
         low_e_cutoff <<= self.low_e_cutoff.unit
         high_e_cutoff <<= self.high_e_cutoff.unit
         total_eflux <<= norm_thick_target_eflux_units
-        
-        flux = bremsstrahlung_thick_target(
-            energy_centers.value,
-            p,
-            break_energy.value,
-            q,
-            low_e_cutoff.value,
-            high_e_cutoff.value,
-            self.integrator,
-        ) * total_eflux.decompose().value
+
+        flux = (
+            bremsstrahlung_thick_target(
+                energy_centers.value,
+                p,
+                break_energy.value,
+                q,
+                low_e_cutoff.value,
+                high_e_cutoff.value,
+                self.integrator,
+            )
+            * total_eflux.decompose().value
+        )
 
         return flux * self.return_units[self.outputs[0]]
 
     @property
     def input_units(self):
         # The units for the 'energy_edges' variable should be an energy (default keV)
-        return {self.inputs[0]: u.keV}  
+        return {self.inputs[0]: u.keV}
 
     @property
     def return_units(self):
@@ -159,6 +188,7 @@ class ThickTarget(FittableModel):
             "high_e_cutoff": u.keV,
             "total_eflux": norm_thick_target_eflux_units,
         }
+
 
 class ThinTarget(FittableModel):
     r"""Calculates the thin-target bremsstrahlung radiation of a dual power-law electron distribution.
@@ -224,7 +254,11 @@ class ThinTarget(FittableModel):
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=norm_thin_target_eflux_units, description="Total electron flux", fixed=True
+        name="total_eflux",
+        default=1.5,
+        unit=norm_thin_target_eflux_units,
+        description="Total electron flux",
+        fixed=True,
     )
 
     _input_units_allow_dimensionless = True
@@ -256,22 +290,25 @@ class ThinTarget(FittableModel):
 
     def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
         energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
-        
+
         energy_centers <<= u.keV
         break_energy <<= self.break_energy.unit
         low_e_cutoff <<= self.low_e_cutoff.unit
         high_e_cutoff <<= self.high_e_cutoff.unit
-        total_eflux <<= norm_thin_target_eflux_units 
-        
-        flux = bremsstrahlung_thin_target(
-            energy_centers.value,
-            p,
-            break_energy.value,
-            q,
-            low_e_cutoff.value,
-            high_e_cutoff.value,
-            integrator=self.integrator,
-        ) * total_eflux.to((u.electron * u.cm ** (-2) * u.s**-1)).value
+        total_eflux <<= norm_thin_target_eflux_units
+
+        flux = (
+            bremsstrahlung_thin_target(
+                energy_centers.value,
+                p,
+                break_energy.value,
+                q,
+                low_e_cutoff.value,
+                high_e_cutoff.value,
+                integrator=self.integrator,
+            )
+            * total_eflux.to(u.electron * u.cm ** (-2) * u.s**-1).value
+        )
 
         return flux * self.return_units[self.outputs[0]]
 

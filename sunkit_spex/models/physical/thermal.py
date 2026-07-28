@@ -145,7 +145,7 @@ class ThermalEmission(FittableModel):
         default=1,
         unit=norm_thermal_emission_measure_units,
         description="Emission measure of the observer",
-        fixed=False, 
+        fixed=False,
         bounds=(0, None),
     )
 
@@ -186,9 +186,15 @@ class ThermalEmission(FittableModel):
             mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
         emission_measure <<= norm_thermal_emission_measure_units
-        self.temperature.bounds = ((np.min([CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]])<<u.K).to(temperature.unit),
-                                   (np.max([CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]])<<u.K).to(temperature.unit))
-        
+        self.temperature.bounds = (
+            (np.min([CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]]) << u.K).to(
+                temperature.unit
+            ),
+            (np.max([CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]]) << u.K).to(
+                temperature.unit
+            ),
+        )
+
         self.line = LineEmission(
             temperature=temperature,
             emission_measure=emission_measure,
@@ -515,7 +521,7 @@ class LineEmission(FittableModel):
 
         if abundance_type != DEFAULT_ABUNDANCE_TYPE:
             mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
-        
+
         super().__init__(
             temperature=temperature,
             emission_measure=emission_measure,
@@ -691,6 +697,7 @@ CONTINUUM_GRID = setup_continuum_parameters()
 LINE_GRID = setup_line_parameters()
 DEFAULT_ABUNDANCES = setup_default_abundances()
 
+
 @u.quantity_input
 def continuum_emission(
     energy_edges,
@@ -728,7 +735,7 @@ def continuum_emission(
     # Calculate flux.
     flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
 
-    flux *= emission_measure 
+    flux *= emission_measure
 
     if temperature_K.isscalar and emission_measure.isscalar:
         flux = flux[0]
@@ -772,7 +779,7 @@ def line_emission(
     abundances = _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe)
 
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)
-    
+
     flux *= emission_measure
 
     if temperature_K.isscalar and emission_measure.isscalar:
@@ -1236,7 +1243,7 @@ def _sanitize_inputs(energy_edges, temperature, emission_measure):
     temperature_K = temperature.to(u.K)
     if temperature.isscalar:
         temperature_K = np.array([temperature_K.value]) * temperature_K.unit
-    
+
     emission_measure = emission_measure.to(u.cm**-3)
     if emission_measure.isscalar:
         emission_measure = np.array([emission_measure.value]) * emission_measure.unit
