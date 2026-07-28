@@ -4,6 +4,7 @@ import numpy as np
 
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
+from astropy.modeling.functional_models import FLOAT_EPSILON
 
 from sunkit_spex.models.scaling import norm_thick_target_eflux_units, norm_thin_target_eflux_units
 from sunkit_spex.legacy import constants as const
@@ -29,6 +30,8 @@ References
 
 
 __all__ = ["ThickTarget", "ThinTarget"]
+
+FLOAT_EPSILON_FOR_POWER_LAW = 1+FLOAT_EPSILON*1e30
 
 
 class ThickTarget(FittableModel):
@@ -74,22 +77,22 @@ class ThickTarget(FittableModel):
     n_inputs = 1
     n_outputs = 1
 
-    p = Parameter(name="p", default=2, description="Slope below break", fixed=False)
+    p = Parameter(name="p", default=2, description="Slope below break", fixed=False, bounds=(FLOAT_EPSILON_FOR_POWER_LAW, None))
 
-    break_energy = Parameter(name="break_energy", default=100, unit=u.keV, description="Break Energy", fixed=False)
+    break_energy = Parameter(name="break_energy", default=100, unit=u.keV, description="Break Energy", fixed=True, bounds=(FLOAT_EPSILON, None))
 
-    q = Parameter(name="q", default=5, min=0.01, description="Slope above break", fixed=True)
+    q = Parameter(name="q", default=5, description="Slope above break", fixed=True, bounds=(FLOAT_EPSILON_FOR_POWER_LAW, None))
 
     low_e_cutoff = Parameter(
-        name="low_e_cutoff", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False
+        name="low_e_cutoff", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False, bounds=(FLOAT_EPSILON, None)
     )
 
     high_e_cutoff = Parameter(
-        name="high_e_cutoff", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True
+        name="high_e_cutoff", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True, bounds=(FLOAT_EPSILON, None)
     )
 
     total_eflux = Parameter(
-        name="total_eflux", default=1.5, unit=norm_thick_target_eflux_units, description="Total electron flux", fixed=False
+        name="total_eflux", default=1.5, unit=norm_thick_target_eflux_units, description="Total electron flux", fixed=False, bounds=(0, None)
     )
 
     _input_units_allow_dimensionless = True

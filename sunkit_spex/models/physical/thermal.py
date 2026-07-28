@@ -135,8 +135,6 @@ class ThermalEmission(FittableModel):
     temperature = Parameter(
         name="temperature",
         default=10,
-        min=1,
-        max=100,
         unit=u.MK,
         description="Temperature of the plasma",
         fixed=False,
@@ -147,7 +145,8 @@ class ThermalEmission(FittableModel):
         default=1,
         unit=norm_thermal_emission_measure_units,
         description="Emission measure of the observer",
-        fixed=False,
+        fixed=False, 
+        bounds=(0, None),
     )
 
     mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
@@ -187,6 +186,8 @@ class ThermalEmission(FittableModel):
             mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
         emission_measure <<= norm_thermal_emission_measure_units
+        self.temperature.bounds = ((np.min([CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]])<<u.K).to(temperature.unit),
+                                   (np.max([CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]])<<u.K).to(temperature.unit))
         
         self.line = LineEmission(
             temperature=temperature,
@@ -689,7 +690,6 @@ def setup_default_abundances(filename=None):
 CONTINUUM_GRID = setup_continuum_parameters()
 LINE_GRID = setup_line_parameters()
 DEFAULT_ABUNDANCES = setup_default_abundances()
-
 
 @u.quantity_input
 def continuum_emission(
