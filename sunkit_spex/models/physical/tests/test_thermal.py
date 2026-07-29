@@ -529,6 +529,3 @@ def test_thermal_emission_measure_scaling():
             model.evaluate(energy_edges, *model.parameters).value,
             s_model.evaluate(energy_edges, *s_model.parameters).value,
         )
-
-
-test_thermal_emission_measure_scaling()
