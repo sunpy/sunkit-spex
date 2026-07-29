@@ -15,7 +15,7 @@ from sunkit_spex.models.physical.io import (
     load_chianti_lines_lite,
     load_xray_abundances,
 )
-from sunkit_spex.models.scaling import norm_thermal_emission_measure_units
+from sunkit_spex.models.scaling import scaled_em_units
 
 # The default elemental abundance values correspond to coronal values
 DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
@@ -143,7 +143,7 @@ class ThermalEmission(FittableModel):
     emission_measure = Parameter(
         name="emission_measure",
         default=1,
-        unit=norm_thermal_emission_measure_units,
+        unit=scaled_em_units,
         description="Emission measure of the observer",
         fixed=False,
         bounds=(0, None),
@@ -185,7 +185,7 @@ class ThermalEmission(FittableModel):
         if abundance_type != DEFAULT_ABUNDANCE_TYPE:
             mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
 
-        emission_measure <<= norm_thermal_emission_measure_units
+        emission_measure <<= scaled_em_units
         self.temperature.bounds = (
             (np.min([CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]]) << u.K).to(
                 temperature.unit
@@ -288,7 +288,7 @@ class ThermalEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.MK, "emission_measure": norm_thermal_emission_measure_units}
+        return {"temperature": u.MK, "emission_measure": scaled_em_units}
 
 
 class ContinuumEmission(FittableModel):
@@ -342,7 +342,7 @@ class ContinuumEmission(FittableModel):
     emission_measure = Parameter(
         name="emission_measure",
         default=1,
-        unit=norm_thermal_emission_measure_units,
+        unit=scaled_em_units,
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -432,7 +432,7 @@ class ContinuumEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.MK, "emission_measure": norm_thermal_emission_measure_units}
+        return {"temperature": u.MK, "emission_measure": scaled_em_units}
 
 
 class LineEmission(FittableModel):
@@ -482,7 +482,7 @@ class LineEmission(FittableModel):
     emission_measure = Parameter(
         name="emission_measure",
         default=1,
-        unit=norm_thermal_emission_measure_units,
+        unit=scaled_em_units,
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -572,7 +572,7 @@ class LineEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.MK, "emission_measure": norm_thermal_emission_measure_units}
+        return {"temperature": u.MK, "emission_measure": scaled_em_units}
 
 
 def setup_continuum_parameters(filename=None):
@@ -1236,7 +1236,7 @@ def _sanitize_inputs(energy_edges, temperature, emission_measure):
     # If they were not already Quantities, the parameters get the default units.
     energy_edges <<= u.keV
     temperature <<= u.K
-    emission_measure <<= norm_thermal_emission_measure_units
+    emission_measure <<= scaled_em_units
 
     energy_edges_keV = energy_edges.to(u.keV)
 

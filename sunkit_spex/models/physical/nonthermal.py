@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -8,7 +9,7 @@ from astropy.modeling.functional_models import FLOAT_EPSILON
 
 from sunkit_spex.legacy import constants as const
 from sunkit_spex.legacy.integrate import gauss_legendre
-from sunkit_spex.models.scaling import norm_thick_target_eflux_units, norm_thin_target_eflux_units
+from sunkit_spex.models.scaling import scaled_thick_eflux_units, scaled_thin_eflux_units
 
 const = const.Constants()
 
@@ -111,11 +112,11 @@ class ThickTarget(FittableModel):
         fixed=True,
         bounds=(FLOAT_EPSILON, None),
     )
-
+    
     total_eflux = Parameter(
         name="total_eflux",
         default=1.5,
-        unit=norm_thick_target_eflux_units,
+        unit=scaled_thick_eflux_units,
         description="Total electron flux",
         fixed=False,
         bounds=(0, None),
@@ -136,7 +137,7 @@ class ThickTarget(FittableModel):
     ):
         self.integrator = integrator
 
-        total_eflux <<= norm_thick_target_eflux_units
+        total_eflux <<= scaled_thick_eflux_units
 
         super().__init__(
             p=p,
@@ -155,7 +156,7 @@ class ThickTarget(FittableModel):
         break_energy <<= self.break_energy.unit
         low_e_cutoff <<= self.low_e_cutoff.unit
         high_e_cutoff <<= self.high_e_cutoff.unit
-        total_eflux <<= norm_thick_target_eflux_units
+        total_eflux <<= scaled_thick_eflux_units
 
         flux = (
             bremsstrahlung_thick_target(
@@ -186,7 +187,7 @@ class ThickTarget(FittableModel):
             "break_energy": u.keV,
             "low_e_cutoff": u.keV,
             "high_e_cutoff": u.keV,
-            "total_eflux": norm_thick_target_eflux_units,
+            "total_eflux": scaled_thick_eflux_units,
         }
 
 
@@ -256,7 +257,7 @@ class ThinTarget(FittableModel):
     total_eflux = Parameter(
         name="total_eflux",
         default=1.5,
-        unit=norm_thin_target_eflux_units,
+        unit=scaled_thin_eflux_units,
         description="Total electron flux",
         fixed=True,
     )
@@ -276,7 +277,7 @@ class ThinTarget(FittableModel):
     ):
         self.integrator = integrator
 
-        total_eflux <<= norm_thin_target_eflux_units
+        total_eflux <<= scaled_thin_eflux_units
 
         super().__init__(
             p=p,
@@ -295,7 +296,7 @@ class ThinTarget(FittableModel):
         break_energy <<= self.break_energy.unit
         low_e_cutoff <<= self.low_e_cutoff.unit
         high_e_cutoff <<= self.high_e_cutoff.unit
-        total_eflux <<= norm_thin_target_eflux_units
+        total_eflux <<= scaled_thin_eflux_units
 
         flux = (
             bremsstrahlung_thin_target(
@@ -326,7 +327,7 @@ class ThinTarget(FittableModel):
             "break_energy": u.keV,
             "low_e_cutoff": u.keV,
             "high_e_cutoff": u.keV,
-            "total_eflux": norm_thin_target_eflux_units,
+            "total_eflux": scaled_thin_eflux_units,
             # "total_eflux": u.electron * u.s**-1,
         }
 

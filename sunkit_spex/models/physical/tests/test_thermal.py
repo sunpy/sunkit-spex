@@ -6,7 +6,7 @@ import pytest
 import astropy.units as u
 
 from sunkit_spex.models.physical import thermal
-from sunkit_spex.models.scaling import norm_thermal_emission_measure_units
+from sunkit_spex.models.scaling import scaled_em_units
 
 # Manually load file that was used to compile expected flux values.
 thermal.setup_continuum_parameters(
@@ -521,7 +521,7 @@ def test_thermal_emission_measure_scaling():
     energy_edges = np.arange(2, 15, 0.1) << u.keV
     for _em in np.arange(1, 10, 0.5):
         em = (_em * 1e49) << (u.cm**-3)
-        s_em = _em << norm_thermal_emission_measure_units
+        s_em = _em << scaled_em_units
         model = thermal.ThermalEmission(emission_measure=em)
         s_model = thermal.ThermalEmission(emission_measure=s_em)
         np.testing.assert_allclose(model(energy_edges).value, s_model(energy_edges).value)
