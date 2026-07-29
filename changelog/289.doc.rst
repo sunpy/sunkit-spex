@@ -1,0 +1,1 @@
+Online docs build now shows "Spectrum" title in "Reference" rather than a second "Models" sections due to a typo.
