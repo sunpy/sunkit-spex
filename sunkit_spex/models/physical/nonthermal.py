@@ -27,7 +27,7 @@ References
 """
 
 
-__all__ = ["ThickTarget", "ThinTarget"]
+__all__ = ["ThickTarget", "ThinTarget", "WarmThickTarget"]
 
 
 class ThickTarget(FittableModel):
@@ -1238,3 +1238,208 @@ def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutof
         return (fcoeff / decoeff) * flux
 
     raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
+
+
+from sunkit_spex.models.physical.thermal import ThermalEmission
+from astropy.modeling.functional_models import FLOAT_EPSILON
+class WarmThickTarget(FittableModel):
+    r"""Calculates the warm thick-target bremsstrahlung radiation of a single power-law electron distribution.
+
+    [1] Kontar et al, ApJ 2015 (http://adsabs.harvard.edu/abs/2015arXiv150503733K)
+        [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/f_thick_warm.pro
+
+    Parameters
+    ----------
+    energy_edges : 1d array
+            Edges of energy bins in units of keV.
+
+    total_eflux : int or float
+            Total integrated electron flux, in units of 10^35 e^- s^-1.
+            Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e35 is hidden.
+            So actual units are 1.0d35 e^- s^-1.
+
+    p : int or float
+            Power-law index of the electron distribution below the break.
+
+    break_energy : int or float
+                        Break energy of power law.
+
+    q : int or float
+            Power-law index of the electron distribution above the break.
+
+    low_e_cutoff : int or float
+            Low-energy cut-off of the electron distribution in units of keV.
+
+    high_e_cutoff : int or float
+            High-energy cut-off of the electron distribution in units of keV.
+
+
+
+    Returns
+    -------
+    A 1d array of thick-target bremsstrahlung radiation in units
+    of ph s^-1 keV^-1.
+    """
+
+    FLOAT_EPSILON_FOR_POWER_LAW = 1 + FLOAT_EPSILON * 1e30
+    scaled_thick_eflux_units = u.def_unit("scaled_thick_eflux_units", 1e35 * (u.electron * u.s**-1))
+    scaled_warmthick_desnity_units = u.def_unit("scaled_warmthick_desnity_units", 1e10 * (u.cm**-3))
+
+    n_inputs = 1
+    n_outputs = 1
+
+    p = Parameter(
+        name="p", default=2, description="Slope below break", fixed=False, bounds=(FLOAT_EPSILON_FOR_POWER_LAW, None)
+    )
+
+    low_e_cutoff = Parameter(
+        name="low_e_cutoff",
+        default=7,
+        unit=u.keV,
+        description="Low energy electron cut off",
+        fixed=False,
+        bounds=(FLOAT_EPSILON, None),
+    )
+
+    total_eflux = Parameter(
+        name="total_eflux",
+        default=1.5,
+        unit=scaled_thick_eflux_units,
+        description="Total electron flux",
+        fixed=False,
+        bounds=(0, None),
+    )
+
+    temperature = Parameter(
+            name="temperature",
+            default=10,
+            unit=u.MK,
+            description="Temperature of the plasma",
+            fixed=False,
+            bounds=(1, 100)
+        )
+
+    plasma_density = Parameter(
+            name="plasma_density",
+            default=1,
+            unit=scaled_warmthick_desnity_units,
+            description="Number density of the plasma",
+            fixed=False,
+            bounds=(FLOAT_EPSILON, None)
+        )
+
+    length = Parameter(
+            name="length",
+            default=1,
+            unit=u.Mm,
+            description="Plasma column length",
+            fixed=False,
+            bounds=(FLOAT_EPSILON, None)
+        )
+
+    mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
+
+    al = Parameter(name="Al", default=7.04, min=5.04, max=9.04, description="Al relative abundance", fixed=True)
+
+    si = Parameter(name="Si", default=8.1, min=6.1, max=10.1, description="Si relative abundance", fixed=True)
+
+    s = Parameter(name="S", default=7.27, min=5.27, max=9.27, description="S relative abundance", fixed=True)
+
+    ar = Parameter(name="Ar", default=6.58, min=4.58, max=8.58, description="Ar relative abundance", fixed=True)
+
+    ca = Parameter(name="Ca", default=6.93, min=4.93, max=8.93, description="Ca relative abundance", fixed=True)
+
+    fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
+
+    _input_units_allow_dimensionless = True
+
+    def __init__(
+        self,
+        p=p.default,
+        low_e_cutoff=u.Quantity(low_e_cutoff.default, low_e_cutoff.unit),
+        total_eflux=u.Quantity(total_eflux.default, total_eflux.unit),
+        temperature=u.Quantity(temperature.default, temperature.unit),
+        plasma_density=u.Quantity(plasma_density.default, plasma_density.unit),
+        length=u.Quantity(length.default, length.unit),
+        mg=mg.default,
+        al=al.default,
+        si=si.default,
+        s=s.default,
+        ar=ar.default,
+        ca=ca.default,
+        fe=fe.default,
+        abundance_type=DEFAULT_ABUNDANCE_TYPE,
+        **kwargs,
+    ):
+        self.integrator = integrator
+
+        total_eflux <<= self.scaled_thick_eflux_units
+        plasma_density <<= self.scaled_warmthick_desnity_units
+
+        self.line = ThermalEmission(
+            temperature=temperature,
+            emission_measure=emission_measure,
+            mg=mg,
+            al=al,
+            si=si,
+            s=s,
+            ar=ar,
+            ca=ca,
+            fe=fe,
+            abundance_type=abundance_type,
+        )
+
+        self.cont = ContinuumEmission(
+            temperature=temperature,
+            emission_measure=emission_measure,
+            mg=mg,
+            al=al,
+            si=si,
+            s=s,
+            ar=ar,
+            ca=ca,
+            fe=fe,
+            abundance_type=abundance_type,
+        )
+
+        super().__init__(
+            p=p,
+            low_e_cutoff=low_e_cutoff,
+            total_eflux=total_eflux,
+            temperature=temperature,
+            plasma_density=plasma_density,
+            length=length,
+            **kwargs,
+        )
+
+    def evaluate(self, energy_edges, p, low_e_cutoff, total_eflux, temperature, plasma_density, length):
+        energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
+
+        energy_centers <<= u.keV
+        low_e_cutoff <<= self.low_e_cutoff.unit
+        total_eflux <<= self.scaled_thick_eflux_units
+        temperature <<= self.temperature.unit
+        plasma_density <<= self.scaled_warmthick_desnity_units
+        length <<= self.length.unit
+
+        high_and_break = np.float64(energy_edges.value.max() * 10)
+        q = 20
+
+        return flux
+
+    @property
+    def input_units(self):
+        # The units for the 'energy_edges' variable should be an energy (default keV)
+        return {self.inputs[0]: u.keV}
+
+    @property
+    def return_units(self):
+        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1}
+
+    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        return {
+            "break_energy": u.keV,
+            "low_e_cutoff": u.keV,
+            "high_e_cutoff": u.keV,
+            "total_eflux": u.electron * u.s**-1,
+        }
