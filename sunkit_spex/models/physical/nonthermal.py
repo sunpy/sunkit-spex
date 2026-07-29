@@ -1,5 +1,4 @@
 import logging
-from collections.abc import Iterable
 
 import numpy as np
 
@@ -112,7 +111,7 @@ class ThickTarget(FittableModel):
         fixed=True,
         bounds=(FLOAT_EPSILON, None),
     )
-    
+
     total_eflux = Parameter(
         name="total_eflux",
         default=1.5,

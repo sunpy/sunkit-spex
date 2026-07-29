@@ -16,7 +16,9 @@ __all__ = [
 scaled_thick_eflux_units = u.def_unit("scaled_thick_eflux_units", 1e35 * (u.electron * u.s**-1))
 scaled_thin_eflux_units = u.def_unit("scaled_thin_eflux_units", 1e55 * (u.electron * u.cm ** (-2) * u.s**-1))
 scaled_em_units = u.def_unit("scaled_em_units", 1e49 * (u.cm ** (-3)))
-u.add_enabled_units([scaled_thick_eflux_units, scaled_thin_eflux_units, scaled_em_units]) # lets astropy's methods find these units
+u.add_enabled_units(
+    [scaled_thick_eflux_units, scaled_thin_eflux_units, scaled_em_units]
+)  # lets astropy's methods find these units
 
 
 class InverseSquareFluxScaling(FittableModel):
