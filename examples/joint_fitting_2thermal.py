@@ -12,8 +12,8 @@ from astropy.modeling.optimizers import SLSQP
 from astropy.modeling.statistic import leastsquare
 
 from sunkit_spex.fitting import fitters
-from sunkit_spex.models.scaling import Constant
 from sunkit_spex.models.physical.thermal import ThermalEmission
+from sunkit_spex.models.scaling import Constant
 
 #####################################################
 #
@@ -32,8 +32,8 @@ data_gjf1 = ThermalEmission(
 
 #####################################################
 #
-# For the second data, let's shift it by a constant to simulate data 
-# potentially seen by aanother instrument with different sensitivity.
+# For the second data, let's shift it by a constant to simulate data
+# potentially seen by another instrument with different sensitivity.
 #
 
 data_constant_offset = 0.25
@@ -107,17 +107,17 @@ gjf1 = ThermalEmission(
 #####################################################
 #
 # Additionally, remember that these models are to fit simulated data from
-# two different instruments so let's include a constant scalar model to 
+# two different instruments so let's include a constant scalar model to
 # account for different systematic effects.
-# 
+#
 # This means that the second model will be a compound model and so any
-# refernces to the parameters, say the ``temperature``, now becomes 
+# references to the parameters, say the ``temperature``, now becomes
 # ``gjf2.temperature_1`` meaning the ``temperature`` parameter for model
-# of index ``1`` in the new compound model (index 0 being the 
+# of index ``1`` in the new compound model (index 0 being the
 # ``Constant()`` model).
 #
 
-gjf2 = Constant(0.1, fixed={"constant":False}) * ThermalEmission(
+gjf2 = Constant(0.1, fixed={"constant": False}) * ThermalEmission(
     fixed={"mg": True, "al": True, "si": True, "s": True, "ar": True, "ca": True, "fe": True},
 )
 
@@ -223,7 +223,7 @@ plt.figure(layout="constrained")
 row_labels = [
     f"gjf1 temperature [{data_temp.unit:latex}]",
     f"gjf1 emission measure [1e49{data_em.unit:latex}]",
-    f"gjf2 constant",
+    "gjf2 constant",
 ]
 column_labels = ("True Values", "Guess Values", "``JointFitter`` Fit")
 
