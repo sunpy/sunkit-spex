@@ -4,9 +4,11 @@ import numpy as np
 
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
+from astropy.modeling.functional_models import FLOAT_EPSILON
 
 from sunkit_spex.legacy import constants as const
 from sunkit_spex.legacy.integrate import gauss_legendre
+from sunkit_spex.models.physical.thermal import DEFAULT_ABUNDANCE_TYPE, ThickTargetWarmContribution
 
 const = const.Constants()
 
@@ -1239,11 +1241,10 @@ def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutof
 
     raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
 
-from astropy.modeling.functional_models import FLOAT_EPSILON
-from sunkit_spex.models.physical.thermal import ThickTargetWarmContribution, DEFAULT_ABUNDANCE_TYPE
+
 class WarmThickTarget(FittableModel):
     r"""
-    Calculates the thick-target + thermal contribution bremsstrahlung 
+    Calculates the thick-target + thermal contribution bremsstrahlung
     radiation contribution.
 
     [1] Kontar et al, ApJ 2015 (http://adsabs.harvard.edu/abs/2015arXiv150503733K)
@@ -1289,7 +1290,7 @@ class WarmThickTarget(FittableModel):
 
     Returns
     -------
-    A 1d array of warm component from thick-target bremsstrahlung radiation 
+    A 1d array of warm component from thick-target bremsstrahlung radiation
     in units of ph s^-1 keV^-1.
     """
 
@@ -1320,24 +1321,23 @@ class WarmThickTarget(FittableModel):
     )
 
     plasma_density = Parameter(
-            name="plasma_density",
-            default=1,
-            unit=scaled_warmthick_desnity_units,
-            description="Number density of the plasma",
-            fixed=False,
-            bounds=(FLOAT_EPSILON, None)
-        )
+        name="plasma_density",
+        default=1,
+        unit=scaled_warmthick_desnity_units,
+        description="Number density of the plasma",
+        fixed=False,
+        bounds=(FLOAT_EPSILON, None),
+    )
 
     length = Parameter(
-            name="length",
-            default=10,
-            unit=u.Mm,
-            description="Plasma column length",
-            fixed=False,
-            bounds=(FLOAT_EPSILON, None)
-        )
+        name="length",
+        default=10,
+        unit=u.Mm,
+        description="Plasma column length",
+        fixed=False,
+        bounds=(FLOAT_EPSILON, None),
+    )
 
-        
     temperature = Parameter(
         name="temperature",
         default=10,
@@ -1391,31 +1391,33 @@ class WarmThickTarget(FittableModel):
         # TODO: this version of ThickTarget still uses the scaled value with the non-scaled units
         # so need to scale the value here with the inconsistent units
         # Once fixed, replace ``total_eflux.to(u.electron/u.second)*1e-35`` with ``total_eflux``
-        self.thick_model = ThickTarget(p=p,
-                    break_energy=break_energy,
-                    q=q,
-                    low_e_cutoff=low_e_cutoff,
-                    high_e_cutoff=high_e_cutoff,
-                    total_eflux=total_eflux.to(u.electron/u.second)*1e-35,
-                    integrator=integrator,
-                    **kwargs
-                    )
+        self.thick_model = ThickTarget(
+            p=p,
+            break_energy=break_energy,
+            q=q,
+            low_e_cutoff=low_e_cutoff,
+            high_e_cutoff=high_e_cutoff,
+            total_eflux=total_eflux.to(u.electron / u.second) * 1e-35,
+            integrator=integrator,
+            **kwargs,
+        )
 
-        self.warm_component = ThickTargetWarmContribution(low_e_cutoff=low_e_cutoff,
-                                                          total_eflux=total_eflux,
-                                                          plasma_density=plasma_density,
-                                                          length=length,
-                                                          temperature=temperature,
-                                                          mg=mg,
-                                                          al=al,
-                                                          si=si,
-                                                          s=s,
-                                                          ar=ar,
-                                                          ca=ca,
-                                                          fe=fe,
-                                                          abundance_type=abundance_type,
-                                                          **kwargs
-                                                        )
+        self.warm_component = ThickTargetWarmContribution(
+            low_e_cutoff=low_e_cutoff,
+            total_eflux=total_eflux,
+            plasma_density=plasma_density,
+            length=length,
+            temperature=temperature,
+            mg=mg,
+            al=al,
+            si=si,
+            s=s,
+            ar=ar,
+            ca=ca,
+            fe=fe,
+            abundance_type=abundance_type,
+            **kwargs,
+        )
 
         super().__init__(
             p=p,
@@ -1437,24 +1439,26 @@ class WarmThickTarget(FittableModel):
             **kwargs,
         )
 
-    def evaluate(self, 
-                 energy_edges, 
-                 p,
-                 break_energy,
-                 q,
-                 low_e_cutoff,
-                 high_e_cutoff,
-                 total_eflux,
-                 plasma_density,
-                 length,
-                 temperature,
-                 mg,
-                 al,
-                 si,
-                 s,
-                 ar,
-                 ca,
-                 fe):
+    def evaluate(
+        self,
+        energy_edges,
+        p,
+        break_energy,
+        q,
+        low_e_cutoff,
+        high_e_cutoff,
+        total_eflux,
+        plasma_density,
+        length,
+        temperature,
+        mg,
+        al,
+        si,
+        s,
+        ar,
+        ca,
+        fe,
+    ):
 
         energy_edges <<= u.keV
         break_energy <<= self.break_energy.unit
@@ -1465,29 +1469,12 @@ class WarmThickTarget(FittableModel):
         length <<= self.length.unit
         temperature <<= self.temperature.unit
 
-        thick = self.thick_model.evaluate(energy_edges, 
-                                          p,
-                                          break_energy,
-                                          q,
-                                          low_e_cutoff,
-                                          high_e_cutoff,
-                                          total_eflux)
-        
-        warm = self.warm_component.evaluate(energy_edges, 
-                                            low_e_cutoff, 
-                                            total_eflux, 
-                                            plasma_density, 
-                                            length,
-                                            temperature, 
-                                            mg,
-                                            al,
-                                            si,
-                                            s,
-                                            ar,
-                                            ca,
-                                            fe)
+        thick = self.thick_model.evaluate(energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux)
 
-        print(thick, warm)
+        warm = self.warm_component.evaluate(
+            energy_edges, low_e_cutoff, total_eflux, plasma_density, length, temperature, mg, al, si, s, ar, ca, fe
+        )
+
         # TODO: this version of ThickTarget won't return units
         # eventually, remove the line ``thick <<= warm.unit``
         thick <<= warm.unit
@@ -1509,6 +1496,6 @@ class WarmThickTarget(FittableModel):
             "high_e_cutoff": u.keV,
             "total_eflux": self.scaled_thick_eflux_units,
             "temperature": u.MK,
-            "plasma_density":self.scaled_warmthick_desnity_units,
-            "legnth": u.Mm,
+            "plasma_density": self.scaled_warmthick_desnity_units,
+            "length": u.Mm,
         }
