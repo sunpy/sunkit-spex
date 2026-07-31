@@ -2,8 +2,9 @@
 This module contains functions that compute a fit statistic between two data-sets.
 """
 
-from astropy import units as u
 import numpy as np
+
+from astropy import units as u
 
 from sunkit_spex.fitting.metrics import decorators
 
@@ -25,7 +26,7 @@ def chi_squared(data_ys, model_ys, data_y_weights=None, **kwargs):
 
     data_y_weights : `tuple[ndarray]` or `NoneType`
         The associated weights for `data_ys`. Weights are 1/error**2. If
-        given `None`, weights will be ignored and the statistic will be 
+        given `None`, weights will be ignored and the statistic will be
         the square of the difference between data and model only.
 
     Returns
@@ -37,9 +38,9 @@ def chi_squared(data_ys, model_ys, data_y_weights=None, **kwargs):
     stat_value = 0
     for i, data_y in enumerate(data_ys):
         if data_y_weights is None:
-            _stat_value = np.sum(((data_y - model_ys[i]) ** 2))
+            _stat_value = np.sum((data_y - model_ys[i]) ** 2)
         else:
-            _stat_value = np.sum(((data_y - model_ys[i]) ** 2)*data_y_weights[i])
+            _stat_value = np.sum(((data_y - model_ys[i]) ** 2) * data_y_weights[i])
         stat_value += _stat_value.value if isinstance(_stat_value, u.Quantity) else _stat_value
 
     return stat_value

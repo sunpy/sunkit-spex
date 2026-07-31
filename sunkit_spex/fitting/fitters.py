@@ -3,13 +3,14 @@ import numpy as np
 from astropy import units as u
 from astropy.modeling.fitting import Fitter, _validate_model, model_to_fit_params
 
-from sunkit_spex.fitting.optimizers import minimizers 
 from sunkit_spex.fitting.metrics import statistics
+from sunkit_spex.fitting.optimizers import minimizers
 
 __all__ = ["JointFitter"]
 
 
 DEFAULT_FIT_STATISTIC = statistics.chi_squared
+
 
 class JointFitter(Fitter):
     """
@@ -153,10 +154,7 @@ class JointFitter(Fitter):
     def _assign_param_units(parameter_units, model_number, model):
         """Make sure we have units if they are there."""
         pu = parameter_units[model_number]
-        mod_params = [
-            round(mp, 15) if unit is None else round(mp, 15) * unit for mp, unit in zip(model.parameters, pu)
-        ]
-        return mod_params
+        return [round(mp, 15) if unit is None else round(mp, 15) * unit for mp, unit in zip(model.parameters, pu)]
 
     def _update_model_params_with_result(self, models, jfit_param_indices, result_array):
         """Update the models with the fitted values."""
@@ -405,7 +403,7 @@ class ScipyMinimizeJointFitter(JointFitter):
         """
         fkwarg = {} if fkwarg is None else fkwarg
         optkwarg = {} if optkwarg is None else optkwarg
-        _default_optkwarg = {"method":"Nelder-Mead", "tol":1e-8}
+        _default_optkwarg = {"method": "Nelder-Mead", "tol": 1e-8}
         optkwarg = _default_optkwarg | optkwarg
 
         jmodel_params, jfit_param_indices, jmodel_bounds = self.joint_model_to_fit_params(models)
@@ -425,16 +423,6 @@ class ScipyMinimizeJointFitter(JointFitter):
 
         self.fit_info["params"] = result.x
 
-        # update the models with the fitted values
-        # for mod_num, model in enumerate(models):
-        #     free_inds_in_mod = jfit_param_indices[mod_num]
-        #     fps = result.x[: len(free_inds_in_mod)]
-        #     parameters = fitter_to_model_params_array(
-        #         model, fps, self._use_min_max_bounds, fit_param_indices=jfit_param_indices[mod_num], model_list=models
-        #     )
-        #     model.parameters = parameters
-        #     remove = np.arange(len(free_inds_in_mod))
-        #     result.x = np.delete(result.x, remove)
         models = self._update_model_params_with_result(models, jfit_param_indices, result.x)
 
         return models
@@ -475,28 +463,9 @@ class ScipyMinimizeJointFitter(JointFitter):
         xs = args[1][0]
         ys = args[1][1]
 
-        # fitted = []
-
         # double call in case earlier model relies on new parameters in later model
         self._update_model_params_twice(models, fps, jfit_param_indices)
-        # self._update_model_params(models, fps, jfit_param_indices)
-        # self._update_model_params(models, fps, jfit_param_indices)
 
-        # for mod_num, model in enumerate(models):
-        #     # units, make sure we have units
-        #     # if parameter_units is not None:
-        #     #     pu = parameter_units[mod_num]
-        #     #     mod_params = [
-        #     #         round(mp, 15) if unit is None else round(mp, 15) * unit for mp, unit in zip(model.parameters, pu)
-        #     #     ]
-        #     mod_params = self._assign_param_units(parameter_units, mod_num, model)
-
-        #     # actually evaluate the model with the constructed units and get residuals
-        #     res = model.evaluate(xs[mod_num], *mod_params) - ys[mod_num]
-        #     value = res if weights is None else weights[mod_num] * res
-        #     value = value.value if isinstance(value, u.Quantity) else value
-
-        #     fitted.extend(value)
         model_outputs = self._evaluate_models(models, xs, parameter_units=parameter_units)
 
         return self._stat_method(ys, model_outputs, data_y_weights=weights, **fkwarg)

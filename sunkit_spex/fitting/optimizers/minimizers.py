@@ -6,4 +6,4 @@ from scipy.optimize import minimize
 
 __all__ = ["MINIMIZERS"]
 
-MINIMIZERS = {"scipy_minimize":minimize}
+MINIMIZERS = {"scipy_minimize": minimize}

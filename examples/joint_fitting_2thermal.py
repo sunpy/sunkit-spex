@@ -157,8 +157,8 @@ fit_joint = fitters.ScipyMinimizeJointFitter()
 #
 # To help normalise the residuals, let's set the error to just the data
 # itself. The fitter requires the errors as weights, so we can convert
-# them as we pass them (the relationship is simply: weights=1/error**2). 
-# These passed weights should keep the fit statistic value here to 
+# them as we pass them (the relationship is simply: weights=1/error**2).
+# These passed weights should keep the fit statistic value here to
 # reasonable values.
 #
 

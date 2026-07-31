@@ -16,7 +16,7 @@ from sunkit_spex.models.physical.thermal import ThermalEmission
 
 
 def test_JointFitter_initial_values():
-    """Test the `JointFitter` class obtains the correct intial values."""
+    """Test the `JointFitter` class obtains the correct initial values."""
 
     # define models
     guess_amplitude = 5
@@ -43,6 +43,7 @@ def test_JointFitter_initial_values():
     # check fittable parameter bounds are good
     assert_allclose(extracted_param_info[2][0], (-np.inf, -np.inf, 1.1754943508222875e-38, 1.1754943508222875e-38))
     assert_allclose(extracted_param_info[2][1], (np.inf, np.inf, np.inf, np.inf))
+
 
 def test_ScipyMinimizeJointFitter_unitless():
     """Test the `ScipyMinimizeJointFitter` class with unitless models."""
