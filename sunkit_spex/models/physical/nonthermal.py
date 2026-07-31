@@ -1238,4 +1238,277 @@ def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutof
         return (fcoeff / decoeff) * flux
 
     raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
+
+from astropy.modeling.functional_models import FLOAT_EPSILON
+from sunkit_spex.models.physical.thermal import ThickTargetWarmContribution, DEFAULT_ABUNDANCE_TYPE
+class WarmThickTarget(FittableModel):
+    r"""
+    Calculates the thick-target + thermal contribution bremsstrahlung 
+    radiation contribution.
+
+    [1] Kontar et al, ApJ 2015 (http://adsabs.harvard.edu/abs/2015arXiv150503733K)
+    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/f_thick_warm.pro
+    [3] https://www.astro.gla.ac.uk/users/natasha/rhessi_wt_tutorial_2017.pdf
+
+    Parameters
+    ----------
+    energy_edges : 1d array
+            Edges of energy bins in units of keV.
+
+    total_eflux : int or float
+            Total integrated electron flux, in units of 10^35 e^- s^-1.
+            Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e35 is hidden.
+            So actual units are 1.0d35 e^- s^-1.
+
+    p : int or float
+            Power-law index of the electron distribution below the break.
+
+    break_energy : int or float
+                        Break energy of power law.
+
+    q : int or float
+            Power-law index of the electron distribution above the break.
+
+    low_e_cutoff : int or float
+            Low-energy cut-off of the electron distribution in units of keV.
+
+    high_e_cutoff : int or float
+            High-energy cut-off of the electron distribution in units of keV.
+
+    plasma_density: `astropy.units.Quantity`
+        The number density o the plasma.
+
+    length: `astropy.units.Quantity`
+        The plasma column length.
+
+    temperature: `astropy.units.Quantity`
+        The temperature of the plasma.
+        Can be scalar or 1D of any length. If not scalar, the flux for each temperature
+        will be calculated. The first dimension of the output flux will correspond
+        to temperature.
+
+    Returns
+    -------
+    A 1d array of warm component from thick-target bremsstrahlung radiation 
+    in units of ph s^-1 keV^-1.
+    """
+
+    scaled_warmthick_desnity_units = u.def_unit("scaled_warmthick_desnity_units", 1e10 * (u.cm**-3))
+    scaled_thick_eflux_units = u.def_unit("scaled_thick_eflux_units", 1e35 * (u.electron * u.s**-1))
+    scaled_em_units = u.def_unit("scaled_em_units", 1e49 * (u.cm ** (-3)))
+
+    name = "WarmThickTarget"
+    n_inputs = 1
+    n_outputs = 1
+
+    p = Parameter(name="p", default=2, description="Slope below break", fixed=False)
+
+    break_energy = Parameter(name="break_energy", default=100, unit=u.keV, description="Break Energy", fixed=False)
+
+    q = Parameter(name="q", default=5, min=0.01, description="Slope above break", fixed=True)
+
+    low_e_cutoff = Parameter(
+        name="low_e_cutoff", default=7, unit=u.keV, description="Low energy electron cut off", fixed=False
+    )
+
+    high_e_cutoff = Parameter(
+        name="high_e_cutoff", default=1500, unit=u.keV, description="High energy electron cut off", fixed=True
+    )
+
+    total_eflux = Parameter(
+        name="total_eflux", default=1.5, unit=u.electron * u.s**-1, description="Total electron flux", fixed=True
+    )
+
+    plasma_density = Parameter(
+            name="plasma_density",
+            default=1,
+            unit=scaled_warmthick_desnity_units,
+            description="Number density of the plasma",
+            fixed=False,
+            bounds=(FLOAT_EPSILON, None)
+        )
+
+    length = Parameter(
+            name="length",
+            default=10,
+            unit=u.Mm,
+            description="Plasma column length",
+            fixed=False,
+            bounds=(FLOAT_EPSILON, None)
+        )
+
         
+    temperature = Parameter(
+        name="temperature",
+        default=10,
+        min=1,
+        max=100,
+        unit=u.MK,
+        description="Temperature of the plasma",
+        fixed=False,
+    )
+
+    mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
+
+    al = Parameter(name="Al", default=7.04, min=5.04, max=9.04, description="Al relative abundance", fixed=True)
+
+    si = Parameter(name="Si", default=8.1, min=6.1, max=10.1, description="Si relative abundance", fixed=True)
+
+    s = Parameter(name="S", default=7.27, min=5.27, max=9.27, description="S relative abundance", fixed=True)
+
+    ar = Parameter(name="Ar", default=6.58, min=4.58, max=8.58, description="Ar relative abundance", fixed=True)
+
+    ca = Parameter(name="Ca", default=6.93, min=4.93, max=8.93, description="Ca relative abundance", fixed=True)
+
+    fe = Parameter(name="Fe", default=8.1, min=6.1, max=10.1, description="Fe relative abundance", fixed=True)
+
+    _input_units_allow_dimensionless = True
+
+    def __init__(
+        self,
+        p=p.default,
+        break_energy=u.Quantity(break_energy.default, break_energy.unit),
+        q=q.default,
+        low_e_cutoff=u.Quantity(low_e_cutoff.default, low_e_cutoff.unit),
+        high_e_cutoff=u.Quantity(high_e_cutoff.default, high_e_cutoff.unit),
+        total_eflux=u.Quantity(total_eflux.default, total_eflux.unit),
+        plasma_density=u.Quantity(plasma_density.default, plasma_density.unit),
+        length=u.Quantity(length.default, length.unit),
+        temperature=u.Quantity(temperature.default, temperature.unit),
+        mg=mg.default,
+        al=al.default,
+        si=si.default,
+        s=s.default,
+        ar=ar.default,
+        ca=ca.default,
+        fe=fe.default,
+        abundance_type=DEFAULT_ABUNDANCE_TYPE,
+        integrator=None,
+        **kwargs,
+    ):
+        self.integrator = integrator
+
+        # TODO: this version of ThickTarget still uses the scaled value with the non-scaled units
+        # so need to scale the value here with the inconsistent units
+        # Once fixed, replace ``total_eflux.to(u.electron/u.second)*1e-35`` with ``total_eflux``
+        self.thick_model = ThickTarget(p=p,
+                    break_energy=break_energy,
+                    q=q,
+                    low_e_cutoff=low_e_cutoff,
+                    high_e_cutoff=high_e_cutoff,
+                    total_eflux=total_eflux.to(u.electron/u.second)*1e-35,
+                    integrator=integrator,
+                    **kwargs
+                    )
+
+        self.warm_component = ThickTargetWarmContribution(low_e_cutoff=low_e_cutoff,
+                                                          total_eflux=total_eflux,
+                                                          plasma_density=plasma_density,
+                                                          length=length,
+                                                          temperature=temperature,
+                                                          mg=mg,
+                                                          al=al,
+                                                          si=si,
+                                                          s=s,
+                                                          ar=ar,
+                                                          ca=ca,
+                                                          fe=fe,
+                                                          abundance_type=abundance_type,
+                                                          **kwargs
+                                                        )
+
+        super().__init__(
+            p=p,
+            break_energy=break_energy,
+            q=q,
+            low_e_cutoff=low_e_cutoff,
+            high_e_cutoff=high_e_cutoff,
+            total_eflux=total_eflux,
+            plasma_density=plasma_density,
+            length=length,
+            temperature=temperature,
+            mg=mg,
+            al=al,
+            si=si,
+            s=s,
+            ar=ar,
+            ca=ca,
+            fe=fe,
+            **kwargs,
+        )
+
+    def evaluate(self, 
+                 energy_edges, 
+                 p,
+                 break_energy,
+                 q,
+                 low_e_cutoff,
+                 high_e_cutoff,
+                 total_eflux,
+                 plasma_density,
+                 length,
+                 temperature,
+                 mg,
+                 al,
+                 si,
+                 s,
+                 ar,
+                 ca,
+                 fe):
+
+        energy_edges <<= u.keV
+        break_energy <<= self.break_energy.unit
+        low_e_cutoff <<= self.low_e_cutoff.unit
+        high_e_cutoff <<= self.high_e_cutoff.unit
+        total_eflux <<= self.scaled_thick_eflux_units
+        plasma_density <<= self.scaled_warmthick_desnity_units
+        length <<= self.length.unit
+        temperature <<= self.temperature.unit
+
+        thick = self.thick_model.evaluate(energy_edges, 
+                                          p,
+                                          break_energy,
+                                          q,
+                                          low_e_cutoff,
+                                          high_e_cutoff,
+                                          total_eflux)
+        
+        warm = self.warm_component.evaluate(energy_edges, 
+                                            low_e_cutoff, 
+                                            total_eflux, 
+                                            plasma_density, 
+                                            length,
+                                            temperature, 
+                                            mg,
+                                            al,
+                                            si,
+                                            s,
+                                            ar,
+                                            ca,
+                                            fe)
+
+        print(thick, warm)
+        # TODO: this version of ThickTarget won't return units
+        # eventually, remove the line ``thick <<= warm.unit``
+        thick <<= warm.unit
+        return thick + warm
+
+    @property
+    def input_units(self):
+        # The units for the 'energy_edges' variable should be an energy (default keV)
+        return {self.inputs[0]: u.keV}
+
+    @property
+    def return_units(self):
+        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1}
+
+    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+        return {
+            "low_e_cutoff": u.keV,
+            "break_energy": u.keV,
+            "high_e_cutoff": u.keV,
+            "total_eflux": self.scaled_thick_eflux_units,
+            "temperature": u.MK,
+            "plasma_density":self.scaled_warmthick_desnity_units,
+            "legnth": u.Mm,
+        }

@@ -1317,8 +1317,8 @@ def _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe):
 class ThickTargetWarmContribution(FittableModel):
     r"""
     Calculates the warm thick-target bremsstrahlung radiation contribution 
-    of a single power-law electron distribution with a given low-energy 
-    cut-off energy.
+    of a power-law electron distribution with a given low-energy cut-off 
+    energy.
 
     [1] Kontar et al, ApJ 2015 (http://adsabs.harvard.edu/abs/2015arXiv150503733K)
     [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/f_thick_warm.pro
@@ -1336,17 +1336,17 @@ class ThickTargetWarmContribution(FittableModel):
     low_e_cutoff : int or float
             Low-energy cut-off of the electron distribution in units of keV.
 
-    temperature: `astropy.units.Quantity`
-        The temperature of the plasma.
-        Can be scalar or 1D of any length. If not scalar, the flux for each temperature
-        will be calculated. The first dimension of the output flux will correspond
-        to temperature.
-
     plasma_density: `astropy.units.Quantity`
         The number density o the plasma.
 
     length: `astropy.units.Quantity`
         The plasma column length.
+
+    temperature: `astropy.units.Quantity`
+        The temperature of the plasma.
+        Can be scalar or 1D of any length. If not scalar, the flux for each temperature
+        will be calculated. The first dimension of the output flux will correspond
+        to temperature.
 
     Returns
     -------
