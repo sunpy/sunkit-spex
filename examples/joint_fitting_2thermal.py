@@ -8,10 +8,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from astropy import units as u
-from astropy.modeling.optimizers import SLSQP
-from astropy.modeling.statistic import leastsquare
 
 from sunkit_spex.fitting import fitters
+from sunkit_spex.fitting.metrics import util
 from sunkit_spex.models.physical.thermal import ThermalEmission
 from sunkit_spex.models.scaling import Constant
 
@@ -140,7 +139,7 @@ gjf2.emission_measure_1.tied = lambda models: models[0].emission_measure
 # Set up the ``JointFitter``:
 
 # set up the base joint fitter
-fit_joint = fitters.JointFitter(optimizer=SLSQP, statistic=leastsquare)
+fit_joint = fitters.ScipyMinimizeJointFitter()
 
 #####################################################
 #
@@ -156,9 +155,12 @@ fit_joint = fitters.JointFitter(optimizer=SLSQP, statistic=leastsquare)
 # such a large scale over multiple orders of magnitude. For this we can
 # add weights, or errors, for the fitting process.
 #
-# To help normalise the residuals, let's set the weights to just
-# ``1/data``. These weights should keep the fit statistic value here
-# to reasonable values.
+# To help normalise the residuals, let's set the error to just the data
+# itself. The fitter requires the errors as weights, so we can convert
+# them as we pass them (the relationship is simply: weights=1/error**2). 
+# These passed weights should keep the fit statistic value here to 
+# reasonable values.
+#
 
 # pass model and data to fitter
 g12 = fit_joint(
@@ -170,8 +172,8 @@ g12 = fit_joint(
     y2,
     fkwarg={
         "weights": [
-            1 / y1,
-            1 / y2,
+            util.error_to_weights(y1),
+            util.error_to_weights(y2),
         ]
     },
 )

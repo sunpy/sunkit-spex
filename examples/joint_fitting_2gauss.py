@@ -13,9 +13,7 @@ import numpy as np
 
 from astropy.modeling import Fittable1DModel
 from astropy.modeling.functional_models import FLOAT_EPSILON, Gaussian1D
-from astropy.modeling.optimizers import SLSQP
 from astropy.modeling.parameters import Parameter
-from astropy.modeling.statistic import leastsquare
 
 from sunkit_spex.fitting import fitters
 
@@ -147,7 +145,7 @@ gjf2.mean.tied = lambda models: models[0].mean.value
 # Set up the ``JointFitter``:
 
 # set up the base joint fitter
-fit_joint = fitters.JointFitter(optimizer=SLSQP, statistic=leastsquare)
+fit_joint = fitters.ScipyMinimizeJointFitter()
 
 #####################################################
 #

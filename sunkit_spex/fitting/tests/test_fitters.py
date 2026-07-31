@@ -11,21 +11,12 @@ from astropy.modeling.optimizers import SLSQP
 from astropy.modeling.statistic import leastsquare
 
 from sunkit_spex.data.simulated_data import simulate_gaussian_data_source, simulate_thermal_data_source
-from sunkit_spex.fitting.fitters import JointFitter
+from sunkit_spex.fitting.fitters import JointFitter, ScipyMinimizeJointFitter
 from sunkit_spex.models.physical.thermal import ThermalEmission
 
 
-def test_JointFitter_unitless():
-    """Test the `JointFitter` class with unitless models."""
-    # define some synthetic data
-    x1 = np.linspace(1.0, 6.0, 200)
-    x2 = np.linspace(4.0, 10.0, 200)
-    data_amplitude = 5.6
-    data_mean = 5.1
-    data_stddev1 = 0.4
-    data_stddev2 = 0.2
-    y1 = simulate_gaussian_data_source(x1, data_amplitude, data_mean, data_stddev1)
-    y2 = simulate_gaussian_data_source(x2, data_amplitude, data_mean, data_stddev2)
+def test_JointFitter_initial_values():
+    """Test the `JointFitter` class obtains the correct intial values."""
 
     # define models
     guess_amplitude = 5
@@ -53,6 +44,44 @@ def test_JointFitter_unitless():
     assert_allclose(extracted_param_info[2][0], (-np.inf, -np.inf, 1.1754943508222875e-38, 1.1754943508222875e-38))
     assert_allclose(extracted_param_info[2][1], (np.inf, np.inf, np.inf, np.inf))
 
+def test_ScipyMinimizeJointFitter_unitless():
+    """Test the `ScipyMinimizeJointFitter` class with unitless models."""
+    # define some synthetic data
+    x1 = np.linspace(1.0, 6.0, 200)
+    x2 = np.linspace(4.0, 10.0, 200)
+    data_amplitude = 5.6
+    data_mean = 5.1
+    data_stddev1 = 0.4
+    data_stddev2 = 0.2
+    y1 = simulate_gaussian_data_source(x1, data_amplitude, data_mean, data_stddev1)
+    y2 = simulate_gaussian_data_source(x2, data_amplitude, data_mean, data_stddev2)
+
+    # define models
+    guess_amplitude = 5
+    guess_mean = 6
+    guess_stddev1 = 0.3
+    guess_stddev2 = 0.5
+    g1 = models.Gaussian1D(amplitude=guess_amplitude, mean=guess_mean, stddev=guess_stddev1)
+    g2 = models.Gaussian1D(stddev=guess_stddev2)
+
+    # tie relevant parameters
+    g2.amplitude.tied = lambda models: models[0].amplitude
+    g2.mean.tied = lambda models: models[0].mean
+
+    # initialise the fitter, need to pass optimizer and statistic to avoid error
+    fit_joint = ScipyMinimizeJointFitter()
+
+    # check if the correct parameters are extracted for fitting
+    extracted_param_info = fit_joint.joint_model_to_fit_params([g1, g2])
+    # check fittable parameter values are good
+    assert_allclose(extracted_param_info[0], [g1.amplitude.value, g1.mean.value, g1.stddev.value, g2.stddev.value])
+    # check fittable parameter indices are good
+    assert_allclose(extracted_param_info[1][0], [0, 1, 2])
+    assert_allclose(extracted_param_info[1][1], [2])
+    # check fittable parameter bounds are good
+    assert_allclose(extracted_param_info[2][0], (-np.inf, -np.inf, 1.1754943508222875e-38, 1.1754943508222875e-38))
+    assert_allclose(extracted_param_info[2][1], (np.inf, np.inf, np.inf, np.inf))
+
     # run the fits to the data and get a copy of the resulting models
     g12 = fit_joint(g1, x1, y1, g2, x2, y2)
 
@@ -61,8 +90,8 @@ def test_JointFitter_unitless():
     assert_allclose(g12[1].parameters, [data_amplitude, data_mean, data_stddev2], atol=1e-1)
 
 
-def test_JointFitter_forward_tying():
-    """Test the `JointFitter` class by forward tying parameters."""
+def test_ScipyMinimizeJointFitter_forward_tying():
+    """Test the `ScipyMinimizeJointFitter` class by forward tying parameters."""
     # define some synthetic data
     x1 = np.linspace(1.0, 6.0, 200)
     x2 = np.linspace(4.0, 10.0, 200)
@@ -88,7 +117,7 @@ def test_JointFitter_forward_tying():
     # initialise the fitter, need to pass optimizer and statistic to avoid error
 
     # initialise the fitter, need to pass optimizer and statistic to avoid error
-    fit_joint = JointFitter(optimizer=SLSQP, statistic=leastsquare)
+    fit_joint = ScipyMinimizeJointFitter()
 
     # check if the correct parameters are extracted for fitting after forward tying
     extracted_param_info = fit_joint.joint_model_to_fit_params([g1, g2])
@@ -109,12 +138,12 @@ def test_JointFitter_forward_tying():
     assert_allclose(g12[1].parameters, [data_amplitude, data_mean, data_stddev2], atol=1e-1)
 
 
-def test_JointFitter_units_bounds_fixing_weights():
-    """Test the `JointFitter` class with models containing units.
+def test_ScipyMinimizeJointFitter_units_bounds_fixing_weights():
+    """Test the `ScipyMinimizeJointFitter` class with models containing units.
 
     This also tests:
     - Bounds enforcement since temperature needs bounds.
-    - Fixing parameters since we don't want to ffit all the abundances too.
+    - Fixing parameters since we don't want to fit all the abundances too.
     - Adding weights to the fitting since the data-model values are so large.
     """
     energy_edges1 = np.arange(1.6, 30, 0.2) << u.keV
@@ -143,7 +172,7 @@ def test_JointFitter_units_bounds_fixing_weights():
     gjf2.temperature.tied = lambda models: models[0].temperature
 
     # set up the base joint fitter
-    fit_joint = JointFitter(optimizer=SLSQP, statistic=leastsquare)
+    fit_joint = ScipyMinimizeJointFitter()
 
     g12 = fit_joint(
         gjf1,
@@ -154,8 +183,8 @@ def test_JointFitter_units_bounds_fixing_weights():
         data_y2,
         fkwarg={
             "weights": [
-                1 / data_y1,
-                1 / data_y2,
+                1 / data_y1**2,
+                1 / data_y2**2,
             ]
         },
     )

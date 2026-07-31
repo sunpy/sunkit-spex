@@ -4,7 +4,7 @@ This module contains package tests for the statistics functions.
 
 import numpy as np
 
-from sunkit_spex.fitting.statistics.gaussian import chi_squared
+from sunkit_spex.fitting.metrics.statistics import chi_squared
 
 
 def test_chi_squared():
@@ -24,7 +24,12 @@ def test_chi_squared():
     sim_model3 = sim_data3[::-1]
     chi_s3 = chi_squared(sim_data3, sim_model3)
 
+    sim_data4 = np.array([1, 2, 3])
+    sim_model4 = sim_data4[::-1]
+    chi_s4 = chi_squared(sim_data4, sim_model4, data_y_weights=sim_data4)
+
     assert chi_s0 == 0
     assert chi_s1 == 0
     assert chi_s2 == 0
     assert chi_s3 == 8
+    assert chi_s4 == 16

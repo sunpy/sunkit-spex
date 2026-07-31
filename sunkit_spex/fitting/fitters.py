@@ -3,8 +3,13 @@ import numpy as np
 from astropy import units as u
 from astropy.modeling.fitting import Fitter, _validate_model, model_to_fit_params
 
+from sunkit_spex.fitting.optimizers import minimizers 
+from sunkit_spex.fitting.metrics import statistics
+
 __all__ = ["JointFitter"]
 
+
+DEFAULT_FIT_STATISTIC = statistics.chi_squared
 
 class JointFitter(Fitter):
     """
@@ -115,7 +120,82 @@ class JointFitter(Fitter):
             fps = np.delete(fps, remove)
             del mod_fps, free_inds_in_mod
 
-    def objective_function(self, fps, *args, weights=None, jfit_param_indices=None, parameter_units=None):
+    def _update_model_params_twice(self, models, fps, jfit_param_indices):
+        """Double-call in case earlier model relies on new parameters in later model."""
+        self._update_model_params(models, fps, jfit_param_indices)
+        self._update_model_params(models, fps, jfit_param_indices)
+
+    def _verify_input(self, args):
+        """Verify the arguments given come in ``model, x, y`` groups."""
+        if len(args) % 3 != 0:
+            raise ValueError(
+                f"Expected list of ``model1, x1, y1, model2, ...`` in args "
+                f"but {len(args)} provided is not divisible by 3."
+            )
+
+    @staticmethod
+    def _get_param_units(models):
+        """Obtains the parameter units if the model supports units."""
+        param_units = []
+        for model in models:
+            if model._supports_unit_fitting:
+                units = [getattr(model, name).unit for name in model.param_names]
+                units = [u.dimensionless_unscaled if unit is None else unit for unit in units]
+                param_units.append(units)
+            else:
+                param_units.append([None for _ in model.param_names])
+
+        if len(param_units) > 0:
+            return param_units
+        return None
+
+    @staticmethod
+    def _assign_param_units(parameter_units, model_number, model):
+        """Make sure we have units if they are there."""
+        pu = parameter_units[model_number]
+        mod_params = [
+            round(mp, 15) if unit is None else round(mp, 15) * unit for mp, unit in zip(model.parameters, pu)
+        ]
+        return mod_params
+
+    def _update_model_params_with_result(self, models, jfit_param_indices, result_array):
+        """Update the models with the fitted values."""
+        for mod_num, model in enumerate(models):
+            free_inds_in_mod = jfit_param_indices[mod_num]
+            fps = result_array[: len(free_inds_in_mod)]
+            parameters = fitter_to_model_params_array(
+                model, fps, self._use_min_max_bounds, fit_param_indices=jfit_param_indices[mod_num], model_list=models
+            )
+            model.parameters = parameters
+            remove = np.arange(len(free_inds_in_mod))
+            result_array = np.delete(result_array, remove)
+        return models
+
+    def _evaluate_models(self, models, xs, parameter_units=None):
+        """Evaluate the models with current parameters."""
+        mod_evals = []
+        for mod_num, model in enumerate(models):
+            mod_params = self._assign_param_units(parameter_units, mod_num, model)
+
+            # actually evaluate the model with the constructed units
+            mod_eval = model.evaluate(xs[mod_num], *mod_params)
+
+            mod_evals.append(mod_eval)
+        return mod_evals
+
+    def run_fitter(self, models, farg, fkwarg=None, optkwarg=None):
+        """
+        Function to set-up and run the optimization method.
+
+        Job is to call `self._opt_method` and pass in `self.objective_function`
+
+        - farg are the xs and ys for the models
+        - fkwargs are anything else needed to be passed to the objective
+        function
+        """
+        raise NotImplementedError("Subclasses should implement this method.")
+
+    def objective_function(self, fps, *args, weights=None, jfit_param_indices=None, parameter_units=None, **fkwarg):
         """
         Function to minimize.
 
@@ -146,111 +226,14 @@ class JointFitter(Fitter):
             A list of parameter units for the fittable parameters if they
             exist.
         """
+        raise NotImplementedError("Subclasses should implement this method.")
 
-        models = args[0]
-        xs = args[1][0]
-        ys = args[1][1]
-
-        fitted = []
-
-        # double call in case earlier model relies on new parameters in later model
-        self._update_model_params(models, fps, jfit_param_indices)
-        self._update_model_params(models, fps, jfit_param_indices)
-
-        for mod_num, model in enumerate(models):
-            # units, make sure we have units
-            if parameter_units is not None:
-                pu = parameter_units[mod_num]
-                mod_params = [
-                    round(mp, 15) if unit is None else round(mp, 15) * unit for mp, unit in zip(model.parameters, pu)
-                ]
-
-            # actually evaluate the model with the constructed units and get residuals
-            res = model.evaluate(xs[mod_num], *mod_params) - ys[mod_num]
-            value = res if weights is None else weights[mod_num] * res
-            value = value.value if isinstance(value, u.Quantity) else value
-
-            fitted.extend(value)
-
-        return np.sum(np.ravel(fitted) ** 2)
-
-    def _verify_input(self, args):
-        """Verify the arguments given come in ``model, x, y`` groups."""
-        if len(args) % 3 != 0:
-            raise ValueError(
-                f"Expected list of ``model1, x1, y1, model2, ...`` in args "
-                f"but {len(args)} provided is not divisible by 3."
-            )
-
-    def _run_fitter(self, models, farg, fkwarg=None):
-        """
-        Function to set-up and run the optimization method.
-
-        Job is to call `self._opt_method` and pass in `self.objective_function`
-
-        - farg are the xs and ys for the models
-        - fkwargs are anything else needed to be passed to the objective
-        function
-        """
-        fkwarg = {} if fkwarg is None else fkwarg
-
-        jmodel_params, jfit_param_indices, jmodel_bounds = self.joint_model_to_fit_params(models)
-
-        param_units = self._get_param_units(models)
-
-        fkwarg |= {"jfit_param_indices": jfit_param_indices, "parameter_units": param_units}
-
-        from scipy.optimize import minimize  # noqa
-
-        ## should really call self._opt_method()
-        # optimize.least_squares just minimises the square of what comes out of self.objective_function
-        # need the lambda function for now since `minimize` won't accept other kwargs
-        fun = lambda x: self.objective_function(x, *(models, farg), **fkwarg)  # noqa
-        result = minimize(
-            fun,
-            jmodel_params,
-            bounds=tuple(zip(jmodel_bounds[0], jmodel_bounds[1])),
-            method="Nelder-Mead",
-            tol=1e-8,
-        )
-
-        self.fit_info["params"] = result.x
-
-        # update the models with the fitted values
-        for mod_num, model in enumerate(models):
-            free_inds_in_mod = jfit_param_indices[mod_num]
-            fps = result.x[: len(free_inds_in_mod)]
-            parameters = fitter_to_model_params_array(
-                model, fps, self._use_min_max_bounds, fit_param_indices=jfit_param_indices[mod_num], model_list=models
-            )
-            model.parameters = parameters
-            remove = np.arange(len(free_inds_in_mod))
-            result.x = np.delete(result.x, remove)
-
-        return models
-
-    @staticmethod
-    def _get_param_units(models):
-        """Obtains the parameter units if the model supports units."""
-        param_units = []
-        for model in models:
-            if model._supports_unit_fitting:
-                units = [getattr(model, name).unit for name in model.param_names]
-                units = [u.dimensionless_unscaled if unit is None else unit for unit in units]
-                param_units.append(units)
-            else:
-                param_units.append([None for _ in model.param_names])
-
-        if len(param_units) > 0:
-            return param_units
-        return None
-
-    def __call__(self, *args, fkwarg=None, inplace=False):
+    def __call__(self, *args, fkwarg=None, optkwarg=None, inplace=False):
         """
         Fit data to these models keeping some of the parameters common to the
         two models.
 
-        Purpose is to setup, call `self._run_fitter`, and sort results.
+        Purpose is to setup, call `self.run_fitter`, and sort results.
 
         Parameters
         ==========
@@ -286,10 +269,11 @@ class JointFitter(Fitter):
                 copy=not inplace,
             )
 
-        self.fitted_models = self._run_fitter(
+        self.fitted_models = self.run_fitter(
             models,
             (xs, ys),
             fkwarg=fkwarg,
+            optkwarg=optkwarg,
         )
 
         return self.fitted_models
@@ -402,3 +386,117 @@ def fitter_to_model_params(model, fps, use_min_max_bounds=True, model_list=None)
         model, fps, use_min_max_bounds, fit_param_indices=fit_param_indices, model_list=model_list
     )
     model.parameters = parameters
+
+
+class ScipyMinimizeJointFitter(JointFitter):
+    def __init__(self, statistic=DEFAULT_FIT_STATISTIC):
+        super().__init__(optimizer=minimizers.MINIMIZERS["scipy_minimize"], statistic=statistic)
+
+    def run_fitter(self, models, farg, fkwarg=None, optkwarg=None):
+        # sets up and runs `self._opt_method` which is `minimize` here
+        """
+        Function to set-up and run the optimization method.
+
+        Job is to call `self._opt_method` and pass in `self.objective_function`
+
+        - farg are the xs and ys for the models
+        - fkwargs are anything else needed to be passed to the objective
+        function
+        """
+        fkwarg = {} if fkwarg is None else fkwarg
+        optkwarg = {} if optkwarg is None else optkwarg
+        _default_optkwarg = {"method":"Nelder-Mead", "tol":1e-8}
+        optkwarg = _default_optkwarg | optkwarg
+
+        jmodel_params, jfit_param_indices, jmodel_bounds = self.joint_model_to_fit_params(models)
+
+        param_units = self._get_param_units(models)
+
+        fkwarg |= {"jfit_param_indices": jfit_param_indices, "parameter_units": param_units}
+
+        # Need the lambda function for now since `minimize` won't accept other kwargs
+        fun = lambda x: self.objective_function(x, *(models, farg), **fkwarg)  # noqa
+        result = self._opt_method(
+            fun,
+            jmodel_params,
+            bounds=tuple(zip(jmodel_bounds[0], jmodel_bounds[1])),
+            **optkwarg,
+        )
+
+        self.fit_info["params"] = result.x
+
+        # update the models with the fitted values
+        # for mod_num, model in enumerate(models):
+        #     free_inds_in_mod = jfit_param_indices[mod_num]
+        #     fps = result.x[: len(free_inds_in_mod)]
+        #     parameters = fitter_to_model_params_array(
+        #         model, fps, self._use_min_max_bounds, fit_param_indices=jfit_param_indices[mod_num], model_list=models
+        #     )
+        #     model.parameters = parameters
+        #     remove = np.arange(len(free_inds_in_mod))
+        #     result.x = np.delete(result.x, remove)
+        models = self._update_model_params_with_result(models, jfit_param_indices, result.x)
+
+        return models
+
+    def objective_function(self, fps, *args, weights=None, jfit_param_indices=None, parameter_units=None, **fkwarg):
+        """
+        Function to minimize.
+
+        Job is to call ``self._stat_method`` which should calculate the
+        value between the model output and data.
+
+        Parameters
+        ==========
+        fps : `list[float]`
+            the fitted parameters - result of an one iteration of the
+            fitting algorithm
+
+        *args : `tuple`
+            A tuple of measured and input coordinates
+
+        weights : `list[list[float]]`
+            A list of the weights associated with the given datasets
+
+        fit_param_indices : `list[list[int]]`
+            The ``fit_param_indices`` as returned by ``self.model_to_fit_params``.
+            This is a list of the parameter indices being fit, so excluding any
+            tied or fixed parameters.  This can be passed in to the objective
+            function to prevent it having to be computed on every call.
+            This must be optional as not all fitters support passing kwargs to
+            the objective function.
+
+        parameter_units : `list[~astropy.Quantity]` or `NoneType`
+            A list of parameter units for the fittable parameters if they
+            exist.
+        """
+
+        models = args[0]
+        xs = args[1][0]
+        ys = args[1][1]
+
+        # fitted = []
+
+        # double call in case earlier model relies on new parameters in later model
+        self._update_model_params_twice(models, fps, jfit_param_indices)
+        # self._update_model_params(models, fps, jfit_param_indices)
+        # self._update_model_params(models, fps, jfit_param_indices)
+
+        # for mod_num, model in enumerate(models):
+        #     # units, make sure we have units
+        #     # if parameter_units is not None:
+        #     #     pu = parameter_units[mod_num]
+        #     #     mod_params = [
+        #     #         round(mp, 15) if unit is None else round(mp, 15) * unit for mp, unit in zip(model.parameters, pu)
+        #     #     ]
+        #     mod_params = self._assign_param_units(parameter_units, mod_num, model)
+
+        #     # actually evaluate the model with the constructed units and get residuals
+        #     res = model.evaluate(xs[mod_num], *mod_params) - ys[mod_num]
+        #     value = res if weights is None else weights[mod_num] * res
+        #     value = value.value if isinstance(value, u.Quantity) else value
+
+        #     fitted.extend(value)
+        model_outputs = self._evaluate_models(models, xs, parameter_units=parameter_units)
+
+        return self._stat_method(ys, model_outputs, data_y_weights=weights, **fkwarg)
