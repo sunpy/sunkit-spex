@@ -26,7 +26,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v6  # zizmor: ignore[unpinned-uses]
+      - uses: actions/setup-python@v7  # zizmor: ignore[unpinned-uses]
         with:
           python-version: "3.14"
 
