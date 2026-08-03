@@ -190,7 +190,7 @@ class JointFitter(Fitter):
         - farg are the xs and ys for the models
         - fkwargs are anything else needed to be passed to the objective
         function
-        
+
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
