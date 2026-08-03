@@ -3,11 +3,12 @@ This module contains functions that compute a fit statistic between two data-set
 """
 
 import numpy as np
+from numpy.typing import NDArray
 
 __all__ = ["chi_squared"]
 
 
-def chi_squared(data_y, model_y):
+def chi_squared(data_y: NDArray[np.float64], model_y: NDArray[np.float64]) -> np.floating:
     """
     The form to optimise while fitting.
 

@@ -88,6 +88,50 @@ exclude = ["sunkit_spex._dev*"]
 [tool.setuptools_scm]
 version_file = "sunkit_spex/_version.py"
 
+[tool.mypy]
+python_version = "3.12"
+strict = true
+exclude = [
+  "^sunkit_spex/legacy/",
+  "^sunkit_spex/extern/",
+  "^sunkit_spex/_dev/",
+  "^sunkit_spex/_version\\.py$",
+  "^sunkit_spex/version\\.py$",
+  "/tests/",
+]
+
+[[tool.mypy.overrides]]
+module = ["sunkit_spex.legacy.*", "sunkit_spex.extern.*", "sunkit_spex._dev.*", "sunkit_spex.version"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = [
+  "astropy.*",
+  "gwcs.*",
+  "ndcube.*",
+  "scipy.*",
+  "sunpy.*",
+]
+ignore_missing_imports = true
+
+[tool.pyright]
+pythonVersion = "3.12"
+exclude = [
+  "sunkit_spex/legacy",
+  "sunkit_spex/extern",
+  "sunkit_spex/_dev",
+  "sunkit_spex/_version.py",
+  "sunkit_spex/version.py",
+  "**/tests",
+]
+# astropy's Model base class declares n_inputs/n_outputs/name as properties, but the
+# documented astropy-modeling idiom is to override them with plain class-level literals
+# (`n_inputs = 1`). That's not fixable from this side, so these checks are disabled outright.
+# (reportAssignmentType is broader than just this pattern, but every current occurrence in
+# this codebase is this exact case; re-enable and re-audit if that changes.)
+reportIncompatibleMethodOverride = false
+reportAssignmentType = false
+
 [tool.gilesbot]
   [tool.gilesbot.pull_requests]
   enabled = true

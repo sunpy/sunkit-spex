@@ -2,10 +2,22 @@
 This module contains functions that can evaluate models and return a fit statistic.
 """
 
+from typing import Any
+from collections.abc import Callable
+
+import numpy as np
+from numpy.typing import NDArray
+
 __all__ = ["minimize_func"]
 
 
-def minimize_func(params, data_y, model_x, model_func, statistic_func):
+def minimize_func(
+    params: NDArray[np.float64],
+    data_y: NDArray[np.float64],
+    model_x: NDArray[np.float64],
+    model_func: Any,
+    statistic_func: Callable[[NDArray[np.float64], NDArray[np.float64]], float],
+) -> float:
     """
     Minimization function.
 

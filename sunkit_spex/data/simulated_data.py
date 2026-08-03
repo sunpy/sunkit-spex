@@ -3,11 +3,12 @@ Module to store functions used to generate simulated data products.
 """
 
 import numpy as np
+from numpy.typing import NDArray
 
 __all__ = ["simulate_square_response_matrix"]
 
 
-def simulate_square_response_matrix(size, random_seed=10):
+def simulate_square_response_matrix(size: int, random_seed: int = 10) -> NDArray[np.float64]:
     """Generate a square matrix with off-diagonal terms.
 
     Returns a product to mimic an instrument response matrix.
