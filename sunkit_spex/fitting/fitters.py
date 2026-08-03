@@ -185,12 +185,30 @@ class JointFitter(Fitter):
         """
         Function to set-up and run the optimization method.
 
-        Job is to call `self._opt_method` and pass in `self.objective_function`
+        The job of this method is to call `self._opt_method` and pass in 
+        `self.objective_function`.
 
-        - farg are the xs and ys for the models
-        - fkwargs are anything else needed to be passed to the objective
-        function
+        Parameters
+        ==========
+        models : `list[~astropy.modeling.FittableModel]`
+            A list of the models being fitted to the data.
 
+        farg : `tuple[list, list]`
+            A tuple with a list of the x-inputs for the corresponding 
+            models and a list of the y data that should be compared to 
+            the corresponding model output.
+
+        fkwarg : `dict` or `NoneType`
+            A dictionary for keywords to be passed to ``self.objective_function``.
+
+        optkwarg : `dict` or `NoneType`
+            A dictionary for keywords to be passed to ``self._opt_method``.
+
+        Returns
+        =======
+        `list[~astropy.modeling.FittableModel]` : 
+            List of the input models with updated parameters from the 
+            fitting process.
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
@@ -198,13 +216,13 @@ class JointFitter(Fitter):
         """
         Function to minimize.
 
-        Job is to call ``self._stat_method`` which should calculate the
-        value between the model output and data.
+        The job of this method is to call ``self._stat_method`` which 
+        should calculate the value between the model output and data.
 
         Parameters
         ==========
         fps : `list[float]`
-            the fitted parameters - result of an one iteration of the
+            The fitted parameters - result of an one iteration of the
             fitting algorithm
 
         *args : `tuple`
@@ -224,6 +242,11 @@ class JointFitter(Fitter):
         parameter_units : `list[~astropy.Quantity]` or `NoneType`
             A list of parameter units for the fittable parameters if they
             exist.
+
+        Returns
+        =======
+        `float` : 
+            Value to be minimised with ``self._opt_method``.
         """
         raise NotImplementedError("Subclasses should implement this method.")
 
