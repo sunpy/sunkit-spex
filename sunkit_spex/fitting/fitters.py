@@ -185,7 +185,7 @@ class JointFitter(Fitter):
         """
         Function to set-up and run the optimization method.
 
-        The job of this method is to call `self._opt_method` and pass in 
+        The job of this method is to call `self._opt_method` and pass in
         `self.objective_function`.
 
         Parameters
@@ -194,8 +194,8 @@ class JointFitter(Fitter):
             A list of the models being fitted to the data.
 
         farg : `tuple[list, list]`
-            A tuple with a list of the x-inputs for the corresponding 
-            models and a list of the y data that should be compared to 
+            A tuple with a list of the x-inputs for the corresponding
+            models and a list of the y data that should be compared to
             the corresponding model output.
 
         fkwarg : `dict` or `NoneType`
@@ -206,8 +206,8 @@ class JointFitter(Fitter):
 
         Returns
         =======
-        `list[~astropy.modeling.FittableModel]` : 
-            List of the input models with updated parameters from the 
+        `list[~astropy.modeling.FittableModel]` :
+            List of the input models with updated parameters from the
             fitting process.
         """
         raise NotImplementedError("Subclasses should implement this method.")
@@ -216,7 +216,7 @@ class JointFitter(Fitter):
         """
         Function to minimize.
 
-        The job of this method is to call ``self._stat_method`` which 
+        The job of this method is to call ``self._stat_method`` which
         should calculate the value between the model output and data.
 
         Parameters
@@ -245,7 +245,7 @@ class JointFitter(Fitter):
 
         Returns
         =======
-        `float` : 
+        `float` :
             Value to be minimised with ``self._opt_method``.
         """
         raise NotImplementedError("Subclasses should implement this method.")
@@ -418,7 +418,7 @@ class ScipyMinimizeJointFitter(JointFitter):
         """
         Function to set-up and run the optimization method.
 
-        The job of this method is to call `self._opt_method` and pass in 
+        The job of this method is to call `self._opt_method` and pass in
         `self.objective_function`.
 
         Parameters
@@ -427,8 +427,8 @@ class ScipyMinimizeJointFitter(JointFitter):
             A list of the models being fitted to the data.
 
         farg : `tuple[list, list]`
-            A tuple with a list of the x-inputs for the corresponding 
-            models and a list of the y data that should be compared to 
+            A tuple with a list of the x-inputs for the corresponding
+            models and a list of the y data that should be compared to
             the corresponding model output.
 
         fkwarg : `dict` or `NoneType`
@@ -439,8 +439,8 @@ class ScipyMinimizeJointFitter(JointFitter):
 
         Returns
         =======
-        `list[~astropy.modeling.FittableModel]` : 
-            List of the input models with updated parameters from the 
+        `list[~astropy.modeling.FittableModel]` :
+            List of the input models with updated parameters from the
             fitting process.
         """
         fkwarg = {} if fkwarg is None else fkwarg
@@ -473,7 +473,7 @@ class ScipyMinimizeJointFitter(JointFitter):
         """
         Function to minimize.
 
-        The job of this method is to call ``self._stat_method`` which 
+        The job of this method is to call ``self._stat_method`` which
         should calculate the value between the model output and data.
 
         Parameters
@@ -502,7 +502,7 @@ class ScipyMinimizeJointFitter(JointFitter):
 
         Returns
         =======
-        `float` : 
+        `float` :
             Value to be minimised with ``self._opt_method``.
         """
 
