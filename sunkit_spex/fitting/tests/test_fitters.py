@@ -146,6 +146,7 @@ def test_ScipyMinimizeJointFitter_units_bounds_fixing_weights():
     - Bounds enforcement since temperature needs bounds.
     - Fixing parameters since we don't want to fit all the abundances too.
     - Adding weights to the fitting since the data-model values are so large.
+    
     """
     energy_edges1 = np.arange(1.6, 30, 0.2) << u.keV
     data_temp = 15 << u.MK

@@ -22,9 +22,8 @@ from matplotlib.colors import LogNorm
 from astropy.modeling import fitting
 
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
-from sunkit_spex.fitting.objective_functions.optimising_functions import minimize_func
-from sunkit_spex.fitting.optimizer_tools.minimizer_tools import scipy_minimize
-from sunkit_spex.fitting.statistics.gaussian import chi_squared
+from sunkit_spex.fitting.optimizers.minimizers import MINIMIZERS
+from sunkit_spex.fitting.metrics import statistics
 from sunkit_spex.models.instrument_response import MatrixModel
 from sunkit_spex.models.models import GaussianModel, StraightLineModel
 
@@ -130,8 +129,13 @@ count_model_4fit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
 #
 # Let's fit the simulated data and plot the result
 
-opt_res = scipy_minimize(
-    minimize_func, count_model_4fit.parameters, (sim_count_model_wn, ph_energies, count_model_4fit, chi_squared)
+def minimize_func(params, data, x, model, stat):
+    """Simple objective function to use to test optimizers."""
+    model_output = model.evaluate(x, *params)
+    return stat(data, model_output)
+
+opt_res = MINIMIZERS["scipy_minimize"](
+    minimize_func, count_model_4fit.parameters, (sim_count_model_wn, ph_energies, count_model_4fit, statistics.chi_squared)
 )
 
 plt.figure()
@@ -183,11 +187,6 @@ guess_vals = np.array(
 )
 scipy_vals = opt_res.x
 astropy_vals = astropy_fitted_result.parameters
-
-print(np.shape(scipy_vals))
-print(np.shape(astropy_vals))
-print(np.shape(true_vals))
-print(np.shape(guess_vals))
 
 cell_vals = np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T
 cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T, 2).astype(str)
