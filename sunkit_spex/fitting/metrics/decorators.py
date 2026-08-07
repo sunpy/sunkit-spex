@@ -11,7 +11,7 @@ def check_metric_inputs(func):
     def wrapper(data_ys, model_ys, **kwargs):
 
         if len(data_ys) != len(model_ys):
-            raise ValueError("Inputs `data_ys_tuple` and `model_ys_tuple` must be tuples of of same length.")
+            raise ValueError("Inputs `data_ys_tuple` and `model_ys_tuple` must be tuples of same length.")
 
         if "data_y_weights" in kwargs:
             if (kwargs["data_y_weights"] is not None) and (len(data_ys) != len(kwargs["data_y_weights"])):
