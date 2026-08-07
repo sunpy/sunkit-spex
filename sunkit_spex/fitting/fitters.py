@@ -6,7 +6,7 @@ from astropy.modeling.fitting import Fitter, _validate_model, model_to_fit_param
 from sunkit_spex.fitting.metrics import statistics
 from sunkit_spex.fitting.optimizers import minimizers
 
-__all__ = ["JointFitter"]
+__all__ = ["JointFitter", "ScipyMinimizeJointFitter"]
 
 
 DEFAULT_FIT_STATISTIC = statistics.chi_squared
@@ -158,15 +158,7 @@ class JointFitter(Fitter):
 
     def _update_model_params_with_result(self, models, jfit_param_indices, result_array):
         """Update the models with the fitted values."""
-        for mod_num, model in enumerate(models):
-            free_inds_in_mod = jfit_param_indices[mod_num]
-            fps = result_array[: len(free_inds_in_mod)]
-            parameters = fitter_to_model_params_array(
-                model, fps, self._use_min_max_bounds, fit_param_indices=jfit_param_indices[mod_num], model_list=models
-            )
-            model.parameters = parameters
-            remove = np.arange(len(free_inds_in_mod))
-            result_array = np.delete(result_array, remove)
+        self._update_model_params_twice(models, result_array, jfit_param_indices)
         return models
 
     def _evaluate_models(self, models, xs, parameter_units=None):

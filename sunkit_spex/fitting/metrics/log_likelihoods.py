@@ -18,7 +18,7 @@ def gaussian(data_ys, model_ys, data_y_weights, **kwargs):
     .. math::
         ln(L_{Gauss}) = -\frac{N}{2} ln(2\pi \sigma^{2}) - \frac{1}{2}\Chi^{2}
 
-    where N is the number of observed bins, sigma is the data error, and 
+    where N is the number of observed bins, sigma is the data error, and
     chi-squared is its usual, minimise version.
 
     Parameters
@@ -30,7 +30,7 @@ def gaussian(data_ys, model_ys, data_y_weights, **kwargs):
         The model values being fitted.
 
     data_y_weights : `tuple[ndarray]`
-        The associated weights for `data_ys`. Weights are 1/error**2. 
+        The associated weights for `data_ys`. Weights are 1/error**2.
 
     Returns
     -------
@@ -40,13 +40,15 @@ def gaussian(data_ys, model_ys, data_y_weights, **kwargs):
 
     log_likelihood_value = 0
     for i, data_y in enumerate(data_ys):
-
-        log_likelihoods = gaussian_maximum(data_y, data_y_weights[i]) - (1 / 2) * chi_squared((data_y,), (model_ys[i],), data_y_weights=(data_y_weights[i],))
+        log_likelihoods = gaussian_maximum(data_y, data_y_weights[i]) - (1 / 2) * chi_squared(
+            (data_y,), (model_ys[i],), data_y_weights=(data_y_weights[i],)
+        )
 
         log_likelihood_value += log_likelihoods.value if isinstance(log_likelihoods, u.Quantity) else log_likelihoods
 
     # best value is first whole term, if the chi squared section has any value then it is always subtracted
     return log_likelihood_value  # =ln(L)
+
 
 def gaussian_maximum(data_y, data_y_weight):
     r"""The maximum value the Gaussian log-likelihood can ever achieve.
@@ -62,7 +64,7 @@ def gaussian_maximum(data_y, data_y_weight):
         The data to be fitted.
 
     data_y_weight : `ndarray`
-        The associated weights for `data_ys`. Weights are 1/error**2. 
+        The associated weights for `data_ys`. Weights are 1/error**2.
 
     Returns
     -------

@@ -27,6 +27,7 @@ def test_gaussian_maximum():
     assert np.allclose([gmax_s1], [-0.9189385332046727])
     assert np.allclose([gmax_s2], [-5.582807594999972])
 
+
 def test_gaussian():
     sim_data0 = (np.array([0]),)
     sim_data_weights0 = (sim_data0[0],)
@@ -47,4 +48,4 @@ def test_gaussian():
 
     assert gaussian_s0 == gaussian_maximum(sim_data0[0], sim_data_weights0[0])
     assert gaussian_s1 == gaussian_maximum(sim_data1[0], sim_data_weights1[0])
-    assert gaussian_s2 == gaussian_maximum(sim_data2[0], sim_data_weights2[0])-8
+    assert gaussian_s2 == gaussian_maximum(sim_data2[0], sim_data_weights2[0]) - 8
