@@ -10,7 +10,6 @@ from astropy.modeling import FittableModel, Parameter
 from astropy.table.column import Column
 
 from sunpy.data import manager
-from sunpy.util.decorators import add_common_docstring
 
 from sunkit_spex.models.physical.io import (
     load_chianti_continuum,
@@ -156,7 +155,18 @@ def _thermal_signature(cls):
     return inspect.Signature(params)
 
 
-@add_common_docstring(append=doc_string_params)
+# Python 3.13 dedents docstring literals at compile time; earlier versions didnt'
+# Normalising both sections with inspect.cleandoc before joining
+_doc_string_params_clean = inspect.cleandoc(doc_string_params)
+
+
+def _thermal_docstring(cls):
+    """Attach the shared Parameters/Returns block to cls.__doc__."""
+    cls.__doc__ = inspect.cleandoc(cls.__doc__ or "") + "\n\n" + _doc_string_params_clean
+    return cls
+
+
+@_thermal_docstring
 class ThermalEmission(FittableModel):
     """Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
 
@@ -274,7 +284,7 @@ class ThermalEmission(FittableModel):
 ThermalEmission.__init__.__signature__ = _thermal_signature(ThermalEmission)
 
 
-@add_common_docstring(append=doc_string_params)
+@_thermal_docstring
 class ContinuumEmission(FittableModel):
     """Calculate the thermal X-ray continuum emission from the solar atmosphere.
 
@@ -373,7 +383,7 @@ class ContinuumEmission(FittableModel):
 ContinuumEmission.__init__.__signature__ = _thermal_signature(ContinuumEmission)
 
 
-@add_common_docstring(append=doc_string_params)
+@_thermal_docstring
 class LineEmission(FittableModel):
     """
     Calculate thermal line emission from the solar corona.
