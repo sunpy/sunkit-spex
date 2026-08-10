@@ -3,7 +3,7 @@
 Fitting With Different Fit Statistics
 =====================================
 
-We've made the joint fitting API allows the fit statistic to be 
+We've made the joint fitting API allows the fit statistic to be
 changeable when setting up the fitting.
 
 Let's show this when fitting some simulated data.
@@ -57,11 +57,11 @@ g1 = Linear1D()
 
 #####################################################
 #
-# Sunkit-spex has several options for the ``statistic`` input but the 
+# Sunkit-spex has several options for the ``statistic`` input but the
 # main thing is that it works with the optimisation method.
 #
-# For example, the Scipy ``minimize`` function expects to optimise a 
-# single numerical value and so the statistic option should return a 
+# For example, the Scipy ``minimize`` function expects to optimise a
+# single numerical value and so the statistic option should return a
 # single value.
 #
 # For this example, we'll use the Cash statistic. We can use ``help``
@@ -72,9 +72,9 @@ help(cash)
 
 #####################################################
 #
-# Set up the joint fitter. 
+# Set up the joint fitter.
 #
-# It's at this point we pass in the statistic of choice for the 
+# It's at this point we pass in the statistic of choice for the
 # data-to-model comparison.
 
 # set up the base joint fitter
@@ -83,15 +83,15 @@ fit_obj = fitters.ScipyMinimizeJointFitter(statistic=cash)
 #####################################################
 #
 # .. note::
-#     This assumes all the data being fitted (e.g., if we were performing 
-#     joint fitting) makes use fot eh same fitting metric. In the future, 
-#     each data-model set will have the ability to be matched with it's 
+#     This assumes all the data being fitted (e.g., if we were performing
+#     joint fitting) makes use of the same fitting metric. In the future,
+#     each data-model set will have the ability to be matched with it's
 #     own metric.
 #
-#     However, these should likelihoods so the metric has it's original 
+#     However, these should likelihoods so the metric has it's original
 #     physical meaning and not just random staticstical metrics.
 #
-#     Additionally, the ``cash`` function is just that, a function. A user 
+#     Additionally, the ``cash`` function is just that, a function. A user
 #     could equally define their own statistic and pass it here.
 
 #####################################################
