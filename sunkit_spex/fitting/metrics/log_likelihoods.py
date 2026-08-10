@@ -13,7 +13,7 @@ __all__ = ["gaussian"]
 
 
 def gaussian(data_ys, model_ys, data_y_weights, **kwargs):
-    r"""Gaussian log-likelihood.
+    r"""Gaussian log-likelihood (to be maximized).
 
     .. math::
         ln(L_{Gauss}) = -\frac{N}{2} ln(2\pi \sigma^{2}) - \frac{1}{2}\Chi^{2}

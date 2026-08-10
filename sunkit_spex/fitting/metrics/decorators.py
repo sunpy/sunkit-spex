@@ -1,5 +1,7 @@
 """Decorators for the fit metrics module."""
 
+from functools import wraps
+
 
 def check_metric_inputs(func):
     """Metrics should contain the same base inputs so need to check them.
@@ -8,6 +10,7 @@ def check_metric_inputs(func):
     again with the weights if they are given.
     """
 
+    @wraps(func)
     def wrapper(data_ys, model_ys, **kwargs):
 
         if len(data_ys) != len(model_ys):
