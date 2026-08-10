@@ -138,8 +138,8 @@ def fixed_quad_batch(func, a, b, n=5, args=(), func_kwargs={}):
     1.0
 
     """
-    a = np.array(a)
-    b = np.array(b)
+    a = np.asarray(a)
+    b = np.asarray(b)
     standard_nodes, standard_weights = _cached_roots_legendre(n)
     nodes = (b - a).reshape(-1, 1) * (standard_nodes + 1) / 2.0 + a.reshape(-1, 1)
     return np.squeeze(
