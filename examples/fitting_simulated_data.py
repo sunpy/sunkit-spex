@@ -22,6 +22,7 @@ from matplotlib.colors import LogNorm
 from astropy.modeling import fitting
 
 from sunkit_spex.data.simulated_data import simulate_square_response_matrix
+from sunkit_spex.fitting import fitters
 from sunkit_spex.fitting.metrics import statistics
 from sunkit_spex.fitting.optimizers.minimizers import MINIMIZERS
 from sunkit_spex.models.instrument_response import MatrixModel
@@ -174,6 +175,29 @@ plt.title("Simulated Count Spectrum Fit with Astropy")
 plt.legend()
 plt.show()
 
+
+#####################################################
+#
+# Now let's try the Sunkit-spex joint fitter.
+#
+# Ensure we start fresh with new model definitions again.
+
+ph_mod_4sunkitspex = StraightLineModel(**guess_cont) + GaussianModel(**guess_line)
+count_model_4sunkitspexfit = (ph_mod_4fit | srm_model) + GaussianModel(**guess_gauss)
+
+sunkitspex_fit = fitters.ScipyMinimizeJointFitter()
+
+sunkitspex_fitted_result = sunkitspex_fit(count_model_4sunkitspexfit, ph_energies, sim_count_model_wn)
+
+plt.figure()
+plt.plot(ph_energies, sim_count_model_wn, label="total sim. spectrum + noise")
+plt.plot(ph_energies, sunkitspex_fitted_result[0](ph_energies), ls=":", label="model fit")
+plt.xlabel("Energy [keV]")
+plt.ylabel("cts s$^{-1}$ keV$^{-1}$")
+plt.title("Simulated Count Spectrum Fit with Sunkit-spex")
+plt.legend()
+plt.show()
+
 #####################################################
 #
 # Display a table of the fitted results
@@ -184,16 +208,16 @@ plt.figure(layout="constrained")
 row_labels = (
     tuple(sim_cont)[-2:] + tuple(f"{p}1" for p in tuple(sim_line)[-3:]) + tuple(f"{p}2" for p in tuple(sim_gauss)[-3:])
 )
-column_labels = ("True Values", "Guess Values", "Scipy Fit", "Astropy Fit")
+column_labels = ("True Values", "Guess Values", "Scipy Fit", "Astropy Fit", "Sunkit-spex ``ScipyMinimizeJointFitter``")
 true_vals = np.array(tuple(sim_cont.values())[-2:] + tuple(sim_line.values())[-3:] + tuple(sim_gauss.values())[-3:])
 guess_vals = np.array(
     tuple(guess_cont.values())[-2:] + tuple(guess_line.values())[-3:] + tuple(guess_gauss.values())[-3:]
 )
 scipy_vals = opt_res.x
 astropy_vals = astropy_fitted_result.parameters
+sunkitspex_vals = sunkitspex_fitted_result[0].parameters
 
-cell_vals = np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T
-cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals)).T, 2).astype(str)
+cell_text = np.round(np.vstack((true_vals, guess_vals, scipy_vals, astropy_vals, sunkitspex_vals)).T, 2).astype(str)
 
 plt.axis("off")
 plt.table(
