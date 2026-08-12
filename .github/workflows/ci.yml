@@ -32,9 +32,11 @@ permissions: {}
 jobs:
   core:
     uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@8c8bb6c6c962542921f993d47d26df38dccd50b1  # v3.0.2
+    permissions:
+      id-token: write
     with:
       submodules: false
-      coverage: codecov
+      coverage: codecov-oidc
       toxdeps: tox-pypi-filter
       cache-path: |
         ~/sunpy/data_manager
@@ -45,8 +47,6 @@ jobs:
         - linux: py313
           cache-key: sunpy-data-linux-${{ github.ref }}
           cache-restore-keys: sunpy-data-linux-refs/heads/main
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
   sdist_verify:
     runs-on: ubuntu-latest
@@ -65,9 +65,11 @@ jobs:
   test:
     needs: [core, sdist_verify]
     uses: OpenAstronomy/github-actions-workflows/.github/workflows/tox.yml@8c8bb6c6c962542921f993d47d26df38dccd50b1  # v3.0.2
+    permissions:
+      id-token: write
     with:
       submodules: false
-      coverage: codecov
+      coverage: codecov-oidc
       toxdeps: tox-pypi-filter
       cache-path: |
         ~/sunpy/data_manager
@@ -91,8 +93,7 @@ jobs:
         - linux: py314-devdeps
           cache-key: sunpy-data-linux-${{ github.ref }}
           cache-restore-keys: sunpy-data-linux-refs/heads/main
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
 
   docs:
     needs: [core]
