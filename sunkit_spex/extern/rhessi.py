@@ -677,8 +677,9 @@ def load_spectrum(spec_fn: str):
     """
     with fits.open(spec_fn) as spec:
         rate_dat = spec["RATE"]
-        if rate_dat.header["SUMFLAG"] != 1:
-            raise ValueError("Cannot perform spectroscopy on un-summed RHESSI data.")
+        num_dets_used = str(rate_dat.header["DETUSED"]).count("|") + 1
+        if (rate_dat.header["SUMFLAG"] != 1) and (num_dets_used > 1):
+            raise ValueError("Cannot load RHESSI FITS files with >1 detector per file")
 
         # Note that for rate, the units are per detector, i.e. counts sec-1 detector-1.
         # https://hesperia.gsfc.nasa.gov/rhessi3/software/spectroscopy/spectrum-software/index.html
@@ -806,9 +807,6 @@ def load_srm(srm_file: str):
 
     # handle attenuated responses and `None` simultaneously
     all_srms = srm_options_by_attenuator_state(srm_file_dat)
-
-    if not all(h["header"]["SUMFLAG"] for h in all_srms.values()):
-        raise ValueError("SRM SUMFLAG's must be 1 for RHESSI spectroscopy")
 
     sample_key = list(all_srms.keys())[0]
     sample_srm = all_srms[sample_key]["data"]
