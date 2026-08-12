@@ -45,13 +45,8 @@ jobs:
         examples/nustar
       envs: |
         - linux: py313
-<<<<<<<
           cache-key: sunpy-data-linux-${{ github.ref }}
           cache-restore-keys: sunpy-data-linux-refs/heads/main
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-=======
->>>>>>>
 
   sdist_verify:
     runs-on: ubuntu-latest
@@ -96,13 +91,9 @@ jobs:
           cache-key: sunpy-data-linux-${{ github.ref }}
           cache-restore-keys: sunpy-data-linux-refs/heads/main
         - linux: py314-devdeps
-<<<<<<<
           cache-key: sunpy-data-linux-${{ github.ref }}
           cache-restore-keys: sunpy-data-linux-refs/heads/main
-    secrets:
-      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-=======
->>>>>>>
+
 
   docs:
     needs: [core]
