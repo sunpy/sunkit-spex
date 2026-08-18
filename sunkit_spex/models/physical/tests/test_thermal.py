@@ -386,6 +386,64 @@ def chianti_kev_lines_Fe2():
     return inputs, inputs_class, energy_edges, ssw_output
 
 
+def thick_target_warm_contribution():
+    """
+    Defines an output for the ``ThickTargetWarmContribution`` model
+    to be tested against.
+    """
+    energy_edges = np.arange(1.6, 15, 0.1) << u.keV
+    temperature = 10.2 << u.MK
+    plasma_density = 6e9 << u.cm**-3
+    low_e_cutoff = 6.5 << u.keV
+    total_eflux = 1.8e35 << (u.electron / u.second)
+    length = 15 << u.Mm
+    abundance_type = DEFAULT_ABUNDANCE_TYPE
+    # fmt: off
+    mg, al, si, s, ar, ca, fe = 8.15, 7.04, 8.1, 7.27, 6.58, 6.93, 8.4010299956639812
+
+    inputs = (
+            energy_edges, low_e_cutoff, total_eflux, plasma_density, length, temperature, mg, al, si, s, ar, ca, fe, abundance_type
+        )
+    inputs_class = (
+            low_e_cutoff, total_eflux, plasma_density, length, temperature, mg, al, si, s, ar, ca, fe, abundance_type
+        )
+    sunkit_spex_output = [6.44949131e+30, 9.68510522e+30, 3.64009470e+31, 1.13415879e+31,
+                          8.75614449e+30, 4.48061840e+30, 3.42850740e+30, 3.31089228e+30,
+                          5.28634751e+30, 1.93917241e+30, 1.37311322e+30, 1.13510049e+30,
+                          1.13264467e+30, 9.33206989e+29, 8.75980923e+29, 8.75507150e+29,
+                          5.49404869e+29, 4.76586797e+29, 4.08635361e+29, 3.58017526e+29,
+                          3.21470232e+29, 2.71616979e+29, 4.36726197e+29, 3.05835653e+29,
+                          1.75690250e+29, 1.53167611e+29, 1.33143219e+29, 1.15962972e+29,
+                          1.05003990e+29, 9.85476704e+28, 7.98127510e+28, 7.17544932e+28,
+                          6.18146249e+28, 5.17177540e+28, 4.47022426e+28, 3.92784720e+28,
+                          3.43454494e+28, 3.00421486e+28, 2.62878786e+28, 2.30096583e+28,
+                          2.01471949e+28, 1.76455555e+28, 1.54592668e+28, 1.35473494e+28,
+                          1.18754844e+28, 1.04129031e+28, 9.17588886e+27, 8.95244823e+27,
+                          2.28384164e+28, 4.66833951e+28, 2.13455961e+28, 5.54442739e+27,
+                          4.17576618e+27, 3.66814685e+27, 3.22285512e+27, 2.84513673e+27,
+                          2.49996801e+27, 2.18839217e+27, 1.92417640e+27, 1.69214868e+27,
+                          1.48945428e+27, 1.42493811e+27, 1.24119455e+27, 1.01864256e+27,
+                          8.92414274e+26, 8.22404648e+26, 7.10419441e+26, 6.29127713e+26,
+                          5.41019869e+26, 4.72918762e+26, 4.16221692e+26, 3.66685749e+26,
+                          3.23287648e+26, 2.84921249e+26, 2.51132595e+26, 2.21389061e+26,
+                          1.95175083e+26, 1.72089201e+26, 1.51758643e+26, 1.33830307e+26,
+                          1.18051372e+26, 1.04125183e+26, 9.18697822e+25, 8.10500671e+25,
+                          7.15244883e+25, 6.31132611e+25, 5.57072025e+25, 4.91643710e+25,
+                          4.34045128e+25, 3.83149052e+25, 3.38311163e+25, 2.98709602e+25,
+                          2.63782790e+25, 2.32962460e+25, 2.05739148e+25, 1.81749313e+25,
+                          1.60539864e+25, 1.41839259e+25, 1.25322066e+25, 1.10723052e+25,
+                          9.78551010e+24, 8.64742902e+24, 7.64240622e+24, 6.75545270e+24,
+                          5.97088163e+24, 5.27832255e+24, 4.66665193e+24, 4.12549626e+24,
+                          3.64775453e+24, 3.22571621e+24, 2.85226405e+24, 2.52235232e+24,
+                          2.23101750e+24, 1.97317226e+24, 1.74509605e+24, 1.54389741e+24,
+                          1.36579076e+24, 1.20813628e+24, 1.06893488e+24, 9.45857108e+23,
+                          8.36888795e+23, 7.40418659e+23, 6.55344272e+23, 5.80006514e+23,
+                          5.13293421e+23, 4.54249083e+23, 4.02146850e+23, 3.55997428e+23,
+                          3.15123042e+23, 2.78926178e+23, 2.46986782e+23, 2.18691162e+23,
+                          1.93624991e+23] * (u.ph / (u.keV * u.s))
+    return inputs, inputs_class, energy_edges, sunkit_spex_output
+
+
 @pytest.mark.parametrize("ssw", [fvth_simple, fvth_Fe2])
 def test_thermal_emission_against_ssw(ssw):
     _, input_args_class, energy_edges, expected = ssw()
@@ -513,3 +571,12 @@ def test_abundances_should_not_change():
 
         after_models = thermal.DEFAULT_ABUNDANCES[thermal.DEFAULT_ABUNDANCE_TYPE].data
         assert np.allclose(after_models.data, orig.data)
+
+
+@pytest.mark.parametrize("sunkit_spex", [thick_target_warm_contribution])
+def test_thick_target_warm_contribution_against_previous(sunkit_spex):
+    _, input_args_class, energy_edges, expected = sunkit_spex()
+    model_class = thermal.ThickTargetWarmContribution(*input_args_class)
+    output_class = model_class(energy_edges)
+    expected_value = expected.to_value(output_class.unit)
+    np.testing.assert_allclose(output_class.value, expected_value, rtol=0.05, atol=1e-30)
