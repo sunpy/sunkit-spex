@@ -1,3 +1,4 @@
+from typing import Any
 from functools import lru_cache
 
 import numpy as np
@@ -14,7 +15,7 @@ from sunpy.data import cache
 __all__ = ["Albedo", "get_albedo_matrix"]
 
 
-class Albedo(FittableModel):
+class Albedo(FittableModel):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     r"""
     Aldedo model which adds albdeo correction to input spectrum.
 
@@ -88,12 +89,15 @@ class Albedo(FittableModel):
 
     _input_units_allow_dimensionless = True
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.energy_edges = kwargs.pop("energy_edges")
 
         super().__init__(*args, **kwargs)
 
-    def evaluate(self, spectrum, theta, anisotropy):
+    # Parameters intentionally left unannotated: astropy's Model.input_units reads
+    # evaluate.__annotations__ to infer per-input units, keyed by input name, so adding
+    # unrelated (non-unit) annotations here breaks that introspection at runtime.
+    def evaluate(self, spectrum, theta, anisotropy):  # type: ignore[no-untyped-def]
         if not isinstance(theta, Quantity):
             theta = theta * u.deg
 
@@ -101,7 +105,7 @@ class Albedo(FittableModel):
 
         return spectrum + spectrum @ albedo_matrix
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+    def _parameter_units_for_data_units(self, inputs_unit: Any, outputs_unit: Any) -> dict[str, Any]:
         return {"theta": u.deg}
 
 
@@ -151,6 +155,11 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
         file = cache.download(base_url + file)
         green = readsav(file)
         albedo = green["p"].albedo[0]
+    else:
+        # mu = cos(theta) is always in [-1, 1], and theta is validated elsewhere to be
+        # within +/-90 deg (so mu in [0, 1]); the branches above are exhaustive over that
+        # range unless mu is NaN.
+        raise ValueError(f"Could not determine albedo matrix for theta={theta} (mu={mu}).")
 
     albedo = albedo.T
 
@@ -162,7 +171,7 @@ def _get_green_matrix(theta: float) -> RegularGridInterpolator:
 
 
 @lru_cache
-def _calculate_albedo_matrix(energy_edges: tuple[float], theta: float, anisotropy: float) -> NDArray:
+def _calculate_albedo_matrix(energy_edges: tuple[float], theta: float, anisotropy: float) -> NDArray[np.float64]:
     r"""
     Calculate green matrix for given energies and angle.
 
@@ -189,11 +198,13 @@ def _calculate_albedo_matrix(energy_edges: tuple[float], theta: float, anisotrop
     albedo_interp = (albedo_interp * de) / anisotropy
 
     # Take a transpose
-    return albedo_interp.T
+    return np.asarray(albedo_interp.T, dtype=np.float64)
 
 
-@u.quantity_input
-def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], anisotropy=1):
+@u.quantity_input  # type: ignore[untyped-decorator]  # astropy ships no stubs
+def get_albedo_matrix(
+    energy_edges: Quantity[u.keV], theta: Quantity[u.deg], anisotropy: float = 1
+) -> NDArray[np.float64]:
     r"""
     Get albedo correction matrix.
 
@@ -222,11 +233,19 @@ def get_albedo_matrix(energy_edges: Quantity[u.keV], theta: Quantity[u.deg], ani
            [5.22059171e-01, 3.02951100e-01, 1.46291699e-13, 0.00000000e+00],
            [4.52582540e-01, 3.69821128e-01, 1.13435321e-01, 5.95953019e-15]])
     """
-    if energy_edges[0].to_value(u.keV) < 3 or energy_edges[-1].to_value(u.keV) > 600:
+    # Quantity[u.keV] is a quantity_input runtime unit-check hint, not a real generic
+    # parameterization; pyright misreads it as constraining __getitem__'s element type.
+    if energy_edges[0].to_value(u.keV) < 3 or energy_edges[-1].to_value(u.keV) > 600:  # pyright: ignore[reportOperatorIssue, reportAttributeAccessIssue]
         raise ValueError("Supported energy range 3 <= E <= 600 keV")
     theta = np.array(theta).squeeze() << theta.unit
     if np.abs(theta) > 90 * u.deg:
         raise ValueError(f"Theta must be between -90 and 90 degrees: {theta}.")
-    anisotropy = np.array(anisotropy).squeeze()
+    anisotropy_arr = np.array(anisotropy).squeeze()
 
-    return _calculate_albedo_matrix(tuple(energy_edges.to_value(u.keV)), theta.to_value(u.deg), anisotropy.item())
+    # astropy's imprecise typing produces an overly broad union for these expressions;
+    # they are plain float arrays/scalars at runtime.
+    return _calculate_albedo_matrix(
+        tuple(energy_edges.to_value(u.keV)),  # pyright: ignore[reportArgumentType]
+        theta.to_value(u.deg),  # pyright: ignore[reportArgumentType]
+        anisotropy_arr.item(),
+    )

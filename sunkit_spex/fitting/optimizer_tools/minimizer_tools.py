@@ -2,12 +2,22 @@
 This module contains functions to wrap around minimizer tools.
 """
 
-from scipy.optimize import minimize
+from typing import Any
+from collections.abc import Callable
+
+import numpy as np
+from numpy.typing import NDArray
+from scipy.optimize import OptimizeResult, minimize
 
 __all__ = ["scipy_minimize"]
 
 
-def scipy_minimize(objective_func, param_guesses, objective_func_args, **kwargs):
+def scipy_minimize(
+    objective_func: Callable[..., float],
+    param_guesses: NDArray[np.float64],
+    objective_func_args: tuple[Any, ...],
+    **kwargs: Any,
+) -> OptimizeResult:
     """A function to optimize fitted parameters to data.
 
     Parameters

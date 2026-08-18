@@ -1,15 +1,18 @@
 import copy
 from copy import deepcopy
+from typing import Any, Self
 
 import numpy as np
 from gwcs import WCS as GWCS
 from gwcs import coordinate_frames as cf
 from ndcube import NDCube
+from numpy.typing import NDArray
 
 import astropy.units as u
 from astropy.coordinates import SpectralCoord
 from astropy.modeling.mappings import Identity, Mapping
 from astropy.modeling.tabular import Tabular1D
+from astropy.units import Quantity
 from astropy.utils import lazyproperty
 from astropy.wcs.wcsapi import sanitize_slices
 
@@ -19,17 +22,17 @@ __all__ = ["SpectralAxis", "Spectrum", "gwcs_from_array"]
 __doctest_requires__ = {"Spectrum": ["ndcube>=2.3"]}
 
 
-class SpectralGWCS(GWCS):
+class SpectralGWCS(GWCS):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     """
-    This is a placeholder lookup-table GWCS created when a :class:`~specutils.Spectrum` is
+    This is a placeholder lookup-table GWCS created when a :class:`~sunkit_spex.spectrum.Spectrum` is
     instantiated with a ``spectral_axis`` and no WCS.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self.original_unit = kwargs.pop("original_unit", "")
         super().__init__(*args, **kwargs)
 
-    def copy(self):
+    def copy(self) -> Self:
         """
         Return a shallow copy of the object.
 
@@ -42,7 +45,7 @@ class SpectralGWCS(GWCS):
         """
         return copy.copy(self)
 
-    def deepcopy(self):
+    def deepcopy(self) -> Self:
         """
         Return a deep copy of the object.
 
@@ -52,11 +55,28 @@ class SpectralGWCS(GWCS):
         return copy.deepcopy(self)
 
 
-def gwcs_from_array(array, flux_shape, spectral_axis_index=None):
+def gwcs_from_array(
+    array: Quantity, flux_shape: tuple[int, ...], spectral_axis_index: int | None = None
+) -> SpectralGWCS:
     """
     Create a new WCS from provided tabular data. This defaults to being
     a GWCS object with a lookup table for the spectral axis and filler
     pixel to pixel identity conversions for spatial axes, if they exist.
+
+    Parameters
+    ----------
+    array : `~astropy.units.Quantity`
+        The spectral axis values used to build the lookup table.
+    flux_shape : tuple of `int`
+        The shape of the flux/data array this WCS will describe.
+    spectral_axis_index : `int`, optional
+        The dimension of ``flux_shape`` which represents the spectral axis. Required if
+        ``flux_shape`` has more than one dimension; defaults to ``0`` for a 1D ``flux_shape``.
+
+    Returns
+    -------
+    `SpectralGWCS`
+        A lookup-table GWCS with the spectral axis identified by ``spectral_axis_index``.
     """
     orig_array = u.Quantity(array)
     naxes = len(flux_shape)
@@ -68,8 +88,10 @@ def gwcs_from_array(array, flux_shape, spectral_axis_index=None):
         spectral_axis_index = naxes - spectral_axis_index - 1
     elif naxes == 1:
         spectral_axis_index = 0
+    if spectral_axis_index is None:
+        raise ValueError("flux_shape must have at least one dimension")
 
-    axes_order = list(np.arange(naxes))
+    axes_order: list[int] = list(np.arange(naxes))
     axes_type = [
         "SPATIAL",
     ] * naxes
@@ -100,28 +122,31 @@ def gwcs_from_array(array, flux_shape, spectral_axis_index=None):
         )
     else:
         phys_types = None
+        array_unit = array.unit
+        if array_unit is None:
+            raise ValueError("Spectral axis Quantity must have a unit.")
         # Note that some units have multiple physical types, so we can't just set the
         # axis name to the physical type string.
-        if array.unit.physical_type == "length":
+        if array_unit.physical_type == "length":
             axes_names = [
                 "wavelength",
             ]
-        elif array.unit.physical_type == "frequency":
+        elif array_unit.physical_type == "frequency":
             axes_names = [
                 "frequency",
             ]
-        elif array.unit.physical_type == "velocity":
+        elif array_unit.physical_type == "velocity":
             axes_names = [
                 "velocity",
             ]
             phys_types = [
                 "spect.dopplerVeloc.optical",
             ]
-        elif array.unit.physical_type == "wavenumber":
+        elif array_unit.physical_type == "wavenumber":
             axes_names = [
                 "wavenumber",
             ]
-        elif array.unit.physical_type == "energy":
+        elif array_unit.physical_type == "energy":
             axes_names = [
                 "energy",
             ]
@@ -171,13 +196,17 @@ def gwcs_from_array(array, flux_shape, spectral_axis_index=None):
             out_mapping[mapped_axes[i]] = i
         forward_transform = (
             Mapping(mapped_axes)
-            | Identity(naxes - 1) & SpectralTabular1D(np.arange(len(array)) * u.pix, lookup_table=array)
+            | Identity(naxes - 1) & SpectralTabular1D(np.arange(len(array)) * u.pix, lookup_table=array)  # pyright: ignore[reportOperatorIssue]
             | Mapping(out_mapping)
         )
 
     # If our spectral axis is in descending order, we have to flip the lookup
     # table to be ascending in order for world_to_pixel to work.
-    forward_transform.inverse = SpectralTabular1D(array, lookup_table=np.arange(len(array)) * u.pix)
+    # astropy's CompoundModel.inverse is a real settable property at runtime; pyright's
+    # inference from source doesn't resolve forward_transform's type precisely enough to see that.
+    forward_transform.inverse = SpectralTabular1D(  # pyright: ignore[reportAttributeAccessIssue]
+        array, lookup_table=np.arange(len(array)) * u.pix
+    )
 
     tabular_gwcs = SpectralGWCS(
         original_unit=orig_array.unit,
@@ -193,7 +222,7 @@ def gwcs_from_array(array, flux_shape, spectral_axis_index=None):
     return tabular_gwcs
 
 
-class SpectralAxis(SpectralCoord):
+class SpectralAxis(SpectralCoord):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     r"""
     Coordinate object representing spectral values corresponding to a specific
     spectrum. Overloads SpectralCoord with additional information (currently
@@ -201,19 +230,28 @@ class SpectralAxis(SpectralCoord):
 
     Parameters
     ----------
+    value : `~astropy.units.Quantity` or `~numpy.ndarray`
+        The spectral axis values, interpreted as bin centers or bin edges
+        according to ``bin_specification``.
     bin_specification: str, optional
         Must be "edges" or "centers". Determines whether specified axis values
         are interpreted as bin edges or bin centers. Defaults to "centers".
     """
 
-    _equivalent_unit = (*SpectralCoord._equivalent_unit, u.pixel)
+    # SpectralCoord._equivalent_unit is a plain tuple of Unit at runtime; pyright's
+    # inference of it (astropy ships no stubs) varies across astropy versions.
+    _equivalent_unit = (*SpectralCoord._equivalent_unit, u.pixel)  # pyright: ignore[reportOptionalIterable, reportGeneralTypeIssues]
 
-    def __new__(cls, value, *args, bin_specification="centers", **kwargs):
+    def __new__(
+        cls, value: Quantity | NDArray[Any], *args: Any, bin_specification: str = "centers", **kwargs: Any
+    ) -> Self:
         # Enforce pixel axes are ascending
+        # mypy treats astropy's Quantity as Any (no stubs), so `type(value) is Quantity`
+        # doesn't narrow value away from the NDArray branch of the declared union here.
         if (
-            (type(value) is u.quantity.Quantity)
+            (type(value) is Quantity)
             and (value.size > 1)
-            and (value.unit is u.pix)
+            and (value.unit is u.pix)  # type: ignore[union-attr]
             and (value[-1] <= value[0])
         ):
             raise ValueError("u.pix spectral axes should always be ascending")
@@ -223,6 +261,7 @@ class SpectralAxis(SpectralCoord):
 
         # Convert to bin centers if bin edges were given, since SpectralCoord
         # only accepts centers
+        bin_edges = None
         if bin_specification == "edges":
             bin_edges = value
             value = SpectralAxis._centers_from_edges(value)
@@ -232,31 +271,31 @@ class SpectralAxis(SpectralCoord):
         if bin_specification == "edges":
             obj._bin_edges = bin_edges
 
-        return obj
+        return obj  # type: ignore[no-any-return]  # SpectralCoord.__new__ is untyped, but obj is a cls instance
 
     @staticmethod
-    def _centers_from_edges(edges):
+    def _centers_from_edges(edges: Quantity | NDArray[Any]) -> Quantity | NDArray[Any]:
         r"""
         Calculates the bin centers as the average of each pair of edges
         """
         return (edges[1:] + edges[:-1]) / 2
 
-    @lazyproperty
-    def bin_edges(self):
+    @lazyproperty  # type: ignore[untyped-decorator]  # astropy ships no stubs
+    def bin_edges(self) -> Quantity | NDArray[Any] | None:
         r"""
-        Calculates bin edges if the spectral axis was created with centers
-        specified.
+        Returns the original bin edges if the spectral axis was constructed with
+        ``bin_specification="edges"``, or `None` if it was constructed from bin centers.
         """
         if hasattr(self, "_bin_edges") and self._bin_edges is not None:
             return self._bin_edges
         return None
 
-    def __array_finalize__(self, obj):
+    def __array_finalize__(self, obj: NDArray[Any] | None) -> None:
         super().__array_finalize__(obj)
         self._bin_edges = getattr(obj, "_bin_edges", None)
 
 
-class Spectrum(NDCube):
+class Spectrum(NDCube):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     r"""
     Spectrum container for data which share a common spectral axis.
 
@@ -270,25 +309,33 @@ class Spectrum(NDCube):
 
     Parameters
     ----------
-    data : `~astropy.units.Quantity`
-        The data for this spectrum. This can be a simple `~astropy.units.Quantity`,
-        or an existing `~Spectrum` or `~ndcube.NDCube` object.
-    uncertainty : `~astropy.nddata.NDUncertainty`
+    data : `~astropy.units.Quantity`, `~numpy.ndarray`, `~ndcube.NDCube`, or `~sunkit_spex.spectrum.Spectrum`
+        The data for this spectrum. This can be a simple `~astropy.units.Quantity` or plain
+        `~numpy.ndarray`, or an existing `~sunkit_spex.spectrum.Spectrum` or `~ndcube.NDCube` object.
+    spectral_axis : `~astropy.units.Quantity` or `~sunkit_spex.spectrum.SpectralAxis`
+        Dispersion information with the same shape as the dimension specified by spectral_axis_index
+        or shape plus one if specifying bin edges. Required (defaults to `None`, which raises).
+    spectral_axis_index : `int`, optional
+        The dimension of ``data`` which represents the spectral information. If not given, this
+        defaults to ``0`` for 1D data, or can be derived from ``wcs`` if it has exactly one spectral
+        axis. Otherwise, it must be specified explicitly for multi-dimensional data.
+    wcs : `~astropy.wcs.WCS` or `~gwcs.wcs.WCS`, optional
+        World coordinate system information used to identify the spectral axis and validate it
+        against ``spectral_axis``. If not given, one is generated from ``spectral_axis``.
+    uncertainty : `~astropy.nddata.NDUncertainty`, optional
         Contains uncertainty information along with propagation rules for
         spectrum arithmetic. Can take a unit, but if none is given, will use
-        the unit defined in the data.
-    spectral_axis : `~astropy.units.Quantity` or `~specutils.SpectralAxis`
-        Dispersion information with the same shape as the dimension specified by spectral_axis_index
-        or shape plus one if specifying bin edges.
-    spectral_axis_index : `int` default 0
-        The dimension of the data which represents the spectral information default to first dimension index 0.
-    mask : `~numpy.ndarray`-like
+        the unit defined in the data. Passed through to `~ndcube.NDCube`.
+    mask : `~numpy.ndarray`-like, optional
         Array where values in the flux to be masked are those that
         ``astype(bool)`` converts to True. (For example, integer arrays are not
-        masked where they are 0, and masked for any other value.)
-    meta : dict
+        masked where they are 0, and masked for any other value.) Passed through to `~ndcube.NDCube`.
+    meta : dict, optional
         Arbitrary container for any user-specific information to be carried
-        around with the spectrum container object.
+        around with the spectrum container object. Passed through to `~ndcube.NDCube`.
+    **kwargs
+        Additional keyword arguments (``unit``, ``copy``, ``extra_coords``, ``global_coords``, ``psf``)
+        are passed through to `~ndcube.NDCube`.
 
     Examples
     --------
@@ -308,13 +355,13 @@ class Spectrum(NDCube):
 
     def __init__(
         self,
-        data,
+        data: "Spectrum | NDCube | Quantity | NDArray[Any]",
         *,
-        spectral_axis=None,
-        spectral_axis_index=None,
-        wcs=None,
-        **kwargs,
-    ):
+        spectral_axis: Quantity | SpectralAxis | None = None,
+        spectral_axis_index: int | None = None,
+        wcs: Any = None,
+        **kwargs: Any,
+    ) -> None:
         # If the data argument is already a Spectrum (as it would
         # be for internal arithmetic operations), avoid setup entirely.
         if isinstance(data, Spectrum):
@@ -342,19 +389,18 @@ class Spectrum(NDCube):
                 raise ValueError("Spectral axis must be specified")
 
             # Change the data array from bare ndarray to a Quantity
-            q_data = data.data << u.Unit(data.unit)
+            # ndcube/astropy's imprecise typing produces an overly broad union here;
+            # data.unit was just checked above and data.data is a real ndarray at runtime.
+            q_data = data.data << u.Unit(data.unit)  # pyright: ignore[reportOperatorIssue, reportArgumentType]
 
-            self.__init__(
+            self.__init__(  # type: ignore[misc]  # re-dispatch through __init__ with normalized args
                 q_data, wcs=data.wcs, mask=data.mask, uncertainty=data.uncertainty, spectral_axis=spectral_axis
             )
             return
 
         self._spectral_axis_index = spectral_axis_index
         # If here data should be an array or quantity
-        if spectral_axis_index is None and data is not None:
-            if data.ndim == 1:
-                self._spectral_axis_index = 0
-        elif data is None:
+        if spectral_axis_index is None and data.ndim == 1:
             self._spectral_axis_index = 0
 
         # Ensure that the unit information codified in the quantity object is
@@ -391,25 +437,32 @@ class Spectrum(NDCube):
                     self._spectral_axis_index = len(data.shape) - temp_axes[0] - 1
 
             else:
-                if data is not None and data.ndim == 1:
+                if data.ndim == 1:
                     self._spectral_axis_index = 0
                 else:
                     if self.spectral_axis_index is None:
                         raise ValueError("WCS is 1D but flux is multi-dimensional. Please specify spectral_axis_index.")
 
+        if self._spectral_axis_index is None:
+            raise ValueError(
+                "spectral_axis_index must be specified for multi-dimensional data without "
+                "a WCS that identifies the spectral axis."
+            )
+        spectral_axis_index = self._spectral_axis_index
+
         # If data and spectral axis are both specified, check that their lengths
         # match or are off by one (implying the spectral axis stores bin edges)
         bin_specification = "centers"  # default value
-        if data is not None and spectral_axis is not None:
-            if spectral_axis.shape[0] == data.shape[self.spectral_axis_index]:
+        if spectral_axis is not None:
+            if spectral_axis.shape[0] == data.shape[spectral_axis_index]:
                 bin_specification = "centers"
-            elif spectral_axis.shape[0] == data.shape[self.spectral_axis_index] + 1:
+            elif spectral_axis.shape[0] == data.shape[spectral_axis_index] + 1:
                 bin_specification = "edges"
             else:
                 raise ValueError(
                     f"Spectral axis length ({spectral_axis.shape[0]}) must be the "
                     "same size or one greater (if specifying bin edges) than that "
-                    f"of the corresponding data axis ({data.shape[self.spectral_axis_index]})"
+                    f"of the corresponding data axis ({data.shape[spectral_axis_index]})"
                 )
 
         # Attempt to parse the spectral axis. If none is given, try instead to
@@ -431,24 +484,24 @@ class Spectrum(NDCube):
 
         # Check the spectral_axis matches the wcs
         if wcs is not None:
-            wsc_coords = None
+            wcs_coords = None
             if hasattr(wcs, "spectral") and getattr(wcs, "is_spectral", False):
-                wcs_coords = wcs.spectral.pixel_to_world(np.arange(data.shape[self.spectral_axis_index])).to("keV")
+                wcs_coords = wcs.spectral.pixel_to_world(np.arange(data.shape[spectral_axis_index])).to("keV")
             elif wcs.pixel_n_dim == 1:
-                wcs_coords = wcs.pixel_to_world(np.arange(data.shape[self.spectral_axis_index]))
+                wcs_coords = wcs.pixel_to_world(np.arange(data.shape[spectral_axis_index]))
             # else:
             #     array_index = wcs.pixel_n_dim - self._spectral_axis_index - 1
             #     pixels = [0] * wcs.pixel_n_dim
             #     pixels[array_index] = np.arange(data.shape[self.spectral_axis_index])
             #     wcs_coords = wcs.pixel_to_world(*pixels)[array_index]
-            if wsc_coords is not None:
+            if wcs_coords is not None:
                 if not u.allclose(self._spectral_axis, wcs_coords):
                     raise ValueError(
                         f"Spectral axis {self._spectral_axis} and wcs spectral axis {wcs_coords} must match."
                     )
 
         if wcs is None:
-            wcs = gwcs_from_array(self._spectral_axis, data.shape, spectral_axis_index=self.spectral_axis_index)
+            wcs = gwcs_from_array(self._spectral_axis, data.shape, spectral_axis_index=spectral_axis_index)
 
         super().__init__(data=data.value if isinstance(data, u.Quantity) else data, wcs=wcs, **kwargs)
 
@@ -464,27 +517,31 @@ class Spectrum(NDCube):
                     "same."
                 )
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Any) -> "Spectrum":
         sliced_cube = super().__getitem__(item)
         item = tuple(sanitize_slices(item, len(self.shape)))
         sliced_spec_axis = self.spectral_axis[item[self.spectral_axis_index]]
-        return Spectrum(sliced_cube, spectral_axis=sliced_spec_axis)
+        # Indexing a SpectralAxis (an ndarray subclass) always preserves the subclass at
+        # runtime; pyright's numpy __getitem__ overloads infer a broader union statically.
+        return Spectrum(sliced_cube, spectral_axis=sliced_spec_axis)  # pyright: ignore[reportArgumentType]
 
-    def _slice(self, item):
-        kwargs = super()._slice(item)
+    def _slice(self, item: Any) -> dict[str, Any]:
+        kwargs: dict[str, Any] = super()._slice(item)
         item = tuple(sanitize_slices(item, len(self.shape)))
 
         kwargs["spectral_axis_index"] = self.spectral_axis_index
         kwargs["spectral_axis"] = self.spectral_axis[item[self.spectral_axis_index]]
         return kwargs
 
-    def _new_instance(self, **kwargs):
+    def _new_instance(self, **kwargs: Any) -> Self:
         keys = ("unit", "wcs", "mask", "meta", "uncertainty", "psf", "spectral_axis")
         full_kwargs = {k: deepcopy(getattr(self, k, None)) for k in keys}
         # We Explicitly DO NOT deepcopy any data
         full_kwargs["data"] = self.data
         full_kwargs.update(kwargs)
-        new_spectrum = type(self)(**full_kwargs)
+        # self.data is never actually None on a constructed Spectrum; ndcube's own
+        # NDCube.data is more permissively typed since it allows data=None in general.
+        new_spectrum = type(self)(**full_kwargs)  # pyright: ignore[reportArgumentType]
         if self.extra_coords is not None:
             new_spectrum._extra_coords = deepcopy(self.extra_coords)
         if self.global_coords is not None:
@@ -492,9 +549,9 @@ class Spectrum(NDCube):
         return new_spectrum
 
     @property
-    def spectral_axis(self):
+    def spectral_axis(self) -> SpectralAxis:
         return self._spectral_axis
 
     @property
-    def spectral_axis_index(self):
+    def spectral_axis_index(self) -> int | None:
         return self._spectral_axis_index
