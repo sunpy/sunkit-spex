@@ -4,7 +4,21 @@ import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 from astropy.units import Quantity
 
-__all__ = ["Constant", "InverseSquareFluxScaling"]
+__all__ = [
+    "Constant",
+    "InverseSquareFluxScaling",
+    "scaled_em_units",
+    "scaled_thick_eflux_units",
+    "scaled_thin_eflux_units",
+]
+
+
+scaled_thick_eflux_units = u.def_unit("scaled_thick_eflux_units", 1e35 * (u.electron * u.s**-1))
+scaled_thin_eflux_units = u.def_unit("scaled_thin_eflux_units", 1e55 * (u.electron * u.cm ** (-2) * u.s**-1))
+scaled_em_units = u.def_unit("scaled_em_units", 1e49 * (u.cm ** (-3)))
+u.add_enabled_units(
+    [scaled_thick_eflux_units, scaled_thin_eflux_units, scaled_em_units]
+)  # lets astropy's methods find these units
 
 
 class InverseSquareFluxScaling(FittableModel):
@@ -17,9 +31,6 @@ class InverseSquareFluxScaling(FittableModel):
         Energy edges associated with input spectrum
     observer_distance:
         Distance of the observer from the source.
-
-
-
 
     Examples
     ========
@@ -100,7 +111,6 @@ class Constant(FittableModel):
         Energy edges associated with input spectrum
     constant :
         A constant value which populates the output array
-
 
     Examples
     ========

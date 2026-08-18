@@ -15,6 +15,7 @@ from sunkit_spex.models.physical.io import (
     load_chianti_lines_lite,
     load_xray_abundances,
 )
+from sunkit_spex.models.scaling import scaled_em_units
 
 # The default elemental abundance values correspond to coronal values
 DEFAULT_ABUNDANCE_TYPE = "sun_coronal_ext"
@@ -134,8 +135,6 @@ class ThermalEmission(FittableModel):
     temperature = Parameter(
         name="temperature",
         default=10,
-        min=1,
-        max=100,
         unit=u.MK,
         description="Temperature of the plasma",
         fixed=False,
@@ -144,9 +143,10 @@ class ThermalEmission(FittableModel):
     emission_measure = Parameter(
         name="emission_measure",
         default=1,
-        unit=(u.cm ** (-3)),
+        unit=scaled_em_units,
         description="Emission measure of the observer",
         fixed=False,
+        bounds=(0, None),
     )
 
     mg = Parameter(name="Mg", default=8.15, min=6.15, max=10.15, description="Mg relative abundance", fixed=True)
@@ -184,6 +184,16 @@ class ThermalEmission(FittableModel):
 
         if abundance_type != DEFAULT_ABUNDANCE_TYPE:
             mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
+
+        emission_measure <<= scaled_em_units
+        self.temperature.bounds = (
+            (np.min([CONTINUUM_GRID["temperature range K"][0], LINE_GRID["temperature range K"][0]]) << u.K).to(
+                temperature.unit
+            ),
+            (np.max([CONTINUUM_GRID["temperature range K"][1], LINE_GRID["temperature range K"][1]]) << u.K).to(
+                temperature.unit
+            ),
+        )
 
         self.line = LineEmission(
             temperature=temperature,
@@ -237,6 +247,9 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
+        energy_edges <<= u.keV
+        temperature <<= self.temperature.unit
+        emission_measure <<= self.emission_measure.unit
         line_flux = self.line.evaluate(
             energy_edges,
             temperature,
@@ -275,7 +288,7 @@ class ThermalEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
+        return {"temperature": u.MK, "emission_measure": scaled_em_units}
 
 
 class ContinuumEmission(FittableModel):
@@ -329,7 +342,7 @@ class ContinuumEmission(FittableModel):
     emission_measure = Parameter(
         name="emission_measure",
         default=1,
-        unit=(u.cm ** (-3)),
+        unit=scaled_em_units,
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -419,7 +432,7 @@ class ContinuumEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
+        return {"temperature": u.MK, "emission_measure": scaled_em_units}
 
 
 class LineEmission(FittableModel):
@@ -468,8 +481,8 @@ class LineEmission(FittableModel):
 
     emission_measure = Parameter(
         name="emission_measure",
-        default=1e50,
-        unit=(u.cm ** (-3)),
+        default=1,
+        unit=scaled_em_units,
         description="Emission measure of the observer",
         fixed=False,
     )
@@ -559,7 +572,7 @@ class LineEmission(FittableModel):
         return {self.outputs[0]: u.ph / u.keV * u.s**-1}
 
     def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
-        return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
+        return {"temperature": u.MK, "emission_measure": scaled_em_units}
 
 
 def setup_continuum_parameters(filename=None):
@@ -722,7 +735,7 @@ def continuum_emission(
     # Calculate flux.
     flux = _continuum_emission(energy_edges_keV, temperature_K, abundances)
 
-    flux *= emission_measure * 1e49
+    flux *= emission_measure
 
     if temperature_K.isscalar and emission_measure.isscalar:
         flux = flux[0]
@@ -767,7 +780,7 @@ def line_emission(
 
     flux = _line_emission(energy_edges_keV, temperature_K, abundances)
 
-    flux *= emission_measure * 1e49
+    flux *= emission_measure
 
     if temperature_K.isscalar and emission_measure.isscalar:
         flux = flux[0]
@@ -1223,7 +1236,7 @@ def _sanitize_inputs(energy_edges, temperature, emission_measure):
     # If they were not already Quantities, the parameters get the default units.
     energy_edges <<= u.keV
     temperature <<= u.K
-    emission_measure <<= u.cm**-3
+    emission_measure <<= scaled_em_units
 
     energy_edges_keV = energy_edges.to(u.keV)
 

@@ -94,8 +94,8 @@ class Albedo(FittableModel):
         super().__init__(*args, **kwargs)
 
     def evaluate(self, spectrum, theta, anisotropy):
-        if not isinstance(theta, Quantity):
-            theta = theta * u.deg
+
+        theta <<= u.deg
 
         albedo_matrix = get_albedo_matrix(self.energy_edges, theta, anisotropy)
 
