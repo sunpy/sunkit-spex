@@ -16,6 +16,7 @@ select = [
   "W",
   "UP",
   "PT",
+  "I",
   "BLE",
   "A",
   "C4",
@@ -63,7 +64,8 @@ extend-ignore = [
   "INP001", # File is part of an implicit namespace package.
 ]
 "docs/conf.py" = [
-  "E402" # Module imports not at top of file
+  "E402", # Module imports not at top of file
+  "I", # isort
 ]
 "docs/*.py" = [
   "INP001", # File is part of an implicit namespace package.
@@ -77,6 +79,7 @@ extend-ignore = [
   "F401", # Unused import
   "F403", # from {name} import * used; unable to detect undefined names
   "F405", # {name} may be undefined, or defined from star imports
+  "I", # isort
 ]
 "test_*.py" = [
   "E402", # Module level import not at top of cell
@@ -94,6 +97,30 @@ parametrize-names-type = "csv"
 
 [format]
 exclude = [
+<<<<<<<
   "sunkit_spex/_dev/scm_version.py",
   "docs/conf.py",
 ]
+=======
+
+[lint.pydocstyle]
+convention = "numpy"
+
+[lint.isort]
+default-section = "third-party"
+section-order = [
+  "future",
+  "standard-library",
+  "third-party",
+  "astropy",
+  "sunpy",
+  "first-party",
+  "local-folder",
+]
+known-first-party = ["sunkit_spex"]
+no-lines-before = ["local-folder"]
+
+[lint.isort.sections]
+"astropy" = ["astropy", "asdf", "gwcs", "reproject"]
+"sunpy" = ["sunpy"]
+>>>>>>>
