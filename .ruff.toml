@@ -89,9 +89,6 @@ extend-ignore = [
   "PT011", # `pytest.raises(ValueError)` is too broad
 ]
 
-[lint.pydocstyle]
-convention = "numpy"
-
 [lint.flake8-pytest-style]
 parametrize-names-type = "csv"
 
