@@ -149,8 +149,8 @@ class Constant(FittableModel):
 
     name = "Constant"
 
-    def __init__(self, constant=u.Quantity(constant.default)):
-        super().__init__(constant=constant)
+    def __init__(self, constant=u.Quantity(constant.default), **kwargs):
+        super().__init__(constant=constant, **kwargs)
 
     def evaluate(self, x, constant):
         return constant
