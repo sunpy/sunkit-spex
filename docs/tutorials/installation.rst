@@ -4,6 +4,21 @@
 Installing sunkit-spex
 **********************
 
+Installing the latest stable release
+-------------------------------------
+The latest stable release of sunkit-spex can be installed from PyPI using pip:
+
+.. code-block:: console
+
+   $ pip install sunkit-spex
+
+This will install the latest stable release of sunkit-spex and its required dependencies.
+To additionally install the legacy dependencies, use:
+
+.. code-block:: console
+
+   $ pip install sunkit-spex[legacy]
+
 Installing the development version
 ----------------------------------
 Sunkit-spex is still under development, and no stable version has been released. However, users can install the development version.
