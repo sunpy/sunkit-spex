@@ -97,11 +97,9 @@ parametrize-names-type = "csv"
 
 [format]
 exclude = [
-<<<<<<<
   "sunkit_spex/_dev/scm_version.py",
   "docs/conf.py",
 ]
-=======
 
 [lint.pydocstyle]
 convention = "numpy"
@@ -123,4 +121,3 @@ no-lines-before = ["local-folder"]
 [lint.isort.sections]
 "astropy" = ["astropy", "asdf", "gwcs", "reproject"]
 "sunpy" = ["sunpy"]
->>>>>>>
