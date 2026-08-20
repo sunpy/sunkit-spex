@@ -47,7 +47,7 @@ New Features
 - Allow automatic loading of the correct STIX SRM in `~sunkit_spex.extern.stix.STIXLoader` based on attenuation state within the selected time for spectral fitting. (`#193 <https://github.com/sunpy/sunkit-spex/pull/193>`__)
 - Add two Astropy model classes, :class:`sunkit_spex.models.physical.nonthermal.ThickTarget` and :class:`sunkit_spex.models.physical.nonthermal.ThinTarget`. This provides the capability to fit using the Astropy fitting framework. (`#194 <https://github.com/sunpy/sunkit-spex/pull/194>`__)
 - Add new two new Astropy model classes, :class:`sunkit_spex.models.scaling.DistanceScale` and :class:`sunkit_spex.models.scaling.Constant`. These classes can be used with physical models to scale the flux either by observer distance or by a constant multiplicative factor respectively. (`#195 <https://github.com/sunpy/sunkit-spex/pull/195>`__)
-- Adds functionality to enable class:`StraightLineModel` and class:`GaussianModel` to be evaluated at energy edges and return an output at energy centers. (`#202 <https://github.com/sunpy/sunkit-spex/pull/202>`__)
+- Adds functionality to enable :class:`StraightLineModel` and :class:`GaussianModel` to be evaluated at energy edges and return an output at energy centers. (`#202 <https://github.com/sunpy/sunkit-spex/pull/202>`__)
 - Add the possibility to perform albedo correction within the legacy code. The alebdo matrix is generated with :func:`sunkit_spex.legacy.fitting.albedo.get_albedo_matrix` and the albedo correction is performed in  :class:`sunkit_spex.legacy.fitting.fitter.Fitter`. (`#206 <https://github.com/sunpy/sunkit-spex/pull/206>`__)
 - Adds an example notebook for fitting a single STIX spectrum and a joint fit with STIX imaging and background detectors when an attenuator is used. (`#217 <https://github.com/sunpy/sunkit-spex/pull/217>`__)
 - Add a new `sunkit_spex.spectrum.spectrum.Spectrum` object to hold spectral data. `~sunkit_spex.spectrum.spectrum.Spectrum` is based on `NDCube` and butils on it coordinate aware methods and metadata handling. (`#239 <https://github.com/sunpy/sunkit-spex/pull/239>`__)
@@ -68,7 +68,7 @@ Bug Fixes
 - Fixes fitting by removing input_unit_equivalencies from thermal classes, class:ThermalEmission , class:ContinuumEmission and class:LineEmission . This allows compound emission to function. (`#210 <https://github.com/sunpy/sunkit-spex/pull/210>`__)
 - Fix bug introduced in refactoring of `~sunkit_spex.models.physical.albedo.Albedo` model. Internally the angle theta
   given in degrees wasn't converted to radians before use. (`#212 <https://github.com/sunpy/sunkit-spex/pull/212>`__)
-- Fixes bug in count_rate calculation in class:`StraightLineModel`. We now calculate the mean of count rates for a given time range rather than the sum. (`#214 <https://github.com/sunpy/sunkit-spex/pull/214>`__)
+- Fixes bug in count_rate calculation in :class:`StraightLineModel`. We now calculate the mean of count rates for a given time range rather than the sum. (`#214 <https://github.com/sunpy/sunkit-spex/pull/214>`__)
 - Ensure that the module-level abundance tables don't change in the legacy and release thermal modules. (`#231 <https://github.com/sunpy/sunkit-spex/pull/231>`__)
 - Fix time selection bugs in `~sunkit_spex.extern.stix.STIXLoader` (`#241 <https://github.com/sunpy/sunkit-spex/pull/241>`__)
 
