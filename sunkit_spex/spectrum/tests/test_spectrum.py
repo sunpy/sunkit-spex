@@ -2,7 +2,6 @@ from operator import add, mul, sub, truediv
 
 import numpy as np
 import pytest
-from gwcs import coordinate_frames as cf
 from ndcube import NDCube
 from ndcube.extra_coords import QuantityTableCoordinate, TimeTableCoordinate
 from ndcube.wcs.wrappers import CompoundLowLevelWCS
@@ -14,6 +13,7 @@ from astropy.nddata import StdDevUncertainty
 from astropy.tests.helper import assert_quantity_allclose
 from astropy.time import Time
 from astropy.wcs import WCS
+from gwcs import coordinate_frames as cf
 
 from sunkit_spex.spectrum.spectrum import SpectralAxis, SpectralGWCS, Spectrum, gwcs_from_array
 
