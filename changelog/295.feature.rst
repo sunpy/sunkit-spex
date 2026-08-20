@@ -1,0 +1,1 @@
+Internal refactor of :mod:`~sunkit_spex.models.physical.nonthermal` and closely related :mod:`~sunkit_spex.models.physical.integrate`. Less, more readable, better commented code with the same numerical results and 1.5-2.0x performance improvement.
