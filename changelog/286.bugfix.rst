@@ -1,0 +1,1 @@
+Fixed a bug in legacy albedo correction that causes bumps at energy bin width changes, by applying photon bin width scaling to SRM instead of albedo matrix in :func:`sunkit_spex.legacy.fitting.fitter.make_model`.

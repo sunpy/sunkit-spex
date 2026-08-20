@@ -2,7 +2,6 @@ from operator import add, mul, sub, truediv
 
 import numpy as np
 import pytest
-from gwcs import coordinate_frames as cf
 from ndcube import NDCube
 from ndcube.extra_coords import QuantityTableCoordinate, TimeTableCoordinate
 from ndcube.wcs.wrappers import CompoundLowLevelWCS
@@ -14,6 +13,7 @@ from astropy.nddata import StdDevUncertainty
 from astropy.tests.helper import assert_quantity_allclose
 from astropy.time import Time
 from astropy.wcs import WCS
+from gwcs import coordinate_frames as cf
 
 from sunkit_spex.spectrum.spectrum import SpectralAxis, SpectralGWCS, Spectrum, gwcs_from_array
 
@@ -56,11 +56,11 @@ def test_gwcs_from_array_1d_wavelength():
     assert wcs.output_frame.axes_names[0] == "wavelength"
 
     # Test forward transform (pixel to world)
-    assert np.allclose(wcs(0), 4000 << u.AA)
-    assert np.allclose(wcs(99), 7000 << u.AA)
+    assert np.allclose(wcs.pixel_to_world(0), 4000 * u.AA)
+    assert np.allclose(wcs.pixel_to_world(99), 7000 * u.AA)
 
     # Test inverse transform (world to pixel)
-    assert np.allclose(wcs.invert(4000).value, 0)
+    assert np.allclose(wcs.world_to_pixel_values(4000), 0)
 
 
 def test_gwcs_from_array_3d_cube():

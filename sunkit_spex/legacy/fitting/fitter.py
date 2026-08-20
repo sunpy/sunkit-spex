@@ -1474,14 +1474,21 @@ class Fitter:
             # assign the spectrum parameter values to their model param counterpart
             sep_params = dict(zip(self._orig_params, ordered_kwarg_values))
 
-            # calculate the [photon s^-1 cm^-2]
+            # calculate the [photon s^-1 cm^-2] -> keep this as before
             m = (
                 self._model(**sep_params, energies=kwargs["photon_channels"][s]) * kwargs["photon_channel_widths"][s]
             )  # np.diff(kwargs["photon_channels"][s]).flatten() # remove energy bin dependence
 
             # fold the photon model through the SRM to create the count rate model, [photon s^-1 cm^-2] * [count photon^-1 cm^2] = [count s^-1]
             cts_model, cts_albedo_exess = make_model(
-                energies=kwargs["photon_channels"][s], photon_model=m, parameters=None, srm=kwargs["total_responses"][s], albedo_corr=self.albedo_corr, albedo_angle =self.albedo_angle, albedo_anisotropy=self.albedo_anisotropy
+                energies=kwargs["photon_channels"][s],
+                photon_model=m,
+                parameters=None,
+                photon_energy_widths=kwargs["photon_channel_widths"][s],
+                srm=kwargs["total_responses"][s],
+                albedo_corr=self.albedo_corr,
+                albedo_angle=self.albedo_angle,
+                albedo_anisotropy=self.albedo_anisotropy,
             )
 
             if "scaled_background_spectrum" + str(s + 1) in self._scaled_backgrounds:
@@ -2603,8 +2610,9 @@ class Fitter:
         if for_plotting:
             cts_model, _ = make_model(
                 energies=photon_channel_bins,
-                photon_model=m * np.diff(photon_channel_bins).flatten(),
+                photon_model=m * np.diff(photon_channel_bins).flatten(), # keep this as before [photon s^-1 cm^-2]
                 parameters=None,
+                photon_energy_widths=np.diff(photon_channel_bins).flatten(),
                 srm=srm,
                 albedo_corr=False,
                 albedo_angle=self.albedo_angle,
@@ -2614,8 +2622,9 @@ class Fitter:
         else:
             cts_model, _ = make_model(
                 energies=photon_channel_bins,
-                photon_model=m * np.diff(photon_channel_bins).flatten(),
+                photon_model=m * np.diff(photon_channel_bins).flatten(), # keep this as before [photon s^-1 cm^-2]
                 parameters=None,
+                photon_energy_widths=np.diff(photon_channel_bins).flatten(),
                 srm=srm,
                 albedo_corr=self.albedo_corr,
                 albedo_angle=self.albedo_angle,
@@ -3533,16 +3542,55 @@ class Fitter:
             _xycoords = "axes fraction"
             for p in plot_params:
                 par_spec = p.split("_spectrum")
+                pname = par_spec[0]
                 error = self.params["Error", p]
+                value = self.params["Value", p]
+                scl=1
+                punts=""
+                # Might not have an error value so just change scale factor
+                # and apply this at the end when making the nice string
+                if pname.startswith("EM"):
+                    scl=1e46
+                    punts=" cm$^{-3}$"
+                if pname.startswith(("total_eflux", "tot_eflux")):
+                    scl=1e35
+                    punts=" e$^-$s$^{-1}$"
+                if pname.startswith("plasma_d"):
+                    scl=1e10
+                    punts=" cm$^{-3}$"
+                if pname.startswith(("T", "loop_temp")):
+                    punts=" MK"
+                if pname.startswith(("e_c", "ec")):
+                    punts=" keV"
+                if pname.startswith("length"):
+                    punts=" Mm"
+                value_fmt = ".2e"
+                error_fmt = ".2e"
+                # Only have f_vth, thick_fn and thick_warm as the models from photon_models_for_fitting.py
+                if pname.startswith(("T", "index", "e_c", "C", "ind", "ec", "loop_temp","length")):
+                    value_fmt = ".2f"
+                    error_fmt = ".2f"
                 if np.all(error) == np.all([0, 0]):
-                    param_str += [par_spec[0] + ": {0:.2e}".format(self.params["Value", p]) + "\n"]
+                    value = value * scl
+                    param_str += [pname + f": {value:{value_fmt}}"+ punts + "\n"]
                 else:
-                    param_str += [
-                        par_spec[0]
-                        + ": {0:.2e}".format(self.params["Value", p])
-                        + f"$^{{+{error[1]:.2e}}}_{{-{error[0]:.2e}}}$"
-                        + "\n"
-                    ]  # str(round(self.params["Value", p], 2))
+                    value = np.asarray(value) * scl
+                    error = np.asarray(error) * scl
+                    param_str += [pname + f": {value:{value_fmt}}"
+                                + f"$^{{+{error[1]:{error_fmt}}}}_{{-{error[0]:{error_fmt}}}}$" + punts
+                                + "\n"
+                                ]
+                # par_spec = p.split("_spectrum")
+                # error = self.params["Error", p]
+                # if np.all(error) == np.all([0, 0]):
+                #     param_str += [par_spec[0] + ": {0:.2e}".format(self.params["Value", p]) + "\n"]
+                # else:
+                #     param_str += [
+                #         par_spec[0]
+                #         + ": {0:.2e}".format(self.params["Value", p])
+                #         + f"$^{{+{error[1]:.2e}}}_{{-{error[0]:.2e}}}$"
+                #         + "\n"
+                #     ]  # str(round(self.params["Value", p], 2))
             # join param strings correctly and annotate the axes depending on whether they should be coloured with sub-models if present
             self._annotate_params(axs, param_str, submod_param_cols, _xycoords)
 
@@ -3846,7 +3894,18 @@ class Fitter:
             res.plot(energy_channels_res, residuals, color="k", alpha=0.8)  # , drawstyle='steps-mid'
 
             if self.albedo_corr and albedo_excess_count.size > 0:
-                axs.plot(energy_channels, albedo_excess_count, color="grey")
+                axs.plot(energy_channels, albedo_excess_count, color="plum",alpha=1.0)
+                rainbow_text_lines(
+                (0.1, 0.99),
+                strings=["Albedo"],
+                colors=["plum"],
+                xycoords="axes fraction",
+                verticalalignment="top",
+                horizontalalignment="left",
+                ax=axes,
+                alpha=1.0,
+                fontsize="small",
+            )
 
         if self._latest_fit_run == "mcmc":
             _rebin_info = (
@@ -3879,6 +3938,10 @@ class Fitter:
             ) = count_rates, energy_channel_error, count_rate_errors
             # other
             log_plotting_info["residuals"], log_plotting_info["fitting_range"] = residuals, fitting_range
+            if self.albedo_corr and np.size(albedo_excess_count) > 0:
+                log_plotting_info["albedo_excess_count"] = np.array(albedo_excess_count).copy()
+            else:
+                log_plotting_info["albedo_excess_count"] = np.array([])
             # do we have submodels
             if hasattr(self, "_corresponding_submod_inputs"):
                 log_plotting_info["submodels"] = spec_submods[0]
@@ -5655,7 +5718,16 @@ def imports():
     return _imps
 
 
-def make_model(energies=None, photon_model=None, parameters=None, srm=None, albedo_corr=False, albedo_angle=0, albedo_anisotropy=1):
+def make_model(
+    energies=None,
+    photon_model=None,
+    parameters=None,
+    photon_energy_widths=None,
+    srm=None,
+    albedo_corr=False,
+    albedo_angle=0,
+    albedo_anisotropy=1,
+):
     """Takes a photon model array ( or function if you provide the pinputs with parameters), the spectral response matrix and returns a model count spectrum.
 
     Parameters
@@ -5665,11 +5737,16 @@ def make_model(energies=None, photon_model=None, parameters=None, srm=None, albe
             Default : None
 
     photon_model : function/array/list
-            Array -OR- function representing the photon model (if it's a function, provide the parameters of the function as a list, e.g. parameters = [energies, const, power]).
+            Array [photon s^-1 cm^-2] -OR- function representing the photon model (if it's a function, provide the parameters of the function as a list, e.g. parameters = [energies, const, power]).
             Default : None
 
     parameters : list
             List representing the inputs a photon model function, if a function is provided, excludeing the energies the spectrum is over.
+            Default : None
+
+    photon_energy_widths : array/list
+            Optional photon-energy bin widths. If provided, the photon model is divided by these widths, the SRM multiplied by them before
+            folding through the SRM.
             Default : None
 
     srm : matrix/array
@@ -5681,19 +5758,32 @@ def make_model(energies=None, photon_model=None, parameters=None, srm=None, albe
     A model count spectrum.
     """
 
+    def _fold_through_srm(spec, matrix, widths=None):
+        """Fold photon spectrum through SRM with optional SRM-row width scaling."""
+        if widths is None:
+            return np.matmul(spec, matrix)
+        # Equivalent to spec @ (widths[:, None] * matrix) without allocating full temporary matrix
+        return np.einsum("i,ij,i->j", spec, matrix, widths, optimize=True)
+        # Above really faster, what about just
+        # return np.matmul(spec, widths[:, None] * matrix)
+
     # if parameters is None then assume the photon_model input is already a spectrum to test, else make the model spectrum from the function and parameters
     if type(parameters) == type(None):
         photon_spec = photon_model
     else:
         photon_spec = photon_model(energies, *parameters)
 
+    # Albedo correction is applied to differential flux, so divide by bin widths first.
+    if photon_energy_widths is not None:
+        photon_spec = photon_spec / photon_energy_widths
+
     if albedo_corr:
-        photon_spec, albedo_excess_phot  = albedo(photon_spec, energies, albedo_angle, anisotropy=albedo_anisotropy)
-        albedo_excess_count = np.matmul(albedo_excess_phot, srm)
+        photon_spec, albedo_excess_phot = albedo(photon_spec, energies, albedo_angle, anisotropy=albedo_anisotropy)
+        albedo_excess_count = _fold_through_srm(albedo_excess_phot, srm, photon_energy_widths)
     else:
         albedo_excess_count = np.array([])
 
-    model_cts_spectrum = np.matmul(photon_spec, srm)
+    model_cts_spectrum = _fold_through_srm(photon_spec, srm, photon_energy_widths)
 
     return model_cts_spectrum, albedo_excess_count
 

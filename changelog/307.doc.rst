@@ -1,0 +1,1 @@
+Add instructions for installing the latest stable release from PyPI to the :ref:`installation` guide.

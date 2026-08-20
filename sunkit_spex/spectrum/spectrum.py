@@ -2,8 +2,6 @@ import copy
 from copy import deepcopy
 
 import numpy as np
-from gwcs import WCS as GWCS
-from gwcs import coordinate_frames as cf
 from ndcube import NDCube
 
 import astropy.units as u
@@ -12,6 +10,8 @@ from astropy.modeling.mappings import Identity, Mapping
 from astropy.modeling.tabular import Tabular1D
 from astropy.utils import lazyproperty
 from astropy.wcs.wcsapi import sanitize_slices
+from gwcs import WCS as GWCS
+from gwcs import coordinate_frames as cf
 
 __all__ = ["SpectralAxis", "Spectrum", "gwcs_from_array"]
 
@@ -137,7 +137,7 @@ def gwcs_from_array(array, flux_shape, spectral_axis_index=None):
         spatial_frame = cf.CoordinateFrame(
             naxes=naxes - 1,
             unit=[
-                "",
+                u.pix,
             ]
             * (naxes - 1),
             axes_type=[
