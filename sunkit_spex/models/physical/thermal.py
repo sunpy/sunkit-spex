@@ -1,11 +1,13 @@
 import copy
 import warnings
+from typing import Any
 
 import numpy as np
 from scipy import interpolate, stats
 
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
+from astropy.table import Table
 from astropy.table.column import Column
 
 from sunpy.data import manager
@@ -91,7 +93,7 @@ by the user to custom values.
 """
 
 
-class ThermalEmission(FittableModel):
+class ThermalEmission(FittableModel):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     f"""Calculate the thermal X-ray spectrum (lines + continuum) from the solar atmosphere.
 
     The flux is calculated as a function of temperature and emission measure.
@@ -168,22 +170,24 @@ class ThermalEmission(FittableModel):
 
     def __init__(
         self,
-        temperature=u.Quantity(temperature.default, temperature.unit),
-        emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
-        mg=mg.default,
-        al=al.default,
-        si=si.default,
-        s=s.default,
-        ar=ar.default,
-        ca=ca.default,
-        fe=fe.default,
-        abundance_type=DEFAULT_ABUNDANCE_TYPE,
-        **kwargs,
-    ):
+        temperature: Any = u.Quantity(temperature.default, temperature.unit),  # pyright: ignore[reportArgumentType]
+        emission_measure: Any = u.Quantity(emission_measure.default, emission_measure.unit),  # pyright: ignore[reportArgumentType]
+        mg: Any = mg.default,
+        al: Any = al.default,
+        si: Any = si.default,
+        s: Any = s.default,
+        ar: Any = ar.default,
+        ca: Any = ca.default,
+        fe: Any = fe.default,
+        abundance_type: str = DEFAULT_ABUNDANCE_TYPE,
+        **kwargs: Any,
+    ) -> None:
         self.abundance_type = abundance_type
 
         if abundance_type != DEFAULT_ABUNDANCE_TYPE:
-            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
+            # DEFAULT_ABUNDANCES[abundance_type] is a Column since abundance_type is a str key;
+            # pyright's Table.__getitem__ overloads resolve to a broader union here.
+            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])  # pyright: ignore[reportArgumentType]
 
         self.line = LineEmission(
             temperature=temperature,
@@ -224,7 +228,10 @@ class ThermalEmission(FittableModel):
             **kwargs,
         )
 
-    def evaluate(
+    # Parameters intentionally left unannotated: astropy's Model.input_units reads
+    # evaluate.__annotations__ to infer per-input units, keyed by input name, so adding
+    # unrelated (non-unit) annotations here breaks that introspection at runtime.
+    def evaluate(  # type: ignore[no-untyped-def]
         self,
         energy_edges,
         temperature,
@@ -237,7 +244,7 @@ class ThermalEmission(FittableModel):
         ca,
         fe,
     ):
-        line_flux = self.line.evaluate(
+        line_flux = self.line.evaluate(  # type: ignore[no-untyped-call]
             energy_edges,
             temperature,
             emission_measure,
@@ -250,7 +257,7 @@ class ThermalEmission(FittableModel):
             fe,
         )
 
-        cont_flux = self.cont.evaluate(
+        cont_flux = self.cont.evaluate(  # type: ignore[no-untyped-call]
             energy_edges,
             temperature,
             emission_measure,
@@ -266,19 +273,21 @@ class ThermalEmission(FittableModel):
         return line_flux + cont_flux
 
     @property
-    def input_units(self):
+    def input_units(self) -> dict[str, Any]:
         # The units for the 'energy_edges' variable should be an energy (default keV)
-        return {self.inputs[0]: u.keV}
+        # self.inputs is populated by astropy's Model metaclass from n_inputs at runtime;
+        # pyright's inference of the base type doesn't see past that.
+        return {self.inputs[0]: u.keV}  # pyright: ignore[reportGeneralTypeIssues]
 
     @property
-    def return_units(self):
-        return {self.outputs[0]: u.ph / u.keV * u.s**-1}
+    def return_units(self) -> dict[str, Any]:
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1}  # pyright: ignore[reportGeneralTypeIssues]
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+    def _parameter_units_for_data_units(self, inputs_unit: Any, outputs_unit: Any) -> dict[str, Any]:
         return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
 
 
-class ContinuumEmission(FittableModel):
+class ContinuumEmission(FittableModel):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     f"""Calculate the thermal X-ray continuum emission from the solar atmosphere.
 
     The emission is calculated as a function of temperature and emission measure.
@@ -352,22 +361,24 @@ class ContinuumEmission(FittableModel):
 
     def __init__(
         self,
-        temperature=u.Quantity(temperature.default, temperature.unit),
-        emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
-        mg=mg.default,
-        al=al.default,
-        si=si.default,
-        s=s.default,
-        ar=ar.default,
-        ca=ca.default,
-        fe=fe.default,
-        abundance_type=DEFAULT_ABUNDANCE_TYPE,
-        **kwargs,
-    ):
+        temperature: Any = u.Quantity(temperature.default, temperature.unit),  # pyright: ignore[reportArgumentType]
+        emission_measure: Any = u.Quantity(emission_measure.default, emission_measure.unit),  # pyright: ignore[reportArgumentType]
+        mg: Any = mg.default,
+        al: Any = al.default,
+        si: Any = si.default,
+        s: Any = s.default,
+        ar: Any = ar.default,
+        ca: Any = ca.default,
+        fe: Any = fe.default,
+        abundance_type: str = DEFAULT_ABUNDANCE_TYPE,
+        **kwargs: Any,
+    ) -> None:
         self.abundance_type = abundance_type
 
         if abundance_type != DEFAULT_ABUNDANCE_TYPE:
-            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
+            # DEFAULT_ABUNDANCES[abundance_type] is a Column since abundance_type is a str key;
+            # pyright's Table.__getitem__ overloads resolve to a broader union here.
+            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])  # pyright: ignore[reportArgumentType]
 
         super().__init__(
             temperature=temperature,
@@ -382,7 +393,10 @@ class ContinuumEmission(FittableModel):
             **kwargs,
         )
 
-    def evaluate(
+    # Parameters intentionally left unannotated: astropy's Model.input_units reads
+    # evaluate.__annotations__ to infer per-input units, keyed by input name, so adding
+    # unrelated (non-unit) annotations here breaks that introspection at runtime.
+    def evaluate(  # type: ignore[no-untyped-def]
         self,
         energy_edges,
         temperature,
@@ -410,19 +424,21 @@ class ContinuumEmission(FittableModel):
         )
 
     @property
-    def input_units(self):
+    def input_units(self) -> dict[str, Any]:
         # The units for the 'energy_edges' variable should be an energy (default keV)
-        return {self.inputs[0]: u.keV}
+        # self.inputs is populated by astropy's Model metaclass from n_inputs at runtime;
+        # pyright's inference of the base type doesn't see past that.
+        return {self.inputs[0]: u.keV}  # pyright: ignore[reportGeneralTypeIssues]
 
     @property
-    def return_units(self):
-        return {self.outputs[0]: u.ph / u.keV * u.s**-1}
+    def return_units(self) -> dict[str, Any]:
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1}  # pyright: ignore[reportGeneralTypeIssues]
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+    def _parameter_units_for_data_units(self, inputs_unit: Any, outputs_unit: Any) -> dict[str, Any]:
         return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
 
 
-class LineEmission(FittableModel):
+class LineEmission(FittableModel):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     f"""
     Calculate thermal line emission from the solar corona.
 
@@ -492,22 +508,24 @@ class LineEmission(FittableModel):
 
     def __init__(
         self,
-        temperature=u.Quantity(temperature.default, temperature.unit),
-        emission_measure=u.Quantity(emission_measure.default, emission_measure.unit),
-        mg=mg.default,
-        al=al.default,
-        si=si.default,
-        s=s.default,
-        ar=ar.default,
-        ca=ca.default,
-        fe=fe.default,
-        abundance_type=DEFAULT_ABUNDANCE_TYPE,
-        **kwargs,
-    ):
+        temperature: Any = u.Quantity(temperature.default, temperature.unit),  # pyright: ignore[reportArgumentType]
+        emission_measure: Any = u.Quantity(emission_measure.default, emission_measure.unit),  # pyright: ignore[reportArgumentType]
+        mg: Any = mg.default,
+        al: Any = al.default,
+        si: Any = si.default,
+        s: Any = s.default,
+        ar: Any = ar.default,
+        ca: Any = ca.default,
+        fe: Any = fe.default,
+        abundance_type: str = DEFAULT_ABUNDANCE_TYPE,
+        **kwargs: Any,
+    ) -> None:
         self.abundance_type = abundance_type
 
         if abundance_type != DEFAULT_ABUNDANCE_TYPE:
-            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])
+            # DEFAULT_ABUNDANCES[abundance_type] is a Column since abundance_type is a str key;
+            # pyright's Table.__getitem__ overloads resolve to a broader union here.
+            mg, al, si, s, ar, ca, fe = _initialize_abundances(DEFAULT_ABUNDANCES[abundance_type])  # pyright: ignore[reportArgumentType]
 
         super().__init__(
             temperature=temperature,
@@ -522,7 +540,10 @@ class LineEmission(FittableModel):
             **kwargs,
         )
 
-    def evaluate(
+    # Parameters intentionally left unannotated: astropy's Model.input_units reads
+    # evaluate.__annotations__ to infer per-input units, keyed by input name, so adding
+    # unrelated (non-unit) annotations here breaks that introspection at runtime.
+    def evaluate(  # type: ignore[no-untyped-def]
         self,
         energy_edges,
         temperature,
@@ -550,19 +571,21 @@ class LineEmission(FittableModel):
         )
 
     @property
-    def input_units(self):
+    def input_units(self) -> dict[str, Any]:
         # The units for the 'energy_edges' variable should be an energy (default keV)
-        return {self.inputs[0]: u.keV}
+        # self.inputs is populated by astropy's Model metaclass from n_inputs at runtime;
+        # pyright's inference of the base type doesn't see past that.
+        return {self.inputs[0]: u.keV}  # pyright: ignore[reportGeneralTypeIssues]
 
     @property
-    def return_units(self):
-        return {self.outputs[0]: u.ph / u.keV * u.s**-1}
+    def return_units(self) -> dict[str, Any]:
+        return {self.outputs[0]: u.ph / u.keV * u.s**-1}  # pyright: ignore[reportGeneralTypeIssues]
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+    def _parameter_units_for_data_units(self, inputs_unit: Any, outputs_unit: Any) -> dict[str, Any]:
         return {"temperature": u.MK, "emission_measure": (u.cm ** (-3))}
 
 
-def setup_continuum_parameters(filename=None):
+def setup_continuum_parameters(filename: str | None = None) -> dict[str, Any]:
     """
     Define continuum intensities as a function of temperature.
 
@@ -590,7 +613,7 @@ def setup_continuum_parameters(filename=None):
             cont_info = load_chianti_continuum()
     else:
         cont_info = load_chianti_continuum()
-    continuum_grid = {}
+    continuum_grid: dict[str, Any] = {}
     continuum_grid["abundance index"] = cont_info.element_index.data
     continuum_grid["sorted abundance index"] = np.sort(continuum_grid["abundance index"])
 
@@ -615,7 +638,7 @@ def setup_continuum_parameters(filename=None):
     return continuum_grid
 
 
-def setup_line_parameters(filename=None):
+def setup_line_parameters(filename: str | None = None) -> dict[str, Any]:
     """Define line intensities as a function of temperature for calculating line emission.
 
     Line intensities are set as global variables and used in the
@@ -639,7 +662,7 @@ def setup_line_parameters(filename=None):
             line_info = load_chianti_lines_lite()
     else:
         line_info = load_chianti_lines_lite()
-    line_grid = {}
+    line_grid: dict[str, Any] = {}
     line_grid["intensity"] = np.array(line_info.data)
     line_grid["intensity unit"] = line_info.attrs["units"]["data"]
     line_grid["intensity description"] = (
@@ -659,7 +682,7 @@ def setup_line_parameters(filename=None):
     return line_grid
 
 
-def setup_default_abundances(filename=None):
+def setup_default_abundances(filename: str | None = None) -> Table:
     """
     Read default abundance values into global variable.
 
@@ -685,20 +708,25 @@ LINE_GRID = setup_line_parameters()
 DEFAULT_ABUNDANCES = setup_default_abundances()
 
 
-@u.quantity_input
+@u.quantity_input  # type: ignore[untyped-decorator]  # astropy ships no stubs
 def continuum_emission(
-    energy_edges,
-    temperature,
-    emission_measure,
-    mg,
-    al,
-    si,
-    s,
-    ar,
-    ca,
-    fe,
-    abundance_type=DEFAULT_ABUNDANCE_TYPE,
-):
+    # energy_edges/temperature/emission_measure intentionally left as Any rather than
+    # Quantity[...]: _input_units_allow_dimensionless=True lets these models be called with
+    # bare (unitless) arrays, and _sanitize_inputs() backfills the default unit via `<<=`.
+    # A Quantity[...] annotation makes quantity_input reject that dimensionless call before
+    # _sanitize_inputs ever runs.
+    energy_edges: Any,
+    temperature: Any,
+    emission_measure: Any,
+    mg: Any,
+    al: Any,
+    si: Any,
+    s: Any,
+    ar: Any,
+    ca: Any,
+    fe: Any,
+    abundance_type: str = DEFAULT_ABUNDANCE_TYPE,
+) -> Any:
     f"""Calculate the thermal X-ray continuum emission from the solar atmosphere.
 
     The emission is calculated as a function of temperature and emission measure.
@@ -732,20 +760,22 @@ def continuum_emission(
     return flux
 
 
-@u.quantity_input
+@u.quantity_input  # type: ignore[untyped-decorator]  # astropy ships no stubs
 def line_emission(
-    energy_edges,
-    temperature,
-    emission_measure,
-    mg,
-    al,
-    si,
-    s,
-    ar,
-    ca,
-    fe,
-    abundance_type=DEFAULT_ABUNDANCE_TYPE,
-):
+    # See the comment on continuum_emission above: these stay Any, not Quantity[...],
+    # so dimensionless (unitless) input keeps working via _sanitize_inputs().
+    energy_edges: Any,
+    temperature: Any,
+    emission_measure: Any,
+    mg: Any,
+    al: Any,
+    si: Any,
+    s: Any,
+    ar: Any,
+    ca: Any,
+    fe: Any,
+    abundance_type: str = DEFAULT_ABUNDANCE_TYPE,
+) -> Any:
     f"""
     Calculate thermal line emission from the solar corona.
 
@@ -777,7 +807,7 @@ def line_emission(
     return flux
 
 
-def _continuum_emission(energy_edges_keV, temperature_K, abundances):
+def _continuum_emission(energy_edges_keV: Any, temperature_K: Any, abundances: Any) -> Any:
     """
     Calculates emission-measure-normalized X-ray continuum spectrum at the source.
 
@@ -852,7 +882,11 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
                     abundances[CONTINUUM_GRID["sorted abundance index"]], element_intensities_per_em_at_source[:, i]
                 )
         else:
-            intensity_per_em_at_source = intensity_per_em_at_source_allT[tband_idx[j]]
+            # n_thresh < n_t_grid (checked above) and n_thresh >= n_t_grid (checked when this
+            # branch's variable was set) are exact complements, so this is always bound.
+            intensity_per_em_at_source = intensity_per_em_at_source_allT[  # pyright: ignore[reportPossiblyUnboundVariable]
+                tband_idx[j]
+            ]
 
         ##### Calculate Continuum Intensity at Input Temperature  ######
         # Do this by interpolating the normalized temperature component
@@ -876,7 +910,7 @@ def _continuum_emission(energy_edges_keV, temperature_K, abundances):
     return flux * CONTINUUM_GRID["intensity unit"]
 
 
-def _line_emission(energy_edges_keV, temperature_K, abundances):
+def _line_emission(energy_edges_keV: Any, temperature_K: Any, abundances: Any) -> Any:
     """
     Calculates emission-measure-normalized X-ray line spectrum at the source.
 
@@ -960,7 +994,9 @@ def _line_emission(energy_edges_keV, temperature_K, abundances):
     return flux * LINE_GRID["intensity unit"] / (energy_bin_widths)
 
 
-def _interpolate_continuum_intensities(data_grid, log10T_grid, energy_grid_keV, energy_keV, log10T):
+def _interpolate_continuum_intensities(
+    data_grid: Any, log10T_grid: Any, energy_grid_keV: Any, energy_keV: Any, log10T: Any
+) -> Any:
     # Determine valid range based on limits of intensity grid's spectral extent
     # and the normalized temperature component of intensity.
     n_tband = len(log10T_grid)
@@ -993,7 +1029,7 @@ def _interpolate_continuum_intensities(data_grid, log10T_grid, energy_grid_keV, 
     return flux
 
 
-def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_bins):
+def _calculate_abundance_normalized_line_intensities(logT: Any, data_grid: Any, line_logT_bins: Any) -> Any:
     """
     Calculates normalized line intensities at a given temperature using interpolation.
 
@@ -1063,7 +1099,7 @@ def _calculate_abundance_normalized_line_intensities(logT, data_grid, line_logT_
     return interpolated_data
 
 
-def _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, line_intensities):
+def _weight_emission_bins_to_line_centroid(line_peaks_keV: Any, energy_edges_keV: Any, line_intensities: Any) -> Any:
     """
     Split emission between neighboring energy bins such that averaged energy is the line peak.
 
@@ -1172,8 +1208,13 @@ def _weight_emission_bins_to_line_centroid(line_peaks_keV, energy_edges_keV, lin
 
 
 def _weight_emission_bins(
-    line_deviations_keV, deviation_indices, energy_center_diffs, line_intensities, iline, negative_deviations=True
-):
+    line_deviations_keV: Any,
+    deviation_indices: Any,
+    energy_center_diffs: Any,
+    line_intensities: Any,
+    iline: Any,
+    negative_deviations: bool = True,
+) -> Any:
     if negative_deviations is True:
         if not np.all(line_deviations_keV[deviation_indices] < 0):
             raise ValueError(
@@ -1214,7 +1255,7 @@ def _weight_emission_bins(
     return new_line_intensities, neighbor_intensities, neighbor_iline
 
 
-def _sanitize_inputs(energy_edges, temperature, emission_measure):
+def _sanitize_inputs(energy_edges: Any, temperature: Any, emission_measure: Any) -> Any:
     if np.isscalar(energy_edges) or len(energy_edges) < 2 or energy_edges.ndim > 1:
         raise ValueError("energy_edges must be a 1-D astropy Quantity with length greater than 1.")
 
@@ -1238,7 +1279,7 @@ def _sanitize_inputs(energy_edges, temperature, emission_measure):
     return energy_edges_keV, temperature_K, emission_measure
 
 
-def _error_if_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
+def _error_if_input_outside_valid_range(input_values: Any, grid_range: Any, param_name: str, param_unit: Any) -> None:
     if input_values.min() < grid_range[0] or input_values.max() > grid_range[1]:
         if param_name == "temperature":
             message_unit = "MK"
@@ -1250,7 +1291,7 @@ def _error_if_input_outside_valid_range(input_values, grid_range, param_name, pa
         raise ValueError(message)
 
 
-def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
+def _warn_if_input_outside_valid_range(input_values: Any, grid_range: Any, param_name: str, param_unit: Any) -> None:
     if input_values.min() < grid_range[0] or input_values.max() > grid_range[1]:
         message = (
             f"Some input {param_name} values outside valid range of "
@@ -1260,7 +1301,9 @@ def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, par
         warnings.warn(message)
 
 
-def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
+def _error_if_low_energy_input_outside_valid_range(
+    input_values: Any, grid_range: Any, param_name: str, param_unit: Any
+) -> None:
     if input_values.min() < grid_range[0]:
         message = (
             f"Lower bound of the input {param_name} must be within the range "
@@ -1269,7 +1312,7 @@ def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, par
         raise ValueError(message)
 
 
-def _initialize_abundances(abundances: Column) -> tuple[float]:
+def _initialize_abundances(abundances: Column) -> tuple[float, float, float, float, float, float, float]:
     """
     From a given abundance Column from an abundance astropy Table,
     compute the values of logarithmic elemental abundances used in other portions of
@@ -1287,8 +1330,8 @@ def _initialize_abundances(abundances: Column) -> tuple[float]:
     return (mg, al, si, s, ar, ca, fe)
 
 
-def _calculate_abundances(abundance_type, mg, al, si, s, ar, ca, fe):
-    abundances = DEFAULT_ABUNDANCES[abundance_type].data.copy()
+def _calculate_abundances(abundance_type: str, mg: Any, al: Any, si: Any, s: Any, ar: Any, ca: Any, fe: Any) -> Any:
+    abundances = DEFAULT_ABUNDANCES[abundance_type].data.copy()  # pyright: ignore[reportAttributeAccessIssue]
 
     if np.shape(mg) == (1,):
         abundances[11] = 10 ** (mg[0] - 12)

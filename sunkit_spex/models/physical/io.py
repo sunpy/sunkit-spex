@@ -1,8 +1,10 @@
+from typing import Any
 from collections import OrderedDict
 
 import numpy as np
 import scipy.io
 import xarray
+from numpy.typing import NDArray
 
 import astropy.units as u
 from astropy.table import Table
@@ -13,7 +15,7 @@ from sunpy.io.special.genx import read_genx
 __all__ = ["load_chianti_continuum", "load_chianti_lines_lite", "load_xray_abundances", "read_abundance_genx"]
 
 
-@manager.require(
+@manager.require(  # type: ignore[untyped-decorator]  # sunpy ships no stubs
     "chianti_lines",
     [
         "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/chianti_lines_1_10_v71.sav",
@@ -21,7 +23,7 @@ __all__ = ["load_chianti_continuum", "load_chianti_lines_lite", "load_xray_abund
     ],
     "2046d818efec207a83e9c5cc6ba4a5fa8574bf8c2bd8a6bb9801e4b8a2a0c677",
 )
-def load_chianti_lines_lite():
+def load_chianti_lines_lite() -> xarray.DataArray:
     """
     Read X-ray emission line info from an IDL sav file produced by CHIANTI.
 
@@ -83,9 +85,9 @@ def load_chianti_lines_lite():
     energy_unit = u.keV
 
     # Extract line info and convert from wavelength to energy.
-    line_intensities = []
-    line_elements = []
-    line_peak_energies = []
+    line_intensities: Any = []
+    line_elements: Any = []
+    line_peak_energies: Any = []
     for j, lines in enumerate(out["lines"]):
         # Extract line element index and peak energy.
         line_elements.append(lines["IZ"] + 1)  # TODO: Confirm lines["IZ"] is indeed atomic number - 1
@@ -128,7 +130,7 @@ def load_chianti_lines_lite():
     )
 
 
-@manager.require(
+@manager.require(  # type: ignore[untyped-decorator]  # sunpy ships no stubs
     "chianti_continuum",
     [
         "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/chianti_cont_1_250_v71.sav",
@@ -136,7 +138,7 @@ def load_chianti_lines_lite():
     ],
     "aadf4355931b4c241ac2cd5669e89928615dc1b55c9fce49a155b70915a454dd",
 )
-def load_chianti_continuum():
+def load_chianti_continuum() -> xarray.DataArray:
     """
     Read X-ray continuum emission info from an IDL sav file produced by CHIANTI
 
@@ -189,7 +191,7 @@ def load_chianti_continuum():
     )
 
 
-@manager.require(
+@manager.require(  # type: ignore[untyped-decorator]  # sunpy ships no stubs
     "xray_abundances",
     [
         "https://soho.nascom.nasa.gov/solarsoft/packages/xray/dbase/chianti/xray_abun_file.genx",
@@ -197,7 +199,7 @@ def load_chianti_continuum():
     ],
     "92c0e1f9a83da393cc38840752fda5a5b44c5b18a4946e5bf12c208771fe0fd3",
 )
-def load_xray_abundances(abundance_type=None):
+def load_xray_abundances(abundance_type: str | None = None) -> Table:
     """
     Returns the abundances written in the xray_abun_file.genx
 
@@ -244,11 +246,11 @@ def load_xray_abundances(abundance_type=None):
     return Table(columns, names=names)
 
 
-def read_abundance_genx(filename):
+def read_abundance_genx(filename: Any) -> "OrderedDict[str, Any]":
     # Read file.
     contents = read_genx(filename)
     # Combine data and keys from each entry in file.
-    output = OrderedDict()
+    output: OrderedDict[str, Any] = OrderedDict()
     for arr in contents["SAVEGEN0"]:
         output[arr["FILNAM"]] = arr["ABUND"]
     # Add header data
@@ -258,16 +260,16 @@ def read_abundance_genx(filename):
     return output
 
 
-def _extract_line_intensities(lines_int_sorted):
+def _extract_line_intensities(lines_int_sorted: Any) -> NDArray[np.float64]:
     line_ints = np.empty((lines_int_sorted.shape[0], lines_int_sorted[0].shape[0]), dtype=float)
     for i in range(line_ints.shape[0]):
         line_ints[i, :] = lines_int_sorted[i]
     return line_ints
 
 
-def _clean_array_dims(arr, dtype=None):
+def _clean_array_dims(arr: Any, dtype: Any = None) -> Any:
     # Initialize a single array to hold contents of input arr.
-    result = np.empty(list(arr.shape) + list(arr[0].shape))
+    result: Any = np.empty(list(arr.shape) + list(arr[0].shape))
     # Combine arrays in arr into single array.
     for i in range(arr.shape[0]):
         result[i] = arr[i]
@@ -281,22 +283,22 @@ def _clean_array_dims(arr, dtype=None):
     return result
 
 
-def _clean_string_dims(arr):
-    result = [str(s, "utf-8") for s in arr]
+def _clean_string_dims(arr: Any) -> Any:
+    result: Any = [str(s, "utf-8") for s in arr]
     if len(result) == 1:
         result = result[0]
     return result
 
 
-def _combine_strings(arr):
-    result = [".".join([str(ss, "utf-8") for ss in s]) for s in arr]
+def _combine_strings(arr: Any) -> Any:
+    result: Any = [".".join([str(ss, "utf-8") for ss in s]) for s in arr]
     if len(result) == 1:
         result = result[0]
     return result
 
 
-def _clean_units(arr):
-    result = []
+def _clean_units(arr: Any) -> Any:
+    result: Any = []
     for a in arr:
         unit = str(a, "utf-8")
         unit_components = unit.split()
@@ -319,8 +321,8 @@ def _clean_units(arr):
     return u.Unit(result)
 
 
-def _clean_chianti_doc(arr):
-    chianti_doc = {}
+def _clean_chianti_doc(arr: Any) -> dict[str, Any]:
+    chianti_doc: dict[str, Any] = {}
     chianti_doc["ion_file"] = str(arr[0][0], "utf-8")
     chianti_doc["ion_ref"] = "{0}.{1}.{2}".format(  # noqa: UP030
         str(arr["ion_ref"][0][0], "utf-8"), str(arr["ion_ref"][0][1], "utf-8"), str(arr["ion_ref"][0][2], "utf-8")

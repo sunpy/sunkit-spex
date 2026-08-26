@@ -1,17 +1,24 @@
 import logging
+from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 import astropy.units as u
 from astropy.modeling import FittableModel, Parameter
 
-from sunkit_spex.legacy import constants as const
+from sunkit_spex.legacy import constants
 from sunkit_spex.legacy.integrate import gauss_legendre
 
-const = const.Constants()
+const = constants.Constants()  # type: ignore[no-untyped-call]  # legacy module ships no annotations
 
 
-logging = logging.getLogger(__name__)
+def _get_constant(name: str) -> float:
+    """Typed wrapper around the untyped legacy `Constants.get_constant`."""
+    return const.get_constant(name)  # type: ignore[no-any-return, no-untyped-call]
+
+
+logger = logging.getLogger(__name__)
 
 """
 Functions for computing the photon flux due to bremsstrahlung radiation from energetic electrons
@@ -30,7 +37,7 @@ References
 __all__ = ["ThickTarget", "ThinTarget"]
 
 
-class ThickTarget(FittableModel):
+class ThickTarget(FittableModel):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     r"""Calculates the thick-target bremsstrahlung radiation of a dual power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
@@ -95,15 +102,15 @@ class ThickTarget(FittableModel):
 
     def __init__(
         self,
-        p=p.default,
-        break_energy=u.Quantity(break_energy.default, break_energy.unit),
-        q=q.default,
-        low_e_cutoff=u.Quantity(low_e_cutoff.default, low_e_cutoff.unit),
-        high_e_cutoff=u.Quantity(high_e_cutoff.default, high_e_cutoff.unit),
-        total_eflux=u.Quantity(total_eflux.default, total_eflux.unit),
-        integrator=None,
-        **kwargs,
-    ):
+        p: Any = p.default,
+        break_energy: Any = u.Quantity(break_energy.default, break_energy.unit),  # pyright: ignore[reportArgumentType]
+        q: Any = q.default,
+        low_e_cutoff: Any = u.Quantity(low_e_cutoff.default, low_e_cutoff.unit),  # pyright: ignore[reportArgumentType]
+        high_e_cutoff: Any = u.Quantity(high_e_cutoff.default, high_e_cutoff.unit),  # pyright: ignore[reportArgumentType]
+        total_eflux: Any = u.Quantity(total_eflux.default, total_eflux.unit),  # pyright: ignore[reportArgumentType]
+        integrator: Any = None,
+        **kwargs: Any,
+    ) -> None:
         self.integrator = integrator
 
         super().__init__(
@@ -116,7 +123,10 @@ class ThickTarget(FittableModel):
             **kwargs,
         )
 
-    def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
+    # Parameters intentionally left unannotated: astropy's Model.input_units reads
+    # evaluate.__annotations__ to infer per-input units, keyed by input name, so adding
+    # unrelated (non-unit) annotations here breaks that introspection at runtime.
+    def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):  # type: ignore[no-untyped-def]
         energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
 
         if (
@@ -144,15 +154,17 @@ class ThickTarget(FittableModel):
         return flux
 
     @property
-    def input_units(self):
+    def input_units(self) -> dict[str, Any]:
         # The units for the 'energy_edges' variable should be an energy (default keV)
-        return {self.inputs[0]: u.keV}
+        # self.inputs is populated by astropy's Model metaclass from n_inputs at runtime;
+        # pyright's inference of the base type doesn't see past that.
+        return {self.inputs[0]: u.keV}  # pyright: ignore[reportGeneralTypeIssues]
 
     @property
-    def return_units(self):
-        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1}
+    def return_units(self) -> dict[str, Any]:
+        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1}  # pyright: ignore[reportGeneralTypeIssues]
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+    def _parameter_units_for_data_units(self, inputs_unit: Any, outputs_unit: Any) -> dict[str, Any]:
         return {
             "break_energy": u.keV,
             "low_e_cutoff": u.keV,
@@ -161,7 +173,7 @@ class ThickTarget(FittableModel):
         }
 
 
-class ThinTarget(FittableModel):
+class ThinTarget(FittableModel):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     r"""Calculates the thin-target bremsstrahlung radiation of a dual power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
@@ -232,15 +244,15 @@ class ThinTarget(FittableModel):
 
     def __init__(
         self,
-        p=p.default,
-        break_energy=u.Quantity(break_energy.default, break_energy.unit),
-        q=q.default,
-        low_e_cutoff=u.Quantity(low_e_cutoff.default, low_e_cutoff.unit),
-        high_e_cutoff=u.Quantity(high_e_cutoff.default, high_e_cutoff.unit),
-        total_eflux=u.Quantity(total_eflux.default, total_eflux.unit),
-        integrator=None,
-        **kwargs,
-    ):
+        p: Any = p.default,
+        break_energy: Any = u.Quantity(break_energy.default, break_energy.unit),  # pyright: ignore[reportArgumentType]
+        q: Any = q.default,
+        low_e_cutoff: Any = u.Quantity(low_e_cutoff.default, low_e_cutoff.unit),  # pyright: ignore[reportArgumentType]
+        high_e_cutoff: Any = u.Quantity(high_e_cutoff.default, high_e_cutoff.unit),  # pyright: ignore[reportArgumentType]
+        total_eflux: Any = u.Quantity(total_eflux.default, total_eflux.unit),  # pyright: ignore[reportArgumentType]
+        integrator: Any = None,
+        **kwargs: Any,
+    ) -> None:
         self.integrator = integrator
 
         super().__init__(
@@ -253,7 +265,10 @@ class ThinTarget(FittableModel):
             **kwargs,
         )
 
-    def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
+    # Parameters intentionally left unannotated: astropy's Model.input_units reads
+    # evaluate.__annotations__ to infer per-input units, keyed by input name, so adding
+    # unrelated (non-unit) annotations here breaks that introspection at runtime.
+    def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):  # type: ignore[no-untyped-def]
         energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
 
         if (
@@ -281,15 +296,17 @@ class ThinTarget(FittableModel):
         return flux
 
     @property
-    def input_units(self):
+    def input_units(self) -> dict[str, Any]:
         # The units for the 'energy_edges' variable should be an energy (default keV)
-        return {self.inputs[0]: u.keV}
+        # self.inputs is populated by astropy's Model metaclass from n_inputs at runtime;
+        # pyright's inference of the base type doesn't see past that.
+        return {self.inputs[0]: u.keV}  # pyright: ignore[reportGeneralTypeIssues]
 
     @property
-    def return_units(self):
-        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1}
+    def return_units(self) -> dict[str, Any]:
+        return {self.outputs[0]: u.ph * u.keV**-1 * u.s**-1}  # pyright: ignore[reportGeneralTypeIssues]
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+    def _parameter_units_for_data_units(self, inputs_unit: Any, outputs_unit: Any) -> dict[str, Any]:
         return {
             "break_energy": u.keV,
             "low_e_cutoff": u.keV,
@@ -299,7 +316,16 @@ class ThinTarget(FittableModel):
         }
 
 
-def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator):
+def thick_fn(
+    energy_centers: Any,
+    p: Any,
+    break_energy: Any,
+    q: Any,
+    low_e_cutoff: Any,
+    high_e_cutoff: Any,
+    total_eflux: Any,
+    integrator: Any,
+) -> Any:
     """Calculates the thick-target bremsstrahlung radiation of a dual power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
@@ -359,7 +385,16 @@ def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, to
 
 
 # def thin_fn(total_eflux, index, e_c, energies=None):
-def thin_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator):
+def thin_fn(
+    energy_centers: Any,
+    p: Any,
+    break_energy: Any,
+    q: Any,
+    low_e_cutoff: Any,
+    high_e_cutoff: Any,
+    total_eflux: Any,
+    integrator: Any,
+) -> Any:
     """Calculates the thin-target bremsstrahlung radiation of a dual power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
@@ -450,7 +485,9 @@ class BrokenPowerLawElectronDistribution:
     `brm2_f_distrn <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_f_distrn.pro>`_.
     """
 
-    def __init__(self, *, p, q, low_e_cutoff, break_energy, high_e_cutoff, norm=True):
+    def __init__(
+        self, *, p: Any, q: Any, low_e_cutoff: Any, break_energy: Any, high_e_cutoff: Any, norm: bool = True
+    ) -> None:
         """ """
         self.p = p
         self.q = q
@@ -470,13 +507,13 @@ class BrokenPowerLawElectronDistribution:
             self._n0 = 1.0
             self._n2 = 1.0
 
-    def __eq__(self, other):
+    def __eq__(self, other: Any) -> bool:
         return all(
             getattr(self, name) == getattr(other, name)
             for name in ["p", "q", "low_e_cutoff", "break_energy", "high_e_cutoff"]
         ) and isinstance(other, self.__class__)
 
-    def flux(self, electron_energy):
+    def flux(self, electron_energy: Any) -> Any:
         """
         Calculate the electron spectrum at the given energies.
 
@@ -517,7 +554,7 @@ class BrokenPowerLawElectronDistribution:
 
         return res
 
-    def density(self, electron_energy):
+    def density(self, electron_energy: Any) -> Any:
         """
         Return the electron flux at the given electron energies.
 
@@ -552,14 +589,14 @@ class BrokenPowerLawElectronDistribution:
             )
         return res
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}(p={self.p}, q={self.q}, low_e_cutoff={self.low_e_cutoff}, "
             f"break_energy={self.break_energy}, high_e_cutoff={self.high_e_cutoff}, norm={self.norm})"
         )
 
 
-def collisional_loss(electron_energy):
+def collisional_loss(electron_energy: Any) -> Any:
     """
     Compute the energy dependent terms of the collisional energy loss rate for energetic electrons.
 
@@ -578,7 +615,7 @@ def collisional_loss(electron_energy):
     Initial version modified from SSW
     `Brm_ELoss <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_eloss.pro>`_
     """
-    electron_rest_mass = const.get_constant("mc2")  # * u.keV #c.m_e * c.c**2
+    electron_rest_mass = _get_constant("mc2")  # * u.keV #c.m_e * c.c**2
 
     gamma = (electron_energy / electron_rest_mass) + 1.0
 
@@ -588,7 +625,7 @@ def collisional_loss(electron_energy):
     return np.log(6.9447e9 * electron_energy) / beta
 
 
-def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
+def bremsstrahlung_cross_section(electron_energy: Any, photon_energy: Any, z: float = 1.2) -> Any:
     """
     Compute the relativistic electron-ion bremsstrahlung cross section
     differential in energy (cm^2/mc^2 or 511 keV).
@@ -626,9 +663,9 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
        `ADS <https://ui.adsabs.harvard.edu/abs/1939AnP...426..178E/abstract>`__
     """
 
-    mc2 = const.get_constant("mc2")
-    alpha = const.get_constant("alpha")
-    twoar02 = const.get_constant("twoar02")
+    mc2 = _get_constant("mc2")
+    alpha = _get_constant("alpha")
+    twoar02 = _get_constant("twoar02")
 
     # Numerical coefficients
     c11 = 4.0 / 3.0
@@ -676,7 +713,9 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     return twoar02 * fe * crtmp
 
 
-def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
+def _get_integrand(
+    x_log: Any, *, model: str, electron_dist: Any, photon_energy: Any, z: float, efd: bool = True
+) -> Any:
     """
     Return the value of the integrand for the thick- or thin-target bremsstrahlung models.
 
@@ -710,8 +749,8 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
     `brm2_fouter.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fouter.pro>`_.
 
     """
-    mc2 = const.get_constant("mc2")
-    clight = const.get_constant("clight")
+    mc2 = _get_constant("mc2")
+    clight = _get_constant("clight")
 
     # L=log10 (E), E=l0L and dE=10L ln(10) dL hence the electron_energy * np.log(10) below
     electron_energy = 10**x_log
@@ -740,22 +779,22 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
 
 def _integrate_part(
     *,
-    model,
-    photon_energies,
-    maxfcn,
-    rerr,
-    low_e_cutoff,
-    break_energy,
-    high_e_cutoff,
-    p,
-    q,
-    z,
-    a_lg,
-    b_lg,
-    ll,
-    efd,
-    integrator=None,
-):
+    model: str,
+    photon_energies: Any,
+    maxfcn: int,
+    rerr: float,
+    low_e_cutoff: Any,
+    break_energy: Any,
+    high_e_cutoff: Any,
+    p: Any,
+    q: Any,
+    z: float,
+    a_lg: Any,
+    b_lg: Any,
+    ll: Any,
+    efd: bool,
+    integrator: Any = None,
+) -> Any:
     """
     Perform numerical Gaussian-Legendre Quadrature integration for thick- and thin-target models.
 
@@ -834,7 +873,9 @@ def _integrate_part(
 
         lastsum = np.copy(intsum)
 
-        intsum[i] = integrator(
+        # integrator: Any triggers the same Any-narrowing quirk seen with data.shape
+        # elsewhere in this codebase; the actual return value is a plain float array.
+        intsum[i] = integrator(  # pyright: ignore[reportCallIssue, reportArgumentType]
             _get_integrand,
             a_lg[i],
             b_lg[i],
@@ -860,8 +901,20 @@ def _integrate_part(
 
 
 def _split_and_integrate(
-    *, model, photon_energies, maxfcn, rerr, low_e_cutoff, break_energy, high_e_cutoff, p, q, z, efd, integrator=None
-):
+    *,
+    model: str,
+    photon_energies: Any,
+    maxfcn: int,
+    rerr: float,
+    low_e_cutoff: Any,
+    break_energy: Any,
+    high_e_cutoff: Any,
+    p: Any,
+    q: Any,
+    z: float,
+    efd: bool,
+    integrator: Any = None,
+) -> Any:
     """
     Split and integrate the continuous parts of the electron spectrum.
 
@@ -914,8 +967,8 @@ def _split_and_integrate(
     `Brm2_Dmlin <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlin.pro>`_.
 
     """
-    mc2 = const.get_constant("mc2")
-    clight = const.get_constant("clight")
+    mc2 = _get_constant("mc2")
+    clight = _get_constant("clight")
 
     if not low_e_cutoff <= break_energy <= high_e_cutoff:
         raise ValueError(
@@ -937,7 +990,7 @@ def _split_and_integrate(
     # Part 1, below en_val[0] (usually low_e_cutoff)
     if model == "thick-target":
         if P1.size > 0:
-            logging.debug("Part1")
+            logger.debug("Part1")
             a_lg = np.log10(photon_energies[P1])
             b_lg = np.log10(np.full_like(a_lg, low_e_cutoff))
             i = np.copy(P1)
@@ -972,7 +1025,7 @@ def _split_and_integrate(
         if P1.size > 0:
             aa[P1] = low_e_cutoff
 
-        logging.debug("Part2")
+        logger.debug("Part2")
         a_lg = np.log10(aa[P2])
         b_lg = np.log10(np.full_like(a_lg, break_energy))
         i = np.copy(P2)
@@ -1003,7 +1056,7 @@ def _split_and_integrate(
         if P2.size > 0:
             aa[P2] = break_energy
 
-        logging.debug("Part3")
+        logger.debug("Part3")
         a_lg = np.log10(aa[P3])
         b_lg = np.log10(np.full_like(a_lg, high_e_cutoff))
         i = np.copy(P3)
@@ -1041,8 +1094,15 @@ def _split_and_integrate(
 
 
 def bremsstrahlung_thin_target(
-    photon_energies, p, break_energy, q, low_e_cutoff, high_e_cutoff, efd=True, integrator=None
-):
+    photon_energies: Any,
+    p: Any,
+    break_energy: Any,
+    q: Any,
+    low_e_cutoff: Any,
+    high_e_cutoff: Any,
+    efd: bool = True,
+    integrator: Any = None,
+) -> NDArray[np.float64]:
     """
     Computes the thin-target bremsstrahlung x-ray/gamma-ray spectrum from an isotropic electron
     distribution function provided in `broken_powerlaw`. The units of the computed flux is photons
@@ -1094,9 +1154,9 @@ def bremsstrahlung_thin_target(
     Adapted from SSW `Brm2_ThinTarget
     <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thintarget.pro>`_
     """
-    mc2 = const.get_constant("mc2")
-    clight = const.get_constant("clight")
-    # au = const.get_constant("au")
+    mc2 = _get_constant("mc2")
+    clight = _get_constant("clight")
+    # au = _get_constant("au")
 
     # Max number of points
     maxfcn = 2048
@@ -1141,7 +1201,15 @@ def bremsstrahlung_thin_target(
     raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
 
 
-def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutoff, high_e_cutoff, integrator=None):
+def bremsstrahlung_thick_target(
+    photon_energies: Any,
+    p: Any,
+    break_energy: Any,
+    q: Any,
+    low_e_cutoff: Any,
+    high_e_cutoff: Any,
+    integrator: Any = None,
+) -> NDArray[np.float64]:
     """
     Computes the thick-target bremsstrahlung x-ray/gamma-ray spectrum from an isotropic electron
     distribution function provided in `broken_powerlaw_f`. The units of the computed flux is photons
@@ -1187,10 +1255,10 @@ def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutof
     <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro>`_
     """
     # Constants
-    mc2 = const.get_constant("mc2")
-    clight = const.get_constant("clight")
-    # au = const.get_constant("au")
-    r0 = const.get_constant("r0")
+    mc2 = _get_constant("mc2")
+    clight = _get_constant("clight")
+    # au = _get_constant("au")
+    r0 = _get_constant("r0")
 
     # Max number of points
     maxfcn = 2048

@@ -1,3 +1,5 @@
+from typing import Any
+
 import numpy as np
 
 import astropy.units as u
@@ -7,7 +9,7 @@ from astropy.units import Quantity
 __all__ = ["Constant", "InverseSquareFluxScaling"]
 
 
-class InverseSquareFluxScaling(FittableModel):
+class InverseSquareFluxScaling(FittableModel):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     """
     InverseSqaureFluxScaling model converts luminosity output of physical models to a distance scaled flux.
 
@@ -68,28 +70,34 @@ class InverseSquareFluxScaling(FittableModel):
 
     _input_units_allow_dimensionless = True
 
-    def evaluate(self, x, observer_distance):
+    # Parameters intentionally left unannotated: astropy's Model.input_units reads
+    # evaluate.__annotations__ to infer per-input units, keyed by input name, so adding
+    # unrelated (non-unit) annotations here breaks that introspection at runtime.
+    def evaluate(self, x, observer_distance):  # type: ignore[no-untyped-def]
         if isinstance(observer_distance, Quantity):
-            if observer_distance.unit.is_equivalent(u.AU):
+            # A Quantity's .unit is never actually None; pyright's astropy inference is overly broad here.
+            if observer_distance.unit.is_equivalent(u.AU):  # pyright: ignore[reportOptionalMemberAccess]
                 observer_distance_cm = observer_distance.to(u.cm)
             else:
                 raise ValueError("Observer distance input must be an Astropy length convertible to AU.")
 
         else:
-            AU_distance_cm = (1 * u.AU).to_value(u.cm)
+            # `1 * u.AU` is a Quantity at runtime; pyright's overload resolution infers a
+            # Unit-subclass union instead and misses the .to_value method that exists.
+            AU_distance_cm = (1 * u.AU).to_value(u.cm)  # pyright: ignore[reportAttributeAccessIssue]
             observer_distance_cm = observer_distance * AU_distance_cm
 
         return 1 / (4 * np.pi * (observer_distance_cm**2))
 
     @property
-    def return_units(self):
+    def return_units(self) -> dict[str, Any]:
         return {"y": u.cm**-2}
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+    def _parameter_units_for_data_units(self, inputs_unit: Any, outputs_unit: Any) -> dict[str, Any]:
         return {"observer_distance": u.AU}
 
 
-class Constant(FittableModel):
+class Constant(FittableModel):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     """
     A model which returns an array with dimensions n-1 of the input dimension populated with a constant value,
     of whichever units specified by the user.
@@ -149,17 +157,22 @@ class Constant(FittableModel):
 
     name = "Constant"
 
-    def __init__(self, constant=u.Quantity(constant.default)):
+    # constant.default is always the concrete `1` set above; Parameter.default's declared
+    # type is broader (Any | None), which is what pyright is actually reacting to here.
+    def __init__(self, constant: Any = u.Quantity(constant.default)) -> None:  # pyright: ignore[reportArgumentType]
         super().__init__(constant=constant)
 
-    def evaluate(self, x, constant):
+    # Parameters intentionally left unannotated: astropy's Model.input_units reads
+    # evaluate.__annotations__ to infer per-input units, keyed by input name, so adding
+    # unrelated (non-unit) annotations here breaks that introspection at runtime.
+    def evaluate(self, x, constant):  # type: ignore[no-untyped-def]
         return constant
 
     @property
-    def return_units(self):
+    def return_units(self) -> dict[str, Any] | None:
         if isinstance(self.constant, Quantity):
             return {"y": self.constant.unit}
         return None
 
-    def _parameter_units_for_data_units(self, inputs_unit, outputs_unit):
+    def _parameter_units_for_data_units(self, inputs_unit: Any, outputs_unit: Any) -> dict[str, Any]:
         return {"constant": outputs_unit["y"]}

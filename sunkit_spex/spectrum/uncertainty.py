@@ -1,5 +1,8 @@
+from typing import Any
+
 import numpy as np
 
+from astropy.nddata import NDData
 from astropy.nddata.nduncertainty import (
     IncompatibleUncertaintiesException,
     NDUncertainty,
@@ -9,8 +12,10 @@ from astropy.nddata.nduncertainty import (
 
 __all__ = ["PoissonUncertainty"]
 
+from numpy.typing import ArrayLike
 
-class PoissonUncertainty(_VariancePropagationMixin, NDUncertainty):
+
+class PoissonUncertainty(_VariancePropagationMixin, NDUncertainty):  # type: ignore[misc]  # astropy/ndcube/gwcs ship no type stubs
     """Poissonian uncertainty assuming first order error propagation.
 
     This class implements uncertainty propagation for ``addition``,
@@ -55,7 +60,7 @@ class PoissonUncertainty(_VariancePropagationMixin, NDUncertainty):
     """
 
     @property
-    def supports_correlated(self):
+    def supports_correlated(self) -> bool:
         """`True` : `StdDevUncertainty` allows to propagate correlated \
                     uncertainties.
 
@@ -65,17 +70,19 @@ class PoissonUncertainty(_VariancePropagationMixin, NDUncertainty):
         return True
 
     @property
-    def uncertainty_type(self):
+    def uncertainty_type(self) -> str:
         """``"poisson"`` : `PoissonUncertainty` implements Poisson uncertainty."""
         return "poisson"
 
-    def _convert_uncertainty(self, other_uncert):
+    def _convert_uncertainty(self, other_uncert: Any) -> Any:
         if isinstance(other_uncert, PoissonUncertainty):
             return other_uncert
         raise IncompatibleUncertaintiesException
 
-    def _propagate_add(self, other_uncert, result_data, correlation):
-        return super()._propagate_add_sub(
+    def _propagate_add(
+        self, other_uncert: NDUncertainty, result_data: NDData, correlation: ArrayLike
+    ) -> "PoissonUncertainty | None":
+        return super()._propagate_add_sub(  # type: ignore[no-any-return]
             other_uncert,
             result_data,
             correlation,
@@ -84,8 +91,10 @@ class PoissonUncertainty(_VariancePropagationMixin, NDUncertainty):
             from_variance=np.sqrt,
         )
 
-    def _propagate_subtract(self, other_uncert, result_data, correlation):
-        return super()._propagate_add_sub(
+    def _propagate_subtract(
+        self, other_uncert: NDUncertainty, result_data: NDData, correlation: ArrayLike
+    ) -> "PoissonUncertainty | None":
+        return super()._propagate_add_sub(  # type: ignore[no-any-return]
             other_uncert,
             result_data,
             correlation,
@@ -94,8 +103,10 @@ class PoissonUncertainty(_VariancePropagationMixin, NDUncertainty):
             from_variance=np.sqrt,
         )
 
-    def _propagate_multiply(self, other_uncert, result_data, correlation):
-        return super()._propagate_multiply_divide(
+    def _propagate_multiply(
+        self, other_uncert: NDUncertainty, result_data: NDData, correlation: ArrayLike
+    ) -> "PoissonUncertainty | None":
+        return super()._propagate_multiply_divide(  # type: ignore[no-any-return]
             other_uncert,
             result_data,
             correlation,
@@ -104,8 +115,10 @@ class PoissonUncertainty(_VariancePropagationMixin, NDUncertainty):
             from_variance=np.sqrt,
         )
 
-    def _propagate_divide(self, other_uncert, result_data, correlation):
-        return super()._propagate_multiply_divide(
+    def _propagate_divide(
+        self, other_uncert: NDUncertainty, result_data: NDData, correlation: ArrayLike
+    ) -> "PoissonUncertainty | None":
+        return super()._propagate_multiply_divide(  # type: ignore[no-any-return]
             other_uncert,
             result_data,
             correlation,
@@ -114,20 +127,22 @@ class PoissonUncertainty(_VariancePropagationMixin, NDUncertainty):
             from_variance=np.sqrt,
         )
 
-    def _propagate_collapse(self, numpy_operation, axis):
+    def _propagate_collapse(self, numpy_operation: Any, axis: Any) -> Any:
         # defer to _VariancePropagationMixin
         return super()._propagate_collapse(numpy_operation, axis=axis)
 
-    def _data_unit_to_uncertainty_unit(self, value):
+    def _data_unit_to_uncertainty_unit(self, value: Any) -> Any:
         return value
 
-    def _convert_to_variance(self):
+    def _convert_to_variance(self) -> Any:
         new_array = None if self.array is None else self.array**2
-        new_unit = None if self.unit is None else self.unit**2
+        # self.unit is always a resolved astropy Unit at this point, never the raw
+        # str some of NDUncertainty's internals accept; pyright can't see that boundary.
+        new_unit = None if self.unit is None else self.unit**2  # pyright: ignore[reportOperatorIssue]
         return VarianceUncertainty(new_array, unit=new_unit)
 
     @classmethod
-    def _convert_from_variance(cls, var_uncert):
+    def _convert_from_variance(cls, var_uncert: Any) -> Any:
         new_array = None if var_uncert.array is None else var_uncert.array ** (1 / 2)
         new_unit = None if var_uncert.unit is None else var_uncert.unit ** (1 / 2)
         return cls(new_array, unit=new_unit)
