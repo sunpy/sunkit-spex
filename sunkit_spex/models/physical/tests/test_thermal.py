@@ -6,6 +6,7 @@ import pytest
 import astropy.units as u
 
 from sunkit_spex.models.physical import thermal
+from sunkit_spex.models.scaling import scaled_em_units
 
 # Manually load file that was used to compile expected flux values.
 thermal.setup_continuum_parameters(
@@ -50,7 +51,7 @@ def fvth_simple():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e-5 / u.cm**3
+    emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -111,7 +112,7 @@ def chianti_kev_cont_simple():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e-5 / u.cm**3
+    emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -172,7 +173,7 @@ def chianti_kev_lines_simple():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e-5 / u.cm**3
+    emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -234,7 +235,7 @@ def fvth_Fe2():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e-5 / u.cm**3
+    emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -297,7 +298,7 @@ def chianti_kev_cont_Fe2():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e-5 / u.cm**3
+    emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -360,7 +361,7 @@ def chianti_kev_lines_Fe2():
     """
     energy_edges = np.arange(3, 28.5, 0.5) * u.keV
     temperature = 6 * u.MK
-    emission_measure = 1e-5 / u.cm**3
+    emission_measure = 1e44 / u.cm**3
     abundance_type = DEFAULT_ABUNDANCE_TYPE
     observer_distance = (1 * u.AU).to(u.cm)
     # fmt: off
@@ -513,3 +514,18 @@ def test_abundances_should_not_change():
 
         after_models = thermal.DEFAULT_ABUNDANCES[thermal.DEFAULT_ABUNDANCE_TYPE].data
         assert np.allclose(after_models.data, orig.data)
+
+
+def test_thermal_emission_measure_scaling():
+    """Test thermal emission measure units being scaled."""
+    energy_edges = np.arange(2, 15, 0.1) << u.keV
+    for _em in np.arange(1, 10, 0.5):
+        em = (_em * 1e49) << (u.cm**-3)
+        s_em = _em << scaled_em_units
+        model = thermal.ThermalEmission(emission_measure=em)
+        s_model = thermal.ThermalEmission(emission_measure=s_em)
+        np.testing.assert_allclose(model(energy_edges).value, s_model(energy_edges).value)
+        np.testing.assert_allclose(
+            model.evaluate(energy_edges, *model.parameters).value,
+            s_model.evaluate(energy_edges, *s_model.parameters).value,
+        )

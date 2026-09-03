@@ -1,0 +1,1 @@
+The scalar parameters for ``ThermalEmission``, ``ThickTarget``, and ``ThinTarget`` in ``models.physical`` now use consistent custom scaled values and units instead of scaled values with non-scaled units. Parameters for the ``ThermalEmission`` and ``ThickTarget`` are given suitable parameter bounds.
