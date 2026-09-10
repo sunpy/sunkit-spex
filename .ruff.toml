@@ -92,6 +92,10 @@ ignore = [
 "sunkit_spex/legacy/tests/*.py" = [
   "PT011", # `pytest.raises(ValueError)` is too broad
 ]
+"sunkit_spex/legacy/*.py" = [
+  "B", # Don't use bugbear on legacy code
+]
+
 
 [lint.flake8-pytest-style]
 parametrize-names-type = "csv"

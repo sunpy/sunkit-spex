@@ -623,7 +623,7 @@ def continuum_emission(
     fe,
     abundance_type=DEFAULT_ABUNDANCE_TYPE,
 ):
-    f"""Calculate the thermal X-ray continuum emission from the solar atmosphere.
+    """Calculate the thermal X-ray continuum emission from the solar atmosphere.
 
     The emission is calculated as a function of temperature and emission measure.
     Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
@@ -670,7 +670,7 @@ def line_emission(
     fe,
     abundance_type=DEFAULT_ABUNDANCE_TYPE,
 ):
-    f"""
+    """
     Calculate thermal line emission from the solar corona.
 
     {doc_string_params}"""
@@ -1181,7 +1181,7 @@ def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, par
             f"{grid_range[0]}--{grid_range[1]} {param_unit}. "
             "Flux will be zero outside this range."
         )
-        warnings.warn(message)
+        warnings.warn(message, stacklevel=2)
 
 
 def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, param_name, param_unit):

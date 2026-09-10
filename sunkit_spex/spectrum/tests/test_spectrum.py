@@ -122,7 +122,11 @@ def test_spectrum_spectral_axis_bin_centers():
 def test_spectrum_from_spectrum():
     spec_orig = Spectrum(np.arange(1, 11) * u.watt, spectral_axis=np.arange(1, 12) * u.keV)
     spec_new = Spectrum(spec_orig)
-    spec_orig == spec_new
+
+    assert spec_new is not spec_orig
+    assert spec_new.unit == spec_orig.unit
+    np.testing.assert_allclose(spec_new.data, spec_orig.data)
+    assert spec_new.wcs == spec_orig.wcs
 
 
 def test_spectrum_unknow_keywords():
