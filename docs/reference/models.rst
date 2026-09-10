@@ -10,4 +10,6 @@ Models (`sunkit_spex.models`)
 .. automodapi:: sunkit_spex.models.scaling
 .. automodapi:: sunkit_spex.models.physical
 .. automodapi:: sunkit_spex.models.physical.thermal
+.. automodapi:: sunkit_spex.models.physical.nonthermal
 .. automodapi:: sunkit_spex.models.physical.albedo
+.. automodapi:: sunkit_spex.models.physical.integrate

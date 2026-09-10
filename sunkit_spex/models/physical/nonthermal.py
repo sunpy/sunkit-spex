@@ -1,18 +1,3 @@
-import logging
-
-import numpy as np
-
-import astropy.units as u
-from astropy.modeling import FittableModel, Parameter
-
-from sunkit_spex.legacy import constants as const
-from sunkit_spex.legacy.integrate import gauss_legendre
-
-const = const.Constants()
-
-
-logging = logging.getLogger(__name__)
-
 """
 Functions for computing the photon flux due to bremsstrahlung radiation from energetic electrons
 impacting a dense plasma. See [1]_ and [2]_.
@@ -26,8 +11,60 @@ References
 
 """
 
+import logging
+from dataclasses import field, dataclass
+
+import numpy as np
+
+import astropy.units as u
+from astropy.modeling import FittableModel, Parameter
+
+from sunkit_spex.legacy import constants
+from sunkit_spex.models.physical.integrate import fixed_quad_batch
+
+const = constants.Constants()
+
+# Cached once here rather than calling const.get_constant(...) repeatedly
+MC2 = const.get_constant("mc2")  # electron rest mass energy, keV
+CLIGHT = const.get_constant("clight")  # speed of light, cm/s
+ALPHA = const.get_constant("alpha")  # fine structure constant
+TWOAR02 = const.get_constant("twoar02")  # 2 * alpha * classical electron radius^2, cm^2
+R0 = const.get_constant("r0")  # classical electron radius, cm
+
+# ln(10), used in `_get_integrand` to convert a log10-space integral back to electron-energy
+# space (dE = E * ln(10) * dx_log)
+LN_10 = np.log(10)
+
+logger = logging.getLogger(__name__)
 
 __all__ = ["ThickTarget", "ThinTarget"]
+
+# Mean atomic number of the target plasma, from SSW `Brm2_BremCross <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_bremcross.pro>`_.
+MEAN_ATOMIC_NUMBER = 1.2
+
+# Maximum number of Gauss-Legendre quadrature points tried before giving up on convergence.
+MAX_QUADRATURE_POINTS = 2048
+
+# log2(MAX_QUADRATURE_POINTS); `_integrate_part` doubles the point count from 2**2 up to 2**NLIM.
+NLIM = 12
+
+# Desired relative error for the Gauss-Legendre integral evaluation in `_integrate_part`.
+RELATIVE_ERROR = 1e-4
+
+# `total_eflux` for `ThickTarget` is expressed in units of this many electrons/s.
+THICK_TARGET_EFLUX_SCALE = 1e35  # e/s
+
+# `total_eflux` for `ThinTarget` is expressed in units of this many cm^-2 s^-1.
+THIN_TARGET_EFLUX_SCALE = 1e55  #  cm^-2 s^-1.
+
+# Coefficient inside the argument of the Coulomb logarithm ln(Lambda) in `collisional_loss`, in
+# units of keV^-1 (so ``COULOMB_LOGARITHM_COEFFICIENT * electron_energy[keV]`` is dimensionless).
+# This gives ln(Lambda) ~ 25-27 for electron energies of 10-100 keV, consistent with the
+# "typically ln(Lambda) ~ 20" quoted by Leach & Petrosian (1981, ApJ 251, 781) for fast electron,
+# Can't see the exact closed-form derivation of this specific coefficient
+# against those formulas. Carried over unchanged from SSW `Brm_ELoss
+# <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_eloss.pro>`_.
+COULOMB_LOGARITHM_COEFFICIENT = 6.9447e9  # keV^-1
 
 
 class ThickTarget(FittableModel):
@@ -40,29 +77,21 @@ class ThickTarget(FittableModel):
     Parameters
     ----------
     energy_edges : 1d array
-            Edges of energy bins in units of keV.
-
+        Edges of energy bins in units of keV.
     total_eflux : int or float
-            Total integrated electron flux, in units of 10^35 e^- s^-1.
-            Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e35 is hidden.
-            So actual units are 1.0d35 e^- s^-1.
-
+        Total integrated electron flux, in units of 10^35 e^- s^-1.
+        Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e35 is hidden.
+        So actual units are 1.0d35 e^- s^-1.
     p : int or float
-            Power-law index of the electron distribution below the break.
-
+        Power-law index of the electron distribution below the break.
     break_energy : int or float
-                        Break energy of power law.
-
+        Break energy of power law.
     q : int or float
-            Power-law index of the electron distribution above the break.
-
+        Power-law index of the electron distribution above the break.
     low_e_cutoff : int or float
-            Low-energy cut-off of the electron distribution in units of keV.
-
+        Low-energy cut-off of the electron distribution in units of keV.
     high_e_cutoff : int or float
-            High-energy cut-off of the electron distribution in units of keV.
-
-
+        High-energy cut-off of the electron distribution in units of keV.
 
     Returns
     -------
@@ -119,29 +148,20 @@ class ThickTarget(FittableModel):
     def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
         energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
 
-        if (
-            hasattr(break_energy, "unit")
-            or hasattr(energy_centers, "unit")
-            or hasattr(low_e_cutoff, "unit")
-            or hasattr(high_e_cutoff, "unit")
-            or hasattr(total_eflux, "unit")
-        ):
-            flux = thick_fn(
-                energy_centers.value,
-                p,
-                break_energy.value,
-                q,
-                low_e_cutoff.value,
-                high_e_cutoff.value,
-                total_eflux.value,
-                self.integrator,
-            )
-        else:
-            flux = thick_fn(
-                energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, self.integrator
-            )
+        # `<<` attaches a unit to a bare value, or converts an existing (compatible) one so bremsstrahlung_thick_target
+        # always receives plain floats/arrays
+        output = bremsstrahlung_thick_target(
+            (energy_centers << u.keV).value,
+            p,
+            (break_energy << u.keV).value,
+            q,
+            (low_e_cutoff << u.keV).value,
+            (high_e_cutoff << u.keV).value,
+            self.integrator,
+        )
+        output[~np.isfinite(output)] = 0
 
-        return flux
+        return output * (total_eflux << (u.electron / u.s)).value * THICK_TARGET_EFLUX_SCALE
 
     @property
     def input_units(self):
@@ -165,36 +185,28 @@ class ThinTarget(FittableModel):
     r"""Calculates the thin-target bremsstrahlung radiation of a dual power-law electron distribution.
 
     [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
-    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
-    [3] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro
+    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thin_doc.pdf
+    [3] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thintarget.pro
 
     Parameters
     ----------
     energy_edges : 1d array
-            Edges of energy bins in units of keV.
-
+        Edges of energy bins in units of keV.
     total_eflux : int or float
         normalization factor in units of 1.0d55 cm-2 sec-1,
         i.e. plasma density * volume of source * integrated nonthermal electron flux density
         Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e55 is hidden.
         So actual units are 1.0d55 cm-2 sec-1.
-
     p : int or float
-            Power-law index of the electron distribution below the break.
-
+        Power-law index of the electron distribution below the break.
     break_energy : int or float
-                        Break energy of power law.
-
+        Break energy of power law.
     q : int or float
-            Power-law index of the electron distribution above the break.
-
+        Power-law index of the electron distribution above the break.
     low_e_cutoff : int or float
-            Low-energy cut-off of the electron distribution in units of keV.
-
+        Low-energy cut-off of the electron distribution in units of keV.
     high_e_cutoff : int or float
-            High-energy cut-off of the electron distribution in units of keV.
-
-
+        High-energy cut-off of the electron distribution in units of keV.
 
     Returns
     -------
@@ -256,29 +268,21 @@ class ThinTarget(FittableModel):
     def evaluate(self, energy_edges, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux):
         energy_centers = energy_edges[:-1] + 0.5 * np.diff(energy_edges)
 
-        if (
-            hasattr(break_energy, "unit")
-            or hasattr(energy_centers, "unit")
-            or hasattr(low_e_cutoff, "unit")
-            or hasattr(high_e_cutoff, "unit")
-            or hasattr(total_eflux, "unit")
-        ):
-            flux = thin_fn(
-                energy_centers.value,
-                p,
-                break_energy.value,
-                q,
-                low_e_cutoff.value,
-                high_e_cutoff.value,
-                total_eflux.value,
-                self.integrator,
-            )
-        else:
-            flux = thin_fn(
-                energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, self.integrator
-            )
+        # `<<` attaches a unit to a bare value, or converts an existing (compatible) one so bremsstrahlung_thin_target
+        # always receives plain floats/arrays
+        output = bremsstrahlung_thin_target(
+            (energy_centers << u.keV).value,
+            p,
+            (break_energy << u.keV).value,
+            q,
+            (low_e_cutoff << u.keV).value,
+            (high_e_cutoff << u.keV).value,
+            efd=True,
+            integrator=self.integrator,
+        )
+        output[~np.isfinite(output)] = 0
 
-        return flux
+        return output * (total_eflux << (u.s**-1 * u.cm**-2)).value * THIN_TARGET_EFLUX_SCALE
 
     @property
     def input_units(self):
@@ -295,137 +299,16 @@ class ThinTarget(FittableModel):
             "low_e_cutoff": u.keV,
             "high_e_cutoff": u.keV,
             "total_eflux": u.s**-1 * u.cm**-2,
-            # "total_eflux": u.electron * u.s**-1,
         }
 
 
-def thick_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator):
-    """Calculates the thick-target bremsstrahlung radiation of a dual power-law electron distribution.
-
-    [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
-    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
-    [3] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro
-
-    Parameters
-    ----------
-
-    energy_edges : 1d array
-            Edges of energy bins in units of keV.
-
-    total_eflux : int or float
-            Total integrated electron flux, in units of 10^35 e^- s^-1.
-            Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e35 is hidden.
-            So actual units are 1.0d35 e^- s^-1.
-
-    p : int or float
-            Power-law index of the electron distribution below the break.
-
-    break_energy : int or float
-                        Break energy of power law.
-
-    q : int or float
-            Power-law index of the electron distribution above the break.
-
-    low_e_cutoff : int or float
-            Low-energy cut-off of the electron distribution in units of keV.
-
-    high_e_cutoff : int or float
-            High-energy cut-off of the electron distribution in units of keV.
-
-
-    Returns
-    -------
-    A 1d array of thick-target bremsstrahlung radiation in units
-    of ph s^-1 keV^-1.
-    """
-
-    # hack = np.round([p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux], 15)
-    # p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux = hack[0], hack[1], hack[2], hack[3], hack[4], hack[5]
-
-    # energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
-
-    # we want a single power law electron distribution,
-    # so set break_energy == high_e_cutoff at a high value.
-    # we don't care about q at E > break_energy.
-    # high_break = energies.max() * 10
-
-    output = bremsstrahlung_thick_target(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, integrator)
-
-    output[np.isnan(output)] = 0
-    output[~np.isfinite(output)] = 0
-
-    # convert to 1e35 e-/s
-    return output * total_eflux * 1e35
-
-
-# def thin_fn(total_eflux, index, e_c, energies=None):
-def thin_fn(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator):
-    """Calculates the thin-target bremsstrahlung radiation of a dual power-law electron distribution.
-
-    [1] Brown, Solar Physics 18, 489 (1971) (https://link.springer.com/article/10.1007/BF00149070)
-    [2] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/doc/brm_thick_doc.pdf
-    [3] https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro
-
-    Parameters
-    ----------
-    energy_edges : 1d array
-            Edges of energy bins in units of keV.
-
-    total_eflux : int or float
-        normalization factor in units of 1.0d55 cm-2 sec-1,
-        i.e. plasma density * volume of source * integrated nonthermal electron flux density
-        Need to take care here as the model returns units of cm-2 sec-1 as the scaling factor of 1e55 is hidden.
-        So actual units are 1.0d55 cm-2 sec-1.
-
-    p : int or float
-            Power-law index of the electron distribution below the break.
-
-    break_energy : int or float
-                        Break energy of power law.
-
-    q : int or float
-            Power-law index of the electron distribution above the break.
-
-    low_e_cutoff : int or float
-            Low-energy cut-off of the electron distribution in units of keV.
-
-    high_e_cutoff : int or float
-            High-energy cut-off of the electron distribution in units of keV.
-
-
-
-    Returns
-    -------
-    A 1d array of thin-target bremsstrahlung radiation in units
-    of ph s^-1 keV^-1.
-    """
-
-    # hack = np.round([total_eflux, index, e_c], 15)
-    # total_eflux, index, e_c = hack[0], hack[1], hack[2]
-
-    # energies = np.mean(energies, axis=1)  # since energy bins are given, use midpoints though
-    # energies = energy_centers
-    # we want a single power law electron distribution,
-    # so set break_energy == high_e_cutoff at a high value.
-    # we don't care about q at E > break_energy.
-    # high_break = energies.max() * 10
-    output = bremsstrahlung_thin_target(
-        energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, total_eflux, integrator
-    )
-
-    output[np.isnan(output)] = 0
-    output[~np.isfinite(output)] = 0
-
-    # convert to 1e35 e-/s
-    return output * total_eflux * 1e55
-
-
+@dataclass(kw_only=True)
 class BrokenPowerLawElectronDistribution:
     """
     A broken or double power law electron flux distribution and integral.
 
-    This class is intended to be use with `sunpy.emission.bremsstrahlung_thin_target` and
-    `bremsstrahlung_thick_target`.
+    This class is intended to be used with `~sunkit_spex.models.physical.nonthermal.bremsstrahlung_thin_target` and
+    `~sunkit_spex.models.physical.nonthermal.bremsstrahlung_thick_target`.
 
     Parameters
     ----------
@@ -441,7 +324,8 @@ class BrokenPowerLawElectronDistribution:
         High energy cutoff
     norm : `bool` (optional)
         True (default) distribution function is normalized so that the integral from `low_e_cutoff` to
-        `high_e_cutoff` is 1.
+        `high_e_cutoff` is 1. Not included in equality comparisons, to match the pre-existing behavior
+        of this class.
 
     References
     ----------
@@ -450,18 +334,18 @@ class BrokenPowerLawElectronDistribution:
     `brm2_f_distrn <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_f_distrn.pro>`_.
     """
 
-    def __init__(self, *, p, q, low_e_cutoff, break_energy, high_e_cutoff, norm=True):
-        """ """
-        self.p = p
-        self.q = q
-        self.low_e_cutoff = low_e_cutoff
-        self.break_energy = break_energy
-        self.high_e_cutoff = high_e_cutoff
-        self.norm = norm
+    p: float
+    q: float
+    low_e_cutoff: float
+    break_energy: float
+    high_e_cutoff: float
+    norm: bool = field(default=True, compare=False)
+
+    def __post_init__(self):
         if self.norm:
-            n0 = (q - 1.0) / (p - 1.0) * break_energy ** (p - 1) * low_e_cutoff ** (1 - p)
-            n1 = n0 - (q - 1.0) / (p - 1.0)
-            n2 = 1.0 - break_energy ** (q - 1) * high_e_cutoff ** (1 - q)
+            n0 = (self.q - 1.0) / (self.p - 1.0) * self.break_energy ** (self.p - 1) * self.low_e_cutoff ** (1 - self.p)
+            n1 = n0 - (self.q - 1.0) / (self.p - 1.0)
+            n2 = 1.0 - self.break_energy ** (self.q - 1) * self.high_e_cutoff ** (1 - self.q)
             self._norm_factor = 1.0 / (n1 + n2)
             self._n0 = n0
             self._n2 = n2
@@ -470,15 +354,13 @@ class BrokenPowerLawElectronDistribution:
             self._n0 = 1.0
             self._n2 = 1.0
 
-    def __eq__(self, other):
-        return all(
-            getattr(self, name) == getattr(other, name)
-            for name in ["p", "q", "low_e_cutoff", "break_energy", "high_e_cutoff"]
-        ) and isinstance(other, self.__class__)
-
     def flux(self, electron_energy):
         """
-        Calculate the electron spectrum at the given energies.
+        The differential electron flux density at the given energies.
+
+        This is the normalized double power-law distribution itself (units of keV^-1, since it
+        integrates to 1 over [low_e_cutoff, high_e_cutoff]). Used for the thin-target model, where
+        only the instantaneous flux at each energy matters (a single, optically-thin interaction).
 
         Parameters
         ----------
@@ -488,38 +370,32 @@ class BrokenPowerLawElectronDistribution:
         Returns
         -------
         `numpy.array`
-            The electron spectrum as a function of electron energy
+            The electron flux density (keV^-1) as a function of electron energy
         """
-        res = np.zeros_like(electron_energy)
-
-        index = np.where(electron_energy < self.low_e_cutoff)
-        if index[0].size > 0:
-            res[index] = 0.0
-
-        index = np.where((electron_energy < self.break_energy) & (electron_energy >= self.low_e_cutoff))
-        if index[0].size > 0:
-            res[index] = (
-                self._norm_factor
-                * self._n0
-                * (self.p - 1.0)
-                * electron_energy[index] ** (-self.p)
-                * self.low_e_cutoff ** (self.p - 1.0)
-            )
-
-        index = np.where((electron_energy <= self.high_e_cutoff) & (electron_energy >= self.break_energy))
-        if index[0].size > 0:
-            res[index] = (
-                self._norm_factor
-                * (self.q - 1.0)
-                * electron_energy[index] ** (-self.q)
-                * self.break_energy ** (self.q - 1.0)
-            )
-
-        return res
+        conditions = [
+            (electron_energy >= self.low_e_cutoff) & (electron_energy < self.break_energy),
+            (electron_energy >= self.break_energy) & (electron_energy <= self.high_e_cutoff),
+        ]
+        functions = [
+            lambda e: (
+                self._norm_factor * self._n0 * (self.p - 1.0) * e ** (-self.p) * self.low_e_cutoff ** (self.p - 1.0)
+            ),
+            lambda e: self._norm_factor * (self.q - 1.0) * e ** (-self.q) * self.break_energy ** (self.q - 1.0),
+        ]
+        return np.piecewise(electron_energy, conditions, functions)
 
     def density(self, electron_energy):
         """
-        Return the electron flux at the given electron energies.
+        The cumulative electron flux from `electron_energy` up to `high_e_cutoff`.
+
+        Despite the name (inherited from SSW `Brm2_F_Distrn
+        <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_f_distrn.pro>`_), this is
+        *not* a density: it is the integral of `flux` from `electron_energy` to `high_e_cutoff`,
+        i.e. the dimensionless fraction of the total (normalized) electron flux carried by
+        electrons at or above `electron_energy`. Used for the thick-target model, where electrons
+        continuously lose energy through collisions as they penetrate the target (Brown 1971), so
+        the relevant quantity at a given energy is how much flux is left above it, not the
+        instantaneous flux at that energy alone.
 
         Parameters
         ----------
@@ -529,34 +405,26 @@ class BrokenPowerLawElectronDistribution:
         Returns
         -------
         `numpy.array`
-            The electron flux as a function of electron energy
+            The dimensionless cumulative electron flux fraction as a function of electron energy
         """
-        res = np.zeros_like(electron_energy)
-
-        index = np.where(electron_energy < self.low_e_cutoff)
-        if index[0].size > 0:
-            res[index] = 1.0
-
-        index = np.where((electron_energy < self.break_energy) & (electron_energy >= self.low_e_cutoff))
-        if index[0].size > 0:
-            res[index] = self._norm_factor * (
-                self._n0 * self.low_e_cutoff ** (self.p - 1) * electron_energy[index] ** (1.0 - self.p)
-                - (self.q - 1.0) / (self.p - 1.0)
-                + self._n2
-            )
-
-        index = np.where((electron_energy <= self.high_e_cutoff) & (electron_energy >= self.break_energy))
-        if index[0].size > 0:
-            res[index] = self._norm_factor * (
-                self.break_energy ** (self.q - 1) * electron_energy[index] ** (1.0 - self.q) - (1.0 - self._n2)
-            )
-        return res
-
-    def __repr__(self):
-        return (
-            f"{self.__class__.__name__}(p={self.p}, q={self.q}, low_e_cutoff={self.low_e_cutoff}, "
-            f"break_energy={self.break_energy}, high_e_cutoff={self.high_e_cutoff}, norm={self.norm})"
-        )
+        conditions = [
+            electron_energy < self.low_e_cutoff,
+            (electron_energy >= self.low_e_cutoff) & (electron_energy < self.break_energy),
+            (electron_energy >= self.break_energy) & (electron_energy <= self.high_e_cutoff),
+        ]
+        functions = [
+            1.0,
+            lambda e: (
+                self._norm_factor
+                * (
+                    self._n0 * self.low_e_cutoff ** (self.p - 1) * e ** (1.0 - self.p)
+                    - (self.q - 1.0) / (self.p - 1.0)
+                    + self._n2
+                )
+            ),
+            lambda e: self._norm_factor * (self.break_energy ** (self.q - 1) * e ** (1.0 - self.q) - (1.0 - self._n2)),
+        ]
+        return np.piecewise(electron_energy, conditions, functions)
 
 
 def collisional_loss(electron_energy):
@@ -566,29 +434,30 @@ def collisional_loss(electron_energy):
     Parameters
     ----------
     electron_energy : `numpy.array`
-        Array of electron energies at which to evaluate loss
+        Array of electron kinetic energies at which to evaluate loss, in keV
 
     Returns
     -------
     `numpy.array`
-        Energy loss rate
+        Energy loss rate (dimensionless; see Notes)
 
     Notes
     -----
     Initial version modified from SSW
     `Brm_ELoss <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm/brm_eloss.pro>`_
     """
-    electron_rest_mass = const.get_constant("mc2")  # * u.keV #c.m_e * c.c**2
+    electron_rest_mass = MC2  # m_e c^2, keV
 
+    # Lorentz factor (dimensionless): gamma = (kinetic energy / rest-mass energy) + 1
     gamma = (electron_energy / electron_rest_mass) + 1.0
 
+    # Speed as a fraction of the speed of light (dimensionless): beta = v / c
     beta = np.sqrt(1.0 - (1.0 / gamma**2))
 
-    # TODO figure out what number is?
-    return np.log(6.9447e9 * electron_energy) / beta
+    return np.log(COULOMB_LOGARITHM_COEFFICIENT * electron_energy) / beta
 
 
-def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
+def bremsstrahlung_cross_section(electron_energy, photon_energy, z=MEAN_ATOMIC_NUMBER):
     """
     Compute the relativistic electron-ion bremsstrahlung cross section
     differential in energy (cm^2/mc^2 or 511 keV).
@@ -626,9 +495,9 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
        `ADS <https://ui.adsabs.harvard.edu/abs/1939AnP...426..178E/abstract>`__
     """
 
-    mc2 = const.get_constant("mc2")
-    alpha = const.get_constant("alpha")
-    twoar02 = const.get_constant("twoar02")
+    mc2 = MC2
+    alpha = ALPHA
+    twoar02 = TWOAR02
 
     # Numerical coefficients
     c11 = 4.0 / 3.0
@@ -638,11 +507,11 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     c22 = 9.0 / 28.0
     c23 = 263.0 / 210.0
 
-    # Calculate normalised photon and total electron energies.
-    if electron_energy.ndim == 2:
-        k = np.expand_dims(photon_energy / mc2, axis=1)
-    else:
-        k = photon_energy / mc2
+    # Calculate normalised photon and total electron energies. photon_energy may already be
+    # broadcastable against electron_energy; only add trailing axes if it genuinely has fewer dimensions.
+    k = photon_energy / mc2
+    if k.ndim < electron_energy.ndim:
+        k = k.reshape(k.shape + (1,) * (electron_energy.ndim - k.ndim))
     e1 = (electron_energy / mc2) + 1.0
 
     # Calculate energies of scattered electrons and normalized momenta.
@@ -650,12 +519,15 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
     p1 = np.sqrt(e1**2 - 1.0)
     p2 = np.sqrt(e2**2 - 1.0)
 
-    # Define frequently used quantities.
+    # Define reused quantities.
     e1e2 = e1 * e2
     p1p2 = p1 * p2
-    p2sum = p1**2 + p2**2
+    p1_sq = p1 * p1
+    p2sum = p1_sq + p2**2
     k2 = k**2
-    e1e23 = e1e2**3
+    # e1e2 * e1e2 * e1e2 rather than e1e2**3: numpy's ** does not fast-path integer exponents
+    # above 2 the way it does for **2, making e1e2**3 measurably slower here
+    e1e23 = e1e2 * e1e2 * e1e2
     pe = p2sum / e1e23
 
     # Define terms in cross section.
@@ -664,7 +536,7 @@ def bremsstrahlung_cross_section(electron_energy, photon_energy, z=1.2):
 
     # Collect terms.
     crtmp = ch1 * (2.0 * np.log((e1e2 + p1p2 - 1.0) / k) - (p1p2 / e1e2) * ch2)
-    crtmp = z**2 * crtmp / (k * p1**2)
+    crtmp = z**2 * crtmp / (k * p1_sq)
 
     # Compute the Elwert factor.
     a1 = alpha * z * e1 / p1
@@ -694,9 +566,9 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
         Mean atomic number of plasma
     efd: `bool` (optional)
         True (default) the electron flux distribution (electrons cm^-2 s^-1 keV^-1) is calculated
-        with `~sunkit_spex.emission.BrokenPowerLawElectronDistribution.flux`. False, the electron
+        with `~sunkit_spex.models.physical.nonthermal.BrokenPowerLawElectronDistribution.flux`. False, the electron
         density distribution (electrons cm^-3 keV^-1) is calculated with
-        `~sunkit_spex.emission.BrokenPowerLawElectronDistribution.density`.
+        `~sunkit_spex.models.physical.nonthermal.BrokenPowerLawElectronDistribution.density`.
 
     Returns
     -------
@@ -710,26 +582,26 @@ def _get_integrand(x_log, *, model, electron_dist, photon_energy, z, efd=True):
     `brm2_fouter.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_fouter.pro>`_.
 
     """
-    mc2 = const.get_constant("mc2")
-    clight = const.get_constant("clight")
+    mc2 = MC2
+    clight = CLIGHT
 
-    # L=log10 (E), E=l0L and dE=10L ln(10) dL hence the electron_energy * np.log(10) below
-    electron_energy = 10**x_log
+    # L=log10 (E), E=l0L and dE=10L ln(10) dL hence the electron_energy * LN_10 below.
+    # exp(x_log * LN_10) rather than 10**x_log: numpy's ** has no fast path for a scalar base
+    # raised to an array exponent, making it ~2.5x slower than the equivalent exp/log form here
+    electron_energy = np.exp(x_log * LN_10)
     brem_cross = bremsstrahlung_cross_section(electron_energy, photon_energy, z)
     collision_loss = collisional_loss(electron_energy)
     pc = np.sqrt(electron_energy * (electron_energy + 2.0 * mc2))
 
-    density = electron_dist.density(electron_energy)
     if model == "thick-target":
-        return (
-            electron_energy * np.log(10) * density * brem_cross * pc / collision_loss / ((electron_energy / mc2) + 1.0)
-        )
+        density = electron_dist.density(electron_energy)
+        return electron_energy * LN_10 * density * brem_cross * pc / collision_loss / ((electron_energy / mc2) + 1.0)
     if model == "thin-target":
         if efd:
-            return electron_energy * np.log(10) * electron_dist.flux(electron_energy) * brem_cross * (mc2 / clight)
+            return electron_energy * LN_10 * electron_dist.flux(electron_energy) * brem_cross * (mc2 / clight)
         return (
             electron_energy
-            * np.log(10)
+            * LN_10
             * electron_dist.flux(electron_energy)
             * brem_cross
             * pc
@@ -752,7 +624,7 @@ def _integrate_part(
     z,
     a_lg,
     b_lg,
-    ll,
+    indices,
     efd,
     integrator=None,
 ):
@@ -790,7 +662,7 @@ def _integrate_part(
         Logarithm of lower integration limits
     b_lg : `numpy.array`
         Logarithm of upper integration limit
-    ll : `numpy.array`
+    indices : `numpy.array`
         Indices for which to carry out integration
     efd: `boolean`
          `True` (default) electron flux density distribution, `False` electron density distribution.
@@ -809,18 +681,15 @@ def _integrate_part(
     and
     `brm2_dmlin.pro <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlin.pro>`_.
     """
-    nlim = 12
+    nlim = NLIM
 
     intsum = np.zeros_like(photon_energies, dtype=np.float64)
     ier = np.zeros_like(photon_energies)
 
     if integrator is None:
-        integrator = gauss_legendre
+        integrator = fixed_quad_batch
     elif not callable(integrator):
         raise TypeError("integrator must be a callable")
-
-    # Copy indices over which to carry out the integration
-    i = ll[:]
 
     electron_dist = BrokenPowerLawElectronDistribution(
         p=p, q=q, low_e_cutoff=low_e_cutoff, break_energy=break_energy, high_e_cutoff=high_e_cutoff
@@ -829,32 +698,32 @@ def _integrate_part(
     for ires in range(2, nlim + 1):
         npoint = 2**ires
         if npoint > maxfcn:
-            ier[i] = 1
+            ier[indices] = 1
             return intsum, ier
 
         lastsum = np.copy(intsum)
 
-        intsum[i] = integrator(
+        intsum[indices] = integrator(
             _get_integrand,
-            a_lg[i],
-            b_lg[i],
+            a_lg[indices],
+            b_lg[indices],
             n=npoint,
             func_kwargs={
                 "model": model,
                 "electron_dist": electron_dist,
-                "photon_energy": photon_energies[i],
+                "photon_energy": photon_energies[indices],
                 "z": z,
                 "efd": efd,
             },
         )
 
-        # Convergence criterion
+        # Convergence criterion: narrow `indices` down to the points that haven't converged yet.
         l1 = np.abs(intsum - lastsum)
         l2 = rerr * np.abs(intsum)
-        i = np.where(l1 > l2)[0]
+        indices = np.where(l1 > l2)[0]
 
         # If all point have reached criterion return value and flags
-        if i.size == 0:
+        if indices.size == 0:
             return intsum, ier
     return None
 
@@ -865,8 +734,8 @@ def _split_and_integrate(
     """
     Split and integrate the continuous parts of the electron spectrum.
 
-    This is used for thin-target calculation from a double power-law electron density distribution
-    To integrate a function via the method of Gaussian quadrature. Repeatedly doubles the number of
+    Used for both thin- and thick-target calculations from a double power-law electron
+    distribution, to integrate a function via the method of Gaussian quadrature. Repeatedly doubles the number of
     points evaluated until convergence, specified by the input rerr, is obtained, or the maximum
     number of points, specified by the input maxfcn, is reached. If integral convergence is not
     achieved, this function raises a ValueError when either the maximum number of function
@@ -914,69 +783,46 @@ def _split_and_integrate(
     `Brm2_Dmlin <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_dmlin.pro>`_.
 
     """
-    mc2 = const.get_constant("mc2")
-    clight = const.get_constant("clight")
+    mc2 = MC2
+    clight = CLIGHT
 
     if not low_e_cutoff <= break_energy <= high_e_cutoff:
         raise ValueError(
             f"Condition low_e_cutoff <= eebrek <= high_e_cutoff not satisfied ({low_e_cutoff}<={break_energy}<={high_e_cutoff})."
         )
 
-    # Create arrays for integral sums and error flags.
-    intsum1 = np.zeros_like(photon_energies, dtype=np.float64)
-    ier1 = np.zeros_like(photon_energies, dtype=np.float64)
-    intsum2 = np.zeros_like(photon_energies, dtype=np.float64)
-    ier2 = np.zeros_like(photon_energies, dtype=np.float64)
-    intsum3 = np.zeros_like(photon_energies, dtype=np.float64)
-    ier3 = np.zeros_like(photon_energies, dtype=np.float64)
+    # The electron distribution has kinks at low_e_cutoff and break_energy, so for each photon
+    # energy the integral up to high_e_cutoff is split into up to three continuous segments at
+    # those two points, each integrated separately, then summed. Segment 1 (below low_e_cutoff)
+    # only applies to the thick-target model, where electrons below low_e_cutoff still contribute
+    # via prior collisional energy loss; the thin-target model only sees electrons above
+    # low_e_cutoff directly. Assumes photon energies montonicaly ascending
+    below_low_e_cutoff = np.where(photon_energies < low_e_cutoff)[0]
+    below_break_energy = np.where(photon_energies < break_energy)[0]
+    below_high_e_cutoff = np.where(photon_energies <= high_e_cutoff)[0]
 
-    P1 = np.where(photon_energies < low_e_cutoff)[0]
-    P2 = np.where(photon_energies < break_energy)[0]
-    P3 = np.where(photon_energies <= high_e_cutoff)[0]
+    segments = []
+    if model == "thick-target" and below_low_e_cutoff.size > 0:
+        segments.append(("Part 1", below_low_e_cutoff, photon_energies, low_e_cutoff))
+    if below_break_energy.size > 0 and break_energy > low_e_cutoff:
+        # Below low_e_cutoff, this segment's lower bound is clamped to low_e_cutoff: that part of
+        # the range is already covered by segment 1 (thick-target) or doesn't apply (thin-target).
+        lower_bound = np.copy(photon_energies)
+        lower_bound[below_low_e_cutoff] = low_e_cutoff
+        segments.append(("Part 2", below_break_energy, lower_bound, break_energy))
+    if below_high_e_cutoff.size > 0 and high_e_cutoff > break_energy:
+        # Likewise clamped to break_energy below it, which segment 2 already covers.
+        lower_bound = np.copy(photon_energies)
+        lower_bound[below_break_energy] = break_energy
+        segments.append(("Part 3", below_high_e_cutoff, lower_bound, high_e_cutoff))
 
-    # Part 1, below en_val[0] (usually low_e_cutoff)
-    if model == "thick-target":
-        if P1.size > 0:
-            logging.debug("Part1")
-            a_lg = np.log10(photon_energies[P1])
-            b_lg = np.log10(np.full_like(a_lg, low_e_cutoff))
-            i = np.copy(P1)
-            intsum1, ier1 = _integrate_part(
-                model=model,
-                maxfcn=maxfcn,
-                rerr=rerr,
-                photon_energies=photon_energies,
-                low_e_cutoff=low_e_cutoff,
-                break_energy=break_energy,
-                high_e_cutoff=high_e_cutoff,
-                p=p,
-                q=q,
-                z=z,
-                a_lg=a_lg,
-                b_lg=b_lg,
-                ll=i,
-                efd=efd,
-                integrator=integrator,
-            )
-
-            # ier = 1 indicates no convergence.
-            if sum(ier1):
-                raise ValueError("Part 1 integral did not converge for some photon energies.")
-
-    # Part 2, between enval[0] and en_val[1](usually low_e_cutoff and break_energy)
-
-    aa = np.copy(photon_energies)
-    if (P2.size > 0) and (break_energy > low_e_cutoff):
-        # TODO check if necessary as integration should only be carried out over point P2 which
-        # by definition are not in P1
-        if P1.size > 0:
-            aa[P1] = low_e_cutoff
-
-        logging.debug("Part2")
-        a_lg = np.log10(aa[P2])
-        b_lg = np.log10(np.full_like(a_lg, break_energy))
-        i = np.copy(P2)
-        intsum2, ier2 = _integrate_part(
+    total = np.zeros_like(photon_energies, dtype=np.float64)
+    ier_total = np.zeros_like(photon_energies, dtype=np.float64)
+    for name, indices, lower_bound, upper_bound in segments:
+        logger.debug(name)
+        a_lg = np.log10(lower_bound)
+        b_lg = np.log10(np.full_like(lower_bound, upper_bound))
+        segment_sum, segment_ier = _integrate_part(
             model=model,
             maxfcn=maxfcn,
             rerr=rerr,
@@ -989,54 +835,24 @@ def _split_and_integrate(
             z=z,
             a_lg=a_lg,
             b_lg=b_lg,
-            ll=i,
+            indices=indices,
             efd=efd,
             integrator=integrator,
         )
 
-        if sum(ier2) > 0:
-            raise ValueError("Part 2 integral did not converge for some photon energies.")
+        # ier = 1 indicates no convergence.
+        if segment_ier.sum():
+            raise ValueError(f"{name} integral did not converge for some photon energies.")
 
-    # Part 3: between break_energy and high_e_cutoff(usually break_energy and high_e_cutoff)
-    aa = np.copy(photon_energies)
-    if (P3.sum() > 0) and (high_e_cutoff > break_energy):
-        if P2.size > 0:
-            aa[P2] = break_energy
+        total += segment_sum
+        ier_total += segment_ier
 
-        logging.debug("Part3")
-        a_lg = np.log10(aa[P3])
-        b_lg = np.log10(np.full_like(a_lg, high_e_cutoff))
-        i = np.copy(P3)
-        intsum3, ier3 = _integrate_part(
-            model=model,
-            maxfcn=maxfcn,
-            rerr=rerr,
-            photon_energies=photon_energies,
-            low_e_cutoff=low_e_cutoff,
-            break_energy=break_energy,
-            high_e_cutoff=high_e_cutoff,
-            p=p,
-            q=q,
-            z=z,
-            a_lg=a_lg,
-            b_lg=b_lg,
-            ll=i,
-            efd=efd,
-            integrator=integrator,
-        )
-        if sum(ier3) > 0:
-            raise ValueError("Part 3 integral did not converge for some photon energies.")
-
-    # TODO check units here
-    # Combine 3 parts and convert units and return
+    # Segment 1 (and its contribution to `total`) is always zero for the thin-target model, so no
+    # separate combination step is needed there.
     if model == "thick-target":
-        DmlinO = (intsum1 + intsum2 + intsum3) * (mc2 / clight)
-        ier = ier1 + ier2 + ier3
-        return DmlinO, ier
+        return total * (mc2 / clight), ier_total
     if model == "thin-target":
-        Dmlin = intsum2 + intsum3
-        ier = ier2 + ier3
-        return Dmlin, ier
+        return total, ier_total
     return None
 
 
@@ -1094,35 +910,33 @@ def bremsstrahlung_thin_target(
     Adapted from SSW `Brm2_ThinTarget
     <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thintarget.pro>`_
     """
-    mc2 = const.get_constant("mc2")
-    clight = const.get_constant("clight")
-    # au = const.get_constant("au")
+    mc2 = MC2
+    clight = CLIGHT
 
-    # Max number of points
-    maxfcn = 2048
+    maxfcn = MAX_QUADRATURE_POINTS
+    z = MEAN_ATOMIC_NUMBER
+    rerr = RELATIVE_ERROR
 
-    # Average atomic number
-    z = 1.2
-
-    # Relative error
-    rerr = 1e-4
-
-    # Numerical coefficient for photo flux
-    # fcoeff = (clight / (4 * np.pi * au**2)) / mc2**2.0
+    # Numerical coefficient for photon flux. SSW's Brm2_ThinTarget includes an extra
+    # 1/(4*pi*au**2) factor here to normalise to a detector at 1 AU from the source; this Python
+    # port deliberately omits it, so the returned flux is NOT distance-normalised (see
+    # test_nonthermal.py, which compensates by scaling the SSW reference values by 4*pi*(1 AU)**2
+    # before comparing).
     fcoeff = clight / mc2**2.0
 
-    # Create arrays for the photon flux and error flags.
+    # Create array for the photon flux. _split_and_integrate also returns a per-point convergence
+    # flag array, but it's redundant here: _split_and_integrate already raises ValueError itself
+    # if any point fails to converge, so there's nothing left to do with the flags afterward.
     flux = np.zeros_like(photon_energies, dtype=np.float64)
-    iergq = np.zeros_like(photon_energies, dtype=np.float64)
 
     if low_e_cutoff >= high_e_cutoff:
         raise ValueError("high_e_cutoff must be larger than low_e_cutoff!")
 
-    (l,) = np.where((photon_energies < high_e_cutoff) & (photon_energies > 0))  # noqa: E741
-    if l.size > 0:
-        flux[l], iergq[l] = _split_and_integrate(
+    valid = (photon_energies < high_e_cutoff) & (photon_energies > 0)
+    if valid.any():
+        flux[valid], _ = _split_and_integrate(
             model="thin-target",
-            photon_energies=photon_energies[l],
+            photon_energies=photon_energies[valid],
             maxfcn=maxfcn,
             rerr=rerr,
             low_e_cutoff=low_e_cutoff,
@@ -1138,7 +952,7 @@ def bremsstrahlung_thin_target(
         flux *= fcoeff
 
         return flux
-    raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
+    raise ValueError("The photon energies are higher than the highest electron energy or not greater than zero")
 
 
 def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutoff, high_e_cutoff, integrator=None):
@@ -1186,43 +1000,37 @@ def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutof
     Adapted from SSW `Brm2_ThickTarget
     <https://hesperia.gsfc.nasa.gov/ssw/packages/xray/idl/brm2/brm2_thicktarget.pro>`_
     """
-    # Constants
-    mc2 = const.get_constant("mc2")
-    clight = const.get_constant("clight")
-    # au = const.get_constant("au")
-    r0 = const.get_constant("r0")
+    mc2 = MC2
+    clight = CLIGHT
+    r0 = R0
 
-    # Max number of points
-    maxfcn = 2048
+    maxfcn = MAX_QUADRATURE_POINTS
+    z = MEAN_ATOMIC_NUMBER
+    rerr = RELATIVE_ERROR
 
-    # Average atomic number
-    z = 1.2
-
-    # Relative error
-    rerr = 1e-4
-
-    # Numerical coefficient for photo flux
-    # fcoeff = (clight**2 / mc2**4) / (4 * np.pi * au**2)
-
-    # decoeff = 4.0 * np.pi * (r0**2) * clight
-
+    # Numerical coefficient for photon flux. SSW's Brm2_ThickTarget includes an extra
+    # 1/(4*pi*au**2) factor here to normalize to a detector at 1 AU from the source; this Python
+    # port deliberately omits it, so the returned flux is NOT distance-normalized (see
+    # test_nonthermal.py, which compensates by scaling the SSW reference values by 4*pi*(1 AU)**2
+    # before comparing).
     fcoeff = clight**2 / mc2**4
 
     decoeff = 4.0 * np.pi * (r0**2) * clight
 
-    # Create arrays for the photon flux and error flags.
+    # Create array for the photon flux. _split_and_integrate also returns a per-point convergence
+    # flag array, but it's redundant here: _split_and_integrate already raises ValueError itself
+    # if any point fails to converge, so there's nothing left to do with the flags afterward.
     flux = np.zeros_like(photon_energies, dtype=np.float64)
-    iergq = np.zeros_like(photon_energies, dtype=np.float64)
 
     if low_e_cutoff >= high_e_cutoff:
         return flux
 
-    (i,) = np.where((photon_energies < high_e_cutoff) & (photon_energies > 0))
+    valid = (photon_energies < high_e_cutoff) & (photon_energies > 0)
 
-    if i.size > 0:
-        flux[i], iergq[i] = _split_and_integrate(
+    if valid.any():
+        flux[valid], _ = _split_and_integrate(
             model="thick-target",
-            photon_energies=photon_energies[i],
+            photon_energies=photon_energies[valid],
             maxfcn=maxfcn,
             rerr=rerr,
             low_e_cutoff=low_e_cutoff,
@@ -1237,4 +1045,4 @@ def bremsstrahlung_thick_target(photon_energies, p, break_energy, q, low_e_cutof
 
         return (fcoeff / decoeff) * flux
 
-    raise Warning("The photon energies are higher than the highest electron energy or not greater than zero")
+    raise ValueError("The photon energies are higher than the highest electron energy or not greater than zero")
