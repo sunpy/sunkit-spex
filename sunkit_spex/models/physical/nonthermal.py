@@ -12,7 +12,7 @@ References
 """
 
 import logging
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
