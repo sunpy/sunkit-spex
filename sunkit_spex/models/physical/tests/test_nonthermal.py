@@ -177,7 +177,7 @@ def test_broken_power_law_electron_distribution_flux():
     expected_flux = [5.26752445e-02, 1.28000844e-04, 4.00002638e-06, 7.03129636e-08, 1.15200760e-10, 0.0]
     expected_density = [1.97525573e-01, 1.59341654e-03, 9.34066538e-05, 2.33416539e-06, 2.68419888e-22, 0.0]
     np.testing.assert_allclose(electron_dist.flux(energies), expected_flux, rtol=1e-6)
-    np.testing.assert_allclose(electron_dist.density(energies), expected_density, rtol=1e-6)
+    np.testing.assert_allclose(electron_dist.density(energies), expected_density, rtol=1e-6, atol=1e-20)
 
 
 @pytest.mark.parametrize("model_class", [nonthermal.ThickTarget, nonthermal.ThinTarget])

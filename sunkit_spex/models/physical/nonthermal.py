@@ -12,7 +12,7 @@ References
 """
 
 import logging
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -124,12 +124,12 @@ class ThickTarget(FittableModel):
 
     def __init__(
         self,
-        p=p.default,
-        break_energy=u.Quantity(break_energy.default, break_energy.unit),
-        q=q.default,
-        low_e_cutoff=u.Quantity(low_e_cutoff.default, low_e_cutoff.unit),
-        high_e_cutoff=u.Quantity(high_e_cutoff.default, high_e_cutoff.unit),
-        total_eflux=u.Quantity(total_eflux.default, total_eflux.unit),
+        p=None,
+        break_energy=None,
+        q=None,
+        low_e_cutoff=None,
+        high_e_cutoff=None,
+        total_eflux=None,
         integrator=None,
         **kwargs,
     ):
@@ -244,12 +244,12 @@ class ThinTarget(FittableModel):
 
     def __init__(
         self,
-        p=p.default,
-        break_energy=u.Quantity(break_energy.default, break_energy.unit),
-        q=q.default,
-        low_e_cutoff=u.Quantity(low_e_cutoff.default, low_e_cutoff.unit),
-        high_e_cutoff=u.Quantity(high_e_cutoff.default, high_e_cutoff.unit),
-        total_eflux=u.Quantity(total_eflux.default, total_eflux.unit),
+        p=None,
+        break_energy=None,
+        q=None,
+        low_e_cutoff=None,
+        high_e_cutoff=None,
+        total_eflux=None,
         integrator=None,
         **kwargs,
     ):
