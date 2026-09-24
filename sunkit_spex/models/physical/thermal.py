@@ -626,11 +626,11 @@ def continuum_emission(
     """Calculate the thermal X-ray continuum emission from the solar atmosphere.
 
     The emission is calculated as a function of temperature and emission measure.
-    Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
+    Which continuum mechanisms are included -- free-free, free-bound, or two-photon -- are
     determined by the file from which the comtinuum parameters are loaded.
     To change the file used, see the setup_continuum_parameters() function.
 
-    {doc_string_params}"""
+    """
 
     # Sanitize inputs
     energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
@@ -656,6 +656,9 @@ def continuum_emission(
     return flux
 
 
+continuum_emission.__doc__ += doc_string_params
+
+
 @u.quantity_input
 def line_emission(
     energy_edges,
@@ -673,7 +676,7 @@ def line_emission(
     """
     Calculate thermal line emission from the solar corona.
 
-    {doc_string_params}"""
+    """
 
     # Sanitize inputs
     energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
@@ -699,6 +702,9 @@ def line_emission(
         flux = flux[0]
 
     return flux
+
+
+line_emission.__doc__ += doc_string_params
 
 
 def _continuum_emission(energy_edges_keV, temperature_K, abundances):
