@@ -2,6 +2,7 @@
 
 from functools import wraps
 
+__all__ = ["check_metric_inputs"]
 
 def check_metric_inputs(func):
     """Metrics should contain the same base inputs so need to check them.
