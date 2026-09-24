@@ -8,7 +8,7 @@ from astropy import units as u
 
 from sunkit_spex.fitting.metrics import decorators
 
-__all__ = ["chi_squared"]
+__all__ = ["chi_squared", "cash"]
 
 
 @decorators.check_metric_inputs
