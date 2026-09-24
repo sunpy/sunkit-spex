@@ -3,7 +3,7 @@ import pytest
 from numpy.testing import assert_allclose, assert_array_equal
 
 from sunkit_spex.legacy import emission
-from sunkit_spex.legacy.integrate import fixed_quad, gauss_legendre
+from sunkit_spex.legacy.integrate import fixed_quad_batch, gauss_legendre
 
 
 def test_broken_power_law_electron_distribution():
@@ -152,7 +152,7 @@ def test_new_integrate():
     b_lg = np.full_like(eph, np.log10(200))
 
     r1 = gauss_legendre(emission._get_integrand, a_lg, b_lg, func_kwargs=params, n=10)
-    r2 = fixed_quad(emission._get_integrand, a_lg, b_lg, n=10, func_kwargs=params)
+    r2 = fixed_quad_batch(emission._get_integrand, a_lg, b_lg, n=10, func_kwargs=params)
     assert_allclose(np.array(r1), np.array(r2), rtol=1e-10)
 
 
@@ -212,7 +212,7 @@ def test_split_and_integrate():
 def test_brem_thicktarget1():
     photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
     res_default = emission.bremsstrahlung_thick_target(photon_energies, 5, 1000, 5, 10, 10000)
-    res_fq = emission.bremsstrahlung_thick_target(photon_energies, 5, 1000, 5, 10, 10000, integrator=fixed_quad)
+    res_fq = emission.bremsstrahlung_thick_target(photon_energies, 5, 1000, 5, 10, 10000, integrator=fixed_quad_batch)
     assert np.all(res_default != 0)
     assert_allclose(res_default, res_fq, rtol=1e-10)
     # IDL code to generate values taken from cross flux
@@ -233,7 +233,7 @@ def test_brem_thicktarget1():
 def test_brem_thicktarget2():
     photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
     res_default = emission.bremsstrahlung_thick_target(photon_energies, 3, 500, 6, 7, 10000)
-    res_fq = emission.bremsstrahlung_thick_target(photon_energies, 3, 500, 6, 7, 10000, integrator=fixed_quad)
+    res_fq = emission.bremsstrahlung_thick_target(photon_energies, 3, 500, 6, 7, 10000, integrator=fixed_quad_batch)
     assert np.all(res_default != 0)
     assert_allclose(res_default, res_fq, rtol=1e-10)
     # IDL code to generate values taken from cross flux
@@ -254,7 +254,7 @@ def test_brem_thicktarget2():
 def test_brem_thintarget1():
     photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
     res_default = emission.bremsstrahlung_thin_target(photon_energies, 5, 1000, 5, 10, 10000)
-    res_fq = emission.bremsstrahlung_thin_target(photon_energies, 5, 1000, 5, 10, 10000, integrator=fixed_quad)
+    res_fq = emission.bremsstrahlung_thin_target(photon_energies, 5, 1000, 5, 10, 10000, integrator=fixed_quad_batch)
     assert np.all(res_default != 0)
     assert_allclose(res_default, res_fq, rtol=1e-10)
     # IDL code to generate values taken from cross flux
@@ -275,7 +275,7 @@ def test_brem_thintarget1():
 def test_brem_thintarget2():
     photon_energies = np.array([5, 10, 50, 150, 300, 500, 750, 1000], dtype=np.float64)
     res_default = emission.bremsstrahlung_thin_target(photon_energies, 3, 200, 6, 7, 10000)
-    res_fq = emission.bremsstrahlung_thin_target(photon_energies, 3, 200, 6, 7, 10000, integrator=fixed_quad)
+    res_fq = emission.bremsstrahlung_thin_target(photon_energies, 3, 200, 6, 7, 10000, integrator=fixed_quad_batch)
     assert np.all(res_default != 0)
     assert_allclose(res_default, res_fq, rtol=1e-10)
     # IDL code to generate values taken from cross flux

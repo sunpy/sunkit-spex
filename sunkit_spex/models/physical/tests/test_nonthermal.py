@@ -4,42 +4,37 @@ import pytest
 import astropy.units as u
 
 from sunkit_spex.models.physical import nonthermal
+from sunkit_spex.models.physical.integrate import gauss_legendre
 
 SSW_INTENSITY_UNIT = u.ph / u.cm**2 / u.s / u.keV
 
 
 def thick_target():
-    """Define expected thermal line spectrum as returned by SSW routine chianti_kev_lines.
+    """Define expected thick-target bremsstrahlung spectrum as returned by SSW routine Brm2_ThickTarget.
 
-    chianti_lines_kev is the standard routine used to calculate a solar X-ray line spectrum
-    in SSW.  It is used by f_vth.pro.
-    The output defined here uses a energy bins from 3-28 keV with a bin width of 0.5 keV,
-    a temperature of 6 MK, a emission measure of 1e44 cm^-3, an observer distance of 1AU,
-    default ('sun_coronal_ext') abundances, and default relative abundances.
+    Brm2_ThickTarget is the standard SSW/IDL routine used to calculate the thick-target
+    bremsstrahlung X-ray spectrum from a broken power-law electron distribution.
+    The output defined here uses energy bins from 25-100 keV with a bin width of 0.5 keV
+    and the default `ThickTarget` model parameters (p=2, break_energy=100 keV, q=5,
+    low_e_cutoff=7 keV, high_e_cutoff=1500 keV, total_eflux=1.5).
     The SSW output can be reproduced in SSW/IDL with the following code:
 
     Returns
     -------
-    inputs: `tuple`
-        The Python inputs required to produce the spectrum
+    energy_edges: `astropy.units.Quantity`
+        The photon energy bin edges used to produce the spectrum
 
     ssw_output: `astropy.units.Quantity`
-        The spectrum output by the SSW routine, chianti_kev_lines, given the above inputs.
+        The spectrum output by the SSW routine, Brm2_ThickTarget, given the above inputs.
 
     Notes
     -----
-    The spectrum output by this function can be reproduced in IDL with the following code.
+    The spectrum output by this function can be reproduced in IDL with the following code, using
+    the bin centers of the energy_edges returned below (`ThickTarget` evaluates at bin centers).
 
-    chianti_kev_common_load, contfile = 'chianti_cont_1_250_v71.sav', linefile = 'chianti_lines_1_10_v71.sav', /reload
-
-    energy_in = fltarr(2, 50)
-    energy_in[0, *] = findgen(50) * 0.5 + 3
-    energy_in[1, *] = energy_in[0, *] + 0.5
-    temp = 6.
-    rel_abun = [[26, 2]]
-    flux = chianti_kev_lines(temp, energy_in, rel_abun=rel_abun, /kev, /earth)
-
-    Ensure you are using the same .sav file as used here.
+    eph = findgen(150) * 0.5 + 25.25
+    a = [1.5, 2, 100, 5, 7, 1500]
+    flux = Brm2_ThickTarget(eph, a)
     """
     energy_edges = np.arange(25, 100.5, 0.5) * u.keV
     observer_distance = (1 * u.AU).to(u.cm)
@@ -69,37 +64,31 @@ def thick_target():
 
 
 def thin_target():
-    """Define expected thermal line spectrum as returned by SSW routine chianti_kev_lines.
+    """Define expected thin-target bremsstrahlung spectrum as returned by SSW routine Brm2_ThinTarget.
 
-    chianti_lines_kev is the standard routine used to calculate a solar X-ray line spectrum
-    in SSW.  It is used by f_vth.pro.
-    The output defined here uses a energy bins from 3-28 keV with a bin width of 0.5 keV,
-    a temperature of 6 MK, a emission measure of 1e44 cm^-3, an observer distance of 1AU,
-    default ('sun_coronal_ext') abundances, and default relative abundances.
+    Brm2_ThinTarget is the standard SSW/IDL routine used to calculate the thin-target
+    bremsstrahlung X-ray spectrum from a broken power-law electron distribution.
+    The output defined here uses energy bins from 25-100 keV with a bin width of 0.5 keV
+    and the default `ThinTarget` model parameters (p=2, break_energy=100 keV, q=5,
+    low_e_cutoff=7 keV, high_e_cutoff=1500 keV, total_eflux=1.5).
     The SSW output can be reproduced in SSW/IDL with the following code:
 
     Returns
     -------
-    inputs: `tuple`
-        The Python inputs required to produce the spectrum
+    energy_edges: `astropy.units.Quantity`
+        The photon energy bin edges used to produce the spectrum
 
     ssw_output: `astropy.units.Quantity`
-        The spectrum output by the SSW routine, chianti_kev_lines, given the above inputs.
+        The spectrum output by the SSW routine, Brm2_ThinTarget, given the above inputs.
 
     Notes
     -----
-    The spectrum output by this function can be reproduced in IDL with the following code.
+    The spectrum output by this function can be reproduced in IDL with the following code, using
+    the bin centers of the energy_edges returned below (`ThinTarget` evaluates at bin centers).
 
-    chianti_kev_common_load, contfile = 'chianti_cont_1_250_v71.sav', linefile = 'chianti_lines_1_10_v71.sav', /reload
-
-    energy_in = fltarr(2, 50)
-    energy_in[0, *] = findgen(50) * 0.5 + 3
-    energy_in[1, *] = energy_in[0, *] + 0.5
-    temp = 6.
-    rel_abun = [[26, 2]]
-    flux = chianti_kev_lines(temp, energy_in, rel_abun=rel_abun, /kev, /earth)
-
-    Ensure you are using the same .sav file as used here.
+    eph = findgen(150) * 0.5 + 25.25
+    a = [1.5, 2, 100, 5, 7, 1500]
+    flux = Brm2_ThinTarget(eph, a)
     """
     energy_edges = np.arange(25, 100.5, 0.5) * u.keV
     observer_distance = (1 * u.AU).to(u.cm)
@@ -144,3 +133,90 @@ def test_thin_target_against_ssw(ssw):
     output = model(energy_edges)
     expected_value = expected.to_value(output.unit)
     np.testing.assert_allclose(output.value, expected_value, rtol=0.035)
+
+
+@pytest.mark.parametrize("brem_func", [nonthermal.bremsstrahlung_thick_target, nonthermal.bremsstrahlung_thin_target])
+def test_break_energy_outside_cutoffs_raises(brem_func):
+    """`low_e_cutoff <= break_energy <= high_e_cutoff` must hold; break_energy=2000 violates it here."""
+    photon_energies = np.array([10.0, 20.0])
+    with pytest.raises(ValueError, match="low_e_cutoff <= eebrek <= high_e_cutoff"):
+        brem_func(photon_energies, p=2, break_energy=2000, q=5, low_e_cutoff=7, high_e_cutoff=1500)
+
+
+def test_thin_target_low_cutoff_above_high_cutoff_raises():
+    photon_energies = np.array([10.0, 20.0])
+    with pytest.raises(ValueError, match="high_e_cutoff must be larger than low_e_cutoff"):
+        nonthermal.bremsstrahlung_thin_target(
+            photon_energies, p=2, break_energy=100, q=5, low_e_cutoff=1500, high_e_cutoff=7
+        )
+
+
+def test_thick_target_low_cutoff_above_high_cutoff_returns_zero():
+    """Unlike the thin-target function, thick-target silently returns zero flux instead of raising."""
+    photon_energies = np.array([10.0, 20.0])
+    flux = nonthermal.bremsstrahlung_thick_target(
+        photon_energies, p=2, break_energy=100, q=5, low_e_cutoff=1500, high_e_cutoff=7
+    )
+    np.testing.assert_array_equal(flux, np.zeros_like(photon_energies))
+
+
+@pytest.mark.parametrize("brem_func", [nonthermal.bremsstrahlung_thick_target, nonthermal.bremsstrahlung_thin_target])
+def test_all_photon_energies_out_of_range_raises(brem_func):
+    """If no photon energy falls in (0, high_e_cutoff) there is nothing to integrate."""
+    photon_energies = np.array([2000.0, 3000.0])
+    with pytest.raises(ValueError, match="higher than the highest electron energy"):
+        brem_func(photon_energies, p=2, break_energy=100, q=5, low_e_cutoff=7, high_e_cutoff=1500)
+
+
+def test_broken_power_law_electron_distribution_flux():
+    """Regression test locking in the values from the class's own docstring example."""
+    electron_dist = nonthermal.BrokenPowerLawElectronDistribution(
+        p=5, q=7, low_e_cutoff=10, break_energy=150, high_e_cutoff=500
+    )
+    energies = np.array([15.0, 50.0, 100.0, 200.0, 500.0, 1000.0])
+    expected_flux = [5.26752445e-02, 1.28000844e-04, 4.00002638e-06, 7.03129636e-08, 1.15200760e-10, 0.0]
+    expected_density = [1.97525573e-01, 1.59341654e-03, 9.34066538e-05, 2.33416539e-06, 2.68419888e-22, 0.0]
+    np.testing.assert_allclose(electron_dist.flux(energies), expected_flux, rtol=1e-6)
+    np.testing.assert_allclose(electron_dist.density(energies), expected_density, rtol=1e-6)
+
+
+@pytest.mark.parametrize("model_class", [nonthermal.ThickTarget, nonthermal.ThinTarget])
+def test_evaluate_converts_parameters_in_non_keV_units(model_class):
+    """Parameters constructed in a compatible-but-different unit (e.g. MeV) must be converted to
+    keV rather than used as bare numbers -- see evaluate()'s use of the `<<` operator."""
+    energy_edges = np.arange(25, 40.5, 0.5) * u.keV
+
+    model_kev = model_class(break_energy=100 * u.keV, low_e_cutoff=7 * u.keV, high_e_cutoff=1500 * u.keV)
+    model_mev = model_class(break_energy=0.1 * u.MeV, low_e_cutoff=0.007 * u.MeV, high_e_cutoff=1.5 * u.MeV)
+
+    np.testing.assert_allclose(model_kev(energy_edges).value, model_mev(energy_edges).value)
+
+
+@pytest.mark.parametrize("brem_func", [nonthermal.bremsstrahlung_thick_target, nonthermal.bremsstrahlung_thin_target])
+def test_gauss_legendre_integrator_matches_default(brem_func):
+    """gauss_legendre is should give the same result as the default
+    (fixed_quad_batch) within the quadrature's own convergence tolerance."""
+    photon_energies = np.arange(10, 500, 5.0)
+    kwargs = {"p": 4, "break_energy": 150, "q": 6, "low_e_cutoff": 10, "high_e_cutoff": 1000}
+    default = brem_func(photon_energies, **kwargs)
+    via_gauss_legendre = brem_func(photon_energies, **kwargs, integrator=gauss_legendre)
+    np.testing.assert_allclose(via_gauss_legendre, default, rtol=1e-6)
+
+
+def test_thin_target_evaluate_uses_electron_flux_density():
+    """ThinTarget.evaluate must call bremsstrahlung_thin_target with efd=True (the electron flux
+    density formula, matching the SSW reference used elsewhere in this file) regardless of
+    total_eflux's value -- efd=True and efd=False give genuinely different results, not just a
+    different overall scale, so this isn't just a cosmetic choice."""
+    energy_edges = np.arange(25, 100.5, 0.5) * u.keV
+    energy_centers = energy_edges[:-1].value + 0.5 * np.diff(energy_edges.value)
+    p, break_energy, q, low_e_cutoff, high_e_cutoff = 2, 100, 5, 7, 1500
+
+    total_eflux = 3.0
+    model = nonthermal.ThinTarget(total_eflux=total_eflux * u.s**-1 * u.cm**-2)
+    expected = (
+        nonthermal.bremsstrahlung_thin_target(energy_centers, p, break_energy, q, low_e_cutoff, high_e_cutoff, efd=True)
+        * total_eflux
+        * nonthermal.THIN_TARGET_EFLUX_SCALE
+    )
+    np.testing.assert_allclose(model(energy_edges).value, expected)

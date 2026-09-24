@@ -1,3 +1,4 @@
+import inspect
 import warnings
 
 import numpy as np
@@ -513,3 +514,67 @@ def test_abundances_should_not_change():
 
         after_models = thermal.DEFAULT_ABUNDANCES[thermal.DEFAULT_ABUNDANCE_TYPE].data
         assert np.allclose(after_models.data, orig.data)
+
+
+def test_resolve_thermal_kwargs_positional_args_map_in_declaration_order():
+    args = (6 * u.MK, 1e-5 / u.cm**3, 1, 2, 3, 4, 5, 6, 7, "cosmic")
+    kwargs, abundance_type = thermal._resolve_thermal_kwargs(thermal.ThermalEmission, args, {})
+    assert abundance_type == "cosmic"
+    assert kwargs["temperature"] == 6 * u.MK
+    assert kwargs["emission_measure"] == 1e-5 / u.cm**3
+    assert [kwargs[k] for k in ("mg", "al", "si", "s", "ar", "ca", "fe")] == [1, 2, 3, 4, 5, 6, 7]
+
+
+def test_resolve_thermal_kwargs_keyword_args_override_and_fill_gaps():
+    kwargs, abundance_type = thermal._resolve_thermal_kwargs(thermal.ThermalEmission, (), {"mg": 9.0, "fe": 8.5})
+    assert abundance_type == thermal.DEFAULT_ABUNDANCE_TYPE
+    assert kwargs["mg"] == 9.0
+    assert kwargs["fe"] == 8.5
+    # Unspecified params should fall back to the class's own Parameter defaults.
+    assert kwargs["al"] == thermal.ThermalEmission.al.default
+    assert kwargs["temperature"] == u.Quantity(
+        thermal.ThermalEmission.temperature.default, thermal.ThermalEmission.temperature.unit
+    )
+
+
+def test_resolve_thermal_kwargs_missing_abundance_type_defaults():
+    _, abundance_type = thermal._resolve_thermal_kwargs(thermal.ThermalEmission, (), {})
+    assert abundance_type == thermal.DEFAULT_ABUNDANCE_TYPE
+
+
+def test_resolve_thermal_kwargs_respects_class_specific_defaults():
+    # LineEmission's emission_measure default has always differed from ContinuumEmission/ThermalEmission.
+    kwargs_line, _ = thermal._resolve_thermal_kwargs(thermal.LineEmission, (), {})
+    kwargs_cont, _ = thermal._resolve_thermal_kwargs(thermal.ContinuumEmission, (), {})
+    assert kwargs_line["emission_measure"] == 1e50 / u.cm**3
+    assert kwargs_cont["emission_measure"] == 1 / u.cm**3
+
+
+@pytest.mark.parametrize("model_cls", [thermal.ThermalEmission, thermal.ContinuumEmission, thermal.LineEmission])
+def test_thermal_signature_parameter_names_and_order(model_cls):
+    sig = thermal._thermal_signature(model_cls)
+    names = list(sig.parameters)
+    assert names == ["self", *thermal._THERMAL_PARAM_ORDER, "abundance_type", "kwargs"]
+    assert sig.parameters["kwargs"].kind == inspect.Parameter.VAR_KEYWORD
+
+
+def test_thermal_signature_matches_inspect_signature_on_class():
+    # inspect.signature(cls) is what Sphinx autodoc/help()/IDEs read it should drop 'self'.
+    sig = inspect.signature(thermal.ThermalEmission)
+    assert list(sig.parameters) == [*thermal._THERMAL_PARAM_ORDER, "abundance_type", "kwargs"]
+
+
+def test_thermal_signature_reflects_each_class_own_default():
+    sig_line = thermal._thermal_signature(thermal.LineEmission)
+    sig_cont = thermal._thermal_signature(thermal.ContinuumEmission)
+    assert sig_line.parameters["emission_measure"].default == 1e50 * u.cm**-3
+    assert sig_cont.parameters["emission_measure"].default == 1 * u.cm**-3
+
+
+@pytest.mark.parametrize("model_cls", [thermal.ThermalEmission, thermal.ContinuumEmission, thermal.LineEmission])
+def test_model_docstring_is_populated(model_cls):
+    # The old f"""...{doc_string_params}""" never actually set __doc__ (f-strings aren't literal
+    # docstrings)
+    assert model_cls.__doc__ is not None
+    assert "Parameters" in model_cls.__doc__
+    assert "emission_measure" in model_cls.__doc__
