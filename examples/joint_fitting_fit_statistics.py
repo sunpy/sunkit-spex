@@ -3,8 +3,8 @@
 Fitting With Different Fit Statistics
 =====================================
 
-We've made the joint fitting API allows the fit statistic to be
-changeable when setting up the fitting.
+The joint fitting API allows the fit statistic to be
+changed when setting up the fitting.
 
 Let's show this when fitting some simulated data.
 
