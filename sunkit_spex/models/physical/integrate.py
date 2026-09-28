@@ -16,7 +16,7 @@ def _cached_roots_legendre(n):
     return roots_legendre(n)
 
 
-def gauss_legendre(func, a, b, n=5, args=(), func_kwargs={}):
+def gauss_legendre(func, a, b, n=5, args=(), func_kwargs=None):
     """
     Compute a definite integral using fixed-order Gaussian quadrature.
     Integrate `func` from `a` to `b` using Gaussian quadrature of
@@ -70,6 +70,8 @@ def gauss_legendre(func, a, b, n=5, args=(), func_kwargs={}):
     a = np.atleast_1d(a)
     b = np.atleast_1d(b)
 
+    func_kwargs = {} if func_kwargs is None else func_kwargs
+
     # Nodes and weights of the standard n-point Gauss-Legendre rule on [-1, 1].
     standard_nodes, standard_weights = _cached_roots_legendre(n)
 
@@ -83,7 +85,7 @@ def gauss_legendre(func, a, b, n=5, args=(), func_kwargs={}):
     return np.sum(weights * func(nodes, *args, **func_kwargs), axis=1)
 
 
-def fixed_quad_batch(func, a, b, n=5, args=(), func_kwargs={}):
+def fixed_quad_batch(func, a, b, n=5, args=(), func_kwargs=None):
     """
     Compute a definite integral using fixed-order Gaussian quadrature.
 
@@ -140,6 +142,9 @@ def fixed_quad_batch(func, a, b, n=5, args=(), func_kwargs={}):
     """
     a = np.asarray(a)
     b = np.asarray(b)
+
+    func_kwargs = {} if func_kwargs is None else func_kwargs
+
     standard_nodes, standard_weights = _cached_roots_legendre(n)
     nodes = (b - a).reshape(-1, 1) * (standard_nodes + 1) / 2.0 + a.reshape(-1, 1)
     return np.squeeze(

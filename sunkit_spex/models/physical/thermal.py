@@ -623,14 +623,14 @@ def continuum_emission(
     fe,
     abundance_type=DEFAULT_ABUNDANCE_TYPE,
 ):
-    f"""Calculate the thermal X-ray continuum emission from the solar atmosphere.
+    """Calculate the thermal X-ray continuum emission from the solar atmosphere.
 
     The emission is calculated as a function of temperature and emission measure.
-    Which continuum mechanisms are included --- free-free, free-bound, or two-photon --- are
+    Which continuum mechanisms are included -- free-free, free-bound, or two-photon -- are
     determined by the file from which the comtinuum parameters are loaded.
     To change the file used, see the setup_continuum_parameters() function.
 
-    {doc_string_params}"""
+    """
 
     # Sanitize inputs
     energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
@@ -656,6 +656,9 @@ def continuum_emission(
     return flux
 
 
+continuum_emission.__doc__ += doc_string_params
+
+
 @u.quantity_input
 def line_emission(
     energy_edges,
@@ -670,10 +673,10 @@ def line_emission(
     fe,
     abundance_type=DEFAULT_ABUNDANCE_TYPE,
 ):
-    f"""
+    """
     Calculate thermal line emission from the solar corona.
 
-    {doc_string_params}"""
+    """
 
     # Sanitize inputs
     energy_edges_keV, temperature_K, emission_measure = _sanitize_inputs(energy_edges, temperature, emission_measure)
@@ -699,6 +702,9 @@ def line_emission(
         flux = flux[0]
 
     return flux
+
+
+line_emission.__doc__ += doc_string_params
 
 
 def _continuum_emission(energy_edges_keV, temperature_K, abundances):
@@ -1181,7 +1187,7 @@ def _warn_if_input_outside_valid_range(input_values, grid_range, param_name, par
             f"{grid_range[0]}--{grid_range[1]} {param_unit}. "
             "Flux will be zero outside this range."
         )
-        warnings.warn(message)
+        warnings.warn(message, stacklevel=2)
 
 
 def _error_if_low_energy_input_outside_valid_range(input_values, grid_range, param_name, param_unit):
