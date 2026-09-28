@@ -16,7 +16,7 @@ def gaussian(data_ys, model_ys, data_y_weights, **kwargs):
     r"""Gaussian log-likelihood (to be maximized).
 
     .. math::
-        ln(L_{Gauss}) = -\frac{N}{2} ln(2\pi \sigma^{2}) - \frac{1}{2}\Chi^{2}
+        ln(L_{Gauss}) = -\frac{N}{2} ln(2\pi \sigma^{2}) - \frac{1}{2}\chi^{2}
 
     where N is the number of observed bins, sigma is the data error, and
     chi-squared is its usual, minimise version.
