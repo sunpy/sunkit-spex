@@ -1,0 +1,1 @@
+The ``sunkit_spex.models.scaling.Constant`` class did not accept ``**kwargs`` and so functionality like fixing the constant value or adding bounds was not possible. The model now accepts ``**kwargs``.
