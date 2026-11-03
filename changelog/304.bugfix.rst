@@ -1,0 +1,1 @@
+Allow loading of RHESSI fits files with `SUMFLAG=0` which only contain data from one detector.
