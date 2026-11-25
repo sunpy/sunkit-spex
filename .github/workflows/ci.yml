@@ -85,7 +85,7 @@ jobs:
         - windows: py312
           cache-key: sunpy-data-windows-${{ github.ref }}
           cache-restore-keys: sunpy-data-windows-refs/heads/main
-        - macos: py312
+        - macos: py313
           cache-key: sunpy-data-macos-${{ github.ref }}
           ache-restore-keys: sunpy-data-macos-refs/heads/main
         - linux: py312-oldestdeps
