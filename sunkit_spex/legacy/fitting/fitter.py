@@ -1625,7 +1625,7 @@ class Fitter:
         """
         useful_inds = []
         # if multiple spectra are loaded then have multiple channel lists
-        if (len(np.shape(channel)) == 2) or (type(channel) == list):
+        if (type(channel) == list) or (len(np.shape(channel)) == 2):
             for c, f in zip(channel, fitting_range.values()):
                 c = np.array(c)
                 in_range = (
